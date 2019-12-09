@@ -11,14 +11,13 @@
 ├── setup.py                          : Python setup file with requirements files 
 ├── scripts                           : a folder contains RL steering scripts
 ├── agents                            : a folder contains agent codes
+    └── agent_cfg                     : a folder that contains the default agent configurations   
 └── exa_gym                           : a folder containing the ExaLearn environments
     └── __init__.py                   : the list of environments registered with gym
     └── core                          : a folder containing core code (MPI, base class) for the ExaLean environments
-    └── cfg                           : a folder that contains the default envinment configurations   
+    └── env_cfg                       : a folder that contains the default environment configurations   
     └── envs                          : a folder containing the ExaLearn environments
-├── cfg                               : a folder contains agent and environement configurations
-├── utils                             : a folder contains utilities
-          
+├── utils                             : a folder contains utilities         
 ```
 
 ## Installing 
