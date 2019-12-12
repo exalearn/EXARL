@@ -13,5 +13,5 @@ register(
 
 register(
     id='ExaLearnCartpole-v0',
-    entry_point='exa_gym.envs:ExaCartpole',
+    entry_point='exa_gym.envs:ExaCartpole'
 )
