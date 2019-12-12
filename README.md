@@ -10,6 +10,7 @@
 ```
 ├── setup.py                          : Python setup file with requirements files 
 ├── scripts                           : a folder contains RL steering scripts
+├── mpi_scripts                       : a folder contains RL MPI steering scripts
 ├── agents                            : a folder contains agent codes
     └── agent_cfg                     : a folder that contains the default agent configurations   
 └── exa_gym                           : a folder containing the ExaLearn environments
