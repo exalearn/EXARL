@@ -22,7 +22,7 @@ class ExaCartpole(gym.Env):
         worker = './exa_gym/envs/cpi.py'
         comm = MPI.COMM_SELF.Spawn(sys.executable,
                                    args=[worker],
-                                   maxprocs=5)
+                                   maxprocs=2)
 
         N = np.array(100, 'i')
         comm.Bcast([N, MPI.INT], root=MPI.ROOT)
