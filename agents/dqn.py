@@ -51,7 +51,8 @@ class DQN:
         ##
         self.model = self._build_model()
         self.target_model = self._build_model()
-
+        self.target_weights = self.target_model.get_weights()
+        
         ## Save infomation ##
         train_file_name = "dqn_mse_cartpole_%s_lr%s__tau%s_v1.log" % (self.search_method, str(self.learning_rate) ,str(self.tau) )
         #train_file_name = "dqn_mse_tau_bcp_rewardv2_%s_lr%s_fixinit_v1.log" % (self.search_method, str(self.learning_rate) )
@@ -163,7 +164,7 @@ class DQN:
         for i in range(len(target_weights)):
             target_weights[i] = self.tau*model_weights[i] + (1-self.tau)*target_weights[i]
         self.target_model.set_weights(target_weights)
-        #self.target_model.set_weights(self.model.get_weights())
+        self.target_weights = target_weights
 
     def epsilon_adj(self):
         if self.epsilon > self.epsilon_min:
