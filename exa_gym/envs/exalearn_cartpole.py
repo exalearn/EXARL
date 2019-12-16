@@ -35,7 +35,7 @@ class ExaCartpole(gym.Env):
         return next_state, reward, done, info
 
     def reset(self):
-        self.env.reset()
+        return self.env.reset()
 
     def render(self, mode='human', close=False):
-        self.env.render()
+        return self.env.render()
