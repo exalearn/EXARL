@@ -21,8 +21,18 @@ logger.setLevel(logging.INFO)
 class DQN:
     def __init__(self, env,cfg='agents/agent_cfg/dqn_setup.json'):
         self.env = env
-        self.memory = deque(maxlen = 2000)
+        self.memory = deque(maxlen = 5000)
 
+        #########
+        ## MPI ##
+        #########
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        self.rank = comm.Get_rank()
+        self.size = comm.Get_size()
+        logger.info("Rank: %s" % self.rank)
+        logger.info("Size: %s" % self.size)
+    
         ## Implement the UCB approach
         self.sigma = 2 # confidence level
         self.total_actions_taken = 1
@@ -54,8 +64,7 @@ class DQN:
         self.target_weights = self.target_model.get_weights()
         
         ## Save infomation ##
-        train_file_name = "dqn_mse_cartpole_%s_lr%s__tau%s_v1.log" % (self.search_method, str(self.learning_rate) ,str(self.tau) )
-        #train_file_name = "dqn_mse_tau_bcp_rewardv2_%s_lr%s_fixinit_v1.log" % (self.search_method, str(self.learning_rate) )
+        train_file_name = "dqn_exacartpole_%s_lr%s_tau%s_v1.log" % (self.search_method, str(self.learning_rate) ,str(self.tau) )
         self.train_file = open(train_file_name, 'w')
         self.train_writer = csv.writer(self.train_file, delimiter = " ")
 
@@ -67,17 +76,17 @@ class DQN:
         ## Input: state ##       
         state_input = Input(self.env.observation_space.shape)
         #s1 = BatchNormalization()(state_input)
-        h1 = Dense(24, activation='relu')(state_input)
+        h1 = Dense(64, activation='relu')(state_input)
         #b1 = BatchNormalization()(h1)
-        h2 = Dense(48, activation='relu')(h1)
+        h2 = Dense(128, activation='relu')(h1)
         #b2 = BatchNormalization()(h2)
-        h3 = Dense(24, activation='relu')(h2)
+        #h3 = Dense(24, activation='relu')(h2)
         ## Output: action ##   
-        output = Dense(self.env.action_space.n,activation='relu')(h3)
+        output = Dense(self.env.action_space.n,activation='relu')(h2)
         model = Model(input=state_input, output=output)
         adam = Adam(lr=self.learning_rate)
         model.compile(loss='mse', optimizer=adam)
-#        model.compile(loss='mean_squared_logarithmic_error', optimizer=adam)
+        #model.compile(loss='mean_squared_logarithmic_error', optimizer=adam)
         return model       
 
     def remember(self, state, action, reward, next_state, done):
@@ -87,13 +96,14 @@ class DQN:
         action = -1
         ## TODO: Update greed-epsilon to something like UBC
         if np.random.rand() <= self.epsilon and self.search_method=="epsilon":
-            print('Random action')
+            logger.info('Random action')
             action = random.randrange(self.env.action_space.n)        
             ## Update randomness
-            if len(self.memory)>(self.batch_size):
-                self.epsilon_adj()
+            #if len(self.memory)>(self.batch_size):
+            self.epsilon_adj()
+            
         else:
-            print('Policy action')
+            logger.info('Policy action')
             np_state = np.array(state).reshape(1,len(state))
             act_values = self.target_model.predict(np_state)
             action = np.argmax(act_values[0])
@@ -116,29 +126,29 @@ class DQN:
             #        action = mask[random.randint(0,ncands-1)]
             #    print( (action))
             #    print('END UCB')
-            print(act_values)
-            print(action)
+            #print(act_values)
+            #print(action)
             mask = [i for i in range(len(act_values[0])) if act_values[0][i] == act_values[0][action]]
             ncands=len(mask)
-            print( 'Number of cands: %s' % str(ncands))
+            # print( 'Number of cands: %s' % str(ncands))
             if ncands>1:
                 action = mask[random.randint(0,ncands-1)]
         ## Capture the action statistics for the UBC methods
-        print('total_actions_taken: %s' % self.total_actions_taken)
-        print('individual_action_taken[%s]: %s' % (action,self.individual_action_taken[action]))
+        #print('total_actions_taken: %s' % self.total_actions_taken)
+        #print('individual_action_taken[%s]: %s' % (action,self.individual_action_taken[action]))
         self.total_actions_taken += 1
         self.individual_action_taken[action]+=1
 
         return action
 
     def play(self,state):
-        act_values = self.model.predict(state)
+        act_values = self.target_model.predict(state)
         return np.argmax(act_values[0])
 
     def train(self):
         if len(self.memory)<(self.batch_size):
-            return
-        print('### TRAINING ###')
+            return 
+        logger.info('### TRAINING ###')
         losses = []
         minibatch = random.sample(self.memory, self.batch_size)
         for state, action, reward, next_state, done in minibatch:
@@ -154,13 +164,14 @@ class DQN:
             losses.append(history.history['loss'])
         self.target_train()
         self.train_writer.writerow([np.mean(losses)])
-        self.train_file.flush()            
+        self.train_file.flush()
 
     def target_train(self):
         if len(self.memory)%(self.batch_size)!=0:
-            return
+            return 
+        logger.info('### TARGET UPDATE ###')
         model_weights  = self.model.get_weights()
-        target_weights =self.target_model.get_weights()
+        target_weights = self.target_model.get_weights()
         for i in range(len(target_weights)):
             target_weights[i] = self.tau*model_weights[i] + (1-self.tau)*target_weights[i]
         self.target_model.set_weights(target_weights)
@@ -169,9 +180,10 @@ class DQN:
     def epsilon_adj(self):
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
+            logger.info('New epsilon: %s ' % self.epsilon)
 
     def load(self, name):
-        self.model.load_weights(name)
+        self.model.load_weights(name) 
 
     def save(self, name):
         self.model.save_weights(name)
