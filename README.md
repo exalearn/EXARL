@@ -31,3 +31,8 @@ git clone https://github.com/exalearn/ExaRL.git
 cd ExaRL
 pip install -e . --user
 ```
+
+## Example to run ExaRL using MPI 
+```
+mpiexec -np 3 python mpi_scripts/mpi_dqn_exacartpole.py
+```
