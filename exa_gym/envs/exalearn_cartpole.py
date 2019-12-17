@@ -18,6 +18,9 @@ class ExaCartpole(gym.Env):
     def step(self, action):
         next_state, reward, done, info = self.env.step(action)
         time.sleep(0) # Delay in seconds
+        ##
+        parent_comm = MPI.Comm.Get_parent()
+        
         # Compute PI with dynamic process spawning
         worker = './exa_gym/envs/cpi.py'
         comm = MPI.COMM_SELF.Spawn(sys.executable,
@@ -28,7 +31,7 @@ class ExaCartpole(gym.Env):
         comm.Bcast([N, MPI.INT], root=MPI.ROOT)
         PI = np.array(0.0, 'd')
         comm.Reduce(None, [PI, MPI.DOUBLE],op=MPI.SUM, root=MPI.ROOT)
-        print(PI)
+        #print(PI)
 
         comm.Disconnect()
 
