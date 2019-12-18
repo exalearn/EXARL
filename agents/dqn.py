@@ -21,7 +21,7 @@ logger.setLevel(logging.INFO)
 class DQN:
     def __init__(self, env,cfg='agents/agent_cfg/dqn_setup.json'):
         self.env = env
-        self.memory = deque(maxlen = 5000)
+        self.memory = deque(maxlen = 2000)
 
         #########
         ## MPI ##
