@@ -24,10 +24,12 @@ class ExaCartpole(gym.Env):
         parent_comm = MPI.Comm.Get_parent()
         
         # Compute PI with dynamic process spawning
-        worker = './exa_gym/envs/cpi.py'
         with open(self.cfg) as json_file:
             data = json.load(json_file)
+        
         num_child_per_parent = int(data['child_spawn_per_parent']) if 'child_spawn_per_parent' in data.keys() else 1
+        worker = (data['worker_app']).lower() if 'worker_app' in data.keys() else "/exa_gym/envs/cpi.py" 
+        
         comm = MPI.COMM_SELF.Spawn(sys.executable,
                                    args=[worker],
                                    maxprocs=num_child_per_parent)
