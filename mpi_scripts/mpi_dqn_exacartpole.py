@@ -30,8 +30,8 @@ if __name__ == "__main__":
     ###########
     ## Train ##
     ###########
-    EPISODES = 200
-    NSTEPS   = 200
+    EPISODES = 10
+    NSTEPS   = 100
 
     #######################
     ## Setup environment ##
