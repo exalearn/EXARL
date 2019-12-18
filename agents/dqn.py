@@ -39,10 +39,17 @@ class DQN:
         self.individual_action_taken = np.ones(self.env.action_space.n)
             
         ## Setup GPU cfg
-        config = tf.ConfigProto()
-        config.gpu_options.allow_growth = True
-        sess = tf.Session(config=config)
-        set_session(sess)
+        tf_version = int((tf.__version__)[0])
+        if tf_version < 2:
+            config = ConfigProto()
+            config.gpu_options.allow_growth = True
+            sess = Session(config=config)
+            set_session(sess)
+        elif tf_version >= 2:
+            config = tf.compat.v1.ConfigProto()
+            config.gpu_options.allow_growth = True
+            sess = tf.compat.v1.Session(config=config)
+            tf.compat.v1.keras.backend.set_session(sess)
         
         ## Get hyper-parameters from json cfg file
         data = []
