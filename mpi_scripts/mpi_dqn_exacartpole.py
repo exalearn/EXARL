@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import random, math
 import gym
-from tqdm import tqdm
 import time
+from mpi4py import MPI
 
 ##
 import logging
@@ -20,7 +20,6 @@ if __name__ == "__main__":
     #########
     ## MPI ##
     #########
-    from mpi4py import MPI
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
@@ -30,8 +29,8 @@ if __name__ == "__main__":
     ###########
     ## Train ##
     ###########
-    EPISODES = 10
-    NSTEPS   = 100
+    EPISODES = 2
+    NSTEPS   = 2
 
     #######################
     ## Setup environment ##
@@ -45,6 +44,8 @@ if __name__ == "__main__":
     logger.info('Using environment: %s' % env)
     logger.info('Observation_space: %s' % env.observation_space.shape)
     logger.info('Action_size: %s' % env.action_space)
+
+    logger.setLevel(logging.INFO)
 
     #################
     ## Setup agent ##
@@ -62,8 +63,9 @@ if __name__ == "__main__":
     target_weights = None 
     rank0_memories = 0
     
-    for e in tqdm(range(EPISODES), desc='RL Episodes', leave=True):
-        logger.info('Starting new episode: %s' % str(e))
+    #for e in tqdm(range(EPISODES), desc='RL Episodes', leave=True):
+    for e in (range(EPISODES)):
+        logger.info('Rank[%s] - Starting new episode: %s' % (str(rank),str(e)))
         current_state = env.reset()
         total_reward=0
         done = False
@@ -120,3 +122,4 @@ if __name__ == "__main__":
         agent.save(filename_prefix+'.h5')
         train_file.close()
 
+    #comm.Disconnect()
