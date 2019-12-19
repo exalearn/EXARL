@@ -1,22 +1,30 @@
 import random,sys
 import numpy as np
 from collections import deque
-from tensorflow.keras.models import Sequential,Model
-from tensorflow.keras.layers import Dense,Dropout,Input,BatchNormalization
-from tensorflow.keras.optimizers import Adam
-#from keras import backend as K
-from tensorflow.keras import backend as K
+import tensorflow as tf
 import csv
 import json
 import math
-
-import tensorflow as tf
-from keras.backend.tensorflow_backend import set_session
-
 import logging
+
+from keras.backend.tensorflow_backend import set_session
+tf_version = int((tf.__version__)[0])
+
+if tf_version < 2:
+    from tensorflow.keras.models import Sequential,Model
+    from tensorflow.keras.layers import Dense,Dropout,Input,BatchNormalization
+    from tensorflow.keras.optimizers import Adam
+    from tensorflow.keras import backend as K
+elif tf_version >=2:
+    from keras.models import Sequential,Model
+    from keras.layers import Dense,Dropout,Input,BatchNormalization
+    from keras.optimizers import Adam
+    from keras import backend as K
+
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
-logger.setLevel(logging.INFO)
+#logger.setLevel(logging.INFO)
+logger.setLevel(logging.NOTSET)
 
 #The Deep Q-Network (DQN)
 class DQN:
@@ -40,7 +48,6 @@ class DQN:
         self.individual_action_taken = np.ones(self.env.action_space.n)
 
         ## Setup GPU cfg
-        tf_version = int((tf.__version__)[0])
         if tf_version < 2:
             config = tf.ConfigProto()
             config.gpu_options.allow_growth = True
