@@ -29,8 +29,8 @@ if __name__ == "__main__":
     ###########
     ## Train ##
     ###########
-    EPISODES = 2
-    NSTEPS   = 2
+    EPISODES = 100
+    NSTEPS   = 100
 
     #######################
     ## Setup environment ##
@@ -45,7 +45,7 @@ if __name__ == "__main__":
     logger.info('Observation_space: %s' % env.observation_space.shape)
     logger.info('Action_size: %s' % env.action_space)
 
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.ERROR)
 
     #################
     ## Setup agent ##
@@ -65,7 +65,7 @@ if __name__ == "__main__":
     
     #for e in tqdm(range(EPISODES), desc='RL Episodes', leave=True):
     for e in (range(EPISODES)):
-        logger.info('Rank[%s] - Starting new episode: %s' % (str(rank),str(e)))
+        logger.infoerror('Rank[%s] - Starting new episode: %s' % (str(rank),str(e)))
         current_state = env.reset()
         total_reward=0
         done = False

@@ -52,6 +52,8 @@ class ExaCartpole(gym.Env):
         return next_state, reward, done, info
 
     def reset(self):
+        self.env._max_episode_steps=self._max_episode_steps
+        print('Max steps: %s' % str(self._max_episode_steps))
         return self.env.reset()
 
     def render(self, mode='human', close=False):
