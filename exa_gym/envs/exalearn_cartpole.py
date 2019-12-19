@@ -11,37 +11,44 @@ class ExaCartpole(gym.Env):
     metadata = {'render.modes': ['human']}
 
     def __init__(self, cfg='exa_gym/envs/env_cfg/env_setup.json'):
+        self._max_episode_steps = 0
         self.env = gym.make('CartPole-v0')
+        self.env._max_episode_steps=self._max_episode_steps
+        print('Max steps: %s' % str(self._max_episode_steps))
         #self.env = gym.make('FrozenLake-v0')
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
         self.cfg = cfg
+        with open(self.cfg) as json_file:
+            data = json.load(json_file)
+        
+        self.num_child_per_parent = int(data['child_spawn_per_parent']) if 'child_spawn_per_parent' in data.keys() else 1
+        self.worker = (data['worker_app']).lower() if 'worker_app' in data.keys() else "/exa_gym/envs/cpi.py"
+
+        ##
 
     def step(self, action):
         next_state, reward, done, info = self.env.step(action)
         time.sleep(0) # Delay in seconds
         ##
-        parent_comm = MPI.Comm.Get_parent()
         
         # Compute PI with dynamic process spawning
-        with open(self.cfg) as json_file:
-            data = json.load(json_file)
-        
-        num_child_per_parent = int(data['child_spawn_per_parent']) if 'child_spawn_per_parent' in data.keys() else 1
-        worker = (data['worker_app']).lower() if 'worker_app' in data.keys() else "/exa_gym/envs/cpi.py" 
-        
-        comm = MPI.COMM_SELF.Spawn(sys.executable,
-                                   args=[worker],
-                                   maxprocs=num_child_per_parent)
+       
+        #parent_comm = MPI.Comm.Get_parent()
+        spawn_comm = MPI.COMM_SELF.Spawn(sys.executable,
+                                   args=[self.worker],
+                                   maxprocs=self.num_child_per_parent)#.Merge()
 
         N = np.array(100, 'i')
-        comm.Bcast([N, MPI.INT], root=MPI.ROOT)
+        spawn_comm.Bcast([N, MPI.INT], root=MPI.ROOT)
         PI = np.array(0.0, 'd')
-        comm.Reduce(None, [PI, MPI.DOUBLE],op=MPI.SUM, root=MPI.ROOT)
+        spawn_comm.Reduce(None, [PI, MPI.DOUBLE],op=MPI.SUM, root=MPI.ROOT)
         #print(PI)
 
-        comm.Disconnect()
-
+        spawn_comm.Disconnect()
+        #comm_world.Disconnect()
+        #comm_slave.Free()
+        
         return next_state, reward, done, info
 
     def reset(self):
