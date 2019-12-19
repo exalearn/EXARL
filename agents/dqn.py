@@ -1,10 +1,11 @@
 import random,sys
 import numpy as np
 from collections import deque
-from keras.models import Sequential,Model
-from keras.layers import Dense,Dropout,Input,BatchNormalization
-from keras.optimizers import Adam
-from keras import backend as K
+from tensorflow.keras.models import Sequential,Model
+from tensorflow.keras.layers import Dense,Dropout,Input,BatchNormalization
+from tensorflow.keras.optimizers import Adam
+#from keras import backend as K
+from tensorflow.keras import backend as K
 import csv
 import json
 import math
@@ -32,30 +33,30 @@ class DQN:
         self.size = comm.Get_size()
         logger.info("Rank: %s" % self.rank)
         logger.info("Size: %s" % self.size)
-    
+
         ## Implement the UCB approach
         self.sigma = 2 # confidence level
         self.total_actions_taken = 1
         self.individual_action_taken = np.ones(self.env.action_space.n)
-            
+
         ## Setup GPU cfg
         tf_version = int((tf.__version__)[0])
         if tf_version < 2:
-            config = ConfigProto()
+            config = tf.ConfigProto()
             config.gpu_options.allow_growth = True
-            sess = Session(config=config)
+            sess = tf.Session(config=config)
             set_session(sess)
         elif tf_version >= 2:
             config = tf.compat.v1.ConfigProto()
             config.gpu_options.allow_growth = True
             sess = tf.compat.v1.Session(config=config)
             tf.compat.v1.keras.backend.set_session(sess)
-        
+
         ## Get hyper-parameters from json cfg file
         data = []
         with open(cfg) as json_file:
             data = json.load(json_file)
-            
+
         self.search_method =  (data['search_method']).lower() if 'search_method' in data.keys() else "epsilon"  # discount rate
         self.gamma =  float(data['gamma']) if 'gamma' in data.keys() else 0.95  # discount rate
         self.epsilon = float(data['epsilon']) if 'epsilon' in data.keys() else 1.0  # exploration rate
@@ -69,7 +70,7 @@ class DQN:
         self.model = self._build_model()
         self.target_model = self._build_model()
         self.target_weights = self.target_model.get_weights()
-        
+
         ## Save infomation ##
         train_file_name = "dqn_exacartpole_%s_lr%s_tau%s_v1.log" % (self.search_method, str(self.learning_rate) ,str(self.tau) )
         self.train_file = open(train_file_name, 'w')
@@ -90,11 +91,11 @@ class DQN:
         #h3 = Dense(24, activation='relu')(h2)
         ## Output: action ##   
         output = Dense(self.env.action_space.n,activation='relu')(h2)
-        model = Model(input=state_input, output=output)
+        model = Model(inputs=state_input, outputs=output)
         adam = Adam(lr=self.learning_rate)
         model.compile(loss='mse', optimizer=adam)
         #model.compile(loss='mean_squared_logarithmic_error', optimizer=adam)
-        return model       
+        return model
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
@@ -104,11 +105,11 @@ class DQN:
         ## TODO: Update greed-epsilon to something like UBC
         if np.random.rand() <= self.epsilon and self.search_method=="epsilon":
             logger.info('Random action')
-            action = random.randrange(self.env.action_space.n)        
+            action = random.randrange(self.env.action_space.n)
             ## Update randomness
             #if len(self.memory)>(self.batch_size):
             self.epsilon_adj()
-            
+
         else:
             logger.info('Policy action')
             np_state = np.array(state).reshape(1,len(state))
@@ -154,14 +155,14 @@ class DQN:
 
     def train(self):
         if len(self.memory)<(self.batch_size):
-            return 
+            return
         logger.info('### TRAINING ###')
         losses = []
         minibatch = random.sample(self.memory, self.batch_size)
         for state, action, reward, next_state, done in minibatch:
             np_state = np.array(state).reshape(1,len(state))
             np_next_state = np.array(next_state).reshape(1,len(next_state))
-            expectedQ =0 
+            expectedQ =0
             if not done:
                 expectedQ = self.gamma*np.amax(self.target_model.predict(np_next_state)[0])
             target = reward + expectedQ
@@ -175,7 +176,7 @@ class DQN:
 
     def target_train(self):
         if len(self.memory)%(self.batch_size)!=0:
-            return 
+            return
         logger.info('### TARGET UPDATE ###')
         model_weights  = self.model.get_weights()
         target_weights = self.target_model.get_weights()
@@ -190,7 +191,7 @@ class DQN:
             logger.info('New epsilon: %s ' % self.epsilon)
 
     def load(self, name):
-        self.model.load_weights(name) 
+        self.model.load_weights(name)
 
     def save(self, name):
         self.model.save_weights(name)
