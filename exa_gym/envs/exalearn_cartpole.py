@@ -14,7 +14,7 @@ class ExaCartpole(gym.Env):
         self._max_episode_steps = 0
         self.env = gym.make('CartPole-v0')
         self.env._max_episode_steps=self._max_episode_steps
-        print('Max steps: %s' % str(self._max_episode_steps))
+        #print('Max steps: %s' % str(self._max_episode_steps))
         #self.env = gym.make('FrozenLake-v0')
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
@@ -53,7 +53,7 @@ class ExaCartpole(gym.Env):
 
     def reset(self):
         self.env._max_episode_steps=self._max_episode_steps
-        print('Max steps: %s' % str(self._max_episode_steps))
+        #print('Max steps: %s' % str(self._max_episode_steps))
         return self.env.reset()
 
     def render(self, mode='human', close=False):

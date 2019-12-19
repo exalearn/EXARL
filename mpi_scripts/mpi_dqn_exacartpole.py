@@ -65,7 +65,7 @@ if __name__ == "__main__":
     
     #for e in tqdm(range(EPISODES), desc='RL Episodes', leave=True):
     for e in (range(EPISODES)):
-        logger.infoerror('Rank[%s] - Starting new episode: %s' % (str(rank),str(e)))
+        logger.error('Rank[%s] - Starting new episode: %s' % (str(rank),str(e)))
         current_state = env.reset()
         total_reward=0
         done = False
