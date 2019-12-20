@@ -77,7 +77,8 @@ class DQN:
         self.model = self._build_model()
         self.target_model = self._build_model()
         self.target_weights = self.target_model.get_weights()
-
+        
+        print('*************************WORKING!!!*******************************')
         ## Save infomation ##
         train_file_name = "dqn_exacartpole_%s_lr%s_tau%s_v1.log" % (self.search_method, str(self.learning_rate) ,str(self.tau) )
         self.train_file = open(train_file_name, 'w')
