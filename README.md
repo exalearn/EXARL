@@ -26,7 +26,7 @@
 ```
 git clone https://github.com/exalearn/ExaRL.git
 ```
-* Install ExaRL (via pip):
+* Install dependencies for ExaRL:
 ```
 cd ExaRL
 pip install -e . --user
