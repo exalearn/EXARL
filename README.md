@@ -4,7 +4,7 @@
 * Python 3.7 
 * The environment framework is built of [OpenAI Gym](https://gym.openai.com) 
 * Additional python packages are defined in the setup.py 
-* For now, we assumes you are running at the top directory 
+* For now, we assume you are running at the top directory 
 
 ## Directory Organization
 ```
