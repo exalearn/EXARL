@@ -2,9 +2,9 @@
 
 ## Software Requirement
 * Python 3.7 
-* The environemnt framework is built of [OpenAI Gym](https://gym.openai.com) 
+* The environment framework is built of [OpenAI Gym](https://gym.openai.com) 
 * Additional python packages are defined in the setup.py 
-* For now, we assumes you are running at the top directory 
+* For now, we assume you are running at the top directory 
 
 ## Directory Organization
 ```
@@ -26,7 +26,7 @@
 ```
 git clone https://github.com/exalearn/ExaRL.git
 ```
-* Install ExaRL (via pip):
+* Install dependencies for ExaRL:
 ```
 cd ExaRL
 pip install -e . --user

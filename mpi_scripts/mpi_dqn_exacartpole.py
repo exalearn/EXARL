@@ -10,7 +10,7 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.ERROR)
 
-import agents
+import exa_gym_agents
 
 import csv
 
@@ -29,14 +29,14 @@ if __name__ == "__main__":
     ###########
     ## Train ##
     ###########
-    EPISODES = 100
+    EPISODES = 10
     NSTEPS   = 100
 
     #######################
     ## Setup environment ##
     #######################
     estart = time.time()
-    env = gym.make('exa_gym:ExaLearnCartpole-v0')
+    env = gym.make('exa_gym_envs:ExaLearnCartpole-v0')
     env._max_episode_steps=NSTEPS
     #env.seed(1)
     end = time.time()
@@ -50,7 +50,9 @@ if __name__ == "__main__":
     #################
     ## Setup agent ##
     #################
-    agent = agents.DQN(env)
+    #agent = agents.DQN(env)
+    agent = exa_gym_agents.make('exa_gym_agents:DQN-v0', env=env)
+
     search_type= 'epsilon'
 
     ##################
@@ -65,7 +67,7 @@ if __name__ == "__main__":
     
     #for e in tqdm(range(EPISODES), desc='RL Episodes', leave=True):
     for e in (range(EPISODES)):
-        logger.error('Rank[%s] - Starting new episode: %s' % (str(rank),str(e)))
+        print('Rank[%s] - Starting new episode: %s' % (str(rank),str(e)))
         current_state = env.reset()
         total_reward=0
         done = False
