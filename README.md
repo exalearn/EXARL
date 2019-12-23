@@ -55,7 +55,7 @@ register(
 ```
 * The id variable will pass to exaRL.make() to call environment
 
-* The file ```ExaRl/exa_env/envs/__init__.py``` should include
+* The file ```ExaRL/exa_env/envs/__init__.py``` should include
 ```
 from exa_envs.envs.foo_env import FooEnv
 ```
@@ -63,7 +63,7 @@ where ExaRL/exa_envs/envs/foo_env.py is the file containing your envirnoment
 
 ## Creating custom agents
 * ExaRL extends OpenAI gym's environment registration to agents
-* Register the agent in ```ExaRl/exa_agents/__init__.py```
+* Register the agent in ```ExaRL/exa_agents/__init__.py```
     
 ```
 from .registration import register, make
@@ -75,16 +75,16 @@ register(
 ```
 * The id variable will pass to exaRL.make() to call environment
 
-* The file ```ExaRl/exa_agents/agents/__init__.py``` should include
+* The file ```ExaRL/exa_agents/agents/__init__.py``` should include
 ```
 from exa_agents.agents.foo_agent import FooAgent
 ```
-where ExaRl/exa_agents/agents/foo_agent.py is the file containing your agent
+where ExaRL/exa_agents/agents/foo_agent.py is the file containing your agent
 
 ## Calling agents and environments in your scripts
 * ExaRL uses a unified syntax to call agents and environments
 ```
-import exaRl as erl
+import exaRL as erl
 agent, env = erl.make('fooAgent-v0', 'fooEnv-v0')
 ```
 
