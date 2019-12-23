@@ -73,7 +73,7 @@ register(
     entry_point='exa_agents.agents:FooAgent',
 )
 ```
-* The id variable will pass to exaRL.make() to call environment
+* The id variable will pass to exaRL.make() to call agent
 
 * The file ```ExaRL/exa_agents/agents/__init__.py``` should include
 ```
