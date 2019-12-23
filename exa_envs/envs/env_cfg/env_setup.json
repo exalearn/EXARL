@@ -1,0 +1,4 @@
+{
+	"child_spawn_per_parent": "2",
+	"worker_app": "./exa_envs/envs/cpi.py"
+}

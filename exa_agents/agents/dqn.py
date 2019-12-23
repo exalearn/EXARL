@@ -28,7 +28,7 @@ logger.setLevel(logging.NOTSET)
 
 #The Deep Q-Network (DQN)
 class DQN:
-    def __init__(self, env,cfg='exa_gym_agents/agents/agent_cfg/dqn_setup.json'):
+    def __init__(self, env,cfg='exa_agents/agents/agent_cfg/dqn_setup.json'):
         self.env = env
         self.memory = deque(maxlen = 2000)
 
@@ -78,7 +78,6 @@ class DQN:
         self.target_model = self._build_model()
         self.target_weights = self.target_model.get_weights()
         
-        print('*************************WORKING!!!*******************************')
         ## Save infomation ##
         train_file_name = "dqn_exacartpole_%s_lr%s_tau%s_v1.log" % (self.search_method, str(self.learning_rate) ,str(self.tau) )
         self.train_file = open(train_file_name, 'w')
