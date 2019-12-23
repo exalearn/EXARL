@@ -10,7 +10,7 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.ERROR)
 
-import exa_gym_agents
+import exa_agents
 
 import csv
 
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     ## Setup environment ##
     #######################
     estart = time.time()
-    env = gym.make('exa_gym_envs:ExaLearnCartpole-v0')
+    env = gym.make('exa_envs:ExaLearnCartpole-v0')
     env._max_episode_steps=NSTEPS
     #env.seed(1)
     end = time.time()
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     ## Setup agent ##
     #################
     #agent = agents.DQN(env)
-    agent = exa_gym_agents.make('exa_gym_agents:DQN-v0', env=env)
+    agent = exa_agents.make('exa_agents:DQN-v0', env=env)
 
     search_type= 'epsilon'
 

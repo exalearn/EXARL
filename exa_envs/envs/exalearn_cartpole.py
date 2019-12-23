@@ -10,7 +10,7 @@ import json
 class ExaCartpole(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, cfg='exa_gym_envs/envs/env_cfg/env_setup.json'):
+    def __init__(self, cfg='exa_envs/envs/env_cfg/env_setup.json'):
         self._max_episode_steps = 0
         self.env = gym.make('CartPole-v0')
         self.env._max_episode_steps=self._max_episode_steps
@@ -23,7 +23,7 @@ class ExaCartpole(gym.Env):
             data = json.load(json_file)
         
         self.num_child_per_parent = int(data['child_spawn_per_parent']) if 'child_spawn_per_parent' in data.keys() else 1
-        self.worker = (data['worker_app']).lower() if 'worker_app' in data.keys() else "/exa_gym_envs/envs/cpi.py"
+        self.worker = (data['worker_app']).lower() if 'worker_app' in data.keys() else "/exa_envs/envs/cpi.py"
 
         ##
 
