@@ -6,11 +6,13 @@ from mpi4py import MPI
 import numpy as np
 import sys
 import json
+import exa_base
 
-class ExaCartpole(gym.Env):
+class ExaCartpole(gym.Env, exa_base.base):
     metadata = {'render.modes': ['human']}
 
     def __init__(self, cfg='exa_envs/envs/env_cfg/env_setup.json'):
+        exa_base.base.__init__(self, agent_cfg=cfg)
         self._max_episode_steps = 0
         self.env = gym.make('CartPole-v0')
         self.env._max_episode_steps=self._max_episode_steps
@@ -21,9 +23,6 @@ class ExaCartpole(gym.Env):
         self.cfg = cfg
         with open(self.cfg) as json_file:
             data = json.load(json_file)
-        
-        self.num_child_per_parent = int(data['child_spawn_per_parent']) if 'child_spawn_per_parent' in data.keys() else 1
-        self.worker = (data['worker_app']).lower() if 'worker_app' in data.keys() else "/exa_envs/envs/cpi.py"
 
         ##
 

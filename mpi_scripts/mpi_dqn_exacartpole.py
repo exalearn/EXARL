@@ -10,7 +10,7 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.ERROR)
 
-import exaRL as erl
+import exa_base as erl
 
 import csv
 

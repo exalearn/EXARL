@@ -6,6 +6,7 @@ import csv
 import json
 import math
 import logging
+import exa_base
 
 from keras.backend.tensorflow_backend import set_session
 tf_version = int((tf.__version__)[0])
@@ -27,7 +28,7 @@ logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.NOTSET)
 
 #The Deep Q-Network (DQN)
-class DQN:
+class DQN(exa_base.base):
     def __init__(self, env,cfg='exa_agents/agents/agent_cfg/dqn_setup.json'):
         self.env = env
         self.memory = deque(maxlen = 2000)
@@ -60,19 +61,8 @@ class DQN:
             tf.compat.v1.keras.backend.set_session(sess)
 
         ## Get hyper-parameters from json cfg file
-        data = []
-        with open(cfg) as json_file:
-            data = json.load(json_file)
-
-        self.search_method =  (data['search_method']).lower() if 'search_method' in data.keys() else "epsilon"  # discount rate
-        self.gamma =  float(data['gamma']) if 'gamma' in data.keys() else 0.95  # discount rate
-        self.epsilon = float(data['epsilon']) if 'epsilon' in data.keys() else 1.0  # exploration rate
-        self.epsilon_min = float(data['epsilon_min']) if 'epsilon_min' in data.keys() else 0.05
-        self.epsilon_decay = float(data['epsilon_decay']) if 'epsilon_decay' in data.keys() else 0.995
-        self.learning_rate =  float(data['learning_rate']) if 'learning_rate' in data.keys() else  0.001
-        self.batch_size = int(data['batch_size']) if 'batch_size' in data.keys() else 32
-        self.tau = float(data['tau']) if 'tau' in data.keys() else 0.5
-
+        super().__init__(env_cfg=cfg)
+        
         ##
         self.model = self._build_model()
         self.target_model = self._build_model()
