@@ -11,7 +11,7 @@
 ├── setup.py                          : Python setup file with requirements files 
 ├── scripts                           : folder containing RL steering scripts
 ├── mpi_scripts                       : folder containing RL MPI steering scripts
-├── exaRL                             : folder containing wrapper script for unified syntax
+├── exa_base                          : folder containing base class and wrapper for unified syntax
 ├── exa_agents                        : folder containing ExaRL agents and registration scripts
     └── __init__.py                   : agent registry
     ├── agents                        : folder containing agents
