@@ -84,7 +84,7 @@ where ExaRL/exa_agents/agents/foo_agent.py is the file containing your agent
 ## Calling agents and environments in your scripts
 * ExaRL uses a unified syntax to call agents and environments
 ```
-import exaRL as erl
+import exa_base as erl
 agent, env = erl.make('fooAgent-v0', 'fooEnv-v0')
 ```
 
