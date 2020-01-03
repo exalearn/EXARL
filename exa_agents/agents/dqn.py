@@ -24,8 +24,8 @@ elif tf_version >=2:
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
-#logger.setLevel(logging.INFO)
-logger.setLevel(logging.NOTSET)
+logger.setLevel(logging.INFO)
+#logger.setLevel(logging.NOTSET)
 
 #The Deep Q-Network (DQN)
 class DQN(exa_base.base):
