@@ -67,14 +67,16 @@ class ExaDQN:
         train_writer = csv.writer(train_file, delimiter = " ")
 
         ## For Environments ##
-        self.env.set_results_dir(self.results_dir+'/rank'+str(rank))
+        #self.env.set_results_dir(self.results_dir+'/rank'+str(rank))
         #if self.render_env: self.env.render()
 
         for e in range(self.nepisodes):
             current_state = self.env.reset()
             total_reward=0
-            for s in range(self.nsteps):
-                print('Rank[%s] - Episode/Step %s/%s' % (str(rank),str(e),str(s)))
+            done = False
+            while done!=True:
+            #for s in range(self.nsteps):
+                #print('Rank[%s] - Episode/Step %s/%s' % (str(rank),str(e),str(s)))
                 
                 ## All workers ##
                 action = self.agent.action(current_state)
@@ -94,6 +96,8 @@ class ExaDQN:
                         self.agent.train()
                         rank0_memories = len(self.agent.memory)
                         target_weights = self.agent.target_model.get_weights()
+                        if rank0_memories%(size)==0:
+                            self.agent.save(self.results_dir+filename_prefix+'.h5')
 
                 ## Broadcast the memory size and the model weights to the workers  ##
                 rank0_memories = comm.bcast(rank0_memories, root=0)
@@ -101,7 +105,7 @@ class ExaDQN:
                 print('Rank[%s] - rank0 memories: %s' % (str(rank),str(rank0_memories)))
 
                 ## Set the model weight for all the workers
-                if comm.rank>0 and rank0_memories%(size*5)==0:
+                if comm.rank>0 and rank0_memories>30 and rank0_memories%(size)==0:
                     print('## Rank[%s] - Updating weights ##' % str(rank))
                     self.agent.target_model.set_weights(current_weights)
 
@@ -112,6 +116,10 @@ class ExaDQN:
                 ## Save memory for offline analysis
                 train_writer.writerow([current_state,action,reward,next_state,total_reward,done])
                 train_file.flush()
+
+                #if done==True:
+                #    print('done')
+                #    s = self.nsteps+1
 
         ## Save Learning target model
         if comm.rank==0:
