@@ -22,7 +22,8 @@ class ExaDQN:
         self.nepisodes=1
         self.nsteps=10
         self.results_dir='./results/'
-
+        self.do_render=False
+        
         ## Setup agent and environents
         self.agent_id = agent_id
         self.env_id   = env_id
@@ -42,6 +43,9 @@ class ExaDQN:
         self.results_dir=results_dir
         ## Set for agent
         ## Set for env
+
+    def render_env(self):
+        self.do_render=True
         
     def run(self):
         #########
@@ -62,6 +66,9 @@ class ExaDQN:
         train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
         train_writer = csv.writer(train_file, delimiter = " ")
 
+        ## For Environments ##
+        self.env.set_results_dir(self.results_dir+'/rank'+str(rank))
+        #if self.render_env: self.env.render()
 
         for e in range(self.nepisodes):
             current_state = self.env.reset()
@@ -100,12 +107,13 @@ class ExaDQN:
 
                 ## Update state
                 current_state = next_state
-
+                print('Rank[%s] - Total Reward:%s' % (str(rank),str(total_reward) ))
+                      
                 ## Save memory for offline analysis
                 train_writer.writerow([current_state,action,reward,next_state,total_reward,done])
                 train_file.flush()
 
         ## Save Learning target model
         if comm.rank==0:
-            self.agent.save(filename_prefix+'.h5')
+            self.agent.save(self.results_dir+filename_prefix+'.h5')
             train_file.close()

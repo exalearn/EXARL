@@ -18,7 +18,7 @@ logger.setLevel(logging.CRITICAL)
 class BlockCoPolymerTDLG(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self,cfg_file='../cfg/tdlg_setup.json',worker_index=1):
+    def __init__(self,cfg_file='../cfg/tdlg_setup.json'):#,worker_index=1):
         """ 
         Description:
            Environment used to run the TDLG 3D CH model 
@@ -59,12 +59,13 @@ class BlockCoPolymerTDLG(gym.Env):
         self._updateParamDict()
 
         ## for multi-worker training
-        self.worker_index = data['worker_index'] if 'worker_index' in data.keys() else worker_index
-        self.worker_dir = './multiworker/worker'+str(self.worker_index)
-        if os.path.exists(self.worker_dir): rmtree(self.worker_dir)
-        os.mkdir(self.worker_dir)
-        os.mkdir(self.worker_dir+'/archive/')
-        print ("worker directory: " + self.worker_dir)
+        #rank_index=0
+        self.worker_dir = './' #data['worker_index'] if 'worker_index' in data.keys() else rank_index
+        #self.worker_dir = './multiworker/worker'+str(self.worker_index)
+        #if os.path.exists(self.worker_dir): rmtree(self.worker_dir)
+        #os.mkdir(self.worker_dir)
+        #os.mkdir(self.worker_dir+'/archive/')
+        #print ("worker directory: " + self.worker_dir)
         
         ## for plotting
         self.rendering = False
@@ -93,12 +94,23 @@ class BlockCoPolymerTDLG(gym.Env):
 
         self.current_reward = 0
         self.total_reward   = 0
+
+        ##
+        self.episode_num = 0
+        self.step_num = 0
         
         ## Use reset function to do the rest
         self.reset()
         logger.info ("from __init__")
         logger.info (self.model_parameter)
 
+    def set_results_dir(self,results_dir):
+        self.worker_dir=results_dir
+        if os.path.exists(self.worker_dir): rmtree(self.worker_dir)
+        os.mkdir(self.worker_dir)
+        os.mkdir(self.worker_dir+'/archive/')
+        #print ("worker directory: " + self.worker_dir)
+        
     def _inMemory(self,state,action):
         ##
         inMemDict = {'inMem':False}
@@ -125,6 +137,8 @@ class BlockCoPolymerTDLG(gym.Env):
         return np.append(self.current_structure,round(self.model_parameter['kappa'],3))
     
     def step(self, action):
+        self.step_num+=1
+                
         logger.info('Env::step()')
 
         ## Default returns
@@ -163,7 +177,7 @@ class BlockCoPolymerTDLG(gym.Env):
         ## Get structure from model output 
         self.current_structure_name = self.worker_dir + '/field.out'
         self.current_structure, self.current_vol = self._get1DFFT(self.worker_dir + '/field.out')
-        copyfile(self.worker_dir + '/field.out', self.worker_dir + '/archive/'+str(self.episode_num)+'_field_'+str(self.step_num)+'.out')
+        #copyfile(self.worker_dir + '/field.out', self.worker_dir + '/archive/'+str(self.episode_num)+'_field_'+str(self.step_num)+'.out')
         
         ## Calculate reward
         reward = self._calculateReward()
@@ -353,6 +367,10 @@ class BlockCoPolymerTDLG(gym.Env):
         ## Return the state
         self.current_reward = 0
         self.total_reward   = 0
+
+        #
+        self.episode_num += 1
+        self.step_num = 0
         
         logger.info("=====reset=====")
         if os.path.exists(self.worker_dir+'/field.in'):
@@ -369,7 +387,7 @@ class BlockCoPolymerTDLG(gym.Env):
         self.rendering = True
         data = self.cfg_data
         
-        self.plot_folder = data['plot_folder'] if 'plot_folder' in data.keys() else 'plot_bcp_tdlg/worker'+str(self.worker_index)+'/'
+        self.plot_folder = self.worker_dir + '/plots/' #data['plot_folder'] if 'plot_folder' in data.keys() else 'plot_bcp_tdlg/worker'+str(self.worker_index)+'/'
         if os.path.exists(self.plot_folder): rmtree(self.plot_folder)
         os.makedirs(self.plot_folder)
         
