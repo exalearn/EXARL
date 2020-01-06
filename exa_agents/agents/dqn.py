@@ -29,7 +29,8 @@ logger.setLevel(logging.INFO)
 
 #The Deep Q-Network (DQN)
 class DQN(exa_base.base):
-    def __init__(self, env,cfg='exa_agents/agents/agent_cfg/dqn_setup.json'):
+    def __init__(self, env, cfg='exa_agents/agents/agent_cfg/dqn_setup.json'):
+        exa_base.base.__init__(self, agent_cfg=cfg)
         self.env = env
         self.memory = deque(maxlen = 2000)
 
