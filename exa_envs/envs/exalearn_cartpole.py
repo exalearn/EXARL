@@ -12,7 +12,7 @@ class ExaCartpole(gym.Env, exa_base.base):
     metadata = {'render.modes': ['human']}
 
     def __init__(self, cfg='exa_envs/envs/env_cfg/env_setup.json'):
-        exa_base.base.__init__(self, agent_cfg=cfg)
+        exa_base.base.__init__(self, env_cfg=cfg)
         self._max_episode_steps = 0
         self.env = gym.make('CartPole-v0')
         self.env._max_episode_steps=self._max_episode_steps
