@@ -13,29 +13,60 @@ from collections import namedtuple
 import matplotlib.pyplot as plt
 
 import gym
-from gym import spaces
+from gym import error, spaces, utils
+from gym.utils import seeding
 
 #sys.path.append('./cahnhilliard_2d/cpp/python') # CH-solver
-sys.path.append('/home/kagawa/Projects/ExaLearn/cahnhilliard_2d/cpp/python') # CH-solver
+sys.path.append('/home/kagawa/Projects/NESAP/cahnhilliard_2d/cpp/python') # CH-solver
 #sys.path.append('/project/projectdirs/mpccc/tkurth/DataScience/exalearn_rl/src/cahnhilliard_2d/cpp/python')
 
-from utils import *
 import ch2d.aligned_vector as av
 import ch2d.cahnhilliard as ch
+#import aligned_vector as av
+#import cahnhilliard as ch
 import image_structure
+#from utils import *
+
+import os
+import sys
+import shutil
+import time
+import datetime as dt
+
+def print_status(msg, *args, comm_rank=None, showtime=True, barrier=True, allranks=False, flush=True):
+    if comm_rank == None:
+        comm_rank = 0
+    #if not comm:
+    #    comm = MPI.COMM_WORLD
+    #if barrier:
+    #    comm.Barrier()
+    if showtime:
+        s = dt.datetime.now().strftime('[%H:%M:%S.%f] ')
+    else:
+        s = ''
+    if allranks:
+        s += '{' + str(comm_rank) + '} '
+    else:
+        if comm_rank > 0:
+            return
+    s += msg.format(*args)
+    print(s, flush=flush)
 
 ############################# Environment class #############################
 
 class CahnHilliardEnv(gym.Env):
 
-  """Custom Environment that follows gym interface"""
-  metadata = {'render.modes': ['human']}
+    """Custom Environment that follows gym interface"""
+    metadata = {'render.modes': ['human']}
 
-      def __init__(self, args: argparse.Namespace, comm=None):
+    def __init__(self, args: argparse.Namespace, comm=None):
         super(CahnHilliardEnv, self).__init__()
         # Define action and observation space
         # They must be gym.spaces objects
 
+        self.args = args
+        self.comm = comm
+        
         self.action_space = spaces.Discrete( self.getActionSize() )
         self.observation_space = spaces.Box(
                 low=np.zeros(self.args.size_struct_vec),
@@ -44,8 +75,6 @@ class CahnHilliardEnv(gym.Env):
         #self.observation_space = spaces.Box(low=0, high=255, shape=
         #                (HEIGHT, WIDTH, N_CHANNELS), dtype=np.uint8)
 
-        self.args = args
-        self.comm = comm
         if self.comm:
             self.comm_rank = self.comm.Get_rank()
         else:
