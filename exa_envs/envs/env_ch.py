@@ -16,8 +16,7 @@ import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
 
-#sys.path.append('./cahnhilliard_2d/cpp/python') # CH-solver
-sys.path.append('/home/kagawa/Projects/NESAP/cahnhilliard_2d/cpp/python') # CH-solver
+sys.path.append('./cahnhilliard_2d/cpp/python') # CH-solver
 #sys.path.append('/project/projectdirs/mpccc/tkurth/DataScience/exalearn_rl/src/cahnhilliard_2d/cpp/python')
 
 import ch2d.aligned_vector as av
@@ -66,7 +65,7 @@ class CahnHilliardEnv(gym.Env):
 
         self.args = args
         self.comm = comm
-        
+
         self.action_space = spaces.Discrete( self.getActionSize() )
         self.observation_space = spaces.Box(
                 low=np.zeros(self.args.size_struct_vec),
