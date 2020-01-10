@@ -2,7 +2,7 @@ from exa_base.exa_dqn import ExaDQN
 
 ## Define agent and env
 agent_id = 'exa_agents:DQN-v0'
-env_id   = 'Cartpole-v0'
+env_id   = 'CartPole-v0'
 
 ## Create ExaDQN
 exa_dqn = ExaDQN(agent_id,env_id)
