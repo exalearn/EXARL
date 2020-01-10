@@ -12,6 +12,6 @@ register(
 )
 
 register(
-    id='ExaLearnCartpole-v0',
+    id='ExaLearnCartPole-v0',
     entry_point='exa_envs.envs:ExaCartpole'
 )
