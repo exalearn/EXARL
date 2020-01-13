@@ -6,6 +6,6 @@ env_id   = 'CartPole-v0'
 
 ## Create ExaLearner
 exa_learner = ExaLearner(agent_id,env_id)
-exa_learner.set_results_dir('./exa_dqn_results/')
+exa_learner.set_results_dir('./exa_learner_example1_results/')
 exa_learner.set_training(10,10)
 exa_learner.run()
