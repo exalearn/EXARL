@@ -6,7 +6,7 @@ import csv
 import json
 import math
 import logging
-import exa_base
+import exa_rl
 
 from keras.backend.tensorflow_backend import set_session
 tf_version = int((tf.__version__)[0])
