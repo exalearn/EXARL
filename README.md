@@ -26,7 +26,7 @@
 ```
 
 ## Installing 
-* Pull code from repo
+* Pull code from repo including submodules.
 ```
 git clone --recursive https://github.com/exalearn/ExaRL.git
 ```
@@ -38,7 +38,7 @@ pip install -e . --user
 
 ## Running ExaRL using MPI 
 ```
-mpiexec -np 3 python mpi_scripts/mpi_dqn_exacartpole.py
+mpiexec -np 3 python mpi_scripts/exa_learner_example1.py
 ```
 
 ## Creating custom environments
