@@ -1,3 +1,4 @@
+![](ExaRL.png)
 # Reinforcement Learning environments and agents/policies used for the Design and Control applications
 
 ## Software Requirement
