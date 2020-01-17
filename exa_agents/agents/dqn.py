@@ -43,11 +43,12 @@ class DQN(exa_rl.base):
         logger.info("Rank: %s" % self.rank)
         logger.info("Size: %s" % self.size)
 
-        memory_by_size = 5*size 
+        memory_by_size = 5*self.size 
         memory_length = memory_by_size if (memory_by_size>2000 and memory_by_size<5000) else 5000
         self.memory = deque(maxlen = memory_length)
         self.batch_size = self.size if (self.size>self.batch_size and self.size<memory_length) else self.batch_size
-                                        
+        logger.info("Memory size: %s" % self.memory)
+        logger.info("Batch size:  %s" % self.batch_size)
         ## Implement the UCB approach
         self.sigma = 2 # confidence level
         self.total_actions_taken = 1
