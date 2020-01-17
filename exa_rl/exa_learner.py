@@ -105,7 +105,7 @@ class ExaLearner:
                 print('Rank[%s] - rank0 memories: %s' % (str(rank),str(rank0_memories)))
 
                 ## Set the model weight for all the workers
-                if comm.rank>0 and rank0_memories>30 and rank0_memories%(size)==0:
+                if comm.rank>0 and rank0_memories>30:# and rank0_memories%(size)==0:
                     print('## Rank[%s] - Updating weights ##' % str(rank))
                     self.agent.target_model.set_weights(current_weights)
 
