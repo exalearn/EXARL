@@ -75,8 +75,6 @@ class ExaLearner:
             total_reward=0
             done = False
             while done!=True:
-            #for s in range(self.nsteps):
-                #print('Rank[%s] - Episode/Step %s/%s' % (str(rank),str(e),str(s)))
                 
                 ## All workers ##
                 action = self.agent.action(current_state)
@@ -84,7 +82,7 @@ class ExaLearner:
                 total_reward+=reward
                 memory = (current_state, action, reward, next_state, done, total_reward)
                 new_data = comm.gather(memory, root=0)
-                print('Rank[%s] - Memory length: %s ' % (str(rank),len(self.agent.memory)))
+                logger.info('Rank[%s] - Memory length: %s ' % (str(rank),len(self.agent.memory)))
 
                 ## Learner ##
                 if comm.rank==0:
@@ -102,24 +100,20 @@ class ExaLearner:
                 ## Broadcast the memory size and the model weights to the workers  ##
                 rank0_memories = comm.bcast(rank0_memories, root=0)
                 current_weights = comm.bcast(target_weights, root=0)
-                print('Rank[%s] - rank0 memories: %s' % (str(rank),str(rank0_memories)))
+                logger.info('Rank[%s] - rank0 memories: %s' % (str(rank),str(rank0_memories)))
 
                 ## Set the model weight for all the workers
                 if comm.rank>0 and rank0_memories>30:# and rank0_memories%(size)==0:
-                    print('## Rank[%s] - Updating weights ##' % str(rank))
+                    logger.info('## Rank[%s] - Updating weights ##' % str(rank))
                     self.agent.target_model.set_weights(current_weights)
 
                 ## Update state
                 current_state = next_state
-                print('Rank[%s] - Total Reward:%s' % (str(rank),str(total_reward) ))
+                logger.info('Rank[%s] - Total Reward:%s' % (str(rank),str(total_reward) ))
                       
                 ## Save memory for offline analysis
                 train_writer.writerow([current_state,action,reward,next_state,total_reward,done])
                 train_file.flush()
-
-                #if done==True:
-                #    print('done')
-                #    s = self.nsteps+1
 
         ## Save Learning target model
         if comm.rank==0:
