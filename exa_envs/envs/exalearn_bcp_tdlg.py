@@ -67,9 +67,9 @@ class BlockCoPolymerTDLG(gym.Env):
         #os.mkdir(self.worker_dir+'/archive/')
         #print ("worker directory: " + self.worker_dir)
         
-        ## for plotting
+                                   ## for plotting
         self.rendering = False
-
+ 
         ## Step sizes for discrete environment 
         #self.fracA_step_size = float(data['fracA_step_size']) if 'fracA_step_size' in data.keys() else 0.005
         self.kappa_step_size = float(data['kappa_step_size']) if 'kappa_step_size' in data.keys() else 0.001
@@ -83,7 +83,7 @@ class BlockCoPolymerTDLG(gym.Env):
         self.current_structure = np.zeros(self.structure_len)
 
         ## Define state and action spaces
-        self.observation_space = spaces.Box(low=np.append(np.zeros(self.structure_len),[0.004]), high=np.append(np.ones(self.structure_len),[0.012]),dtype=np.float32)
+        self.observation_space = spaces.Box(low=np.append(np.zeros(self.structure_len),[0.004]), high=np.append(np.ones(self.structure_len),[0.012]))#,dtype=np.float32
         self.action_space = spaces.Discrete(3) 
 
         ## Fix the starting point
