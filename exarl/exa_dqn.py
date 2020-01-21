@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import gym
-import exa_envs
-import exa_agents
+import exarl as erl
 
 #
 import os
@@ -28,10 +27,9 @@ class ExaDQN:
         ## Setup agent and environents
         self.agent_id = agent_id
         self.env_id   = env_id
-        self.env = gym.make(env_id)
-        self.env._max_episode_steps=self.nsteps
-        self.agent = exa_agents.make(agent_id, env=self.env)
-        
+        self.agent, self.env = erl.make(agent_id, env_id)
+        self.env._max_episode_steps=self.nsteps        
+
     def set_training(self,nepisodes,nsteps):
         self.nepisodes = nepisodes
         self.nsteps    = nsteps

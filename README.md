@@ -11,15 +11,15 @@
 ├── setup.py                          : Python setup file with requirements files 
 ├── scripts                           : folder containing RL steering scripts
 ├── mpi_scripts                       : folder containing RL MPI steering scripts
-├── exa_base                          : folder containing base class and wrapper for unified syntax
-├── exa_agents                        : folder containing ExaRL agents and registration scripts
+├── exarl               	      : folder containing base class and wrapper for unified syntax
+├── agents         	              : folder containing ExaRL agents and registration scripts
     └── __init__.py                   : agent registry
-    ├── agents                        : folder containing agents
+    ├── agent_vault                   : folder containing agents
         └── __init__.py               : script to make agents visible
         ├── agent_cfg                 : folder containing default agent configurations   
-├── exa_envs                          : folder containing ExaRL environments
+├── envs         	              : folder containing ExaRL environments
     └── __init__.py                   : environment registry
-    ├── envs                          : folder containing environments
+    ├── env_vault                     : folder containing environments
     └── __init__.py                   : script to make environments visible
         ├── env_cfg                   : folder containing default environment configurations    
 ├── utils                             : folder containing utilities       
@@ -84,7 +84,7 @@ where ExaRL/exa_agents/agents/foo_agent.py is the file containing your agent
 ## Calling agents and environments in your scripts
 * ExaRL uses a unified syntax to call agents and environments
 ```
-import exa_base as erl
+import exarl as erl
 agent, env = erl.make('fooAgent-v0', 'fooEnv-v0')
 ```
 

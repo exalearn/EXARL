@@ -6,12 +6,12 @@ class base():
                         if key == 'env_cfg':
                                 self.env_cfg = value
                         else:
-                                self.env_cfg = 'exa_envs/envs/env_cfg/env_setup.json'
+                                self.env_cfg = 'envs/env_vault/env_cfg/env_setup.json'
                                 
                         if key == 'agent_cfg':
                                 self.agent_cfg = value
                         else:
-                                self.agent_cfg = 'exa_agents/agents/agent_cfg/dqn_setup.json'
+                                self.agent_cfg = 'agents/agent_vault/agent_cfg/dqn_setup.json'
 
                 with open(self.env_cfg) as json_file:
                         env_data = json.load(json_file)
@@ -19,7 +19,7 @@ class base():
                 self.num_child_per_parent = int(env_data['child_spawn_per_parent']) if 'child_spawn_per_parent' in env_data.keys() else 0
                 if(self.num_child_per_parent > 0):
                         # defaults to running toy example of computing PI
-                        self.worker = (env_data['worker_app']).lower() if 'worker_app' in env_data.keys() else "/exa_envs/envs/cpi.py"
+                        self.worker = (env_data['worker_app']).lower() if 'worker_app' in env_data.keys() else "envs/env_vault/cpi.py"
                 else:
                         self.worker = None
 
