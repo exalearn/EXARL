@@ -1,4 +1,3 @@
-![](ExaRL.png)
 # Reinforcement Learning environments and agents/policies used for the Design and Control applications
 
 ## Software Requirement
@@ -27,9 +26,9 @@
 ```
 
 ## Installing 
-* Pull code from repo including submodules.
+* Pull code from repo
 ```
-git clone --recursive https://github.com/exalearn/ExaRL.git
+git clone https://github.com/exalearn/ExaRL.git
 ```
 * Install dependencies for ExaRL:
 ```
@@ -39,7 +38,7 @@ pip install -e . --user
 
 ## Running ExaRL using MPI 
 ```
-mpiexec -np 3 python mpi_scripts/exa_learner_example1.py
+mpiexec -np 3 python mpi_scripts/mpi_dqn_exacartpole.py
 ```
 
 ## Creating custom environments
