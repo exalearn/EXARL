@@ -6,6 +6,7 @@ import exa_agents
 #
 import os
 import csv
+import sys
 
 #
 from mpi4py import MPI
@@ -16,7 +17,7 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.INFO)
 
-class ExaLearner:
+class ExaDQN:
     def __init__(self, agent_id, env_id):
         ## Default training 
         self.nepisodes=1
@@ -62,7 +63,7 @@ class ExaLearner:
         ##################
         ## Save results ##
         ##################
-        filename_prefix = 'ExaLearner_' + 'Episode%s_Steps%s_Rank%s_memory_v1' % ( str(self.nepisodes), str(self.nsteps), str(rank))
+        filename_prefix = 'ExaDQN_' + 'Episode%s_Steps%s_Rank%s_memory_v1' % ( str(self.nepisodes), str(self.nsteps), str(rank))
         train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
         train_writer = csv.writer(train_file, delimiter = " ")
 
