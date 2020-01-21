@@ -10,7 +10,7 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.ERROR)
 
-import exa_base as erl
+import exarl as erl
 
 import csv
 
@@ -36,8 +36,8 @@ if __name__ == "__main__":
     ## Setup environment ##
     #######################
     estart = time.time()
-    agent_id = 'exa_agents:DQN-v0'
-    env_id = 'exa_envs:ExaLearnCartpole-v0'
+    agent_id = 'agents:DQN-v0'
+    env_id = 'envs:ExaLearnCartpole-v0'
     agent, env = erl.make(agent_id, env_id)
     env._max_episode_steps=NSTEPS
     #env.seed(1)

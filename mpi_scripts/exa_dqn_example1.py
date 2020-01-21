@@ -1,9 +1,9 @@
-from exa_base.exa_dqn import ExaDQN
+from exarl.exa_dqn import ExaDQN
 import time
 
 ## Define agent and env
-agent_id = 'exa_agents:DQN-v0'
-env_id   = 'exa_envs:ExaLearnCartpole-v0'
+agent_id = 'agents:DQN-v0'
+env_id   = 'envs:ExaLearnCartpole-v0'
 
 ## Create ExaDQN
 exa_dqn = ExaDQN(agent_id,env_id)

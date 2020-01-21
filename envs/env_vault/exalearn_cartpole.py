@@ -6,13 +6,12 @@ from mpi4py import MPI
 import numpy as np
 import sys
 import json
-import exa_base
+import exarl
 
-class ExaCartpole(gym.Env, exa_base.base):
+class ExaCartpole(gym.Env, exarl.base):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, cfg='exa_envs/envs/env_cfg/env_setup.json'):
-        #exa_base.base.__init__(self, env_cfg=cfg)
+    def __init__(self, cfg='envs/env_vault/env_cfg/env_setup.json'):
         super().__init__(env_cfg=cfg)
         self._max_episode_steps = 0
         self.env = gym.make('CartPole-v0')
