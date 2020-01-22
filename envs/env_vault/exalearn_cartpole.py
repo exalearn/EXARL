@@ -1,14 +1,12 @@
 import gym
-from gym import error, spaces, utils
-from gym.utils import seeding
 import time
 from mpi4py import MPI
 import numpy as np
 import sys
 import json
-import exarl
+import exarl as erl
 
-class ExaCartpole(gym.Env, exarl.base):
+class ExaCartpole(gym.Env, erl.env_base):
     metadata = {'render.modes': ['human']}
 
     def __init__(self, cfg='envs/env_vault/env_cfg/env_setup.json'):

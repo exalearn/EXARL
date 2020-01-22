@@ -1,3 +1,14 @@
+# emacs and vim cache
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+
 # Profile directories
 profile.*/
 
