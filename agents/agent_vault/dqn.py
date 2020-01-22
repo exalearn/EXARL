@@ -6,7 +6,7 @@ import csv
 import json
 import math
 import logging
-import exarl
+import exarl as erl
 
 from keras.backend.tensorflow_backend import set_session
 tf_version = int((tf.__version__)[0])
@@ -28,7 +28,7 @@ logger.setLevel(logging.INFO)
 #logger.setLevel(logging.NOTSET)
 
 #The Deep Q-Network (DQN)
-class DQN(exarl.base):
+class DQN(erl.agent_base):
     def __init__(self, env, cfg='agents/agent_vault/agent_cfg/dqn_setup.json'):
         self.env = env
         self.memory = deque(maxlen = 2000)
@@ -192,3 +192,9 @@ class DQN(exarl.base):
 
     def save(self, name):
         self.model.save_weights(name)
+
+    def update(self):
+        print("Implement update method in dqn.py")
+
+    def monitor(self):
+        print("Implement monitor method in dqn.py")
