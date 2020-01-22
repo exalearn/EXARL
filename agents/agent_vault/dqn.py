@@ -28,7 +28,7 @@ logger.setLevel(logging.INFO)
 #logger.setLevel(logging.NOTSET)
 
 #The Deep Q-Network (DQN)
-class DQN(erl.agent_base):
+class DQN(erl.ExaAgent):
     def __init__(self, env, cfg='agents/agent_vault/agent_cfg/dqn_setup.json'):
         self.env = env
         self.memory = deque(maxlen = 2000)

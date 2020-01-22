@@ -1,4 +1,4 @@
-from exarl.agent_base import agent_base
-from exarl.env_base import env_base
-from exarl.exa_dqn import ExaDQN
+from exarl.agent_base import ExaAgent
+from exarl.env_base import ExaEnv
+from exarl.learner_base import ExaLearner
 from .wrapper import make
