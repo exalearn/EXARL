@@ -1,7 +1,7 @@
 import json
 from abc import ABC, abstractmethod
 
-class agent_base(ABC):
+class ExaAgent(ABC):
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():

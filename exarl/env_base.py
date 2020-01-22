@@ -1,6 +1,6 @@
 import json
 
-class env_base():
+class ExaEnv():
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             if key == 'env_cfg':

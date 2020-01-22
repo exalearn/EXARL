@@ -7,7 +7,7 @@
 auto-save-list
 tramp
 .\#*
-
+*.swp
 
 # Profile directories
 profile.*/

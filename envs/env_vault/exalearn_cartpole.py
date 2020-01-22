@@ -6,7 +6,7 @@ import sys
 import json
 import exarl as erl
 
-class ExaCartpole(gym.Env, erl.env_base):
+class ExaCartpole(gym.Env, erl.ExaEnv):
     metadata = {'render.modes': ['human']}
 
     def __init__(self, cfg='envs/env_vault/env_cfg/env_setup.json'):
