@@ -12,7 +12,6 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.INFO)
 
-
 class ExaLearner(ABC):
 
     def __init__(self, agent_id, env_id):
