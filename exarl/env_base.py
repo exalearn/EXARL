@@ -14,8 +14,8 @@ class ExaEnv(ABC):
         for key, value in kwargs.items():
             if key == 'env_cfg':
                 self.env_cfg = value
-            else:                
-                self.env_cfg = 'envs/env_vault/env_cfg/env_setup.json'
+            else:
+                self.env_cfg = os.path.join(dirname, '../envs/env_vault/env_cfg/env_setup.json')
 
         with open(self.env_cfg) as json_file:
             env_data = json.load(json_file)
