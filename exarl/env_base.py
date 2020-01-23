@@ -37,7 +37,9 @@ class ExaEnv(ABC):
         #    self.worker = None
 
     def set_results_dir(self,results_dir):
-        ''' Default method to save environment specific information '''
+        ''' 
+        Default method to save environment specific information 
+        '''
         if not os.path.exists(results_dir):
             os.makedirs(results_dir)
         ## Top level directory 
@@ -45,7 +47,16 @@ class ExaEnv(ABC):
         
     @abstractmethod
     def step(self, action):
-        ''' Required by all ennvironment to be implemented by user '''
+        ''' 
+        Required by all ennvironment to be implemented by user 
+        '''
+        pass
+
+    @abstractmethod
+    def reset(self):
+        ''' 
+        Required by all ennvironment to be implemented by user 
+        '''
         pass
 
 
