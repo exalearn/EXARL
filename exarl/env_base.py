@@ -33,7 +33,7 @@ class ExaEnv(ABC):
 
         if self.useMPI:
             self.mpi_child_spawn_per_parent = int(env_data['mpi_child_spawn_per_parent']) if 'mpi_child_spawn_per_parent' in env_data.keys() else 0
-            if self.mpi_child_spawn_per_parent>0:
+            if self.mpi_child_spawn_per_parent<1:
                 sys.exit("Problem with MPI setup.")
         #if(self.num_child_per_parent > 0):
         #    # defaults to running toy example of computing PI
