@@ -29,23 +29,10 @@ class ExaEnv(ABC):
         ## TODO: Add any GPU parameters
 
 
-        ## TODO: exacutable 
-        #if(self.num_child_per_parent > 0):
-        #    # defaults to running toy example of computing PI
-        #    self.worker = (env_data['worker_app']).lower() if 'worker_app' in env_data.keys() else "envs/env_vault/cpi.py"
-        #else:
-        #    self.worker = None
-
-    def set_results_dir(self,results_dir):
-        ''' Default method to save environment specific information '''
-        if not os.path.exists(results_dir):
-            os.makedirs(results_dir)
-        ## Top level directory 
-        self.results_dir=results_dir
-        
-    @abstractmethod
-    def step(self, action):
-        ''' Required by all ennvironment to be implemented by user '''
-        pass
-
+        ## TODO: executable 
+        if(self.mpi_child_spawn_per_parent > 0):
+            # defaults to running toy example of computing PI
+            self.worker = (env_data['worker_app']).lower() if 'worker_app' in env_data.keys() else "envs/env_vault/cpi.py"
+        else:
+            self.worker = None
 
