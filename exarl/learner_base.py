@@ -5,14 +5,13 @@ import os
 import csv
 
 from mpi4py import MPI
-from abc import ABC, abstractmethod
 
 import logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.INFO)
 
-class ExaLearner(ABC):
+class ExaLearner():
 
     def __init__(self, agent_id, env_id):
         ## Default training 
