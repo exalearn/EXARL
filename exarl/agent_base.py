@@ -1,4 +1,5 @@
 import json
+import os
 from abc import ABC, abstractmethod
 
 class ExaAgent(ABC):
@@ -22,6 +23,18 @@ class ExaAgent(ABC):
         self.batch_size = int(agent_data['batch_size']) if 'batch_size' in agent_data.keys() else 32
         self.tau = float(agent_data['tau']) if 'tau' in agent_data.keys() else 0.5
 
+        ## Default output directory
+        self.results_dir = ''
+        
+    def set_results_dir(self,results_dir):
+        ''' 
+        Default method to save environment specific information 
+        '''
+        if not os.path.exists(results_dir):
+            os.makedirs(results_dir)
+        ## Top level directory 
+        self.results_dir=results_dir
+        
     @abstractmethod
     def train(self):
         pass

@@ -37,7 +37,9 @@ class ExaLearner():
         ## General 
         self.results_dir=results_dir
         ## Set for agent
+        self.agent.set_results_dir(self.results_dir)
         ## Set for env
+        self.env.set_results_dir(self.results_dir)
 
     def render_env(self):
         self.do_render=True
