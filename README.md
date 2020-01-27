@@ -87,7 +87,7 @@ register(
     entry_point='envs.env_vault:FooEnv',
 )
 ```
-* The id variable will be passed to exarl.make() to call environment
+* The id variable will be passed to exarl.make() to call the environment
 
 * The file ```ExaRL/env/env_vault/__init__.py``` should include
 ```
@@ -123,7 +123,7 @@ register(
     entry_point='agents.agent_vault:FooAgent',
 )
 ```
-* The id variable will be passed to exarl.make() to call agent
+* The id variable will be passed to exarl.make() to call the agent
 
 * The file ```ExaRL/agents/agent_vault/__init__.py``` should include
 ```
@@ -162,8 +162,8 @@ tau               = 0.5
 * Environment defaults:
 ```
 default_env_cfg         = envs/env_vault/env_cfg/env_setup.json
-child_spawn_per_parent  = 0
-worker                  = envs/env_vault/cpi.py  # Synthetic workload that computes PI (runs only if child_spawn_per_parent > 0)
+mpi_child_spawn_per_parent  = 0
+worker                  = envs/env_vault/cpi.py  # Synthetic workload that computes PI (runs only if mpi_child_spawn_per_parent > 0)
 ```
 
 ## Base classes
