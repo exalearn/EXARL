@@ -14,8 +14,8 @@ class ExaEnv(ABC):
         for key, value in kwargs.items():
             if key == 'env_cfg':
                 self.env_cfg = value
-            else:                
-                self.env_cfg = 'envs/env_vault/env_cfg/env_setup.json'
+            else:
+                self.env_cfg = os.path.join(dirname, '../envs/env_vault/env_cfg/env_setup.json')
 
         with open(self.env_cfg) as json_file:
             env_data = json.load(json_file)
@@ -35,4 +35,28 @@ class ExaEnv(ABC):
             self.worker = (env_data['worker_app']).lower() if 'worker_app' in env_data.keys() else "envs/env_vault/cpi.py"
         else:
             self.worker = None
+
+
+    def set_results_dir(self,results_dir):
+        ''' 
+        Default method to save environment specific information 
+        '''
+        if not os.path.exists(results_dir):
+            os.makedirs(results_dir)
+        ## Top level directory 
+        self.results_dir=results_dir
+        
+    @abstractmethod
+    def step(self, action):
+        ''' 
+        Required by all environment to be implemented by user 
+        '''
+        pass
+
+    @abstractmethod
+    def reset(self):
+        ''' 
+        Required by all environment to be implemented by user 
+        '''
+        pass
 
