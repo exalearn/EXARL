@@ -1,5 +1,6 @@
 ![](ExaRL.png)
-# Reinforcement Learning environments and agents/policies used for the Design and Control applications
+# Easily eXtendable Architecture for Reinforcement Learning
+A scalable software framework for reinforcement learning environments and agents/policies used for the Design and Control applications
 
 ## Software Requirement
 * Python 3.7 
