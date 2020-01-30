@@ -1,18 +1,16 @@
 import gym
-from gym import error, spaces, utils
-from gym.utils import seeding
 import time
 from mpi4py import MPI
 import numpy as np
 import sys
 import json
-import exa_base
+import exarl as erl
 
-class ExaCartpole(gym.Env, exa_base.base):
+class ExaCartpole(gym.Env, erl.ExaEnv):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, cfg='exa_envs/envs/env_cfg/env_setup.json'):
-        exa_base.base.__init__(self, env_cfg=cfg)
+    def __init__(self, cfg='envs/env_vault/env_cfg/env_setup.json'):
+        super().__init__(env_cfg=cfg)
         self._max_episode_steps = 0
         self.env = gym.make('CartPole-v0')
         self.env._max_episode_steps=self._max_episode_steps
@@ -36,7 +34,7 @@ class ExaCartpole(gym.Env, exa_base.base):
         #parent_comm = MPI.Comm.Get_parent()
         spawn_comm = MPI.COMM_SELF.Spawn(sys.executable,
                                    args=[self.worker],
-                                   maxprocs=self.num_child_per_parent)#.Merge()
+                                   maxprocs=self.mpi_child_spawn_per_parent)#.Merge()
 
         N = np.array(100, 'i')
         spawn_comm.Bcast([N, MPI.INT], root=MPI.ROOT)
