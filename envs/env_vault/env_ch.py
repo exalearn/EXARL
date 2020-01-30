@@ -15,9 +15,7 @@ import matplotlib.pyplot as plt
 import gym
 from gym import spaces
 
-#sys.path.append('./cahnhilliard_2d/cpp/python') # CH-solver
-sys.path.append('/home/kagawa/Projects/ExaLearn/cahnhilliard_2d/cpp/python') # CH-solver
-#sys.path.append('/project/projectdirs/mpccc/tkurth/DataScience/exalearn_rl/src/cahnhilliard_2d/cpp/python')
+sys.path.append('envs/env_vault/CahnHilliard2D/cpp/swig/') # CH-solver
 
 from utils import *
 import ch2d.aligned_vector as av
