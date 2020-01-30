@@ -1,6 +1,0 @@
-[submodule "cahnhilliard_2d"]
-	path = cahnhilliard_2d
-	url = https://github.com/exalearn/cahnhilliard_2d.git
-[submodule "image_structure"]
-	path = image_structure
-	url = https://github.com/exalearn/image_structure.git

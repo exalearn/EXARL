@@ -6,7 +6,7 @@ import csv
 import json
 import math
 import logging
-import exa_rl
+import exarl as erl
 
 from keras.backend.tensorflow_backend import set_session
 tf_version = int((tf.__version__)[0])
@@ -28,10 +28,10 @@ logger.setLevel(logging.INFO)
 #logger.setLevel(logging.NOTSET)
 
 #The Deep Q-Network (DQN)
-class DQN(exa_rl.base):
-    def __init__(self, env, cfg='exa_agents/agents/agent_cfg/dqn_setup.json'):
-        exa_rl.base.__init__(self, agent_cfg=cfg)
+class DQN(erl.ExaAgent):
+    def __init__(self, env, cfg='agents/agent_vault/agent_cfg/dqn_setup.json'):
         self.env = env
+        self.memory = deque(maxlen = 2000)
 
         #########
         ## MPI ##
@@ -43,12 +43,6 @@ class DQN(exa_rl.base):
         logger.info("Rank: %s" % self.rank)
         logger.info("Size: %s" % self.size)
 
-        memory_by_size = 5*self.size 
-        memory_length = memory_by_size if (memory_by_size>2000 and memory_by_size<5000) else 5000
-        self.memory = deque(maxlen = memory_length)
-        self.batch_size = self.size if (self.size>self.batch_size and self.size<memory_length) else self.batch_size
-        logger.info("Memory size: %s" % self.memory)
-        logger.info("Batch size:  %s" % self.batch_size)
         ## Implement the UCB approach
         self.sigma = 2 # confidence level
         self.total_actions_taken = 1
@@ -67,7 +61,7 @@ class DQN(exa_rl.base):
             tf.compat.v1.keras.backend.set_session(sess)
 
         ## Get hyper-parameters from json cfg file
-        super().__init__(env_cfg=cfg)
+        super().__init__(agent_cfg=cfg)
         
         ##
         self.model = self._build_model()
@@ -118,11 +112,35 @@ class DQN(exa_rl.base):
             np_state = np.array(state).reshape(1,len(state))
             act_values = self.target_model.predict(np_state)
             action = np.argmax(act_values[0])
+            ## Adding the UCB 
+            #if self.search_method=="ucb":
+            #    print('START UCB')
+            #    print( 'Default values')
+            #    print( (act_values))
+            #    print( (action))
+            #    act_values +=  self.sigma*np.sqrt(math.log(self.total_actions_taken)/self.individual_action_taken)
+            #    action = np.argmax(act_values[0])
+            #    print( 'UCB values')
+            #    print( (act_values))
+            #    print( (action))
+            #    ## Check if there are multiple candidates and select one randomly
+            #    mask = [i for i in range(len(act_values[0])) if act_values[0][i] == act_values[0][action]]
+            #    ncands=len(mask)
+            #    print( 'Number of cands: %s' % str(ncands))
+            #    if ncands>1:
+            #        action = mask[random.randint(0,ncands-1)]
+            #    print( (action))
+            #    print('END UCB')
+            #print(act_values)
+            #print(action)
             mask = [i for i in range(len(act_values[0])) if act_values[0][i] == act_values[0][action]]
             ncands=len(mask)
             # print( 'Number of cands: %s' % str(ncands))
             if ncands>1:
                 action = mask[random.randint(0,ncands-1)]
+        ## Capture the action statistics for the UBC methods
+        #print('total_actions_taken: %s' % self.total_actions_taken)
+        #print('individual_action_taken[%s]: %s' % (action,self.individual_action_taken[action]))
         self.total_actions_taken += 1
         self.individual_action_taken[action]+=1
 
@@ -174,3 +192,9 @@ class DQN(exa_rl.base):
 
     def save(self, name):
         self.model.save_weights(name)
+
+    def update(self):
+        print("Implement update method in dqn.py")
+
+    def monitor(self):
+        print("Implement monitor method in dqn.py")
