@@ -1,4 +1,4 @@
-![](ExaRL.png)
+![](EXARL.png)
 # Easily eXtendable Architecture for Reinforcement Learning
 A scalable software framework for reinforcement learning environments and agents/policies used for the Design and Control applications
 
