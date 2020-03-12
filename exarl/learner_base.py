@@ -102,7 +102,7 @@ class ExaLearner():
                         ## Train learner ##
                         self.agent.train()
                         rank0_memories = len(self.agent.memory)
-                        target_weights = self.agent.target_model.get_weights()
+                        target_weights = self.agent.get_weights()
                         if rank0_memories%(size)==0:
                             self.agent.save(self.results_dir+filename_prefix+'.h5')
 
@@ -114,7 +114,7 @@ class ExaLearner():
                 ## Set the model weight for all the workers
                 if comm.rank>0 and rank0_memories>30:# and rank0_memories%(size)==0:
                     logger.info('## Rank[%s] - Updating weights ##' % str(rank))
-                    self.agent.target_model.set_weights(current_weights)
+                    self.agent.set_weights(current_weights)
 
                 ## Update state
                 current_state = next_state

@@ -48,6 +48,14 @@ class ExaAgent(ABC):
         self.results_dir=results_dir
         
     @abstractmethod
+    def get_weights(self):
+        pass
+
+    @abstractmethod
+    def set_weights(self):
+        pass
+    
+    @abstractmethod
     def train(self):
         pass
 

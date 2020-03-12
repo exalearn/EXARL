@@ -187,6 +187,12 @@ class DQN(erl.ExaAgent):
             self.epsilon *= self.epsilon_decay
             logger.info('New epsilon: %s ' % self.epsilon)
 
+    def get_weights(self):
+        return self.target_model.get_weights()
+
+    def set_weights(self, weights):
+        self.target_model.set_weights(weights)
+    
     def load(self, name):
         self.model.load_weights(name)
 
