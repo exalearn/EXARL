@@ -73,7 +73,7 @@ Example:-
     class envName(gym.Env, exarl.ExaEnv):
         ...
 ```
-* Environment must include the following functions:
+* Environments must include the following functions:
 ```
 step()      # returns new state after an action
 reset()     # reset the environment to initial state; marks end of an episode
@@ -105,7 +105,7 @@ Example:-
     class agentName(exarl.ExaAgent):
         ...
 ```
-* Environment must include the following functions:
+* Agents must include the following functions:
 ```
 train()     # train the agent
 update()    # update target model
