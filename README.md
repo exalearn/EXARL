@@ -4,7 +4,7 @@ A scalable software framework for reinforcement learning environments and agents
 
 ## Software Requirement
 * Python 3.7 
-* The ExaRL framework is built on [OpenAI Gym](https://gym.openai.com) 
+* The EXARL framework is built on [OpenAI Gym](https://gym.openai.com) 
 * Additional python packages are defined in the setup.py 
 * This document assumes you are running at the top directory 
 
@@ -177,4 +177,7 @@ set_results_dir()   # result directory path
 render_env()        # True or False
 run()               # Run learner
 ```
+
+## Contacts
+If you have any questions or concerns regarding EXARL, please contact Vinay Ramakrishnaiah (vinayr@lanl.gov) and/or Malachi Schram (Malachi.Schram@pnnl.gov).
 
