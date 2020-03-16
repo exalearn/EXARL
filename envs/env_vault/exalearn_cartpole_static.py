@@ -6,7 +6,17 @@ import sys
 import json
 import exarl as erl
 
-class ExaCartpole(gym.Env, erl.ExaEnv):
+def computePI(N,new_comm):
+    h = 1.0 / N
+    s = 0.0
+    rank = new_comm.rank
+    size = new_comm.size
+    for i in range(rank, N, size):
+        x = h * (i + 0.5)
+        s += 4.0 / (1.0 + x**2)
+    return s * h
+
+class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
     metadata = {'render.modes': ['human']}
 
     def __init__(self, cfg='envs/env_vault/env_cfg/env_setup.json'):
@@ -29,22 +39,25 @@ class ExaCartpole(gym.Env, erl.ExaEnv):
         time.sleep(0) # Delay in seconds
         ##
         
-        # Compute PI with dynamic process spawning
-       
-        #parent_comm = MPI.Comm.Get_parent()
-        spawn_comm = MPI.COMM_SELF.Spawn(sys.executable,
-                                   args=[self.worker],
-                                   maxprocs=self.mpi_children_per_parent)#.Merge()
+        # Compute PI with communicator splitting
+        comm = MPI.COMM_WORLD
+	world_rank = comm.Get_rank()
+        
+        if world_rank == 0:
+            N = 100
+        else:
+            N = None
+            
+        N = comm.bcast(N, root=0)	
+	color = int(world_rank/self.mpi_children_per_parent)
+	newcomm = comm.Split(color, world_rank)
+        myPI = computePI(N, newcomm)
+        PI = newcomm.reduce(myPI, op=MPI.SUM, root=0)
+        newrank = newcomm.rank
+        if newrank == 0:
+            print(PI)
 
-        N = np.array(100, 'i')
-        spawn_comm.Bcast([N, MPI.INT], root=MPI.ROOT)
-        PI = np.array(0.0, 'd')
-        spawn_comm.Reduce(None, [PI, MPI.DOUBLE],op=MPI.SUM, root=MPI.ROOT)
-        #print(PI)
-
-        spawn_comm.Disconnect()
-        #comm_world.Disconnect()
-        #comm_slave.Free()
+        new_comm.Free()
         
         return next_state, reward, done, info
 
