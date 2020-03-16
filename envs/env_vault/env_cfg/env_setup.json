@@ -1,4 +1,4 @@
 {
-	"mpi_child_spawn_per_parent": "2",
+	"mpi_children_per_parent": "2",
 	"worker_app": "./envs/env_vault/cpi.py"
 }
