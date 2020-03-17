@@ -64,7 +64,7 @@ class ExaLearner():
     def render_env(self):
         self.do_render=True
         
-    def run(self):
+    def run(self, type):
         #########
         ## MPI ##
         #########
@@ -76,18 +76,81 @@ class ExaLearner():
         rank0_memories = 0
         target_weights = None
         
-        if rank%(self.mpi_children_per_parent+1) == 0:
+        if type == 'static':
+            if rank%(self.mpi_children_per_parent+1) == 0:
+                ##################
+                ## Save results ##
+                ##################
+                filename_prefix = 'ExaLearner_' + 'Episode%s_Steps%s_Rank%s_memory_v1' % ( str(self.nepisodes), str(self.nsteps), str(rank))
+                train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
+                train_writer = csv.writer(train_file, delimiter = " ")
+    
+                ## For Environments ##
+                #self.env.set_results_dir(self.results_dir+'/rank'+str(rank))
+                #if self.render_env: self.env.render()
+    
+                for e in range(self.nepisodes):
+                    current_state = self.env.reset()
+                    total_reward=0
+                    done = False
+                    while done!=True:
+            
+                        ## All workers ##
+                        action = self.agent.action(current_state)
+                        next_state, reward, done, _ = self.env.step(action)
+                        total_reward+=reward
+                        memory = (current_state, action, reward, next_state, done, total_reward)
+                        new_data = comm.gather(memory, root=0)
+                        logger.info('Rank[%s] - Memory length: %s ' % (str(rank),len(self.agent.memory)))
+            
+                        ## Learner ##
+                        if comm.rank==0:
+                            ## Push memories to learner ##
+                            for data in new_data:
+                                self.agent.remember(data[0],data[1],data[2],data[3],data[4])
+                    
+                                ## Train learner ##
+                                self.agent.train()
+                                rank0_memories = len(self.agent.memory)
+                                target_weights = self.agent.get_weights()
+                                if rank0_memories%(size)==0:
+                                    self.agent.save(self.results_dir+filename_prefix+'.h5')
+
+                        ## Broadcast the memory size and the model weights to the workers  ##
+                        rank0_memories = comm.bcast(rank0_memories, root=0)
+                        current_weights = comm.bcast(target_weights, root=0)
+                        logger.info('Rank[%s] - rank0 memories: %s' % (str(rank),str(rank0_memories)))
+                
+                        ## Set the model weight for all the workers
+                        if comm.rank>0 and rank0_memories>30:# and rank0_memories%(size)==0:
+                            logger.info('## Rank[%s] - Updating weights ##' % str(rank))
+                            self.agent.set_weights(current_weights)
+
+                        ## Update state
+                        current_state = next_state
+                        logger.info('Rank[%s] - Total Reward:%s' % (str(rank),str(total_reward) ))
+                    
+                        ## Save memory for offline analysis
+                        train_writer.writerow([current_state,action,reward,next_state,total_reward,done])
+                        train_file.flush()
+            
+                ## Save Learning target model
+                if comm.rank==0:
+                    self.agent.save(self.results_dir+filename_prefix+'.h5')
+                    train_file.close()
+
+        elif type == 'dynamic':
             ##################
             ## Save results ##
             ##################
             filename_prefix = 'ExaLearner_' + 'Episode%s_Steps%s_Rank%s_memory_v1' % ( str(self.nepisodes), str(self.nsteps), str(rank))
             train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
             train_writer = csv.writer(train_file, delimiter = " ")
-    
+            
             ## For Environments ##
             #self.env.set_results_dir(self.results_dir+'/rank'+str(rank))
             #if self.render_env: self.env.render()
-    
+            
             for e in range(self.nepisodes):
                 current_state = self.env.reset()
                 total_reward=0
@@ -101,7 +164,7 @@ class ExaLearner():
                     memory = (current_state, action, reward, next_state, done, total_reward)
                     new_data = comm.gather(memory, root=0)
                     logger.info('Rank[%s] - Memory length: %s ' % (str(rank),len(self.agent.memory)))
-            
+                    
                     ## Learner ##
                     if comm.rank==0:
                         ## Push memories to learner ##
@@ -137,3 +200,4 @@ class ExaLearner():
             if comm.rank==0:
                 self.agent.save(self.results_dir+filename_prefix+'.h5')
                 train_file.close()
+
