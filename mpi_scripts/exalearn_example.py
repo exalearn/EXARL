@@ -3,7 +3,7 @@ import time
 
 ## Define agent and env
 agent_id = 'agents:DQN-v0'
-env_id   = 'envs:ExaLearnCartpole-v0'
+env_id   = 'envs:ExaLearnCartpole-v1'
 
 ## Create ExaDQN
 exa_learner = erl.ExaLearner(agent_id,env_id)

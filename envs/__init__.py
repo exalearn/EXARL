@@ -15,3 +15,8 @@ register(
     id='ExaLearnCartpole-v0',
     entry_point='envs.env_vault:ExaCartpole'
 )
+
+register(
+    id='ExaLearnCartpole-v1',
+    entry_point='envs.env_vault:ExaCartpoleStatic'
+)
