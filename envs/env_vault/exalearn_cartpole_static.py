@@ -28,11 +28,6 @@ class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
         #self.env = gym.make('FrozenLake-v0')
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
-        self.cfg = cfg
-        with open(self.cfg) as json_file:
-            data = json.load(json_file)
-
-        ##
 
     def step(self, action):
         next_state, reward, done, info = self.env.step(action)
@@ -41,7 +36,7 @@ class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
         
         # Compute PI with communicator splitting
         comm = MPI.COMM_WORLD
-	world_rank = comm.Get_rank()
+        world_rank = comm.Get_rank()
         
         if world_rank == 0:
             N = 100
@@ -49,15 +44,15 @@ class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
             N = None
             
         N = comm.bcast(N, root=0)	
-	color = int(world_rank/self.mpi_children_per_parent)
-	newcomm = comm.Split(color, world_rank)
+        color = int(world_rank/self.mpi_children_per_parent)
+        newcomm = comm.Split(color, world_rank)
         myPI = computePI(N, newcomm)
         PI = newcomm.reduce(myPI, op=MPI.SUM, root=0)
         newrank = newcomm.rank
         if newrank == 0:
             print(PI)
 
-        new_comm.Free()
+        newcomm.Free()
         
         return next_state, reward, done, info
 

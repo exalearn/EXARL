@@ -33,7 +33,7 @@ class ExaEnv(ABC):
             env_data = json.load(json_file)
 
         ## TODO: Add any MPI parameters
-        self.mpi_child_spawn_per_parent = int(env_data['mpi_child_spawn_per_parent']) if 'mpi_child_spawn_per_parent' in env_data.keys() else 0
+        self.mpi_children_per_parent = int(env_data['mpi_children_per_parent']) if 'mpi_children_per_parent' in env_data.keys() else 0
 
         ## TODO: Add any OMP parameters
         self.omp_thread = int(env_data['omp_thread']) if 'omp_thread' in env_data.keys() else 1
@@ -42,7 +42,7 @@ class ExaEnv(ABC):
 
 
         ## TODO: executable 
-        if(self.mpi_child_spawn_per_parent > 0):
+        if(self.mpi_children_per_parent > 0):
             # defaults to running toy example of computing PI
             self.worker = (env_data['worker_app']).lower() if 'worker_app' in env_data.keys() else "envs/env_vault/cpi.py"
         else:
