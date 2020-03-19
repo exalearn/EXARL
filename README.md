@@ -164,8 +164,8 @@ tau               = 0.5
 * Environment defaults:
 ```
 default_env_cfg         = envs/env_vault/env_cfg/env_setup.json
-mpi_child_spawn_per_parent  = 0
-worker                  = envs/env_vault/cpi.py  # Synthetic workload that computes PI (runs only if mpi_child_spawn_per_parent > 0)
+mpi_children_per_parent  = 0
+worker                  = envs/env_vault/cpi.py  # Synthetic workload that computes PI (runs only if mpi_children_per_parent > 0)
 ```
 
 ## Base classes
