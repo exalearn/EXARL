@@ -40,8 +40,6 @@ class DQN(erl.ExaAgent):
         comm = MPI.COMM_WORLD
         self.rank = comm.Get_rank()
         self.size = comm.Get_size()
-        logger.info("Rank: %s" % self.rank)
-        logger.info("Size: %s" % self.size)
 
         ## Implement the UCB approach
         self.sigma = 2 # confidence level
@@ -50,12 +48,12 @@ class DQN(erl.ExaAgent):
 
         ## Setup GPU cfg
         if tf_version < 2:
-            config = tf.ConfigProto()
+            config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
             config.gpu_options.allow_growth = True
             sess = tf.Session(config=config)
             set_session(sess)
         elif tf_version >= 2:
-            config = tf.compat.v1.ConfigProto()
+            config = tf.compat.v1.ConfigProto(allow_soft_placement=True, log_device_placement=True)
             config.gpu_options.allow_growth = True
             sess = tf.compat.v1.Session(config=config)
             tf.compat.v1.keras.backend.set_session(sess)
