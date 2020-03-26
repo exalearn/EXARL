@@ -10,8 +10,7 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.ERROR)
 
-from agents.dqn import DQN
-
+from agents.agent_vault.dqn import DQN
 import csv
 
 if __name__ == "__main__":
@@ -39,7 +38,7 @@ if __name__ == "__main__":
     #################
     ## Setup agent ##
     #################
-    agent = DQN(env,cfg='agents/agent_cfg/dqn_setup.json')
+    agent = DQN(env)
     search_type= 'epsilon'
     ## Save infomation ##
     filename_prefix = 'dqn_cartpole_msle_'+search_type+'_episode_memory_%s_%s_v1' % (str(EPISODES),str(NSTEPS))

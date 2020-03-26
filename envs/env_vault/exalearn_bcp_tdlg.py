@@ -2,12 +2,13 @@ import gym, subprocess, os, logging, json, math
 import numpy as np
 import pandas as pd 
 import plotly.graph_objects as go
-
+from mpi4py import MPI
 from gym import spaces
 from shutil import copyfile,rmtree
 from collections import defaultdict
 from plotly.subplots import make_subplots
 from utils.sv import *
+import exarl as erl
 #from utils.tdlg_plot import *
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
@@ -15,10 +16,11 @@ logger = logging.getLogger('BlockCoPolymerTDLG-Logger')
 #logger.setLevel(logging.INFO)
 logger.setLevel(logging.CRITICAL)
 
-class BlockCoPolymerTDLG(gym.Env):
+class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self,cfg_file='../cfg/tdlg_setup.json',worker_index=1):
+    def __init__(self,cfg_file='../cfg/tdlg_setup.json'):
+        super().__init__(env_cfg=cfg_file)
         """ 
         Description:
            Environment used to run the TDLG 3D CH model 
@@ -57,14 +59,6 @@ class BlockCoPolymerTDLG(gym.Env):
         self.param_file = os.path.join(self.param_dir,self.param_name)
         self.model_parameter  = defaultdict(float)
         self._updateParamDict(self.param_file)
-
-        ## for multi-worker training
-        self.worker_index = data['worker_index'] if 'worker_index' in data.keys() else worker_index
-        self.worker_dir = './multiworker/worker'+str(self.worker_index)
-        if os.path.exists(self.worker_dir): rmtree(self.worker_dir)
-        os.mkdir(self.worker_dir)
-        os.mkdir(self.worker_dir+'/archive/')
-        print ("worker directory: " + self.worker_dir)
         
         ## for plotting
         self.rendering = False
@@ -95,10 +89,18 @@ class BlockCoPolymerTDLG(gym.Env):
         self.total_reward   = 0
         
         ## Use reset function to do the rest
-        self.reset()
+        self.reset(True)
         logger.info ("from __init__")
         logger.info (self.model_parameter)
 
+    def set_results_dir(self,results_dir):
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        self.worker_dir=results_dir+'multiworker/worker'+str(rank)
+        if os.path.exists(self.worker_dir): rmtree(self.worker_dir)
+        os.makedirs(self.worker_dir)
+        os.makedirs(self.worker_dir+'/archive/')
+        
     def _inMemory(self,state,action):
         ##
         inMemDict = {'inMem':False}
@@ -163,7 +165,7 @@ class BlockCoPolymerTDLG(gym.Env):
         ## Get structure from model output 
         self.current_structure_name = self.worker_dir + '/field.out'
         self.current_structure, self.current_vol = self._get1DFFT(self.worker_dir + '/field.out')
-        copyfile(self.worker_dir + '/field.out', self.worker_dir + '/archive/'+str(self.episode_num)+'_field_'+str(self.step_num)+'.out')
+        #copyfile(self.worker_dir + '/field.out', self.worker_dir + '/archive/'+str(self.episode_num)+'_field_'+str(self.step_num)+'.out')
         
         ## Calculate reward
         reward = self._calculateReward()
@@ -320,6 +322,7 @@ class BlockCoPolymerTDLG(gym.Env):
            - Run TDLG model
         """
         
+        print ('current folder:', self.worker_dir)
         ## Prepare ##
         if os.path.exists(self.worker_dir+'/param.in'):
             os.remove(self.worker_dir+'/param.in')
@@ -336,13 +339,14 @@ class BlockCoPolymerTDLG(gym.Env):
             file.writelines( new_filedata )
           
         ## Run model state ##
-        env_out = subprocess.Popen([self.app], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=self.worker_dir)
+        print ("app: ", self.app)
+        env_out = subprocess.Popen([self.app], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=self.worker_dir)#,env={'OMP_NUM_THREADS': '1'})
         stdout,stderr = env_out.communicate()
         
         logger.info(stdout)
         logger.info(stderr)
 
-    def reset(self):
+    def reset(self,init=False):
         # Clear state and environment
         self.state=np.zeros(self.observation_space.shape)
         self.current_structure = np.zeros(len(self.target_structure))
@@ -357,13 +361,14 @@ class BlockCoPolymerTDLG(gym.Env):
         self.current_reward = 0
         self.total_reward   = 0
         
-        logger.info("=====reset=====")
-        if os.path.exists(self.worker_dir+'/field.in'):
-            os.remove(self.worker_dir+'/field.in')
-        if os.path.exists(self.worker_dir+'/field.out'):
-            os.remove(self.worker_dir+'/field.out')
-        if os.path.exists(self.worker_dir+'/E.out'):
-            os.remove(self.worker_dir+'/E.out')
+        if init==False:
+            logger.info("=====reset=====")
+            if os.path.exists(self.worker_dir+'/field.in'):
+                os.remove(self.worker_dir+'/field.in')
+            if os.path.exists(self.worker_dir+'/field.out'):
+                os.remove(self.worker_dir+'/field.out')
+            if os.path.exists(self.worker_dir+'/E.out'):
+                os.remove(self.worker_dir+'/E.out')
        
         return self._getState()
 

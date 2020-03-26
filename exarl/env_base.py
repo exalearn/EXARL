@@ -57,6 +57,7 @@ class ExaEnv(ABC):
             os.makedirs(results_dir)
         ## Top level directory 
         self.results_dir=results_dir
+        print ("results saved @ ", self.results_dir)
         
     @abstractmethod
     def step(self, action):

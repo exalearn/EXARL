@@ -21,7 +21,7 @@ class ExaAgent(ABC):
             if key == 'agent_cfg':
                 self.agent_cfg = value
             else:
-                self.agent_cfg = 'agents/agent_vault/agent_cfg/dqn_setup.json'
+                self.agent_cfg = './agents/agent_vault/agent_cfg/dqn_setup.json'
 
         with open(self.agent_cfg) as json_file:
             agent_data = json.load(json_file)
