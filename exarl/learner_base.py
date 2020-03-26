@@ -151,7 +151,7 @@ class ExaLearner():
             ### Create new comm of leaders, make sure rank 0 (rank that controls learner) is included
             if rank == 0 or rank%(self.mpi_children_per_parent+1) == 0:
                 color = size
-                new_comm = comm.Split(color, rank)
+            new_comm = comm.Split(color, rank)
             comm.barrier()
             self.run_static(train_file, train_writer, new_comm)
             if new_comm != MPI.COMM_NULL:
