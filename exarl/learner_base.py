@@ -12,7 +12,7 @@
 
 import gym
 import exarl as erl
-
+import time
 import os
 import csv
 
@@ -126,13 +126,13 @@ class ExaLearner():
 	    # create a file to load perf details
             perf_file_name = 'ExaLearner_' + 'Episode%s_Steps%s_Size%s_memory_v1_perf' % (str(self.nepisodes), str(self.nsteps), str(comm.size))
             print('Average time taken for %s episodes across %s ranks: %s secs' % (self.nepisodes, size, float(ptim / size)), file=open(perf_file_name + ".txt", 'w+'))
-           print('Accumulated training time for the single learner over all the episodes on process 0: %s secs' % (ttim), file=open(perf_file_name + ".txt", 'a'))
+            print('Accumulated training time for the single learner over all the episodes on process 0: %s secs' % (ttim), file=open(perf_file_name + ".txt", 'a'))
               
 
     ### Untested, future purge candidate, at present 
     ### calls the static code above 
     def run_dynamic(self, train_file, train_writer, comm=MPI.COMM_WORLD):
-         run_static(self, train_file, train_writer, comm)
+         self.run_static(train_file, train_writer, comm)
 
     # top-level run
     def run(self, type):
@@ -140,22 +140,22 @@ class ExaLearner():
         rank = comm.Get_rank()
         size = comm.Get_size()
 
-        filename_prefix = 'ExaLearner_' + 'Episode%s_Steps%s_Rank%s_memory_v1_' % ( str(self.nepisodes), str(self.nsteps), str(rank), str(type)
+        filename_prefix = 'ExaLearner_' + 'Episode%s_Steps%s_Rank%s_memory_v1_%s' % (str(self.nepisodes), str(self.nsteps), str(rank), str(type))
         train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
         train_writer = csv.writer(train_file, delimiter = " ")
         color = MPI.UNDEFINED
 
         if type == 'static':
             ### Create new comm of leaders, make sure rank 0 (rank that controls learner) is included
-            if rank == 0 || rank%(self.mpi_children_per_parent+1) == 0:
+            if rank == 0 or rank%(self.mpi_children_per_parent+1) == 0:
                 color = size
                 new_comm = comm.Split(color, rank)
             comm.barrier()
-            run_static(self, train_file, train_writer, new_comm)
+            self.run_static(train_file, train_writer, new_comm)
             if new_comm != MPI.COMM_NULL:
                 new_comm.Free()
         elif type == 'dynamic':
-            run_dynamic(self, train_file, train_writer)
+            self.run_dynamic(train_file, train_writer)
 
         comm.barrier()
             

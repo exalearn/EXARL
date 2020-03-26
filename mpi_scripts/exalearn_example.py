@@ -8,7 +8,7 @@ env_id   = 'envs:ExaLearnCartpole-v1' # Use ExaLearnCartpole-v0 for dynamic vers
 ## Create ExaDQN
 exa_learner = erl.ExaLearner(agent_id,env_id)
 exa_learner.set_results_dir('./exa_dqn_results/')
-exa_learner.set_training(10,10)
+exa_learner.set_training(100,100)
 start = time.time()
 exa_learner.run('static') # can be either 'static' or 'dynamic'
 stop = time.time()
