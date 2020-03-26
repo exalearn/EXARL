@@ -19,11 +19,6 @@ import csv
 from mpi4py import MPI
 import json
 
-import logging
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('RL-Logger')
-logger.setLevel(logging.INFO)
-
 class ExaLearner():
 
     def __init__(self, agent_id, env_id, cfg='envs/env_vault/env_cfg/env_setup.json'):
@@ -63,141 +58,108 @@ class ExaLearner():
 
     def render_env(self):
         self.do_render=True
-        
+
+    def run_static(self, train_file, train_writer, comm=MPI.COMM_WORLD):
+        rank0_memories = 0
+        target_weights = None
+
+        ttim = 0.0
+        stim = time.time()
+
+        for e in range(self.nepisodes):
+            current_state = self.env.reset()
+            total_reward=0
+            done = False
+            all_done = False
+
+            while all_done!=True:
+            
+                if done != True:
+                    action = self.agent.action(current_state)
+                    next_state, reward, done, _ = self.env.step(action)
+                
+                total_reward+=reward
+                memory = (current_state, action, reward, next_state, done, total_reward)
+                new_data = comm.gather(memory, root=0)
+            
+                ## Learner ##
+                if comm.rank==0:
+                
+                    lstim = time.time()
+                    ## Push memories to learner ##
+                    for data in new_data:
+                        self.agent.remember(data[0],data[1],data[2],data[3],data[4])
+                    
+                        ## Train learner ##
+                        self.agent.train()
+                        rank0_memories = len(self.agent.memory)
+                        target_weights = self.agent.get_weights()
+                        letim = time.time()
+                        ttim += (letim - lstim)
+           
+                comm.barrier()
+
+                ## Broadcast the memory size and the model weights to the workers  ##
+                rank0_memories = comm.bcast(rank0_memories, root=0)
+                current_weights = comm.bcast(target_weights, root=0)
+                
+                ## Set the model weight for all the workers
+                if comm.rank>0 and rank0_memories>30:                            
+                    self.agent.set_weights(current_weights)
+
+                ## Update state
+                if done != True:
+                    current_state = next_state
+                    
+                ## Save memory for offline analysis
+                train_writer.writerow([current_state,action,reward,next_state,total_reward,done])
+                train_file.flush()
+           
+                ## Exit criteria
+                all_done = comm.allreduce(done, op=MPI.LAND)
+    
+        etim = time.time()
+        mtim  = etim - stim
+        ptim = comm.reduce(mtim, op=MPI.SUM, root=0)
+
+        if comm.rank==0:
+	    # create a file to load perf details
+            perf_file_name = 'ExaLearner_' + 'Episode%s_Steps%s_Size%s_memory_v1_perf' % (str(self.nepisodes), str(self.nsteps), str(comm.size))
+            print('Average time taken for %s episodes across %s ranks: %s secs' % (self.nepisodes, size, float(ptim / size)), file=open(perf_file_name + ".txt", 'w+'))
+           print('Accumulated training time for the single learner over all the episodes on process 0: %s secs' % (ttim), file=open(perf_file_name + ".txt", 'a'))
+              
+
+    ### Untested, future purge candidate, at present 
+    ### calls the static code above 
+    def run_dynamic(self, train_file, train_writer, comm=MPI.COMM_WORLD):
+         run_static(self, train_file, train_writer, comm)
+
+    # top-level run
     def run(self, type):
-        #########
-        ## MPI ##
-        #########
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
         size = comm.Get_size()
-        
-        ##
-        rank0_memories = 0
-        target_weights = None
-        
+
+        filename_prefix = 'ExaLearner_' + 'Episode%s_Steps%s_Rank%s_memory_v1_' % ( str(self.nepisodes), str(self.nsteps), str(rank), str(type)
+        train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
+        train_writer = csv.writer(train_file, delimiter = " ")
+        color = MPI.UNDEFINED
+
         if type == 'static':
-            if rank%(self.mpi_children_per_parent+1) == 0:
-                ##################
-                ## Save results ##
-                ##################
-                filename_prefix = 'ExaLearner_' + 'Episode%s_Steps%s_Rank%s_memory_v1' % ( str(self.nepisodes), str(self.nsteps), str(rank))
-                train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
-                train_writer = csv.writer(train_file, delimiter = " ")
-    
-                ## For Environments ##
-                #self.env.set_results_dir(self.results_dir+'/rank'+str(rank))
-                #if self.render_env: self.env.render()
-    
-                for e in range(self.nepisodes):
-                    current_state = self.env.reset()
-                    total_reward=0
-                    done = False
-                    while done!=True:
-            
-                        ## All workers ##
-                        action = self.agent.action(current_state)
-                        next_state, reward, done, _ = self.env.step(action)
-                        total_reward+=reward
-                        memory = (current_state, action, reward, next_state, done, total_reward)
-                        new_data = comm.gather(memory, root=0)
-                        logger.info('Rank[%s] - Memory length: %s ' % (str(rank),len(self.agent.memory)))
-            
-                        ## Learner ##
-                        if comm.rank==0:
-                            ## Push memories to learner ##
-                            for data in new_data:
-                                self.agent.remember(data[0],data[1],data[2],data[3],data[4])
-                    
-                                ## Train learner ##
-                                self.agent.train()
-                                rank0_memories = len(self.agent.memory)
-                                target_weights = self.agent.get_weights()
-                                if rank0_memories%(size)==0:
-                                    self.agent.save(self.results_dir+filename_prefix+'.h5')
-
-                        ## Broadcast the memory size and the model weights to the workers  ##
-                        rank0_memories = comm.bcast(rank0_memories, root=0)
-                        current_weights = comm.bcast(target_weights, root=0)
-                        logger.info('Rank[%s] - rank0 memories: %s' % (str(rank),str(rank0_memories)))
-                
-                        ## Set the model weight for all the workers
-                        if comm.rank>0 and rank0_memories>30:# and rank0_memories%(size)==0:
-                            logger.info('## Rank[%s] - Updating weights ##' % str(rank))
-                            self.agent.set_weights(current_weights)
-
-                        ## Update state
-                        current_state = next_state
-                        logger.info('Rank[%s] - Total Reward:%s' % (str(rank),str(total_reward) ))
-                    
-                        ## Save memory for offline analysis
-                        train_writer.writerow([current_state,action,reward,next_state,total_reward,done])
-                        train_file.flush()
-            
-                ## Save Learning target model
-                if comm.rank==0:
-                    self.agent.save(self.results_dir+filename_prefix+'.h5')
-                    train_file.close()
-
+            ### Create new comm of leaders, make sure rank 0 (rank that controls learner) is included
+            if rank == 0 || rank%(self.mpi_children_per_parent+1) == 0:
+                color = size
+                new_comm = comm.Split(color, rank)
+            comm.barrier()
+            run_static(self, train_file, train_writer, new_comm)
+            if new_comm != MPI.COMM_NULL:
+                new_comm.Free()
         elif type == 'dynamic':
-            ##################
-            ## Save results ##
-            ##################
-            filename_prefix = 'ExaLearner_' + 'Episode%s_Steps%s_Rank%s_memory_v1' % ( str(self.nepisodes), str(self.nsteps), str(rank))
-            train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
-            train_writer = csv.writer(train_file, delimiter = " ")
-            
-            ## For Environments ##
-            #self.env.set_results_dir(self.results_dir+'/rank'+str(rank))
-            #if self.render_env: self.env.render()
-            
-            for e in range(self.nepisodes):
-                current_state = self.env.reset()
-                total_reward=0
-                done = False
-                while done!=True:
-            
-                    ## All workers ##
-                    action = self.agent.action(current_state)
-                    next_state, reward, done, _ = self.env.step(action)
-                    total_reward+=reward
-                    memory = (current_state, action, reward, next_state, done, total_reward)
-                    new_data = comm.gather(memory, root=0)
-                    logger.info('Rank[%s] - Memory length: %s ' % (str(rank),len(self.agent.memory)))
-                    
-                    ## Learner ##
-                    if comm.rank==0:
-                        ## Push memories to learner ##
-                        for data in new_data:
-                            self.agent.remember(data[0],data[1],data[2],data[3],data[4])
-                    
-                            ## Train learner ##
-                            self.agent.train()
-                            rank0_memories = len(self.agent.memory)
-                            target_weights = self.agent.get_weights()
-                            if rank0_memories%(size)==0:
-                                self.agent.save(self.results_dir+filename_prefix+'.h5')
+            run_dynamic(self, train_file, train_writer)
 
-                    ## Broadcast the memory size and the model weights to the workers  ##
-                    rank0_memories = comm.bcast(rank0_memories, root=0)
-                    current_weights = comm.bcast(target_weights, root=0)
-                    logger.info('Rank[%s] - rank0 memories: %s' % (str(rank),str(rank0_memories)))
-                
-                    ## Set the model weight for all the workers
-                    if comm.rank>0 and rank0_memories>30:# and rank0_memories%(size)==0:
-                        logger.info('## Rank[%s] - Updating weights ##' % str(rank))
-                        self.agent.set_weights(current_weights)
-
-                    ## Update state
-                    current_state = next_state
-                    logger.info('Rank[%s] - Total Reward:%s' % (str(rank),str(total_reward) ))
-                    
-                    ## Save memory for offline analysis
-                    train_writer.writerow([current_state,action,reward,next_state,total_reward,done])
-                    train_file.flush()
+        comm.barrier()
             
-            ## Save Learning target model
-            if comm.rank==0:
-                self.agent.save(self.results_dir+filename_prefix+'.h5')
-                train_file.close()
-
+        ## Save Learning target model
+        if comm.rank==0:
+            self.agent.save(self.results_dir+filename_prefix+'.h5')
+            train_file.close()
