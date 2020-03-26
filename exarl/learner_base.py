@@ -40,7 +40,9 @@ class ExaLearner():
         self.mpi_children_per_parent = int(data['mpi_children_per_parent']) \
                                        if 'mpi_children_per_parent' in data.keys() \
                                        else 0
-        
+        self.omp_num_threads = int(data['omp_num_threads']) \
+                                       if 'omp_num_threads' in data.keys() \
+                                       else 1       
     def set_training(self,nepisodes,nsteps):
         self.nepisodes = nepisodes
         self.nsteps    = nsteps
@@ -154,6 +156,9 @@ class ExaLearner():
             self.run_static(train_file, train_writer, new_comm)
             if new_comm != MPI.COMM_NULL:
                 new_comm.Free()
+        elif type == 'static-omp':
+            os.environ['OMP_NUM_THREADS']='{:d}'.format(self.omp_num_threads)
+            self.run_static(train_file, train_writer, comm)
         elif type == 'dynamic':
             self.run_dynamic(train_file, train_writer)
 

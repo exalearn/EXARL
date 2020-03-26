@@ -45,6 +45,8 @@ class DQN(erl.ExaAgent):
         self.sigma = 2 # confidence level
         self.total_actions_taken = 1
         self.individual_action_taken = np.ones(self.env.action_space.n)
+        # adjust epsilon decay to normalize by processes
+        self.epsilon_decay = self.epsilon_decay / self.size
 
         ## Setup GPU cfg
         if tf_version < 2:
