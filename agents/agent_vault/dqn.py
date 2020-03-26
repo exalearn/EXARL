@@ -11,16 +11,10 @@ import exarl as erl
 from keras.backend.tensorflow_backend import set_session
 tf_version = int((tf.__version__)[0])
 
-if tf_version < 2:
-    from tensorflow.keras.models import Sequential,Model
-    from tensorflow.keras.layers import Dense,Dropout,Input,BatchNormalization
-    from tensorflow.keras.optimizers import Adam
-    from tensorflow.keras import backend as K
-elif tf_version >=2:
-    from keras.models import Sequential,Model
-    from keras.layers import Dense,Dropout,Input,BatchNormalization
-    from keras.optimizers import Adam
-    from keras import backend as K
+from keras.models import Sequential,Model
+from keras.layers import Dense,Dropout,Input,BatchNormalization
+from keras.optimizers import Adam
+from keras import backend as K
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
@@ -29,7 +23,7 @@ logger.setLevel(logging.INFO)
 
 #The Deep Q-Network (DQN)
 class DQN(erl.ExaAgent):
-    def __init__(self, env, cfg='agents/agent_vault/agent_cfg/dqn_setup.json'):
+    def __init__(self, env, cfg='./agents/agent_vault/agent_cfg/dqn_setup.json'):
         self.env = env
         self.memory = deque(maxlen = 2000)
 

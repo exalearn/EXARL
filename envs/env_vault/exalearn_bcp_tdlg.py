@@ -18,7 +18,7 @@ logger.setLevel(logging.CRITICAL)
 class BlockCoPolymerTDLG(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self,cfg_file='../cfg/tdlg_setup.json'):#,worker_index=1):
+    def __init__(self,cfg_file='../cfg/tdlg_setup.json',worker_index=1):
         """ 
         Description:
            Environment used to run the TDLG 3D CH model 
@@ -56,16 +56,15 @@ class BlockCoPolymerTDLG(gym.Env):
         self.param_name = data['param_name'] if 'param_name' in data.keys() else 'tdlg_param.in'
         self.param_file = os.path.join(self.param_dir,self.param_name)
         self.model_parameter  = defaultdict(float)
-        self._updateParamDict()
+        self._updateParamDict(self.param_file)
 
         ## for multi-worker training
-        #rank_index=0
-        self.worker_dir = './' #data['worker_index'] if 'worker_index' in data.keys() else rank_index
-        #self.worker_dir = './multiworker/worker'+str(self.worker_index)
-        #if os.path.exists(self.worker_dir): rmtree(self.worker_dir)
-        #os.mkdir(self.worker_dir)
-        #os.mkdir(self.worker_dir+'/archive/')
-        #print ("worker directory: " + self.worker_dir)
+        self.worker_index = data['worker_index'] if 'worker_index' in data.keys() else worker_index
+        self.worker_dir = './multiworker/worker'+str(self.worker_index)
+        if os.path.exists(self.worker_dir): rmtree(self.worker_dir)
+        os.mkdir(self.worker_dir)
+        os.mkdir(self.worker_dir+'/archive/')
+        print ("worker directory: " + self.worker_dir)
         
         ## for plotting
         self.rendering = False
@@ -94,23 +93,12 @@ class BlockCoPolymerTDLG(gym.Env):
 
         self.current_reward = 0
         self.total_reward   = 0
-
-        ##
-        self.episode_num = 0
-        self.step_num = 0
         
         ## Use reset function to do the rest
         self.reset()
         logger.info ("from __init__")
         logger.info (self.model_parameter)
 
-    def set_results_dir(self,results_dir):
-        self.worker_dir=results_dir
-        if os.path.exists(self.worker_dir): rmtree(self.worker_dir)
-        os.mkdir(self.worker_dir)
-        os.mkdir(self.worker_dir+'/archive/')
-        #print ("worker directory: " + self.worker_dir)
-        
     def _inMemory(self,state,action):
         ##
         inMemDict = {'inMem':False}
@@ -137,8 +125,6 @@ class BlockCoPolymerTDLG(gym.Env):
         return np.append(self.current_structure,round(self.model_parameter['kappa'],3))
     
     def step(self, action):
-        self.step_num+=1
-                
         logger.info('Env::step()')
 
         ## Default returns
@@ -177,7 +163,7 @@ class BlockCoPolymerTDLG(gym.Env):
         ## Get structure from model output 
         self.current_structure_name = self.worker_dir + '/field.out'
         self.current_structure, self.current_vol = self._get1DFFT(self.worker_dir + '/field.out')
-        #copyfile(self.worker_dir + '/field.out', self.worker_dir + '/archive/'+str(self.episode_num)+'_field_'+str(self.step_num)+'.out')
+        copyfile(self.worker_dir + '/field.out', self.worker_dir + '/archive/'+str(self.episode_num)+'_field_'+str(self.step_num)+'.out')
         
         ## Calculate reward
         reward = self._calculateReward()
@@ -202,7 +188,12 @@ class BlockCoPolymerTDLG(gym.Env):
         """
         structure,self.target_vol = self._get1DFFT(input_file_name)  
         return structure
-        
+    
+    def setTarget(self,input_file_name):
+        """
+        Description: Read in a 3D volume file based on the TDLG output structure
+        """
+        return self._get1DFFT(input_file_name)  
         
     def _get1DFFT(self, input_file_name):
         """
@@ -284,7 +275,6 @@ class BlockCoPolymerTDLG(gym.Env):
         """
         Description: Calculate the reduced chi^2 between the target structure and the current structure in 1D FFTW space
         """
-        
         chi2=0
         smape=0
         nvalues=len(self.target_structure)
@@ -301,15 +291,14 @@ class BlockCoPolymerTDLG(gym.Env):
         
         return reward
 
-    def _updateParamDict(self):
+    def _updateParamDict(self,param_file):
         """
         Description: 
            - Reads parameter file and make dict
-           
         """
         ## Read default parameter file
         filedata = []
-        with open(self.param_file, 'r') as file:
+        with open(param_file, 'r') as file:
             # read a list of lines into data
             filedata = file.readlines()
         ## Make dict
@@ -362,15 +351,11 @@ class BlockCoPolymerTDLG(gym.Env):
         self.model_parameter = {}
 
         ## Re-read parameter file and setup dict
-        self._updateParamDict()#os.path.join(self.param_dir,self.param_name))
+        self._updateParamDict(self.param_file)
         
         ## Return the state
         self.current_reward = 0
         self.total_reward   = 0
-
-        #
-        self.episode_num += 1
-        self.step_num = 0
         
         logger.info("=====reset=====")
         if os.path.exists(self.worker_dir+'/field.in'):
@@ -387,18 +372,19 @@ class BlockCoPolymerTDLG(gym.Env):
         self.rendering = True
         data = self.cfg_data
         
-        self.plot_folder = self.worker_dir + '/plots/' #data['plot_folder'] if 'plot_folder' in data.keys() else 'plot_bcp_tdlg/worker'+str(self.worker_index)+'/'
+        self.plot_folder = data['plot_folder'] if 'plot_folder' in data.keys() else 'plot_bcp_tdlg/worker'+str(self.worker_index)+'/'
         if os.path.exists(self.plot_folder): rmtree(self.plot_folder)
         os.makedirs(self.plot_folder)
         
         self.fig_target = self._plot_vol(self.target_vol)
 
     def _render(self):
+        
         self.fig = make_subplots(rows=2, 
                                  cols=6,
                                  subplot_titles=("current structure","","","target structure", "","", 
                                                  "current FFT","","target FFT","","FFT difference",""),
-                                 specs=[[{'type': 'volume','colspan':3},{},{}, {'type': 'volume','colspan':3},{},{}],
+                                 specs=[[{'type': 'scatter','colspan':3},{},{}, {'type': 'scatter','colspan':3},{},{}],
                                         [{'type': 'xy','colspan':2},{}, {'type': 'xy','colspan':2},{}, {'type': 'xy','colspan':2},{}]],
                                  vertical_spacing   = 0.1,
                                  horizontal_spacing = 0.1)
@@ -412,20 +398,39 @@ class BlockCoPolymerTDLG(gym.Env):
         
         self.fig.add_trace(go.Scatter(x=list(range(len(self.current_structure))), y=[c - t for c, t in zip(self.current_structure, self.target_structure)]),row=2, col=5)
         
-        self.fig_current = self._plot_vol(self.current_vol)
-        self.fig.add_trace(self.fig_current, row=1, col=1)
-        self.fig.add_trace(self.fig_target , row=1, col=4)
+        #self.fig_current = self._plot_vol(self.current_vol)
+        #self.fig.add_trace(self.fig_current, row=1, col=1)
+        
+        #current strcuture
+        self.fig.add_trace(go.Scatter(x=[0, 276],y=[0, 205],mode="markers",marker_opacity=0),row=1,col=1)
+        self.fig.update_xaxes(visible=False,range=[0, 276])
+        self.fig.update_yaxes(visible=False,range=[0, 205],scaleanchor="x")
+        self.fig.add_layout_image(
+            go.layout.Image(
+                source="/home/d3x632/VizExample/tmp/Snap0_2.png",
+                xref="x",yref="y",x=0,sizex=276,y=205,sizey=205,sizing="stretch",opacity=1.0,layer="below")
+        )
+        
+        #target structure
+        self.fig.add_trace(go.Scatter(x=[0, 276],y=[0, 205],mode="markers",marker_opacity=0),row=1,col=4)
+        self.fig.update_xaxes(visible=False,range=[0, 276])
+        self.fig.update_yaxes(visible=False,range=[0, 205],scaleanchor="x")
+        self.fig.add_layout_image(
+            go.layout.Image(
+                source="/home/d3x632/VizExample/tmp/Snap0_2.png",
+                xref="x",yref="y",x=0+375,sizex=276,y=205,sizey=205,sizing="stretch",opacity=1.0,layer="below")
+        )
                            
         self.fig.update_layout(height=800, width=1000, 
                                title_text = 'episode '+str(self.episode_num)+' step '+str(self.step_num),
                                showlegend=False,
+                               margin={"l": 100, "r": 100, "t": 100, "b": 100},
                                scene_xaxis_showticklabels=False,
                                scene_yaxis_showticklabels=False,
                                scene_zaxis_showticklabels=False)
         
         filename = self.plot_folder + figName
         self.fig.write_image(filename + ".png")
-        #self.fig.savefig(filename+".png",format='png')
         logger.info("Plot saved to: "+filename+".png")
         
 
