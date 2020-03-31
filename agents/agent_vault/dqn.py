@@ -7,7 +7,7 @@ import json
 import math
 import logging
 import exarl as erl
-
+import pickle
 from keras.backend.tensorflow_backend import set_session
 tf_version = int((tf.__version__)[0])
 
@@ -32,17 +32,7 @@ class DQN(erl.ExaAgent):
     def __init__(self, env, cfg='agents/agent_vault/agent_cfg/dqn_setup.json'):
         self.env = env
         self.memory = deque(maxlen = 2000)
-
-        #########
-        ## MPI ##
-        #########
-        from mpi4py import MPI
-        comm = MPI.COMM_WORLD
-        self.rank = comm.Get_rank()
-        self.size = comm.Get_size()
-        logger.info("Rank: %s" % self.rank)
-        logger.info("Size: %s" % self.size)
-
+        
         ## Implement the UCB approach
         self.sigma = 2 # confidence level
         self.total_actions_taken = 1
@@ -69,8 +59,9 @@ class DQN(erl.ExaAgent):
         self.target_weights = self.target_model.get_weights()
         
         ## Save infomation ##
+        self.results_dir = '/gpfs/alpine/ast153/scratch/vinayr/'
         train_file_name = "dqn_exacartpole_%s_lr%s_tau%s_v1.log" % (self.search_method, str(self.learning_rate) ,str(self.tau) )
-        self.train_file = open(train_file_name, 'w')
+        self.train_file = open(self.results_dir + train_file_name, 'w')
         self.train_writer = csv.writer(self.train_file, delimiter = " ")
 
     def _huber_loss(self, target, prediction):
@@ -112,27 +103,6 @@ class DQN(erl.ExaAgent):
             np_state = np.array(state).reshape(1,len(state))
             act_values = self.target_model.predict(np_state)
             action = np.argmax(act_values[0])
-            ## Adding the UCB 
-            #if self.search_method=="ucb":
-            #    print('START UCB')
-            #    print( 'Default values')
-            #    print( (act_values))
-            #    print( (action))
-            #    act_values +=  self.sigma*np.sqrt(math.log(self.total_actions_taken)/self.individual_action_taken)
-            #    action = np.argmax(act_values[0])
-            #    print( 'UCB values')
-            #    print( (act_values))
-            #    print( (action))
-            #    ## Check if there are multiple candidates and select one randomly
-            #    mask = [i for i in range(len(act_values[0])) if act_values[0][i] == act_values[0][action]]
-            #    ncands=len(mask)
-            #    print( 'Number of cands: %s' % str(ncands))
-            #    if ncands>1:
-            #        action = mask[random.randint(0,ncands-1)]
-            #    print( (action))
-            #    print('END UCB')
-            #print(act_values)
-            #print(action)
             mask = [i for i in range(len(act_values[0])) if act_values[0][i] == act_values[0][action]]
             ncands=len(mask)
             # print( 'Number of cands: %s' % str(ncands))
@@ -193,12 +163,27 @@ class DQN(erl.ExaAgent):
     def set_weights(self, weights):
         self.target_model.set_weights(weights)
     
-    def load(self, name):
-        self.model.load_weights(name)
+    def load(self, filename):
+        #self.model.load_weights(filename)
+        layers = self.model.layers
+        with open(filename, 'rb') as f:
+            pickle_list = pickle.load(f)
 
-    def save(self, name):
-        self.model.save_weights(name)
+        for layerId in range(len(layers)):
+            assert(layers[layerId].name == pickle_list[layerId][0])
+            layers[layerId].set_weights(pickle_list[layerId][1])
 
+    def save(self, filename):
+        #self.model.save_weights(filename)
+        layers = self.model.layers
+        pickle_list = []
+        for layerId in range(len(layers)):
+            weigths = layers[layerId].get_weights()
+            pickle_list.append([layers[layerId].name, weigths])
+
+        with open(filename, 'wb') as f:
+            pickle.dump(pickle_list, f, -1)
+ 
     def update(self):
         print("Implement update method in dqn.py")
 
