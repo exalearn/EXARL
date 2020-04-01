@@ -51,8 +51,8 @@ class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
         myPI = cp.compute_pi(N, newcomm)
         PI = newcomm.reduce(myPI, op=MPI.SUM, root=0)
         newrank = newcomm.rank
-        if newrank == 0:
-            print(PI)
+        #if newrank == 0:
+        #    print(PI)
 
         newcomm.Free()
         

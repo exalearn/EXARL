@@ -72,9 +72,10 @@ class DQN(erl.ExaAgent):
         self.model = self._build_model()
         self.target_model = self._build_model()
         self.target_weights = self.target_model.get_weights()
-        
+       
+    def save_info(self):
         ## Save infomation ##
-        self.results_dir = './'
+        self.results_dir = super().get_results_dir()
         train_file_name = "dqn_exacartpole_%s_lr%s_tau%s_v1.log" % (self.search_method, str(self.learning_rate) ,str(self.tau) )
         self.train_file = open(self.results_dir + train_file_name, 'w')
         self.train_writer = csv.writer(self.train_file, delimiter = " ")
