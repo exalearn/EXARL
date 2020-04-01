@@ -46,7 +46,10 @@ class ExaAgent(ABC):
             os.makedirs(results_dir)
         ## Top level directory 
         self.results_dir=results_dir
-        
+
+    def get_results_dir(self):
+        return self.results_dir
+
     @abstractmethod
     def get_weights(self):
         pass

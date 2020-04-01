@@ -30,7 +30,7 @@ class ExaLearner():
         ## Default training 
         self.nepisodes=1
         self.nsteps=10
-        self.results_dir='./results/'
+        self.results_dir='./results'
         self.do_render=False
         
         ## Setup agent and environents
@@ -50,7 +50,7 @@ class ExaLearner():
         self.nepisodes = nepisodes
         self.nsteps    = nsteps
         self.env._max_episode_steps=self.nsteps
-
+    
     def set_results_dir(self,results_dir):
         if not os.path.exists(results_dir):
             os.makedirs(results_dir)
@@ -122,6 +122,7 @@ class ExaLearner():
         train_file.close()
 
     def run(self, type):
+        self.agent.save_info()
         comm = MPI.COMM_WORLD
         if type == 'static':
             if comm.rank%(self.mpi_children_per_parent+1) == 0:

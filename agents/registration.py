@@ -26,7 +26,7 @@ class AgentSpec(object):
                 self._kwargs = {} if kwargs is None else kwargs
 
         def make(self, **kwargs):
-                """Instantiates an instance of the environment with appropriate kwargs"""
+                """Instantiates an instance of the agent with appropriate kwargs"""
                 if self.entry_point is None:
                         raise error.Error('Attempting to make deprecated agent {}. (HINT: is there a newer registered version of this agent?)'.format(self.id))
                 _kwargs = self._kwargs.copy()
@@ -45,9 +45,9 @@ class AgentRegistry(object):
 
         def make(self, path, **kwargs):
                 if len(kwargs) > 0:
-                        logger.info('Making new env: %s (%s)', path, kwargs)
+                        logger.info('Making new agent: %s (%s)', path, kwargs)
                 else:
-                        logger.info('Making new env: %s', path)
+                        logger.info('Making new agent: %s', path)
                 spec = self.spec(path)
                 agent = spec.make(**kwargs)
 

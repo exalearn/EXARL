@@ -9,6 +9,7 @@ LIBNAME = libcomputePI.so
 build: ${LIBNAME}
 ${LIBNAME}: computePI.c
 	${MPICC} -fPIC -shared -o $@ $<
+	# /sw/summit/gcc/8.1.1-cuda10.1.168/bin/gcc -I/ccs/home/vinayr/.conda/envs/exarl_summit/include -I/ccs/home/vinayr/.conda/envs/exarl_summit/include -L/ccs/home/vinayr/.conda/envs/exarl_summit/lib -Wl,-rpath,/ccs/home/vinayr/.conda/envs/exarl_summit/lib -I/ccs/home/vinayr/.conda/envs/exarl_summit/include -L/ccs/home/vinayr/.conda/envs/exarl_summit/lib -lmpi -fPIC -shared -o libcomputePI.so computePI.c
 
 .PHONY: clean
 clean:
