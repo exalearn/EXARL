@@ -68,10 +68,6 @@ class ExaAgent(ABC):
         pass
 
     @abstractmethod
-    def remember(self):
-        pass
-
-    @abstractmethod
     def load(self):
         pass
 
