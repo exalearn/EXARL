@@ -30,9 +30,8 @@ logger.setLevel(logging.INFO)
 #The Deep Q-Network (DQN)
 class DQN(erl.ExaAgent):
     def __init__(self, env, cfg='agents/agent_vault/agent_cfg/dqn_setup.json'):
+
         self.env = env
-        self.memory = deque(maxlen = 2000)
-        
         ## Implement the UCB approach
         self.sigma = 2 # confidence level
         self.total_actions_taken = 1
@@ -52,14 +51,30 @@ class DQN(erl.ExaAgent):
 
         ## Get hyper-parameters from json cfg file
         super().__init__(agent_cfg=cfg)
+
+
+        #########
+        ## MPI ##
+        #########
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        self.rank = comm.Get_rank()
+        self.size = comm.Get_size()
+        logger.info("Rank: %s" % self.rank)
+        logger.info("Size: %s" % self.size)
         
+        ## TODO: Assuming rank==0 is the only learner
+        self.memory = deque(maxlen = 0)
+        if self.rank==0:
+            deque(maxlen = 2000) ## TODO: make configurable
+            
         ##
         self.model = self._build_model()
         self.target_model = self._build_model()
         self.target_weights = self.target_model.get_weights()
         
         ## Save infomation ##
-        self.results_dir = '/gpfs/alpine/ast153/scratch/vinayr/'
+        self.results_dir = './'
         train_file_name = "dqn_exacartpole_%s_lr%s_tau%s_v1.log" % (self.search_method, str(self.learning_rate) ,str(self.tau) )
         self.train_file = open(self.results_dir + train_file_name, 'w')
         self.train_writer = csv.writer(self.train_file, delimiter = " ")
