@@ -1,4 +1,4 @@
-import random,sys
+import random,sys,os
 import numpy as np
 from collections import deque
 import tensorflow as tf
@@ -11,16 +11,17 @@ import pickle
 from keras.backend.tensorflow_backend import set_session
 tf_version = int((tf.__version__)[0])
 
-if tf_version < 2:
-    from tensorflow.keras.models import Sequential,Model
-    from tensorflow.keras.layers import Dense,Dropout,Input,BatchNormalization
-    from tensorflow.keras.optimizers import Adam
-    from tensorflow.keras import backend as K
-elif tf_version >=2:
-    from keras.models import Sequential,Model
-    from keras.layers import Dense,Dropout,Input,BatchNormalization
-    from keras.optimizers import Adam
-    from keras import backend as K
+#if tf_version < 2:
+#    from tensorflow.keras.models import Sequential,Model
+#    from tensorflow.keras.layers import Dense,Dropout,Input,BatchNormalization
+#    from tensorflow.keras.optimizers import Adam
+#    from tensorflow.keras import backend as K
+from tensorflow.python.client import device_lib
+#elif tf_version >=2:
+from keras.models import Sequential,Model
+from keras.layers import Dense,Dropout,Input,BatchNormalization
+from keras.optimizers import Adam
+from keras import backend as K
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
@@ -37,9 +38,33 @@ class DQN(erl.ExaAgent):
         self.total_actions_taken = 1
         self.individual_action_taken = np.ones(self.env.action_space.n)
 
+        #########
+        ## MPI ##
+        #########
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        self.rank = comm.Get_rank()
+        #self.size = comm.Get_size()
+        #logger.info("Rank: %s" % self.rank)
+        #logger.info("Size: %s" % self.size)
+
+        ## Default settings 
+        num_cores = os.cpu_count()
+        num_CPU   = os.cpu_count()
+        num_GPU   = 0
+        
         ## Setup GPU cfg
         if tf_version < 2:
-            config = tf.ConfigProto()
+            gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
+            if self.rank==0 and len(gpu_names)>0:
+                    num_cores = 1
+                    num_CPU   = 1
+                    num_GPU   = len(gpu_names)
+            config = tf.ConfigProto(intra_op_parallelism_threads=num_cores,
+                        inter_op_parallelism_threads=num_cores, 
+                        allow_soft_placement=True,
+                        device_count = {'CPU' : num_CPU,
+                                        'GPU' : num_GPU})
             config.gpu_options.allow_growth = True
             sess = tf.Session(config=config)
             set_session(sess)
@@ -51,17 +76,6 @@ class DQN(erl.ExaAgent):
 
         ## Get hyper-parameters from json cfg file
         super().__init__(agent_cfg=cfg)
-
-
-        #########
-        ## MPI ##
-        #########
-        from mpi4py import MPI
-        comm = MPI.COMM_WORLD
-        self.rank = comm.Get_rank()
-        self.size = comm.Get_size()
-        logger.info("Rank: %s" % self.rank)
-        logger.info("Size: %s" % self.size)
         
         ## TODO: Assuming rank==0 is the only learner
         self.memory = deque(maxlen = 0)
