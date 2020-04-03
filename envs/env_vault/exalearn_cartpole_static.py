@@ -45,7 +45,7 @@ class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
             N = None
             
         N = comm.bcast(N, root=0)	
-        color = int(world_rank/self.mpi_children_per_parent)
+        color = int(world_rank/(self.mpi_children_per_parent+1))
         newcomm = comm.Split(color, world_rank)
         #myPI = computePI(N, newcomm)
         myPI = cp.compute_pi(N, newcomm)
