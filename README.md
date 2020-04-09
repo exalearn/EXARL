@@ -51,13 +51,13 @@ import exarl as erl
 
 ## Define agent and env
 agent_id = 'agents:DQN-v0' # Specify agent
-env_id   = 'envs:ExaLearnCartpole-v0' # Specify env
+env_id   = 'envs:ExaLearnCartpole-v1' # Specify env
 
 ## Create learner
 exa_learner = erl.ExaLearner(agent_id,env_id) 
 exa_learner.set_results_dir('./exa_dqn_results/')
 exa_learner.set_training(10,10) # (num_episodes, num_steps per episode)
-exa_learner.run()
+exa_learner.run('static') # pass 'dynamic' for environments that need dynamic MPI spawning
 ```
 * Write your own script or modify the above as needed
 * Run the following command:
