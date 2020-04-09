@@ -45,7 +45,7 @@ pip install -e . --user
 
 ## Running ExaRL using MPI
 * Existing environment can be paired with an available agent
-* The following script is provided for convenience: ```ExaRL/mpi_scripts/exalearn_example.py```
+* The following script is provided for convenience: ```ExaRL/driver/exalearn_example.py```
 ```
 import exarl as erl
 
@@ -62,7 +62,7 @@ exa_learner.run('static') # pass 'dynamic' for environments that need dynamic MP
 * Write your own script or modify the above as needed
 * Run the following command:
 ```
-mpiexec -np <num_parent_processes> python mpi_scripts/exalearn_example.py
+mpiexec -np <num_parent_processes> python driver/exalearn_example.py
 ```
 
 ## Creating custom environments
