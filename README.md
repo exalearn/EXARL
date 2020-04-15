@@ -12,7 +12,7 @@ A scalable software framework for reinforcement learning environments and agents
 ```
 ├── setup.py                          : Python setup file with requirements files 
 ├── scripts                           : folder containing RL steering scripts
-├── mpi_scripts                       : folder containing RL MPI steering scripts
+├── driver                            : folder containing RL MPI steering scripts
 ├── exarl                	          : folder containing base classes
     └── __init__.py                   : make base classes visible
     └── wrapper.py                    : wrapper for unified syntax
@@ -107,13 +107,14 @@ Example:-
 ```
 * Agents must include the following functions:
 ```
-train()     # train the agent
-update()    # update target model
-action()    # Next action based on current state
-remember()  # save (s,a,r,s',d) to memory
-load()      # load weights from memory
-save()      # save weights to memory
-monitor()   # monitor progress of learning
+get_weights()   # get target model weights
+set_weights()   # set target model weights
+train()         # train the agent
+update()        # update target model
+action()        # Next action based on current state
+load()          # load weights from memory
+save()          # save weights to memory
+monitor()       # monitor progress of learning
 ```
 * Register the agent in ```ExaRL/agents/__init__.py```
     
@@ -175,7 +176,8 @@ worker                  = envs/env_vault/cpi.py  # Synthetic workload that compu
 set_training()      # set number of episodes and steps per episode
 set_results_dir()   # result directory path
 render_env()        # True or False
-run()               # Run learner
+run_exarl()         # run learner
+run()               # Setup to run static or dynamic learner
 ```
 
 ## Contacts
