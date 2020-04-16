@@ -84,6 +84,9 @@ results_dir = './'+run_params['experiment_id']+'/'+run_params['run_id']
 exa_learner.set_config(run_params)
 exa_learner.set_results_dir(results_dir)
 start = time.time()
-exa_learner.run(run_params['run_type']) # can be either 'static' or 'dynamic'
+run_type = exa_learner.env.run_type
+# run_type = 'static'
+exa_learner.run(run_type) # can be either 'static' or 'dynamic'
+#exa_learner.run(run_params['run_type']) # can be either 'static' or 'dynamic'
 stop = time.time()
 print("Elapsed time = ", stop - start)

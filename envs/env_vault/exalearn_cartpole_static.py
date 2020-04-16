@@ -29,6 +29,7 @@ class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
         #self.env = gym.make('FrozenLake-v0')
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
+        self.run_type = 'static'
 
     def step(self, action):
         next_state, reward, done, info = self.env.step(action)
