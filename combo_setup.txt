@@ -1,0 +1,16 @@
+[Driver Params]
+agent = 'DQN-v0'
+env = 'ExaLearnCartpole-v0'
+run_type = 'dynamic'
+[Learner Params]
+n_episodes = 1
+n_steps = 10
+[DQN_Parama]
+search_method = 'epsilon'
+gamma = .95
+epsilon = 1.0
+epsilon_min = 0.1
+epsilon_decay = 0.995
+learning_rate = 0.01
+batch_size = 10
+tau = 1.0
