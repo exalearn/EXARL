@@ -129,6 +129,8 @@ class ExaLearner():
         train_file.close()
 
     def run(self, run_type):
+        if run_type is not self.env.run_type:
+            print("Incompatible run_type", flush = True)
         self.agent.save_info()
         comm = MPI.COMM_WORLD
         if run_type == 'static':
