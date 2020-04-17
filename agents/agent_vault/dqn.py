@@ -33,6 +33,7 @@ class DQN(erl.ExaAgent):
     def __init__(self, env, cfg='agents/agent_vault/agent_cfg/dqn_setup.json'):
 
         self.env = env
+        self.default_cfg = 'agents/agent_vault/agent_cfg/dqn_setup.json'
         ## Implement the UCB approach
         self.sigma = 2 # confidence level
         self.total_actions_taken = 1
