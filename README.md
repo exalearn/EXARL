@@ -12,7 +12,7 @@ A scalable software framework for reinforcement learning environments and agents
 ```
 ├── setup.py                          : Python setup file with requirements files 
 ├── scripts                           : folder containing RL steering scripts
-├── mpi_scripts                       : folder containing RL MPI steering scripts
+├── driver                            : folder containing RL MPI steering scripts
 ├── exarl                	          : folder containing base classes
     └── __init__.py                   : make base classes visible
     └── wrapper.py                    : wrapper for unified syntax
@@ -45,24 +45,24 @@ pip install -e . --user
 
 ## Running ExaRL using MPI
 * Existing environment can be paired with an available agent
-* The following script is provided for convenience: ```ExaRL/mpi_scripts/exalearn_example.py```
+* The following script is provided for convenience: ```ExaRL/driver/exalearn_example.py```
 ```
 import exarl as erl
 
 ## Define agent and env
 agent_id = 'agents:DQN-v0' # Specify agent
-env_id   = 'envs:ExaLearnCartpole-v0' # Specify env
+env_id   = 'envs:ExaLearnCartpole-v1' # Specify env
 
 ## Create learner
 exa_learner = erl.ExaLearner(agent_id,env_id) 
 exa_learner.set_results_dir('./exa_dqn_results/')
 exa_learner.set_training(10,10) # (num_episodes, num_steps per episode)
-exa_learner.run()
+exa_learner.run('static') # pass 'dynamic' for environments that need dynamic MPI spawning
 ```
 * Write your own script or modify the above as needed
 * Run the following command:
 ```
-mpiexec -np <num_parent_processes> python mpi_scripts/exalearn_example.py
+mpiexec -np <num_parent_processes> python driver/exalearn_example.py
 ```
 
 ## Creating custom environments
@@ -107,13 +107,14 @@ Example:-
 ```
 * Agents must include the following functions:
 ```
-train()     # train the agent
-update()    # update target model
-action()    # Next action based on current state
-remember()  # save (s,a,r,s',d) to memory
-load()      # load weights from memory
-save()      # save weights to memory
-monitor()   # monitor progress of learning
+get_weights()   # get target model weights
+set_weights()   # set target model weights
+train()         # train the agent
+update()        # update target model
+action()        # Next action based on current state
+load()          # load weights from memory
+save()          # save weights to memory
+monitor()       # monitor progress of learning
 ```
 * Register the agent in ```ExaRL/agents/__init__.py```
     
@@ -175,7 +176,8 @@ worker                  = envs/env_vault/cpi.py  # Synthetic workload that compu
 set_training()      # set number of episodes and steps per episode
 set_results_dir()   # result directory path
 render_env()        # True or False
-run()               # Run learner
+run_exarl()         # run learner
+run()               # Setup to run static or dynamic learner
 ```
 
 ## Contacts

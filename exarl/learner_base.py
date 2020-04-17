@@ -133,8 +133,14 @@ class ExaLearner():
             print("Incompatible run_type", flush = True)
         self.agent.save_info()
         comm = MPI.COMM_WORLD
+
         if run_type == 'static':
+            color =MPI.UNDEFINED
             if comm.rank%(self.mpi_children_per_parent+1) == 0:
-                self.run_exarl(comm)
+                color = 0
+            new_comm = comm.Split(color, comm.rank)
+            if new_comm != MPI.COMM_NULL:
+                self.run_exarl(new_comm)
+                new_comm.Free()
         elif run_type == 'dynamic':
             self.run_exarl(comm)
