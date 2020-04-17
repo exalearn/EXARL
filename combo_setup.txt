@@ -1,7 +1,7 @@
 [Driver Params]
+output_dir = './exarl_results_dir/'
 agent = 'DQN-v0'
-env = 'ExaLearnCartpole-v0'
-run_type = 'dynamic'
+env = 'ExaLearnCartpole-v1'
 [Learner Params]
 n_episodes = 1
 n_steps = 10
