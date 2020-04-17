@@ -22,6 +22,7 @@ class ExaCartpole(gym.Env, erl.ExaEnv):
         with open(self.cfg) as json_file:
             data = json.load(json_file)
         self.run_type = 'dynamic'
+        self.default_cfg = 'envs/env_vault/env_cfg/env_setup.json'
 
         ##
 
