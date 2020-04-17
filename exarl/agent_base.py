@@ -37,7 +37,7 @@ class ExaAgent(ABC):
 
         ## Default output directory
         self.results_dir = ''
-        
+
     def set_results_dir(self,results_dir):
         ''' 
         Default method to save environment specific information 
@@ -46,6 +46,19 @@ class ExaAgent(ABC):
             os.makedirs(results_dir)
         ## Top level directory 
         self.results_dir=results_dir
+
+    def set_config(self, agent_data):
+        ''' 
+        Default method to set arguments
+        '''
+        self.search_method =  (agent_data['search_method'])
+        self.gamma =  (agent_data['gamma']) 
+        self.epsilon = (agent_data['epsilon'])
+        self.epsilon_min = (agent_data['epsilon_min'])
+        self.epsilon_decay = (agent_data['epsilon_decay'])
+        self.learning_rate =  (agent_data['learning_rate'])
+        self.batch_size = (agent_data['batch_size'])
+        self.tau = (agent_data['tau'])
 
     def get_results_dir(self):
         return self.results_dir
@@ -57,7 +70,7 @@ class ExaAgent(ABC):
     @abstractmethod
     def set_weights(self):
         pass
-    
+
     @abstractmethod
     def train(self):
         pass
