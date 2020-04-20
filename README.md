@@ -13,6 +13,10 @@ A scalable software framework for reinforcement learning environments and agents
 ├── setup.py                          : Python setup file with requirements files 
 ├── scripts                           : folder containing RL steering scripts
 ├── driver                            : folder containing RL MPI steering scripts
+    └── exalearn_example.py           : Example run scipt
+    └── candle_example.py             : Example run script that includes CANDLE functionality
+    └── candleDriver.py               : Supporting CANDLE script
+├── candlelib                         : folder containing library for CANDLE functionality
 ├── exarl                	          : folder containing base classes
     └── __init__.py                   : make base classes visible
     └── wrapper.py                    : wrapper for unified syntax
@@ -54,17 +58,64 @@ agent_id = 'agents:DQN-v0' # Specify agent
 env_id   = 'envs:ExaLearnCartpole-v1' # Specify env
 
 ## Create learner
-exa_learner = erl.ExaLearner(agent_id,env_id) 
-exa_learner.set_results_dir('./exa_dqn_results/')
-exa_learner.set_training(10,10) # (num_episodes, num_steps per episode)
-exa_learner.run('static') # pass 'dynamic' for environments that need dynamic MPI spawning
+exa_learner = erl.ExaLearner(agent_id,env_id)
+exa_learner.set_results_dir('/gpfs/alpine/ast153/scratch/vinayr/')
+exa_learner.set_training(10,10) # (num_episodes, num_steps)
+run_type = exa_learner.env.run_type
+exa_learner.run(run_type)
 ```
 * Write your own script or modify the above as needed
 * Run the following command:
 ```
 mpiexec -np <num_parent_processes> python driver/exalearn_example.py
 ```
+## Using CANDLE functionality
+* Default parameters are in ```ExaRL/combo_setup.txt```
+```
+[Driver Params]
+output_dir = './exa_results_dir'
+agent = 'DQN-v0'
+env = 'ExaLearnCartpole-v1'
 
+[Learner Params]
+n_episodes = 1
+n_steps = 10
+
+[DQN_Params]
+search_method = 'epsilon'
+gamma = .95
+epsilon = 1.0
+epsilon_min = 0.1
+epsilon_decay = 0.995
+learning_rate = 0.01
+batch_size = 10
+tau = 1.0
+```
+* Refer to the script ```ExaRL/driver/candle_example.py```
+```
+import exarl as erl
+import driver.candleDriver as cd
+
+## Get run parameters using CANDLE
+run_params = cd.initialize_parameters()
+results_dir = run_params['output_dir']+run_params['experiment_id']+'/'+run_params['run_id']
+
+## Define agent and env
+agent_id = 'agents:'+run_params['agent']
+env_id   = 'envs:'+run_params['env']
+
+## Create learner object and run
+exa_learner = erl.ExaLearner(agent_id,env_id)
+exa_learner.set_config(run_params)
+exa_learner.set_results_dir(results_dir)
+run_type = exa_learner.env.run_type
+exa_learner.run(run_type)
+```
+* Write your own script or modify the above as needed
+* Run the following command:
+```
+mpiexec -np <num_parent_processes> python driver/exalearn_example.py --<run_params>=<param_value>
+```
 ## Creating custom environments
 * ExaRL uses OpenAI gym environments
 * Environments inherit from gym.Env and exarl.ExaEnv
@@ -73,8 +124,10 @@ Example:-
     class envName(gym.Env, exarl.ExaEnv):
         ...
 ```
-* Environments must include the following functions:
+* Environments must include the following variables and functions:
 ```
+# Use 'dynamic' for dynamic MPI process spawning, else 'static' 
+self.run_type = <`static` or 'dynamic'>
 step()      # returns new state after an action
 reset()     # reset the environment to initial state; marks end of an episode
 render()    # render the environment
@@ -174,6 +227,7 @@ worker                  = envs/env_vault/cpi.py  # Synthetic workload that compu
 * The learner base class (ExaLearner) includes the following functions:
 ```
 set_training()      # set number of episodes and steps per episode
+set_config()        # set hyperparameters using CANDLE
 set_results_dir()   # result directory path
 render_env()        # True or False
 run_exarl()         # run learner
