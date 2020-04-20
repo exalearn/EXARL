@@ -33,7 +33,7 @@ class ExaLearner():
         self.results_dir='./results'
         self.do_render=False
 
-        ## Setup agent and environents
+        ## Setup agent and environments
         self.agent_id = agent_id
         self.env_id   = env_id
         self.agent, self.env = erl.make(agent_id, env_id)
@@ -51,11 +51,10 @@ class ExaLearner():
         self.nsteps    = nsteps
         self.env._max_episode_steps=self.nsteps
 
+    # Use with CANDLE
     def set_config(self, params):
-        self.nepisodes = int(params['n_episodes'])
-        self.nsteps    = int(params['n_steps'])
-        self.env._max_episode_steps = self.nsteps
-        # set the agent up here also
+        self.set_training(int(params['n_episodes']), int(params['n_steps']))
+        # set the agent up
         self.agent.set_config(params)
 
     def set_results_dir(self,results_dir):
