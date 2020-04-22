@@ -34,22 +34,22 @@ class ExaAgent(ABC):
         self.learning_rate =  float(agent_data['learning_rate']) if 'learning_rate' in agent_data.keys() else  0.001
         self.batch_size = int(agent_data['batch_size']) if 'batch_size' in agent_data.keys() else 32
         self.tau = float(agent_data['tau']) if 'tau' in agent_data.keys() else 0.5
+        self.results_dir = '' # Default output directory
 
-        ## Default output directory
-        self.results_dir = ''
-
+    # Default method to set output directory
     def set_results_dir(self,results_dir):
-        ''' 
-        Default method to save environment specific information 
-        '''
         if not os.path.exists(results_dir):
             os.makedirs(results_dir)
-        ## Top level directory 
+        # Top level directory 
         self.results_dir=results_dir
 
+    # Default method to get output directory
+    def get_results_dir(self):
+        return self.results_dir
+
+    # Default method to set arguments
     def set_config(self, agent_data):
-        ''' 
-        Default method to set arguments
+        self.agent_data = agent_data
         '''
         self.search_method =  (agent_data['search_method'])
         self.gamma =  (agent_data['gamma']) 
@@ -59,9 +59,9 @@ class ExaAgent(ABC):
         self.learning_rate =  (agent_data['learning_rate'])
         self.batch_size = (agent_data['batch_size'])
         self.tau = (agent_data['tau'])
-
-    def get_results_dir(self):
-        return self.results_dir
+        '''
+    def get_config(self):
+        return self.agent_data
 
     @abstractmethod
     def get_weights(self):

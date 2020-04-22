@@ -57,6 +57,12 @@ class ExaEnv(ABC):
             os.makedirs(results_dir)
         ## Top level directory 
         self.results_dir=results_dir
+
+    def set_config(self, env_data):
+        self.env_data = env_data
+
+    def get_config(self):
+        return self.env_data
         
     @abstractmethod
     def step(self, action):
