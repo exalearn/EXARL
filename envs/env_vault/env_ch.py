@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import gym
 from gym import spaces
 
-sys.path.append('envs/env_vault/CahnHilliard2D/cpp/swig/') # CH-solver
+sys.path.append('envs/env_vault/CahnHilliard2D/cpp/python/') # CH-solver
 
 from utils import *
 import ch2d.aligned_vector as av
@@ -29,15 +29,15 @@ class CahnHilliardEnv(gym.Env):
   """Custom Environment that follows gym interface"""
   metadata = {'render.modes': ['human']}
 
-      def __init__(self, args: argparse.Namespace, comm=None):
+  def __init__(self, args: argparse.Namespace, comm=None):
         super(CahnHilliardEnv, self).__init__()
         # Define action and observation space
         # They must be gym.spaces objects
 
         self.action_space = spaces.Discrete( self.getActionSize() )
         self.observation_space = spaces.Box(
-                low=np.zeros(self.args.size_struct_vec),
-                high=np.ones(self.args.size_struct_vec)*10000, dtype=np.uint8)
+          low=np.zeros(self.args.size_struct_vec),
+          high=np.ones(self.args.size_struct_vec)*10000, dtype=np.uint8)
 
         #self.observation_space = spaces.Box(low=0, high=255, shape=
         #                (HEIGHT, WIDTH, N_CHANNELS), dtype=np.uint8)
@@ -45,9 +45,9 @@ class CahnHilliardEnv(gym.Env):
         self.args = args
         self.comm = comm
         if self.comm:
-            self.comm_rank = self.comm.Get_rank()
+          self.comm_rank = self.comm.Get_rank()
         else:
-            self.comm_rank = 0
+          self.comm_rank = 0
 
         self.num_control_params = 1        # number of controlling parameter
 
@@ -82,15 +82,15 @@ class CahnHilliardEnv(gym.Env):
 
     ##################### get state space (mean, sd) #####################
     def getStateSize(self):  # state size is # of structured vector components and the current temperature
-        return self.args.size_struct_vec+1
+      return self.args.size_struct_vec+1
 
     ##################### get action space space (3^N) #####################
     def getActionSize(self):
-        return 3  # 3^N
+      return 3  # 3^N
 
     ##################### set the initial temperature randomly #####################
     def setRandInitT(self):
-        return np.random.uniform( self.chparams.T_min , self.chparams.T_max )
+      return np.random.uniform( self.chparams.T_min , self.chparams.T_max )
 
     ##################### reset to the initial state #####################
     def reset(self):
