@@ -26,10 +26,10 @@ import image_structure
 
 class CahnHilliardEnv(gym.Env):
 
-  """Custom Environment that follows gym interface"""
-  metadata = {'render.modes': ['human']}
+    """Custom Environment that follows gym interface"""
+    metadata = {'render.modes': ['human']}
 
-  def __init__(self, args: argparse.Namespace, comm=None):
+    def __init__(self, args: argparse.Namespace, comm=None):
         super(CahnHilliardEnv, self).__init__()
         # Define action and observation space
         # They must be gym.spaces objects
@@ -82,15 +82,15 @@ class CahnHilliardEnv(gym.Env):
 
     ##################### get state space (mean, sd) #####################
     def getStateSize(self):  # state size is # of structured vector components and the current temperature
-      return self.args.size_struct_vec+1
+        return self.args.size_struct_vec+1
 
     ##################### get action space space (3^N) #####################
     def getActionSize(self):
-      return 3  # 3^N
+        return 3  # 3^N
 
     ##################### set the initial temperature randomly #####################
     def setRandInitT(self):
-      return np.random.uniform( self.chparams.T_min , self.chparams.T_max )
+        return np.random.uniform( self.chparams.T_min , self.chparams.T_max )
 
     ##################### reset to the initial state #####################
     def reset(self):
