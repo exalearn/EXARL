@@ -5,7 +5,7 @@ import numpy as np
 import sys
 import json
 import exarl as erl
-from envs.env_vault.computePI import computePI as cp
+#from envs.env_vault.computePI import computePI as cp
 
 def computePI(N,new_comm):
     h = 1.0 / N
@@ -43,8 +43,8 @@ class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
         else:
             N = None
         N = self.env_comm.bcast(N, root=0)	
-        #myPI = computePI(N, self.env_comm) # Calls python function
-        myPI = cp.compute_pi(N, self.env_comm) # Calls C++ function
+        myPI = computePI(N, self.env_comm) # Calls python function
+        #myPI = cp.compute_pi(N, self.env_comm) # Calls C++ function
         PI = self.env_comm.reduce(myPI, op=MPI.SUM, root=0)
         
         #if rank == 0:
