@@ -116,6 +116,23 @@ exa_learner.run(run_type)
 ```
 mpiexec -np <num_parent_processes> python driver/exalearn_example.py --<run_params>=<param_value>
 ```
+* The ```get_config()``` method is available in the base classes ```ExaRL/exarl/agent_base.py``` and ```ExaRL/exarl/env_base.py``` to obtain the parameters from the candle configuration file ```ExaRL/combo_setup.txt```.
+### Using parameters set in CANDLE configuration/get paramters from terminal
+* Declare the parameters in the constructor of your agent/environment class
+* Initialize the paramters to have proper datatypes
+For example: 
+```
+self.search_method = '' # string type
+self.gamma = 0.0 # float type
+```
+* The parameters can be fetched from the CANDLE configuration file as: ```config = super().get_config()```
+* Individual parameters are accessed using the corresponding key
+```
+self.search_method =  (agent_data['search_method'])
+self.gamma =  (agent_data['gamma'])
+
+```
+
 ## Creating custom environments
 * ExaRL uses OpenAI gym environments
 * Environments inherit from gym.Env and exarl.ExaEnv
@@ -149,6 +166,106 @@ register(
 from envs.env_vault.foo_env import FooEnv
 ```
 where ExaRL/envs/env_vault/foo_env.py is the file containing your envirnoment
+
+### Using environment written in a lower level language
+* The following example illustrates using the C function of computing the value of PI in EXARL \
+computePI.h:
+```
+#define MPICH_SKIP_MPICXX 1
+#define OMPI_SKIP_MPICXX 1
+#include <mpi.h>
+#include <stdio.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+  extern void compute_pi(int, MPI_Comm);
+#ifdef __cplusplus
+}
+#endif
+```
+
+computePI.c:
+```
+#include <stdio.h>
+#include <mpi.h>
+
+double compute_pi(int N, MPI_Comm new_comm)
+{
+  int rank, size;
+  MPI_Comm_rank(new_comm, &rank);
+  MPI_Comm_size(new_comm, &size);
+
+  double h, s, x;
+  h = 1.0 / (double) N;
+  s = 0.0;
+  for(int i=rank; i<N; i+=size)
+  {
+    x = h * ((double)i + 0.5);
+    s += 4.0 / (1.0 + x*x);
+  }
+  return (s * h);
+}
+```
+* Compile the C/C++ code and create a shared object (*.so file)
+* Create a python wrapper (Cython wrapper is shown) \
+\
+computePI.py:
+```
+from mpi4py import MPI
+import ctypes
+import os
+
+_libdir = os.path.dirname(__file__)
+
+if MPI._sizeof(MPI.Comm) == ctypes.sizeof(ctypes.c_int):
+    MPI_Comm = ctypes.c_int
+else:
+    MPI_Comm = ctypes.c_void_p
+_lib = ctypes.CDLL(os.path.join(_libdir, "libcomputePI.so"))
+_lib.compute_pi.restype = ctypes.c_double
+_lib.compute_pi.argtypes = [ctypes.c_int, MPI_Comm]
+
+def compute_pi(N, comm):
+    comm_ptr = MPI._addressof(comm)
+    comm_val = MPI_Comm.from_address(comm_ptr)
+    myPI = _lib.compute_pi(ctypes.c_int(N), comm_val)
+    return myPI
+```
+* In your environment code, just import the function and use it regularly \
+test_computePI.py:
+```
+from mpi4py import MPI
+import numpy as np
+import pdb
+import computePI as cp
+
+def main():
+    comm = MPI.COMM_WORLD
+    myrank = comm.Get_rank()
+    nprocs = comm.Get_size()
+
+    if myrank == 0:
+        N = 100
+    else:
+        N = None
+
+    N = comm.bcast(N, root=0)
+    num = 4
+    color = int(myrank/num)
+    newcomm = comm.Split(color, myrank)
+
+    mypi = cp.compute_pi(N, newcomm)
+    pi = newcomm.reduce(mypi, op=MPI.SUM, root=0)
+
+    newrank = newcomm.rank
+    if newrank==0:
+        print(pi)
+
+if __name__ == '__main__':
+    main()
+
+```
 
 ## Creating custom agents
 * ExaRL extends OpenAI gym's environment registration to agents
