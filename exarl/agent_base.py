@@ -50,16 +50,8 @@ class ExaAgent(ABC):
     # Default method to set arguments
     def set_config(self, agent_data):
         self.agent_data = agent_data
-        '''
-        self.search_method =  (agent_data['search_method'])
-        self.gamma =  (agent_data['gamma']) 
-        self.epsilon = (agent_data['epsilon'])
-        self.epsilon_min = (agent_data['epsilon_min'])
-        self.epsilon_decay = (agent_data['epsilon_decay'])
-        self.learning_rate =  (agent_data['learning_rate'])
-        self.batch_size = (agent_data['batch_size'])
-        self.tau = (agent_data['tau'])
-        '''
+
+    # Default method to get arguments   
     def get_config(self):
         return self.agent_data
 
