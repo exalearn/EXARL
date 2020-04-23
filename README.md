@@ -47,7 +47,7 @@ cd ExaRL
 pip install -e . --user
 ```
 
-## Running ExaRL using MPI
+## Running EXARL using MPI
 * Existing environment can be paired with an available agent
 * The following script is provided for convenience: ```ExaRL/driver/exalearn_example.py```
 ```
@@ -208,7 +208,7 @@ double compute_pi(int N, MPI_Comm new_comm)
 }
 ```
 * Compile the C/C++ code and create a shared object (*.so file)
-* Create a python wrapper (Cython wrapper is shown) \
+* Create a python wrapper (Ctypes wrapper is shown) \
 \
 computePI.py:
 ```
@@ -268,7 +268,7 @@ if __name__ == '__main__':
 ```
 
 ## Creating custom agents
-* ExaRL extends OpenAI gym's environment registration to agents
+* EXARL extends OpenAI gym's environment registration to agents
 * Agents inherit from exarl.ExaAgent
 ```
 Example:-
@@ -303,14 +303,6 @@ register(
 from agents.agent_vault.foo_agent import FooAgent
 ```
 where ExaRL/agents/agent_vault/foo_agent.py is the file containing your agent
-
-## Calling agents and environments in custom learner scripts
-* ExaRL uses a unified syntax to call agents and environments
-```
-import exarl as erl
-agent, env = erl.make('fooAgent-v0', 'fooEnv-v0')
-```
-* This functionality is demonstrated in ```ExaRL/exarl/learner_base.py```
 
 ## Best practices
 * Include a .json file in ```ExaRL/envs/env_vault/env_cfg/``` for environment related configurations
