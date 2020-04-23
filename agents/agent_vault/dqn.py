@@ -72,8 +72,16 @@ class DQN(erl.ExaAgent):
             sess = tf.compat.v1.Session(config=config)
             tf.compat.v1.keras.backend.set_session(sess)
 
-        ## Get hyper-parameters
-        super().__init__(agent_cfg=cfg)
+        ## Declare hyper-parameters, initialized for determining datatype
+        #super().__init__(agent_cfg=cfg)
+        self.search_method = ''
+        self.gamma = 0
+        self.epsilon = 0
+        self.epsilon_min = 0
+        self.epsilon_decay = 0
+        self.learning_rate = 0
+        self.batch_size = 0
+        self.tau = 0
                
         ## TODO: Assuming rank==0 is the only learner
         self.memory = deque(maxlen = 0)
