@@ -73,7 +73,7 @@ class DQN(erl.ExaAgent):
             tf.compat.v1.keras.backend.set_session(sess)
 
         ## Declare hyper-parameters, initialized for determining datatype
-        #super().__init__(agent_cfg=cfg)
+        super().__init__(agent_cfg=cfg)
         self.search_method = ''
         self.gamma = 0
         self.epsilon = 0
@@ -96,16 +96,17 @@ class DQN(erl.ExaAgent):
     def stage_info(self):
         # Get results directory
         self.results_dir = super().get_results_dir()
-        # Get hyper-parameters                                                                                                                    
+        # Get hyper-parameters
+        
         agent_data = super().get_config()
         self.search_method =  (agent_data['search_method'])
-        self.gamma =  (agent_data['gamma'])
-        self.epsilon = (agent_data['epsilon'])
-        self.epsilon_min = (agent_data['epsilon_min'])
-        self.epsilon_decay = (agent_data['epsilon_decay'])
-        self.learning_rate =  (agent_data['learning_rate'])
-        self.batch_size = (agent_data['batch_size'])
-        self.tau = (agent_data['tau'])
+        self.gamma =  float(agent_data['gamma'])
+        self.epsilon = float(agent_data['epsilon'])
+        self.epsilon_min = float(agent_data['epsilon_min'])
+        self.epsilon_decay = float(agent_data['epsilon_decay'])
+        self.learning_rate =  float(agent_data['learning_rate'])
+        self.batch_size = int(agent_data['batch_size'])
+        self.tau = float(agent_data['tau'])
 
         train_file_name = "dqn_exacartpole_%s_lr%s_tau%s_v1.log" % (self.search_method, str(self.learning_rate) ,str(self.tau) )
         self.train_file = open(self.results_dir + train_file_name, 'w')
