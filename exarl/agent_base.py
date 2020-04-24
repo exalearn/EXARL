@@ -26,6 +26,7 @@ class ExaAgent(ABC):
         with open(self.agent_cfg) as json_file:
             agent_data = json.load(json_file)
 
+        self.agent_data = agent_data
         self.search_method =  (agent_data['search_method']).lower() if 'search_method' in agent_data.keys() else "epsilon"  # discount rate
         self.gamma =  float(agent_data['gamma']) if 'gamma' in agent_data.keys() else 0.95  # discount rate
         self.epsilon = float(agent_data['epsilon']) if 'epsilon' in agent_data.keys() else 1.0  # exploration rate
