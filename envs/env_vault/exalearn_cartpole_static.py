@@ -16,6 +16,14 @@ def computePI(N,new_comm):
         s += 4.0 / (1.0 + x**2)
     return s * h
 
+def computePI(N,comm=MPI.COMM_WORLD):
+    h = 1.0 / N
+    s = 0.0
+    for i in range(N):
+        x = h * (i + 0.5)
+        s += 4.0 / (1.0 + x**2)
+    return s * h
+
 class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
     metadata = {'render.modes': ['human']}
 
@@ -24,39 +32,18 @@ class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
         self._max_episode_steps = 0
         self.env = gym.make('CartPole-v0')
         self.env._max_episode_steps=self._max_episode_steps
-        #print('Max steps: %s' % str(self._max_episode_steps))
-        #self.env = gym.make('FrozenLake-v0')
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
-
-    def step(self, action):
+    
+    def step(self, action, comm=MPI.COMM_WORLD):
         next_state, reward, done, info = self.env.step(action)
-        time.sleep(0) # Delay in seconds
-        ##
-        
-        # Compute PI with communicator splitting
-        comm = MPI.COMM_WORLD
-        world_rank = comm.Get_rank()
-        
-        if world_rank == 0:
-            N = 100
-        else:
-            N = None
-            
-        N = comm.bcast(N, root=0)	
-        color = int(world_rank/self.mpi_children_per_parent)
-        newcomm = comm.Split(color, world_rank)
-        myPI = computePI(N, newcomm)
-        PI = newcomm.reduce(myPI, op=MPI.SUM, root=0)
-        newrank = newcomm.rank
+        myPI = computePI(100, comm)
+        comm.reduce(myPI, op=MPI.SUM, root=0)
 
-        newcomm.Free()
-        
         return next_state, reward, done, info
 
     def reset(self):
         self.env._max_episode_steps=self._max_episode_steps
-        #print('Max steps: %s' % str(self._max_episode_steps))
         return self.env.reset()
 
     def render(self, mode='human', close=False):

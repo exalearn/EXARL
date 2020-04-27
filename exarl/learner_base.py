@@ -39,7 +39,7 @@ class ExaLearner():
             data = json.load(json_file)
         self.mpi_children_per_parent = int(data['mpi_children_per_parent']) \
                                        if 'mpi_children_per_parent' in data.keys() \
-                                       else 0
+                                       else 1
         self.omp_num_threads = int(data['omp_num_threads']) \
                                        if 'omp_num_threads' in data.keys() \
                                        else 1       
@@ -60,14 +60,12 @@ class ExaLearner():
 
     def render_env(self):
         self.do_render=True
-
-    def run_static(self, train_file, train_writer, comm=MPI.COMM_WORLD):
+    
+    def run_static_omp(self, train_file, train_writer, comm=MPI.COMM_WORLD):
         rank0_memories = 0
         target_weights = None
-
         ttim = 0.0
-        stim = time.time()
-
+        
         for e in range(self.nepisodes):
             current_state = self.env.reset()
             total_reward=0
@@ -119,52 +117,176 @@ class ExaLearner():
            
                 ## Exit criteria
                 all_done = comm.allreduce(done, op=MPI.LAND)
-    
-        etim = time.time()
-        mtim  = etim - stim
-        ptim = comm.reduce(mtim, op=MPI.SUM, root=0)
+        return ttim
 
-        if comm.rank==0:
-	    # create a file to load perf details
-            perf_file_name = 'ExaLearner_' + 'Episode%s_Steps%s_Size%s_memory_v1_perf' % (str(self.nepisodes), str(self.nsteps), str(comm.size))
-            print('Average time taken for %s episodes across %s ranks: %s secs' % (self.nepisodes, size, float(ptim / size)), file=open(perf_file_name + ".txt", 'w+'))
-            print('Accumulated training time for the single learner over all the episodes on process 0: %s secs' % (ttim), file=open(perf_file_name + ".txt", 'a'))
-              
+    def run_static(self, train_file, train_writer, worker_begin, intracomm, intercomm):
+        rank0_memories = 0
+        target_weights = None
+        ttim = 0.0
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        size = comm.Get_size()
 
+        for e in range(self.nepisodes):
+            current_state = self.env.reset()
+            total_reward=0
+            done = True # for leaders
+            if rank >= worker_begin:
+                done = False
+            all_done = False
+            root = MPI.ROOT
+
+            while all_done!=True:
+
+                worker_state = None
+                new_data = [] 
+
+                ### workers
+                if rank >= worker_begin:
+                    done = intracomm.allreduce(done, op=MPI.LAND)
+                    if done != True:
+                        action = self.agent.action(current_state)
+                        next_state, reward, done, _ = self.env.step(action, intracomm)
+                        worker_state = (action, reward, next_state, done)
+
+                ### communicate from workers to remote leader of workers
+                root = 0
+                if rank == 0:
+                    root = MPI.ROOT # remote leader
+                if rank != 0 and rank < worker_begin:
+                    root = MPI.PROC_NULL
+                    
+                worker_state = intercomm.gather(worker_state, root=root)
+                
+                if rank < worker_begin: ### leaders
+                    ### spread data from 0 (leader) to all in leader communicator
+                    worker_state = intracomm.bcast(worker_state, root=0)
+                    for wdata in worker_state:
+                        if wdata is not None:
+                            total_reward += wdata[1]
+                            new_data.append([current_state, wdata[0], wdata[1], wdata[2], wdata[3], total_reward])
+            
+                ## Learner (also a leader) ##
+                if comm.rank==0:
+                
+                    lstim = time.time()
+                    ## Push memories to learner ##
+                    if new_data is not None:
+                        for data in new_data:
+                            self.agent.remember(data[0],data[1],data[2],data[3],data[4])
+                    
+                        ## Train learner ##
+                        self.agent.train()
+                        rank0_memories = len(self.agent.memory)
+                        target_weights = self.agent.get_weights()
+                        letim = time.time()
+                        ttim += (letim - lstim)
+           
+                comm.barrier()
+                
+                ### communicate from remote leader to local leader of workers
+                ## Broadcast the memory size and the model weights to the workers  ##        
+                rank0_memories = intercomm.bcast(rank0_memories, root=root)
+                current_weights = intercomm.bcast(target_weights, root=root)
+                
+                ## Set the model weight for all the workers
+                if rank >= worker_begin:
+                    if rank0_memories is not None and rank0_memories>30:                            
+                        self.agent.set_weights(current_weights)
+
+                    ## Update state
+                    if done != True:
+                        current_state = next_state
+                    
+                    ## Save memory for offline analysis
+                    # current_state,action,reward,next_state,total_reward,done
+                    if new_data is not None:
+                        for data in new_data:
+                            train_writer.writerow([current_state,data[1],data[2],data[3],data[5],data[4]])
+                            train_file.flush()
+           
+                ## Exit criteria
+                all_done = comm.allreduce(done, op=MPI.LAND)
+
+        return ttim
+             
     ### Untested, future purge candidate, at present 
     ### calls the static code above 
     def run_dynamic(self, train_file, train_writer, comm=MPI.COMM_WORLD):
-         self.run_static(train_file, train_writer, comm)
+        os.environ['OMP_NUM_THREADS']='{:d}'.format(self.omp_num_threads)
+        return self.run_static_omp(train_file, train_writer, comm)        
 
     # top-level run
     def run(self, type):
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
         size = comm.Get_size()
+        ### leaders: {0:worker_begin-1}, workers: {worker_begin, size-1}
+        worker_begin = int(size / self.mpi_children_per_parent)
+        train_file = None
+        train_writer = None
 
-        filename_prefix = 'ExaLearner_' + 'Episode%s_Steps%s_Rank%s_memory_v1_%s' % (str(self.nepisodes), str(self.nsteps), str(rank), str(type))
-        train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
-        train_writer = csv.writer(train_file, delimiter = " ")
-        color = MPI.UNDEFINED
+        if worker_begin == 0:
+            print('[Aborting] Worker and Leader cannot have the same rank. Increase #processes and try again.')
+            comm.Abort()
+
+        if rank < worker_begin:
+            filename_prefix = 'ExaLearner_' + 'Episode%s_Steps%s_Rank%s_memory_v1_%s' % (str(self.nepisodes), str(self.nsteps), str(rank), str(type))
+            train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
+            train_writer = csv.writer(train_file, delimiter = " ")
+        
+        ttim = 0.0
+        stim = time.time()
 
         if type == 'static':
-            ### Create new comm of leaders, make sure rank 0 (rank that controls learner) is included
-            if rank == 0 or rank%(self.mpi_children_per_parent+1) == 0:
-                color = size
-            new_comm = comm.Split(color, rank)
+            ### Identify leader colors (assumes 0 is *always* a leader)
+            color = 2
+            if rank >= worker_begin:
+                color = 1
+            ### leaders(2) and workers(1) intracomm
+            intracomm = comm.Split(color, rank)
+            intercomm = MPI.COMM_NULL
+            # group 1 (worker) communicates with group 2 (leader)
+            if color == 1:
+                intercomm = MPI.Intracomm.Create_intercomm(intracomm, 0, comm, 0)
+            # group 2 (leader) communicates with group 1 (worker)
+            if color == 2:
+                intercomm = MPI.Intracomm.Create_intercomm(intracomm, 0, comm, worker_begin)
+           
             comm.barrier()
-            self.run_static(train_file, train_writer, new_comm)
-            if new_comm != MPI.COMM_NULL:
-                new_comm.Free()
+            ttim = self.run_static(train_file, train_writer, worker_begin, intracomm, intercomm)
+            intercomm.Free()
+            intracomm.Free()
         elif type == 'static-omp':
+            ### TODO ensure that this does not override if set in job script
             os.environ['OMP_NUM_THREADS']='{:d}'.format(self.omp_num_threads)
-            self.run_static(train_file, train_writer, comm)
-        elif type == 'dynamic':
-            self.run_dynamic(train_file, train_writer)
+            ttim = self.run_static_omp(train_file, train_writer, comm)
+        elif type == 'dynamic': ### TODO purge candidate rm
+            ttim = self.run_dynamic(train_file, train_writer)
 
         comm.barrier()
             
-        ## Save Learning target model
+        etim = time.time()
+        mtim  = etim - stim
+        ptim = comm.reduce(mtim, op=MPI.SUM, root=0)
+
+	# create a file to load perf details
         if comm.rank==0:
-            self.agent.save(self.results_dir+filename_prefix+'.h5')
+            perf_file_name = 'ExaLearner_' + 'Episode%s_Steps%s_Size%s_memory_v1_perf' % (str(self.nepisodes), str(self.nsteps), str(comm.size))
+            print('Average time taken for %s episodes across %s ranks: %s secs' % (self.nepisodes, size, float(ptim / size)), file=open(self.results_dir + '/' +perf_file_name + ".txt", 'w+'))
+            print('Accumulated training time for the single learner over all the episodes on process 0: %s secs' % (ttim), file=open(self.results_dir + '/' + perf_file_name + ".txt", 'a'))
+            
+            if type == 'static':
+                print('Number of leader processes: %s, number of worker processes: %s' % (str(worker_begin), str(size - worker_begin)), file=open(self.results_dir + '/' + perf_file_name + ".txt", 'a'))
+            if type == 'static-omp':    
+                print('Number of OpenMP threads set: %s' % str(self.omp_num_threads), file=open(self.results_dir + '/' + perf_file_name + ".txt", 'a'))
+ 
+        # save h5 file and close log files/process
+        if comm.rank==0:
+            self.agent.save(self.results_dir+'/'+filename_prefix+'.h5')
+        
+        if type == 'static': 
+            if rank < worker_begin:
+                train_file.close()
+        else:
             train_file.close()

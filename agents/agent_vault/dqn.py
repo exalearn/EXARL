@@ -41,7 +41,7 @@ class DQN(erl.ExaAgent):
         self.size = comm.Get_size()
         
         self.memory = deque(maxlen = 0);
-        if rank == 0:
+        if self.rank == 0:
             self.memory = deque(maxlen = 2000)
         ## Implement the UCB approach
         self.sigma = 2 # confidence level

@@ -34,6 +34,9 @@ class ExaAgent(ABC):
         self.learning_rate =  float(agent_data['learning_rate']) if 'learning_rate' in agent_data.keys() else  0.001
         self.batch_size = int(agent_data['batch_size']) if 'batch_size' in agent_data.keys() else 32
         self.tau = float(agent_data['tau']) if 'tau' in agent_data.keys() else 0.5
+        
+        # adjust epsilon decay to normalize by processes
+        self.epsilon_decay = self.epsilon_decay / self.size
 
         ## Default output directory
         self.results_dir = ''
