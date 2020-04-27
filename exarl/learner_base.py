@@ -23,7 +23,7 @@ import json
 import logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.ERROR )
 
 class ExaLearner():
 
@@ -54,9 +54,13 @@ class ExaLearner():
         self.world_comm = MPI.COMM_WORLD
         world_rank = self.world_comm.rank
         
-        # Environment communicator                                                                                                                 
-        env_color = int(world_rank/(self.mpi_children_per_parent+1))
+        # Environment communicator
+
+        #print('self.mpi_children_per_parent:',self.mpi_children_per_parent)
+        env_color = int(world_rank/(self.mpi_children_per_parent))#+1))
+        #print('env_color:', env_color )
         self.env_comm = self.world_comm.Split(env_color, world_rank)
+        #print('self.env_comm.rank:',self.env_comm.rank)
         # Create environment object                                                                                                                
         env = gym.make(self.env_id, env_comm=self.env_comm)
 
@@ -66,6 +70,8 @@ class ExaLearner():
             agent_color = 0 # Can be anything, just assigning a common value for color
         self.agent_comm = self.world_comm.Split(agent_color, world_rank)
         # Create agent object
+        agent = None
+        #if world_rank == 0 or world_rank%(self.mpi_children_per_parent+1) == 0:
         if world_rank%(self.mpi_children_per_parent+1) == 0:
             agent = agents.make(self.agent_id, env=env, agent_comm=self.agent_comm)
         
@@ -90,8 +96,10 @@ class ExaLearner():
         ## General 
         self.results_dir = results_dir
         ## Set for agent
-        self.agent.set_results_dir(self.results_dir)
+        if self.agent != None:
+            self.agent.set_results_dir(self.results_dir)
         ## Set for env
+        #if self.env != None:
         self.env.set_results_dir(self.results_dir)
 
     def render_env(self):
@@ -102,18 +110,27 @@ class ExaLearner():
         filename_prefix = 'ExaLearner_' + 'Episode%s_Steps%s_Rank%s_memory_v1' % ( str(self.nepisodes), str(self.nsteps), str(comm.rank))
         train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
         train_writer = csv.writer(train_file, delimiter = " ")
+        print('self.world_comm.rank:',self.world_comm.rank)
+        
         for e in range(self.nepisodes):
-
+            print('### e:',e)
             rank0_memories = 0
             target_weights = None
             current_state = self.env.reset()
             total_reward = 0
             done = False
-
+            steps = 0
             while done != True:
+                print('### steps:',steps)
+
                 ## All workers ##
                 action = self.agent.action(current_state)
+                #print('action:',action)
                 next_state, reward, done, _ = self.env.step(action)
+                #print('### reward:',reward)
+                steps+=1
+                comm.barrier()
+                
                 total_reward += reward
                 memory = (current_state, action, reward, next_state, done, total_reward)
                 new_data = comm.gather(memory, root=0)
@@ -152,12 +169,16 @@ class ExaLearner():
                 ## Save Learning target model
                 if comm.rank == 0:
                     self.agent.save(self.results_dir+filename_prefix+'.h5')
+                #comm.barrier()
+            comm.barrier()
         train_file.close()
+
 
     def run(self, run_type):
         if run_type is not self.env.run_type:
             print("Incompatible run_type", flush = True)
-        self.agent.stage_info()
+        if self.agent!=None:
+            self.agent.stage_info()
                 
         if run_type == 'static':
             if self.agent_comm != MPI.COMM_NULL:
