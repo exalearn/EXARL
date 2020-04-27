@@ -188,6 +188,7 @@ class ExaLearner():
                 ## Broadcast the memory size and the model weights to the workers  ##        
                 rank0_memories = intercomm.bcast(rank0_memories, root=root)
                 current_weights = intercomm.bcast(target_weights, root=root)
+                new_data = intercomm.bcast(new_data, root=root)
                 
                 ## Set the model weight for all the workers
                 if rank >= worker_begin:
@@ -230,7 +231,7 @@ class ExaLearner():
             print('[Aborting] Worker and Leader cannot have the same rank. Increase #processes and try again.')
             comm.Abort()
 
-        if rank < worker_begin:
+        if rank >= worker_begin: # only workers will update
             filename_prefix = 'ExaLearner_' + 'Episode%s_Steps%s_Rank%s_memory_v1_%s' % (str(self.nepisodes), str(self.nsteps), str(rank), str(type))
             train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
             train_writer = csv.writer(train_file, delimiter = " ")
@@ -283,10 +284,11 @@ class ExaLearner():
  
         # save h5 file and close log files/process
         if comm.rank==0:
-            self.agent.save(self.results_dir+'/'+filename_prefix+'.h5')
+            h5_filename_prefix = 'ExaLearner_' + 'Episode%s_Steps%s_Size%s_memory_v1_%s' % (str(self.nepisodes), str(self.nsteps), str(size), str(type))
+            self.agent.save(self.results_dir+'/'+h5_filename_prefix+'.h5')
         
         if type == 'static': 
-            if rank < worker_begin:
+            if rank >= worker_begin:
                 train_file.close()
         else:
             train_file.close()
