@@ -1,5 +1,5 @@
 {
-    "debug"           : "10",
+    "debug"           : "0",
     "size_struct_vec" : "200",
     "changeT"         : "0.1",
     "initT"           : "0.5",
@@ -11,7 +11,7 @@
     "notPlotRL"       : "False",
     "length"          : "100",
     "episodes"        : "10",
-    "steps"           : "50",
+    "steps"           : "100",
     "genTarget"       : "True",
     "randInitial"     : "False"
 }
