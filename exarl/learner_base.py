@@ -147,7 +147,8 @@ class ExaLearner():
                     if done != True:
                         action = self.agent.action(current_state)
                         next_state, reward, done, _ = self.env.step(action, intracomm)
-                        worker_state = (action, reward, next_state, done)
+                        total_reward += reward
+                        worker_state = (action, reward, next_state, done, total_reward)
 
                 ### communicate from workers to remote leader of workers
                 root = 0
@@ -160,11 +161,10 @@ class ExaLearner():
                 
                 if rank < worker_begin: ### leaders
                     ### spread data from 0 (leader) to all in leader communicator
-                    worker_state = intracomm.bcast(worker_state, root=0)
-                    for wdata in worker_state:
+                    worker_data = intracomm.bcast(worker_state, root=0)
+                    for wdata in worker_data:
                         if wdata is not None:
-                            total_reward += wdata[1]
-                            new_data.append([current_state, wdata[0], wdata[1], wdata[2], wdata[3], total_reward])
+                            new_data.append([current_state, wdata[0], wdata[1], wdata[2], wdata[3], wdata[4]])
             
                 ## Learner (also a leader) ##
                 if comm.rank==0:
