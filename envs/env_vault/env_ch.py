@@ -11,8 +11,7 @@ from gym import error, spaces, utils
 from gym.utils import seeding
 
 # TODO: the path has been changed
-#sys.path.append('./cahnhilliard_2d/cpp/python')
-sys.path.append('/ccs/home/aik07/parallel_rl/cahnhilliard_2d_copy/cpp/python') # CH-solver
+sys.path.append('./cahnhilliard_2d/cpp/python')
 
 import ch2d.aligned_vector as av
 import ch2d.cahnhilliard as ch
@@ -151,10 +150,11 @@ class CahnHilliardEnv(gym.Env):
         self.setInitSimParams()  # TODO: I do not have to initialze all parameter at each episode
 
         if self.randInitial: self.T = self.setRandInitT()
-        else:                     self.T = self.initialT
-                  # initial value, always start from the same initial value for now.
-
-        print_status('Initial T: {}'.format(self.T), comm_rank=self.comm_rank)
+        else:                self.T = self.initialT
+        # initial value, always start from the same initial value for now.
+        
+        if self.debug >= 10: 
+            print_status('Initial T: {}'.format(self.T), comm_rank=self.comm_rank)
 
         self.setControlParams(T=self.T)
 
