@@ -27,27 +27,26 @@ logger.setLevel(logging.ERROR )
 
 class ExaLearner():
 
-    def __init__(self, agent_id, env_id, cfg='envs/env_vault/env_cfg/env_setup.json'):
-        # Default training 
+    def __init__(self, run_params):
+        # Default training
         self.nepisodes = 1
         self.nsteps = 10
         self.results_dir = './results'
         self.do_render = False
-
-        # Get configuration
-        self.cfg = cfg
-        with open(self.cfg) as json_file:
-            data = json.load(json_file)
-        self.mpi_children_per_parent = int(data['mpi_children_per_parent']) \
-                                       if 'mpi_children_per_parent' in data.keys() \
-                                       else 0
-        #self.world_comm, self.agent_comm, self.env_comm = self.get_comm()
-
+        
+        self.mpi_children_per_parent = int(run_params['mpi_children_per_parent'])
         # Setup agent and environments
+        agent_id = 'agents:'+run_params['agent']
+        env_id   = 'envs:'+run_params['env']
         self.agent_id = agent_id
         self.env_id   = env_id
         self.agent, self.env = self.make()
         self.env._max_episode_steps = self.nsteps
+
+        # Get configuration                                                                                                                     
+        self.mpi_children_per_parent = run_params['mpi_children_per_parent']
+        self.results_dir = run_params['output_dir']+run_params['experiment_id']+'/'+run_params['run_id']
+        self.set_results_dir()
 
     def make(self):
         # World communicator
@@ -90,11 +89,10 @@ class ExaLearner():
         self.agent.set_config(params)
         self.env.set_config(params)
 
-    def set_results_dir(self,results_dir):
-        if not os.path.exists(results_dir):
-            os.makedirs(results_dir)
-        ## General 
-        self.results_dir = results_dir
+    def set_results_dir(self):
+        if not os.path.exists(self.results_dir):
+            os.makedirs(self.results_dir)
+
         ## Set for agent
         if self.agent != None:
             self.agent.set_results_dir(self.results_dir)
@@ -110,10 +108,10 @@ class ExaLearner():
         filename_prefix = 'ExaLearner_' + 'Episode%s_Steps%s_Rank%s_memory_v1' % ( str(self.nepisodes), str(self.nsteps), str(comm.rank))
         train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
         train_writer = csv.writer(train_file, delimiter = " ")
-        print('self.world_comm.rank:',self.world_comm.rank)
+        #print('self.world_comm.rank:',self.world_comm.rank)
         
         for e in range(self.nepisodes):
-            print('### e:',e)
+            #print('### e:',e)
             rank0_memories = 0
             target_weights = None
             current_state = self.env.reset()
@@ -121,15 +119,15 @@ class ExaLearner():
             done = False
             steps = 0
             while done != True:
-                print('### steps:',steps)
+                #print('### steps:',steps)
 
                 ## All workers ##
                 action = self.agent.action(current_state)
                 #print('action:',action)
                 next_state, reward, done, _ = self.env.step(action)
                 #print('### reward:',reward)
-                steps+=1
-                comm.barrier()
+                #steps+=1
+                #comm.barrier()
                 
                 total_reward += reward
                 memory = (current_state, action, reward, next_state, done, total_reward)
@@ -169,8 +167,8 @@ class ExaLearner():
                 ## Save Learning target model
                 if comm.rank == 0:
                     self.agent.save(self.results_dir+filename_prefix+'.h5')
-                #comm.barrier()
-            comm.barrier()
+                
+            #comm.barrier()
         train_file.close()
 
 
