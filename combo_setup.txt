@@ -5,7 +5,8 @@ env = 'ExaLearnCartpole-v1'
 [Learner Params]
 n_episodes = 1
 n_steps = 10
-[DQN_Parama]
+mpi_children_per_parent = 3
+[DQN_Params]
 search_method = 'epsilon'
 gamma = .95
 epsilon = 1.0
