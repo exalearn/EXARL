@@ -47,6 +47,7 @@ class ExaLearner():
         self.mpi_children_per_parent = run_params['mpi_children_per_parent']
         self.results_dir = run_params['output_dir']+run_params['experiment_id']+'/'+run_params['run_id']
         self.set_results_dir()
+        self.set_config(run_params)
 
     def make(self):
         # World communicator
