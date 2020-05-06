@@ -1,5 +1,5 @@
 [Driver Params]
-output_dir = './exarl_results_dir/'
+output_dir = '/gpfs/alpine/ast153/scratch/vinayr/'
 agent = 'DQN-v0'
 env = 'ExaLearnCartpole-v1'
 [Learner Params]

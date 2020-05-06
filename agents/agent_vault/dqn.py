@@ -73,7 +73,7 @@ class DQN(erl.ExaAgent):
             tf.compat.v1.keras.backend.set_session(sess)
 
         ## Declare hyper-parameters, initialized for determining datatype
-        super().__init__(agent_cfg=cfg)
+        #super().__init__(agent_cfg=cfg)
         self.search_method = ''
         self.gamma = 0
         self.epsilon = 0
@@ -96,9 +96,9 @@ class DQN(erl.ExaAgent):
     def stage_info(self):
         # Get results directory
         self.results_dir = super().get_results_dir()
-        # Get hyper-parameters
-        
+        # Get hyper-parameters       
         agent_data = super().get_config()
+
         self.search_method =  (agent_data['search_method'])
         self.gamma =  float(agent_data['gamma'])
         self.epsilon = float(agent_data['epsilon'])
