@@ -1,4 +1,4 @@
-# (or copyright) 2020. Triad National Security, LLC. All rights reserved.
+# © (or copyright) 2020. Triad National Security, LLC. All rights reserved.
 #
 # This program was produced under U.S. Government contract 89233218CNA000001 for Los Alamos
 # National Laboratory (LANL), which is operated by Triad National Security, LLC for the U.S.
@@ -175,7 +175,7 @@ class ExaLearner():
 
     def run(self, run_type):
         if self.agent!=None:
-            self.agent.stage_info()
+            self.agent.set_agent()
                 
         if run_type == 'static':
             if self.agent_comm != MPI.COMM_NULL:

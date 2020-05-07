@@ -75,25 +75,20 @@ class DQN(erl.ExaAgent):
         ## Declare hyper-parameters, initialized for determining datatype
         #super().__init__(agent_cfg=cfg)
         self.search_method = ''
-        self.gamma = 0
-        self.epsilon = 0
-        self.epsilon_min = 0
-        self.epsilon_decay = 0
-        self.learning_rate = 0
+        self.gamma = 0.0
+        self.epsilon = 0.0
+        self.epsilon_min = 0.0
+        self.epsilon_decay = 0.0
+        self.learning_rate = 0.0
         self.batch_size = 0
-        self.tau = 0
+        self.tau = 0.0
                
         ## TODO: Assuming rank==0 is the only learner
         self.memory = deque(maxlen = 0)
         if self.rank==0:
             deque(maxlen = 2000) ## TODO: make configurable
-            
-        ##
-        self.model = self._build_model()
-        self.target_model = self._build_model()
-        self.target_weights = self.target_model.get_weights()
-       
-    def stage_info(self):
+               
+    def set_agent(self):
         # Get results directory
         self.results_dir = super().get_results_dir()
         # Get hyper-parameters       
@@ -107,6 +102,11 @@ class DQN(erl.ExaAgent):
         self.learning_rate =  float(agent_data['learning_rate'])
         self.batch_size = int(agent_data['batch_size'])
         self.tau = float(agent_data['tau'])
+	
+        # Build network model                                                                                                                    
+        self.model = self._build_model()
+        self.target_model = self._build_model()
+        self.target_weights = self.target_model.get_weights()
 
         train_file_name = "dqn_exacartpole_%s_lr%s_tau%s_v1.log" % (self.search_method, str(self.learning_rate) ,str(self.tau) )
         self.train_file = open(self.results_dir + train_file_name, 'w')
