@@ -174,8 +174,6 @@ class ExaLearner():
 
 
     def run(self, run_type):
-        if run_type is not self.env.run_type:
-            print("Incompatible run_type", flush = True)
         if self.agent!=None:
             self.agent.stage_info()
                 

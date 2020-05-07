@@ -1,11 +1,12 @@
 [Driver Params]
-output_dir = '/gpfs/alpine/ast153/scratch/vinayr/'
+output_dir = './exarl_results_dir/'
 agent = 'DQN-v0'
 env = 'ExaLearnCartpole-v1'
 [Learner Params]
 n_episodes = 1
 n_steps = 10
 mpi_children_per_parent = 3
+run_type = 'static'
 [DQN_Params]
 search_method = 'epsilon'
 gamma = .95
