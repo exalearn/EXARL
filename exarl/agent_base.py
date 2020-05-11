@@ -14,10 +14,19 @@ import json
 import os
 from abc import ABC, abstractmethod
 
+import sys
+file_path = os.path.dirname(os.path.realpath(__file__))
+lib_path = os.path.abspath(os.path.join(file_path, '..', 'candlelib'))
+sys.path.append(lib_path)
+
+import keras
+import candle
+
 class ExaAgent(ABC):
 
     def __init__(self, **kwargs):
         self.results_dir = '' # Default output directory
+        self.candle = candle  # make CANDLE functions accessible to all agents.
         self.agent_data = {}
 
     # Default method to set output directory

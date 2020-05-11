@@ -1,0 +1,4 @@
+{
+    "agent": "DQN-v0",
+    "env":"ExaLearnCartpole-v1"
+}
