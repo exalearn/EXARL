@@ -10,6 +10,7 @@
 # to permit others to do so.
 
 
+import time
 import gym
 import exarl as erl
 
@@ -74,8 +75,9 @@ class ExaLearner():
             rank0_memories = 0
             target_weights = None
             current_state = self.env.reset()
-            total_reward=0
+            total_reward = 0
             done = False
+            start_time_episode = time.time()
         
             while done!=True:
                 ## All workers ##
@@ -101,7 +103,7 @@ class ExaLearner():
                 ## Broadcast the memory size and the model weights to the workers  ##
                 rank0_memories = comm.bcast(rank0_memories, root=0)
                 current_weights = comm.bcast(target_weights, root=0)
-                logger.info('Rank[%s] - rank0 memories: %s' % (str(comm.rank),str(rank0_memories)))
+                logger.info('Rank[%s] - rank0 memories: %s' % (str(comm.rank), str(rank0_memories)))
                 
                 ## Set the model weight for all the workers
                 if comm.rank>0 and rank0_memories>30:# and rank0_memories%(size)==0:
@@ -119,6 +121,9 @@ class ExaLearner():
                 ## Save Learning target model
                 if comm.rank==0:
                     self.agent.save(self.results_dir+filename_prefix+'.h5')
+                    end_time_episode = time.time()
+                    logger.info('Rank[%s] run-time for episode %s: %s' % (str(comm.rank), str(e), str(end_time_episode - start_time_episode)))  
+
         train_file.close()
 
     def run(self, type):
