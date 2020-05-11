@@ -62,7 +62,7 @@ class BenchmarkDriver(candle.Benchmark):
 def initialize_parameters():
 
     # Build agent object
-    driver = BenchmarkDriver(file_path, '../combo_setup.small', 'keras',
+    driver = BenchmarkDriver(file_path, '', 'keras',
                             prog='CANDLE_example', desc='CANDLE example driver script')
 
     # Initialize parameters
@@ -82,11 +82,11 @@ def parser_from_json(json_file):
     return new_defs
 
 def get_driver_params():
-    run_cfg = open('run_params.json')
-    params = json.load(run_cfg)
-    run_defs = parser_from_json('run_params.json')
-    print('Driver parameters')
-    pprint(run_defs)
+    lrn_cfg = 'learner_cfg.json'
+    lrn_defs = parser_from_json(lrn_cfg)
+    print('Learner parameters')
+    pprint(lrn_defs)
+    params = json.load(open(lrn_cfg))
     agent_cfg = 'agents/agent_vault/agent_cfg/'+params['agent']+'.json'
     agent_defs = parser_from_json(agent_cfg)
     print('Agent parameters')
@@ -95,9 +95,5 @@ def get_driver_params():
     env_defs = parser_from_json(env_cfg)
     print('Environment parameters')
     pprint(env_defs)
-    lrn_cfg = 'learner_cfg.json'
-    lrn_defs = parser_from_json(lrn_cfg)
-    print('Learner parameters')
-    pprint(lrn_defs)
-    return run_defs+agent_defs+env_defs+lrn_defs
+    return lrn_defs+agent_defs+env_defs
 

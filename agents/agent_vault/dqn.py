@@ -30,11 +30,11 @@ logger.setLevel(logging.INFO)
 
 #The Deep Q-Network (DQN)
 class DQN(erl.ExaAgent):
-    def __init__(self, env, agent_comm, cfg='agents/agent_vault/agent_cfg/DQN-v0.json'):
+    def __init__(self, env, agent_comm):
 
         self.env = env
         self.agent_comm = agent_comm
-        self.default_cfg = 'agents/agent_vault/agent_cfg/DQN-v0.json'
+
         ## Implement the UCB approach
         self.sigma = 2 # confidence level
         self.total_actions_taken = 1
@@ -73,7 +73,7 @@ class DQN(erl.ExaAgent):
             tf.compat.v1.keras.backend.set_session(sess)
 
         ## Declare hyper-parameters, initialized for determining datatype
-        super().__init__(agent_cfg=cfg)
+        super().__init__()
         self.search_method = ''
         self.gamma = 0.0
         self.epsilon = 0.0

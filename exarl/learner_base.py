@@ -43,7 +43,7 @@ class ExaLearner():
         self.agent, self.env = self.make()
         self.env._max_episode_steps = self.nsteps
 
-        # Get configuration                                                                                                                     
+        # Set configuration                                                                                                            
         self.mpi_children_per_parent = run_params['mpi_children_per_parent']
         self.results_dir = run_params['output_dir']+run_params['experiment_id']+'/'+run_params['run_id']
         self.set_results_dir()
@@ -55,13 +55,10 @@ class ExaLearner():
         world_rank = self.world_comm.rank
         
         # Environment communicator
-
-        #print('self.mpi_children_per_parent:',self.mpi_children_per_parent)
         env_color = int(world_rank/(self.mpi_children_per_parent))#+1))
-        #print('env_color:', env_color )
         self.env_comm = self.world_comm.Split(env_color, world_rank)
-        #print('self.env_comm.rank:',self.env_comm.rank)
-        # Create environment object                                                                                                                
+
+        # Create environment object
         env = gym.make(self.env_id, env_comm=self.env_comm)
 
         # Agent communicator
@@ -71,7 +68,6 @@ class ExaLearner():
         self.agent_comm = self.world_comm.Split(agent_color, world_rank)
         # Create agent object
         agent = None
-        #if world_rank == 0 or world_rank%(self.mpi_children_per_parent+1) == 0:
         if world_rank%(self.mpi_children_per_parent+1) == 0:
             agent = agents.make(self.agent_id, env=env, agent_comm=self.agent_comm)
         
@@ -112,7 +108,7 @@ class ExaLearner():
         #print('self.world_comm.rank:',self.world_comm.rank)
         
         for e in range(self.nepisodes):
-            #print('### e:',e)
+        
             rank0_memories = 0
             target_weights = None
             current_state = self.env.reset()
@@ -120,16 +116,9 @@ class ExaLearner():
             done = False
             steps = 0
             while done != True:
-                #print('### steps:',steps)
-
                 ## All workers ##
                 action = self.agent.action(current_state)
-                #print('action:',action)
                 next_state, reward, done, _ = self.env.step(action)
-                #print('### reward:',reward)
-                #steps+=1
-                #comm.barrier()
-                
                 total_reward += reward
                 memory = (current_state, action, reward, next_state, done, total_reward)
                 new_data = comm.gather(memory, root=0)

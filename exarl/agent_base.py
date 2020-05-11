@@ -25,7 +25,6 @@ import candle
 class ExaAgent(ABC):
 
     def __init__(self, **kwargs):
-        self.results_dir = '' # Default output directory
         self.candle = candle  # make CANDLE functions accessible to all agents.
         self.agent_data = {}
 
