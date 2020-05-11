@@ -11,7 +11,8 @@ from gym import error, spaces, utils
 from gym.utils import seeding
 
 # TODO: the path has been changed
-sys.path.append('./cahnhilliard_2d/cpp/python')
+# sys.path.append('./cahnhilliard_2d/cpp/python')
+sys.path.append('/ccs/home/aik07/parallel_rl/cahnhilliard_2d_copy/cpp/python')
 
 import ch2d.aligned_vector as av
 import ch2d.cahnhilliard as ch
@@ -326,7 +327,7 @@ class CahnHilliardEnv(gym.Env):
 
         self.setNextAction(action_idx)     # self.T is updated to the next action
         self.setControlParams(T = self.T)  # set control parameter for the simulation code
-        print('i: ', i)
+        # print('i: ', i)
         self.info.t0 = self.t[i]
         self.info.tf = self.t[i+1]
 
@@ -440,7 +441,7 @@ class CahnHilliardEnv(gym.Env):
         self.t            = np.linspace(self.info.t0 , self.info.t0 + n_dt * stiff_dt , n_tsteps+2)
         dt_check          = self.t[1]-self.t[0]
 
-        print('self.t:', self.t)
+        #print('self.t:', self.t)
 
         # Run solver
         if self.debug>=1:

@@ -55,7 +55,7 @@ class DQN(erl.ExaAgent):
         
         ## Setup GPU cfg
         if tf_version < 2:
-            gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
+            # gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
             if self.rank==0 and len(gpu_names)>0:
                     num_cores = 1
                     num_CPU   = 1
