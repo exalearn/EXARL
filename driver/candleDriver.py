@@ -6,7 +6,11 @@ sys.path.append(lib_path2)
 
 import keras
 import candle
+from pprint import pprint
 
+import json
+
+'''
 # These are just added to the command line options
 additional_definitions =  [
 # learner params
@@ -33,6 +37,7 @@ additional_definitions =  [
 {'name':'batch_size', 'type':int},
 {'name':'tau', 'type':float}
 ]
+'''
 
 #required = ['agent', 'env', 'n_episodes', 'n_steps']
 required = ['agent', 'env']
@@ -46,6 +51,9 @@ class BenchmarkDriver(candle.Benchmark):
         benchmark.
         """
 
+        print('Additional definitions built from json files')
+        additional_definitions = get_driver_params()
+        #pprint(additional_definitions, flush=True)
         if required is not None:
             self.required = set(required)
         if additional_definitions is not None:
@@ -54,7 +62,7 @@ class BenchmarkDriver(candle.Benchmark):
 def initialize_parameters():
 
     # Build agent object
-    driver = BenchmarkDriver(file_path, '../combo_setup.txt', 'keras',
+    driver = BenchmarkDriver(file_path, '../combo_setup.small', 'keras',
                             prog='CANDLE_example', desc='CANDLE example driver script')
 
     # Initialize parameters
@@ -63,4 +71,33 @@ def initialize_parameters():
 
     return gParameters
 
-run_params = initialize_parameters()
+def parser_from_json(json_file):
+    file = open(json_file,)
+    params = json.load(file)
+    new_defs = []
+    for key in params:
+        new_def = {'name':key, 'type':(type(params[key])), 'default':params[key]}
+        new_defs.append(new_def)
+    #print(new_defs)
+    return new_defs
+
+def get_driver_params():
+    run_cfg = open('run_params.json')
+    params = json.load(run_cfg)
+    run_defs = parser_from_json('run_params.json')
+    print('Driver parameters')
+    pprint(run_defs)
+    agent_cfg = 'agents/agent_vault/agent_cfg/'+params['agent']+'.json'
+    agent_defs = parser_from_json(agent_cfg)
+    print('Agent parameters')
+    pprint(agent_defs)
+    env_cfg = 'envs/env_vault/env_cfg/'+params['env']+'.json'
+    env_defs = parser_from_json(env_cfg)
+    print('Environment parameters')
+    pprint(env_defs)
+    lrn_cfg = 'learner_cfg.json'
+    lrn_defs = parser_from_json(lrn_cfg)
+    print('Learner parameters')
+    pprint(lrn_defs)
+    return run_defs+agent_defs+env_defs+lrn_defs
+
