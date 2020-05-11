@@ -6,7 +6,7 @@
 # reserved by Triad National Security, LLC, and the U.S. Department of Energy/National Nuclear
 # Security Administration. The Government is granted for itself and others acting on its behalf a
 # nonexclusive, paid-up, irrevocable worldwide license in this material to reproduce, prepare
-# derivative works, distribute copies to the public, perform publicly and display publicly, and 
+# derivative works, distribute copies to the public, perform publicly and display publicly, and
 # to permit others to do so.
 
 
@@ -34,7 +34,7 @@ class ExaLearner():
         self.nsteps = 10
         self.results_dir = './results'
         self.do_render = False
-        
+
         self.mpi_children_per_parent = int(run_params['mpi_children_per_parent'])
         # Setup agent and environments
         agent_id = 'agents:'+run_params['agent']
@@ -44,9 +44,9 @@ class ExaLearner():
         self.agent, self.env = self.make()
         self.env._max_episode_steps = self.nsteps
 
-        # Set configuration                                                                                                            
+        # Set configuration
         self.mpi_children_per_parent = run_params['mpi_children_per_parent']
-        self.results_dir = run_params['output_dir']+run_params['experiment_id']+'/'+run_params['run_id']
+        self.results_dir = run_params['output_dir']
         self.set_results_dir()
         self.set_config(run_params)
 
@@ -54,7 +54,7 @@ class ExaLearner():
         # World communicator
         self.world_comm = MPI.COMM_WORLD
         world_rank = self.world_comm.rank
-        
+
         # Environment communicator
         env_color = int(world_rank/(self.mpi_children_per_parent))#+1))
         self.env_comm = self.world_comm.Split(env_color, world_rank)
@@ -71,9 +71,9 @@ class ExaLearner():
         agent = None
         if world_rank%(self.mpi_children_per_parent+1) == 0:
             agent = agents.make(self.agent_id, env=env, agent_comm=self.agent_comm)
-        
+
         return agent, env
-        
+
 
     def set_training(self,nepisodes,nsteps):
         self.nepisodes = nepisodes
@@ -107,9 +107,9 @@ class ExaLearner():
         train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
         train_writer = csv.writer(train_file, delimiter = " ")
         #print('self.world_comm.rank:',self.world_comm.rank)
-        
+
         for e in range(self.nepisodes):
-        
+
             rank0_memories = 0
             target_weights = None
             current_state = self.env.reset()
@@ -161,6 +161,7 @@ class ExaLearner():
                 ## Save Learning target model
                 if comm.rank == 0:
                     self.agent.save(self.results_dir+filename_prefix+'.h5')
+
             end_time_episode = time.time()
             logger.info('Rank[%s] run-time for episode %s: %s' % (str(comm.rank), str(e), str(end_time_episode - start_time_episode)))
 
@@ -170,7 +171,7 @@ class ExaLearner():
     def run(self, run_type):
         if self.agent!=None:
             self.agent.set_agent()
-                
+
         if run_type == 'static':
             if self.agent_comm != MPI.COMM_NULL:
                 self.run_exarl(self.agent_comm)
