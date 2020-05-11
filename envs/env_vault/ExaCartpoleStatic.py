@@ -20,8 +20,9 @@ def computePI(N,new_comm):
 class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, cfg='envs/env_vault/env_cfg/env_setup.json'):
-        super().__init__(env_cfg=cfg)
+    def __init__(self, env_comm):
+        super().__init__()
+        self.env_comm = env_comm
         self._max_episode_steps = 0
         self.env = gym.make('CartPole-v0')
         self.env._max_episode_steps=self._max_episode_steps
@@ -33,28 +34,20 @@ class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
     def step(self, action):
         next_state, reward, done, info = self.env.step(action)
         time.sleep(0) # Delay in seconds
-        ##
-        
-        # Compute PI with communicator splitting
-        comm = MPI.COMM_WORLD
-        world_rank = comm.Get_rank()
-        
-        if world_rank == 0:
+
+        rank = self.env_comm.rank
+        if rank == 0:
             N = 100
         else:
             N = None
-            
-        N = comm.bcast(N, root=0)	
-        color = int(world_rank/(self.mpi_children_per_parent+1))
-        newcomm = comm.Split(color, world_rank)
-        myPI = computePI(N, newcomm)
-        #myPI = cp.compute_pi(N, newcomm)
-        PI = newcomm.reduce(myPI, op=MPI.SUM, root=0)
-        newrank = newcomm.rank
-        #if newrank == 0:
-        #    print(PI)
 
-        newcomm.Free()
+        N = self.env_comm.bcast(N, root=0)	
+        myPI = computePI(N, self.env_comm) # Calls python function
+        #myPI = cp.compute_pi(N, self.env_comm) # Calls C++ function
+        PI = self.env_comm.reduce(myPI, op=MPI.SUM, root=0)
+        
+        #if rank == 0:
+        #    print(PI) # Print PI for verification
         
         return next_state, reward, done, info
 

@@ -13,7 +13,7 @@ register(
 
 register(
     id='ExaLearnCartpole-v0',
-    entry_point='envs.env_vault:ExaCartpole'
+    entry_point='envs.env_vault:ExaCartpoleDynamic'
 )
 
 register(

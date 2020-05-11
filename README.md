@@ -12,7 +12,11 @@ A scalable software framework for reinforcement learning environments and agents
 ```
 ├── setup.py                          : Python setup file with requirements files 
 ├── scripts                           : folder containing RL steering scripts
-├── mpi_scripts                       : folder containing RL MPI steering scripts
+├── driver                            : folder containing RL MPI steering scripts
+    └── exalearn_example.py           : Example run scipt
+    └── candle_example.py             : Example run script that includes CANDLE functionality
+    └── candleDriver.py               : Supporting CANDLE script
+├── candlelib                         : folder containing library for CANDLE functionality
 ├── exarl                	          : folder containing base classes
     └── __init__.py                   : make base classes visible
     └── wrapper.py                    : wrapper for unified syntax
@@ -43,7 +47,7 @@ cd ExaRL
 pip install -e . --user
 ```
 
-## Running ExaRL using MPI
+## Running EXARL using MPI
 * Existing environment can be paired with an available agent
 * The following script is provided for convenience: ```ExaRL/driver/exalearn_example.py```
 ```
@@ -54,15 +58,79 @@ agent_id = 'agents:DQN-v0' # Specify agent
 env_id   = 'envs:ExaLearnCartpole-v1' # Specify env
 
 ## Create learner
-exa_learner = erl.ExaLearner(agent_id,env_id) 
-exa_learner.set_results_dir('./exa_dqn_results/')
-exa_learner.set_training(10,10) # (num_episodes, num_steps per episode)
-exa_learner.run('static') # pass 'dynamic' for environments that need dynamic MPI spawning
+exa_learner = erl.ExaLearner(agent_id,env_id)
+exa_learner.set_results_dir('/gpfs/alpine/ast153/scratch/vinayr/')
+exa_learner.set_training(10,10) # (num_episodes, num_steps)
+run_type = exa_learner.env.run_type
+exa_learner.run(run_type)
 ```
 * Write your own script or modify the above as needed
 * Run the following command:
 ```
 mpiexec -np <num_parent_processes> python driver/exalearn_example.py
+```
+## Using CANDLE functionality
+* Default parameters are in ```ExaRL/combo_setup.txt```
+```
+[Driver Params]
+output_dir = './exa_results_dir'
+agent = 'DQN-v0'
+env = 'ExaLearnCartpole-v1'
+
+[Learner Params]
+n_episodes = 1
+n_steps = 10
+
+[DQN_Params]
+search_method = 'epsilon'
+gamma = .95
+epsilon = 1.0
+epsilon_min = 0.1
+epsilon_decay = 0.995
+learning_rate = 0.01
+batch_size = 10
+tau = 1.0
+```
+* Refer to the script ```ExaRL/driver/candle_example.py```
+```
+import exarl as erl
+import driver.candleDriver as cd
+
+## Get run parameters using CANDLE
+run_params = cd.initialize_parameters()
+results_dir = run_params['output_dir']+run_params['experiment_id']+'/'+run_params['run_id']
+
+## Define agent and env
+agent_id = 'agents:'+run_params['agent']
+env_id   = 'envs:'+run_params['env']
+
+## Create learner object and run
+exa_learner = erl.ExaLearner(agent_id,env_id)
+exa_learner.set_config(run_params)
+exa_learner.set_results_dir(results_dir)
+run_type = exa_learner.env.run_type
+exa_learner.run(run_type)
+```
+* Write your own script or modify the above as needed
+* Run the following command:
+```
+mpiexec -np <num_parent_processes> python driver/exalearn_example.py --<run_params>=<param_value>
+```
+* The ```get_config()``` method is available in the base classes ```ExaRL/exarl/agent_base.py``` and ```ExaRL/exarl/env_base.py``` to obtain the parameters from the candle configuration file ```ExaRL/combo_setup.txt```.
+### Using parameters set in CANDLE configuration/get paramters from terminal
+* Declare the parameters in the constructor of your agent/environment class
+* Initialize the paramters to have proper datatypes
+For example: 
+```
+self.search_method = '' # string type
+self.gamma = 0.0 # float type
+```
+* The parameters can be fetched from the CANDLE configuration file as: ```config = super().get_config()```
+* Individual parameters are accessed using the corresponding key
+```
+self.search_method =  (agent_data['search_method'])
+self.gamma =  (agent_data['gamma'])
+
 ```
 
 ## Creating custom environments
@@ -73,8 +141,10 @@ Example:-
     class envName(gym.Env, exarl.ExaEnv):
         ...
 ```
-* Environments must include the following functions:
+* Environments must include the following variables and functions:
 ```
+# Use 'dynamic' for dynamic MPI process spawning, else 'static' 
+self.run_type = <`static` or 'dynamic'>
 step()      # returns new state after an action
 reset()     # reset the environment to initial state; marks end of an episode
 render()    # render the environment
@@ -97,8 +167,108 @@ from envs.env_vault.foo_env import FooEnv
 ```
 where ExaRL/envs/env_vault/foo_env.py is the file containing your envirnoment
 
+### Using environment written in a lower level language
+* The following example illustrates using the C function of computing the value of PI in EXARL \
+computePI.h:
+```
+#define MPICH_SKIP_MPICXX 1
+#define OMPI_SKIP_MPICXX 1
+#include <mpi.h>
+#include <stdio.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+  extern void compute_pi(int, MPI_Comm);
+#ifdef __cplusplus
+}
+#endif
+```
+
+computePI.c:
+```
+#include <stdio.h>
+#include <mpi.h>
+
+double compute_pi(int N, MPI_Comm new_comm)
+{
+  int rank, size;
+  MPI_Comm_rank(new_comm, &rank);
+  MPI_Comm_size(new_comm, &size);
+
+  double h, s, x;
+  h = 1.0 / (double) N;
+  s = 0.0;
+  for(int i=rank; i<N; i+=size)
+  {
+    x = h * ((double)i + 0.5);
+    s += 4.0 / (1.0 + x*x);
+  }
+  return (s * h);
+}
+```
+* Compile the C/C++ code and create a shared object (*.so file)
+* Create a python wrapper (Ctypes wrapper is shown) \
+\
+computePI.py:
+```
+from mpi4py import MPI
+import ctypes
+import os
+
+_libdir = os.path.dirname(__file__)
+
+if MPI._sizeof(MPI.Comm) == ctypes.sizeof(ctypes.c_int):
+    MPI_Comm = ctypes.c_int
+else:
+    MPI_Comm = ctypes.c_void_p
+_lib = ctypes.CDLL(os.path.join(_libdir, "libcomputePI.so"))
+_lib.compute_pi.restype = ctypes.c_double
+_lib.compute_pi.argtypes = [ctypes.c_int, MPI_Comm]
+
+def compute_pi(N, comm):
+    comm_ptr = MPI._addressof(comm)
+    comm_val = MPI_Comm.from_address(comm_ptr)
+    myPI = _lib.compute_pi(ctypes.c_int(N), comm_val)
+    return myPI
+```
+* In your environment code, just import the function and use it regularly \
+test_computePI.py:
+```
+from mpi4py import MPI
+import numpy as np
+import pdb
+import computePI as cp
+
+def main():
+    comm = MPI.COMM_WORLD
+    myrank = comm.Get_rank()
+    nprocs = comm.Get_size()
+
+    if myrank == 0:
+        N = 100
+    else:
+        N = None
+
+    N = comm.bcast(N, root=0)
+    num = 4
+    color = int(myrank/num)
+    newcomm = comm.Split(color, myrank)
+
+    mypi = cp.compute_pi(N, newcomm)
+    pi = newcomm.reduce(mypi, op=MPI.SUM, root=0)
+
+    newrank = newcomm.rank
+    if newrank==0:
+        print(pi)
+
+if __name__ == '__main__':
+    main()
+
+```
+
 ## Creating custom agents
-* ExaRL extends OpenAI gym's environment registration to agents
+* EXARL extends OpenAI gym's environment registration to agents
 * Agents inherit from exarl.ExaAgent
 ```
 Example:-
@@ -107,13 +277,14 @@ Example:-
 ```
 * Agents must include the following functions:
 ```
-train()     # train the agent
-update()    # update target model
-action()    # Next action based on current state
-remember()  # save (s,a,r,s',d) to memory
-load()      # load weights from memory
-save()      # save weights to memory
-monitor()   # monitor progress of learning
+get_weights()   # get target model weights
+set_weights()   # set target model weights
+train()         # train the agent
+update()        # update target model
+action()        # Next action based on current state
+load()          # load weights from memory
+save()          # save weights to memory
+monitor()       # monitor progress of learning
 ```
 * Register the agent in ```ExaRL/agents/__init__.py```
     
@@ -132,14 +303,6 @@ register(
 from agents.agent_vault.foo_agent import FooAgent
 ```
 where ExaRL/agents/agent_vault/foo_agent.py is the file containing your agent
-
-## Calling agents and environments in custom learner scripts
-* ExaRL uses a unified syntax to call agents and environments
-```
-import exarl as erl
-agent, env = erl.make('fooAgent-v0', 'fooEnv-v0')
-```
-* This functionality is demonstrated in ```ExaRL/exarl/learner_base.py```
 
 ## Best practices
 * Include a .json file in ```ExaRL/envs/env_vault/env_cfg/``` for environment related configurations
@@ -173,9 +336,11 @@ worker                  = envs/env_vault/cpi.py  # Synthetic workload that compu
 * The learner base class (ExaLearner) includes the following functions:
 ```
 set_training()      # set number of episodes and steps per episode
+set_config()        # set hyperparameters using CANDLE
 set_results_dir()   # result directory path
 render_env()        # True or False
-run()               # Run learner
+run_exarl()         # run learner
+run()               # Setup to run static or dynamic learner
 ```
 
 ## Contacts
