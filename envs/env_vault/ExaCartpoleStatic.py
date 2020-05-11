@@ -20,8 +20,8 @@ def computePI(N,new_comm):
 class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, env_comm, cfg='envs/env_vault/env_cfg/env_setup.json'):
-        super().__init__(env_cfg=cfg)
+    def __init__(self, env_comm):
+        super().__init__()
         self.env_comm = env_comm
         self._max_episode_steps = 0
         self.env = gym.make('CartPole-v0')

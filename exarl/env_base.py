@@ -14,12 +14,7 @@ import json, os, sys
 from abc import ABC, abstractmethod
 
 class ExaEnv(ABC):
-    def __init__(self, **kwargs):
-
-        # Locationn to save results
-        # Need to add MPI subdirectories
-        self.results_dir = ''
-        
+    def __init__(self, **kwargs):        
         # Use relative path not absolute
         self.base_dir = os.path.dirname(__file__)
         print(self.base_dir)
@@ -33,18 +28,18 @@ class ExaEnv(ABC):
 
     def set_config(self, env_data):
         self.env_data = env_data
+        self.run_type = env_data['run_type']
         # Add any MPI parameters                                                                                       
-        self.mpi_children_per_parent = int(env_data['mpi_children_per_parent']) if 'mpi_children_per_parent' in env_data.keys() else 0    
+        self.mpi_children_per_parent = int(env_data['mpi_children_per_parent']) if 'mpi_children_per_parent' in env_data.keys() else 0
 
         # Add any OMP parameters
-        self.omp_thread = int(env_data['omp_thread']) if 'omp_thread' in env_data.keys() else 1                                           
+        self.omp_thread = int(env_data['omp_thread']) if 'omp_thread' in env_data.keys() else 1   
         
         # Add any GPU parameters                                                                                                   
 
         # Executable                                                                                                               
-        if(self.mpi_children_per_parent > 0):
-            # Defaults to running toy example of computing PI                                                                             
-            self.worker = (env_data['worker_app']).lower() if 'worker_app' in env_data.keys() else "envs/env_vault/cpi.py"
+        if(self.run_type == 'dynamic' and self.mpi_children_per_parent > 0):
+            self.worker = (env_data['worker_app']).lower() if 'worker_app' in env_data.keys() else print('Specify worker app')
         else:
             self.worker = None
 
