@@ -137,7 +137,7 @@ class ExaLearner():
                         rank0_memories = len(self.agent.memory)
                         target_weights = self.agent.get_weights()
                         if rank0_memories%(comm.size) == 0:
-                            self.agent.save(self.results_dir+filename_prefix+'.h5')
+                            self.agent.save(self.results_dir+'/'+filename_prefix+'.h5')
 
                 ## Broadcast the memory size and the model weights to the workers  ##
                 rank0_memories = comm.bcast(rank0_memories, root=0)
@@ -160,7 +160,7 @@ class ExaLearner():
 
                 ## Save Learning target model
                 if comm.rank == 0:
-                    self.agent.save(self.results_dir+filename_prefix+'.h5')
+                    self.agent.save(self.results_dir+'/'+filename_prefix+'.h5')
 
             end_time_episode = time.time()
             logger.info('Rank[%s] run-time for episode %s: %s' % (str(comm.rank), str(e), str(end_time_episode - start_time_episode)))
