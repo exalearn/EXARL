@@ -6,7 +6,7 @@ import sys
 import json
 import exarl as erl
 
-class ExaCartpole(gym.Env, erl.ExaEnv):
+class ExaCartpoleDynamic(gym.Env, erl.ExaEnv):
     metadata = {'render.modes': ['human']}
 
     def __init__(self, cfg='envs/env_vault/env_cfg/env_setup.json'):
@@ -18,11 +18,6 @@ class ExaCartpole(gym.Env, erl.ExaEnv):
         #self.env = gym.make('FrozenLake-v0')
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
-        self.cfg = cfg
-        with open(self.cfg) as json_file:
-            data = json.load(json_file)
-
-        ##
 
     def step(self, action):
         next_state, reward, done, info = self.env.step(action)
