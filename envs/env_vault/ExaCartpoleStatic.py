@@ -40,6 +40,7 @@ class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
             N = 100
         else:
             N = None
+
         N = self.env_comm.bcast(N, root=0)	
         myPI = computePI(N, self.env_comm) # Calls python function
         #myPI = cp.compute_pi(N, self.env_comm) # Calls C++ function

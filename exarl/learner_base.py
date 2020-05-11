@@ -10,6 +10,7 @@
 # to permit others to do so.
 
 
+import time
 import gym
 import envs
 import agents
@@ -45,7 +46,6 @@ class ExaLearner():
 
         # Set configuration
         self.mpi_children_per_parent = run_params['mpi_children_per_parent']
-        #self.results_dir = run_params['output_dir']+run_params['experiment_id']+'/'+run_params['run_id']
         self.results_dir = run_params['output_dir']
         self.set_results_dir()
         self.set_config(run_params)
@@ -115,6 +115,8 @@ class ExaLearner():
             current_state = self.env.reset()
             total_reward = 0
             done = False
+
+            start_time_episode = time.time()
             steps = 0
             while done != True:
                 ## All workers ##
@@ -140,7 +142,8 @@ class ExaLearner():
                 ## Broadcast the memory size and the model weights to the workers  ##
                 rank0_memories = comm.bcast(rank0_memories, root=0)
                 current_weights = comm.bcast(target_weights, root=0)
-                logger.info('Rank[%s] - rank0 memories: %s' % (str(comm.rank),str(rank0_memories)))
+
+                logger.info('Rank[%s] - rank0 memories: %s' % (str(comm.rank), str(rank0_memories)))
 
                 ## Set the model weight for all the workers
                 if comm.rank > 0 and rank0_memories > 30:# and rank0_memories%(size)==0:
@@ -159,7 +162,9 @@ class ExaLearner():
                 if comm.rank == 0:
                     self.agent.save(self.results_dir+filename_prefix+'.h5')
 
-            #comm.barrier()
+            end_time_episode = time.time()
+            logger.info('Rank[%s] run-time for episode %s: %s' % (str(comm.rank), str(e), str(end_time_episode - start_time_episode)))
+
         train_file.close()
 
 
