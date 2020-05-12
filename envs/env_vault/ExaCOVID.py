@@ -73,7 +73,7 @@ class ExaCOVID(gym.Env, erl.ExaEnv):
         logger.info(stderr)
         
         ## Calculate the number of infected ##
-        reward = self.__get_healthy_sum(filename)
+        reward = self.__get_reward(filename)
  
         
         return next_state, reward, done, info
@@ -84,10 +84,11 @@ class ExaCOVID(gym.Env, erl.ExaEnv):
         '''
         return 0
     
-    def __get_healthy_sum(self,filename):
+    def __get_reward(self,filename):
         ''' Description:
              Calculates the total number of symptomatic people 
         '''
+        reward        = 0
         total_people  = 0
         total_healthy = 0
         total_symp    = 0
@@ -98,8 +99,11 @@ class ExaCOVID(gym.Env, erl.ExaEnv):
             if 'Total symptomatic individuals by age:' in x:
                 total_symp = sum( int(x) for x in ((x.split())[-1].split(','))[0:-1])
 
-        total_healthy = total_people - total_symp 
-        return total_healthy
+        total_healthy = total_people - total_symp
+        if total_people!=0 and total_healthy>0:
+            reward = total_healthy/total_people
+            
+        return reward
     
     def reset(self):
 
