@@ -6,13 +6,13 @@ import pandas as pd
 from collections import namedtuple
 import matplotlib.pyplot as plt
 
+import exarl as erl
+
 import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
 
-# TODO: the path has been changed
-# sys.path.append('./cahnhilliard_2d/cpp/python')
-sys.path.append('/ccs/home/aik07/parallel_rl/cahnhilliard_2d_copy/cpp/python')
+sys.path.append('envs/env_vault/CahnHilliard2D')
 
 import ch2d.aligned_vector as av
 import ch2d.cahnhilliard as ch
@@ -44,20 +44,20 @@ def print_status(msg, *args, comm_rank=None, showtime=True, barrier=True, allran
 
 ############################# Environment class #############################
 
-class CahnHilliardEnv(gym.Env):
+class CahnHilliardEnv(gym.Env, erl.ExaEnv):
 
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, comm=None, cfg_file='./envs/env_vault/env_cfg/ch2d_setup.json'):
+    def __init__(self, env_comm=None, cfg_env_file='./envs/env_vault/env_cfg/ch-v0.json',
+                                      cfg_agt_file='learner_cfg.json'):
 
-        super(CahnHilliardEnv, self).__init__()
         # Define action and observation space
         # They must be gym.spaces objects
 
         data = []
 
-        with open(cfg_file) as json_file:
+        with open(cfg_env_file) as json_file:
             data = json.load(json_file)
 
         self.cfg_data = data
@@ -65,41 +65,38 @@ class CahnHilliardEnv(gym.Env):
         ## Application setupenvs/env_vault/env_cfg
         self.debug           = int(data['debug'])           if 'debug' in data.keys() else 0
         self.size_struct_vec = int(data['size_struct_vec']) if 'size_struct_vec' in data.keys() else 200
-        self.changeT         = float(data['changeT'])         if 'changeT' in data.keys() else 0.1
-        self.initT           = float(data['initT'])           if 'initT' in data.keys() else 0.5
-        self.notTrain        = data['notTrain']        if 'notTrain' in data.keys() else False
+        self.change_T        = float(data['changeT'])       if 'changeT' in data.keys() else 0.1
+        self.initT           = float(data['initT'])         if 'initT' in data.keys() else 0.5
+        self.targetT         = float(data['targetT'])        if 'targetT' in data.keys() else 0.5
+        self.notTrain        = data['notTrain']             if 'notTrain' in data.keys() else False
         self.rewardOption    = int(data['rewardOption'])    if 'rewardOption' in data.keys() else 1
-        self.output_dir      = data['output_dir']      if 'output_dir' in data.keys() else "./"
-        self.target_dir      = data['target_dir']      if 'target_dir' in data.keys() else "./"
-        self.target_file     = data['target_file']     if 'target_file' in data.keys() else "target"
-        self.notPlotRL       = data['notPlotRL']       if 'notPlotRL' in data.keys() else False
+        self.output_dir      = data['output_dir']           if 'output_dir' in data.keys() else "./"
+        self.target_dir      = data['target_dir']           if 'target_dir' in data.keys() else "./"
+        self.target_file     = data['target_file']          if 'target_file' in data.keys() else "target"
+        self.notPlotRL       = data['notPlotRL']            if 'notPlotRL' in data.keys() else False
         self.length          = int(data['length'])          if 'length' in data.keys() else 1000
         self.episodes        = int(data['episodes'])        if 'episodes' in data.keys() else 10
-        self.steps           = int(data['steps'])           if 'steps' in data.keys() else 50
-        self.genTarget       = data['genTarget']       if 'genTarget' in data.keys() else True
-        self.randInitial     = data['randInitial']     if 'randInitial' in data.keys() else False
+        # self.steps           = int(data['steps'])           if 'steps' in data.keys() else 50
+        self.genTarget       = data['genTarget']            if 'genTarget' in data.keys() else True
+        self.randInitial     = data['randInitial']          if 'randInitial' in data.keys() else False
+        self.num_control_params = int(data['num_control_params']) if 'num_control_params' in data.keys() else 1   # number of controlling parameter                             
 
+        with open(cfg_agt_file) as json_file:
+            data = json.load(json_file)
+
+        self.steps           = int(data['n_steps'])           if 'n_steps' in data.keys() else 50
+        
         #self.args = args
-        self.comm = comm
+        self.comm = env_comm
+        self.comm_rank = self.comm.Get_rank() if self.comm else 0
 
         self.action_space = spaces.Discrete( self.getActionSize() )
         self.observation_space = spaces.Box(
         low=np.zeros(self.size_struct_vec+1),
-        high=np.ones(self.size_struct_vec+1)*10000, dtype=np.uint8)
+        high=np.ones(self.size_struct_vec+1)*10000, dtype=np.uint8)  # TODO: fix the high values
 
         #self.observation_space = spaces.Box(low=0, high=255, shape=
         #                (HEIGHT, WIDTH, N_CHANNELS), dtype=np.uint8)
-
-        if self.comm:
-          self.comm_rank = self.comm.Get_rank()
-        else:
-          self.comm_rank = 0
-
-        self.num_control_params = 1        # number of controlling parameter
-
-        self.change_T = self.changeT  # 0.1   #
-        self.initialT = self.initT    # 0.5   # initial temperature value for RL training
-        self.targetT  = 0.8                # target temperature value to generate target
 
         self.currStructVec   = np.zeros(self.size_struct_vec)   # stores current structure vector
         self.targetStructVec = np.zeros(self.size_struct_vec)   # target  structure vector (loaded or generated at setTargetState() once)
@@ -240,7 +237,8 @@ class CahnHilliardEnv(gym.Env):
     def step(self, action_idx):
 
         self.time_step = self.time_step + 1
-
+        self.time_step = self.time_step % self.steps
+        
         #get the next state
         if self.debug>=1: time_tmp = time.time()
         self.currStructVec = self.getNextState(action_idx, self.time_step)
@@ -438,10 +436,10 @@ class CahnHilliardEnv(gym.Env):
         self.info.t0      = 0
         self.info.iter    = 0
         stiff_dt          = np.min([ self.biharm_dt , self.diff_dt , self.lin_dt ])
-        self.t            = np.linspace(self.info.t0 , self.info.t0 + n_dt * stiff_dt , n_tsteps+2)
+        self.t            = np.linspace(self.info.t0 , self.info.t0 + n_dt * stiff_dt , n_tsteps+1)
         dt_check          = self.t[1]-self.t[0]
 
-        #print('self.t:', self.t)
+        # print('self.t:', self.t)
 
         # Run solver
         if self.debug>=1:
