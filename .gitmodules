@@ -1,6 +1,12 @@
 [submodule "envs/env_vault/CahnHilliard2D"]
 	path = envs/env_vault/CahnHilliard2D
 	url = https://github.com/exalearn/cahnhilliard_2d.git
+	branch = docker-devel
 [submodule "envs/env_vault/ImageStructure"]
 	path = envs/env_vault/ImageStructure
 	url = https://github.com/exalearn/image_structure.git
+	branch = docker
+[submodule "envs/env_vault/TDLG"]
+	path = envs/env_vault/TDLG
+	url = https://github.com/exalearn/TDLG
+	branch = master
