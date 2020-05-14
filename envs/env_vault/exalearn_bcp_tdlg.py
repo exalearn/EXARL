@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
+from mpi4py import MPI
 from gym import spaces
 from shutil import copyfile,rmtree
 from collections import defaultdict
@@ -68,8 +69,8 @@ class BlockCoPolymerTDLG(gym.Env, erl.ExaEnv):
         self.worker_dir = './' #data['worker_index'] if 'worker_index' in data.keys() else rank_index
         #self.worker_dir = './multiworker/worker'+str(self.worker_index)
         #if os.path.exists(self.worker_dir): rmtree(self.worker_dir)
-        #os.mkdir(self.worker_dir)
-        #os.mkdir(self.worker_dir+'/archive/')
+        #os.makedirs(self.worker_dir)
+        #os.makedirs(self.worker_dir+'/archive/')
         #print ("worker directory: " + self.worker_dir)
 
         ## for plotting
@@ -100,20 +101,18 @@ class BlockCoPolymerTDLG(gym.Env, erl.ExaEnv):
         self.current_reward = 0
         self.total_reward   = 0
 
-        ##
-        self.episode_num = 0
-        self.step_num = 0
-
         ## Use reset function to do the rest
-        self.reset()
+        self.reset(True)
         logger.info ("from __init__")
         logger.info (self.model_parameter)
 
     def set_results_dir(self,results_dir):
-        self.worker_dir=results_dir
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        self.worker_dir=results_dir+'multiworker/worker'+str(rank)
         if os.path.exists(self.worker_dir): rmtree(self.worker_dir)
-        os.mkdir(self.worker_dir)
-        os.mkdir(self.worker_dir+'/archive/')
+        os.makedirs(self.worker_dir)
+        os.makedirs(self.worker_dir+'/archive/')
         #print ("worker directory: " + self.worker_dir)
 
     def _inMemory(self,state,action):
@@ -208,11 +207,11 @@ class BlockCoPolymerTDLG(gym.Env, erl.ExaEnv):
         structure,self.target_vol = self._get1DFFT(input_file_name)
         return structure
 
-        def setTarget(self,input_file_name):
-            """
-            Description: Read in a 3D volume file based on the TDLG output structure
-            """
-            return self._get1DFFT(input_file_name)
+    def setTarget(self,input_file_name):
+        """
+        Description: Read in a 3D volume file based on the TDLG output structure
+        """
+        return self._get1DFFT(input_file_name)
 
     def _get1DFFT(self, input_file_name):
         """
