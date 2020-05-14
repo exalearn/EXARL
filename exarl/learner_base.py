@@ -4,7 +4,7 @@
 # National Laboratory (LANL), which is operated by Triad National Security, LLC for the U.S.
 # Department of Energy/National Nuclear Security Administration. All rights in the program are
 # reserved by Triad National Security, LLC, and the U.S. Department of Energy/National Nuclear
-# Security Administration. The Government is granted for itself and others acting on its behalf a
+#1;95;0c Security Administration. The Government is granted for itself and others acting on its behalf a
 # nonexclusive, paid-up, irrevocable worldwide license in this material to reproduce, prepare
 # derivative works, distribute copies to the public, perform publicly and display publicly, and
 # to permit others to do so.
@@ -174,6 +174,8 @@ class ExaLearner():
     def run(self, run_type):
         if self.agent!=None:
             self.agent.set_agent()
+
+        self.env.set_env()
 
         if run_type == 'static':
             if self.agent_comm != MPI.COMM_NULL:
