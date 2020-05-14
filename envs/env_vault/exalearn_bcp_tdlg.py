@@ -206,12 +206,12 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
         return inMemDict
     
     def _getState(self, s):
-        print (s)
+        #print (s)
         k = round(self.model_parameter['kappa'],3)
         #s_normal = list(map(lambda x, r=float(self.observation_space.high[0]-self.observation_space.low[0]): ((x - self.observation_space.low[0]) / r), s))
         #s_normal = list(map(lambda x, r=float(350-0): ((x - 0) / r), s))
         s_normal = [n / 350.0 for n in s]
-        print (s_normal)
+        #print (s_normal)
         #k_normal = list(map(lambda x, r=float(self.observation_space.high[-1]-self.observation_space.low[-1]): ((x - self.observation_space.low[-1]) / r), [k]))[0]
         k_normal = (k-self.observation_space.low[-1])/(self.observation_space.high[-1]-self.observation_space.low[-1])
         state = np.append(s_normal,k_normal)
@@ -223,6 +223,7 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
         self.f_outOfBound = False
         self.f_earlyTargetAchieve = False
         
+        self.f_expert=False
         if self.f_expert:
             k = round(self.model_parameter['kappa'],3)
             #print ("expert k: ", str(k))
@@ -236,7 +237,9 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
             #print ("expert action: ", action)
 
         ## Check if the state-action has already been calculated
-        inMem = self._inMemory(str(self._getState(self.current_structure)),action)
+        # TODO: add the the memory file recording, temporarily comment out
+        # could be really useful to speed up the training
+        #inMem = self._inMemory(str(self._getState(self.current_structure)),action)
 
         ## Apply discrete actions
         if action==2:
@@ -253,10 +256,12 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
                 
 
         ## Avoid running model
-        if inMem['inMem']==True:
-            logger.info('### In memory ... skipping simulation ###')
-            print ('### In memory ... skipping simulation ###')
-            return inMem['next_state'],float(inMem['reward']),inMem['done'], {}
+        # TODO: add the the memory file recording, temporarily comment out
+        # could be really useful to speed up the training
+        #if inMem['inMem']==True:
+        #    logger.info('### In memory ... skipping simulation ###')
+        #    print ('### In memory ... skipping simulation ###')
+        #    return inMem['next_state'],float(inMem['reward']),inMem['done'], {}
         
         ## Run model
         self._run_TDLG()
@@ -279,14 +284,14 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
         #print ("reward: ", reward) 
         #print ("kappa: ", self.model_parameter['kappa'])
         
-        plt.plot(self.target_structure,label='target')
-        plt.plot(self.current_structure,label='current')
-        plt.legend()
-        plt.title("episode_"+str(self.ep)+"_step_"+str(self.st)+"\nreward "+str(round(reward,2)))
-        plt.savefig(self.plot_path+"/episode_"+str(self.ep)+"_step_"+str(self.st)+".png")
-        plt.close()
+        #plt.plot(self.target_structure,label='target')
+        #plt.plot(self.current_structure,label='current')
+        #plt.legend()
+        #plt.title("episode_"+str(self.ep)+"_step_"+str(self.st)+"\nreward "+str(round(reward,2)))
+        #plt.savefig(self.plot_path+"/episode_"+str(self.ep)+"_step_"+str(self.st)+".png")
+        #plt.close()
         
-        np.savetxt(self.field_path+"/episode_"+str(self.ep)+"_step_"+str(self.st)+"_field"+str(self.st)+".out",self.current_structure)
+        #np.savetxt(self.field_path+"/episode_"+str(self.ep)+"_step_"+str(self.st)+"_field"+str(self.st)+".out",self.current_structure)
         #==========================================
     
         
