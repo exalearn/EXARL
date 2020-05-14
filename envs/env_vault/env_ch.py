@@ -75,7 +75,7 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         self.target_file     = data['target_file']          if 'target_file' in data.keys() else "target"
         self.notPlotRL       = data['notPlotRL']            if 'notPlotRL' in data.keys() else False
         self.length          = int(data['length'])          if 'length' in data.keys() else 1000
-        self.episodes        = int(data['episodes'])        if 'episodes' in data.keys() else 10
+        # self.episodes        = int(data['episodes'])        if 'episodes' in data.keys() else 10
         # self.steps           = int(data['steps'])           if 'steps' in data.keys() else 50
         self.genTarget       = data['genTarget']            if 'genTarget' in data.keys() else True
         self.randInitial     = data['randInitial']          if 'randInitial' in data.keys() else False
@@ -85,6 +85,7 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
             data = json.load(json_file)
 
         self.steps           = int(data['n_steps'])           if 'n_steps' in data.keys() else 50
+        self.episodes        = int(data['episodes'])        if 'episodes' in data.keys() else 100
         
         #self.args = args
         self.comm = env_comm
@@ -140,9 +141,9 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
     ##################### reset to the initial state #####################
     def reset(self):
 
-        self.episode += 1
-        self.time_step = -1
-        #print('episode', self.episode)
+        self.episode   += 1
+        self.time_step  = -1
+        # print('episode', self.episode)
         if self.episode == self.episodes: self.isTest=True
 
         self.setInitSimParams()  # TODO: I do not have to initialze all parameter at each episode
@@ -237,7 +238,7 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
     def step(self, action_idx):
 
         self.time_step = self.time_step + 1
-        self.time_step = self.time_step % self.steps
+        # self.time_step = self.time_step % self.steps
         
         #get the next state
         if self.debug>=1: time_tmp = time.time()
@@ -280,8 +281,6 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
     ############################ reward function ####################################
     # TODO: modify this reward function
     def getReward(self, t):
-
-        #self.adjustWeight()
 
         if self.debug>=30: print_status("wt {}".format(self.vecWeight), comm_rank=self.comm_rank, allranks=True)
 
