@@ -62,16 +62,8 @@ class BlockCoPolymerTDLG(gym.Env, erl.ExaEnv):
         self.param_name = data['param_name'] if 'param_name' in data.keys() else 'tdlg_param.in'
         self.param_file = os.path.join(self.param_dir,self.param_name)
         self.model_parameter  = defaultdict(float)
-        self._updateParamDict()
 
-        ## for multi-worker training
-        #rank_index=0
-        self.worker_dir = './' #data['worker_index'] if 'worker_index' in data.keys() else rank_index
-        #self.worker_dir = './multiworker/worker'+str(self.worker_index)
-        #if os.path.exists(self.worker_dir): rmtree(self.worker_dir)
-        #os.makedirs(self.worker_dir)
-        #os.makedirs(self.worker_dir+'/archive/')
-        #print ("worker directory: " + self.worker_dir)
+        self._updateParamDict(self.param_file)
 
         ## for plotting
         self.rendering = False
@@ -363,7 +355,7 @@ class BlockCoPolymerTDLG(gym.Env, erl.ExaEnv):
         logger.info(stdout)
         logger.info(stderr)
 
-    def reset(self, init=FAlse):
+    def reset(self, init=False):
         # Clear state and environment
         self.state=np.zeros(self.observation_space.shape)
         self.current_structure = np.zeros(len(self.target_structure))
