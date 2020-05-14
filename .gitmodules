@@ -4,3 +4,6 @@
 [submodule "envs/env_vault/ImageStructure"]
 	path = envs/env_vault/ImageStructure
 	url = https://github.com/exalearn/image_structure.git
+[submodule "envs/env_vault/TDLG"]
+	path = envs/env_vault/TDLG
+	url = https://github.com/exalearn/LibTDLG.git
