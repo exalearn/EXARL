@@ -39,7 +39,7 @@ A scalable software framework for reinforcement learning environments and agents
 ## Installing 
 * Pull code from repo
 ```
-git clone https://github.com/exalearn/ExaRL.git
+git clone --recursive https://github.com/exalearn/ExaRL.git
 ```
 * Install dependencies for ExaRL:
 ```
