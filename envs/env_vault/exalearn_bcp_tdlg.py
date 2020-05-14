@@ -1,25 +1,28 @@
-import gym, subprocess, os, logging, json, math
+import gym, subprocess, os, logging, json, math, sys, lmfit, similaritymeasures,random
 import numpy as np
 import pandas as pd 
-import plotly.graph_objects as go
+#import plotly.graph_objects as go
 from mpi4py import MPI
 from gym import spaces
 from shutil import copyfile,rmtree
 from collections import defaultdict
-from plotly.subplots import make_subplots
-from utils.sv import *
+import matplotlib.pyplot as plt
+from scipy.signal import find_peaks, peak_widths
+from datetime import datetime
+#from plotly.subplots import make_subplots
+#from utils.utils_tdlg.sv import *
 import exarl as erl
 #from utils.tdlg_plot import *
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('BlockCoPolymerTDLG-Logger')
 #logger.setLevel(logging.INFO)
-logger.setLevel(logging.CRITICAL)
+logger.setLevel(logging.ERROR)
 
 class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self,cfg_file='../cfg/tdlg_setup.json'):
+    def __init__(self,cfg_file):
         super().__init__(env_cfg=cfg_file)
         """ 
         Description:
@@ -41,57 +44,137 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
            - Increase/decrease kappa (2)
            - No change (1)
         """
-        
-        data = []
-        
         with open(cfg_file) as json_file:
-            data = json.load(json_file)
-        self.cfg_data = data
+            self.cfg_data = json.load(json_file)
 
         ## Application setup
-        self.app_dir  = data['app_dir']  if 'app_dir' in data.keys() else '/home/schr476/exalearn/tdlg_fy19/build_cpu/'
-        self.app_name = data['app_name'] if 'app_name' in data.keys() else 'tdlg_run'
-        self.app      = os.path.join(self.app_dir,self.app_name)
+        self.app_dir  = self.cfg_data['app_dir'] if 'app_dir' in self.cfg_data.keys() else 'utils/utils_tdlg'
+        sys.path.append(self.app_dir)
+        import TDLG as TDLG
+        self.app = TDLG
+        self.app_threads  = self.cfg_data['app_threads'] if 'app_threads' in self.cfg_data.keys() else 24
+        self.app_core     = self.cfg_data['app_core'] if 'app_core' in self.cfg_data.keys() else 'cpu'
 
         ## Model parameters
-        self.param_dir  = data['param_dir']  if 'param_dir' in data.keys()  else '/home/schr476/exalearn/rl_repos/gym-exalearn/cfg/'
-        self.param_name = data['param_name'] if 'param_name' in data.keys() else 'tdlg_param.in'
+        self.param_dir  = self.cfg_data['param_dir']  if 'param_dir' in self.cfg_data.keys()  else 'cfg/'
+        self.param_name = self.cfg_data['param_name'] if 'param_name' in self.cfg_data.keys() else 'tdlg_param.in'
         self.param_file = os.path.join(self.param_dir,self.param_name)
-        self.model_parameter  = defaultdict(float)
-        self._updateParamDict(self.param_file)
+        self.model_parameter_init  = self._updateParamDict(self.param_file)
+        ## Fix the starting point
+        self.model_parameter = self.model_parameter_init
         
-        ## for plotting
+        ## for plotting #TODO:rendering is available in offline mode for v3. 
         self.rendering = False
 
         ## Step sizes for discrete environment 
-        #self.fracA_step_size = float(data['fracA_step_size']) if 'fracA_step_size' in data.keys() else 0.005
-        self.kappa_step_size = float(data['kappa_step_size']) if 'kappa_step_size' in data.keys() else 0.001
+        self.kappa_step_size = float(self.cfg_data['kappa_step_size']) if 'kappa_step_size' in self.cfg_data.keys() else 0.001
         
         ## Setup target structure
-        self.target_structure_name = data['target_structure_name'] if 'target_structure_name' in data.keys() else 'cfg/target_field.out'
+        self.target_structure_name = self.cfg_data['target_structure_name'] if 'target_structure_name' in self.cfg_data.keys() else 'envs/env_vault/env_cfg/tdlg_cfg/target_field.out'
+        self.target_precision = float(self.cfg_data['target_precision']) if 'target_precision' in self.cfg_data.keys() else -2 ## 98[%]
+        self.target_precision = 0.99 #99%
         self.target_structure = self.setTargetStructure(self.target_structure_name)
-        self.target_precision = -2 ## 98[%]
         self.structure_len = len(self.target_structure)
         
-        self.current_structure = np.zeros(self.structure_len)
-
         ## Define state and action spaces
         self.observation_space = spaces.Box(low=np.append(np.zeros(self.structure_len),[0.004]), high=np.append(np.ones(self.structure_len),[0.012]),dtype=np.float32)
-        self.action_space = spaces.Discrete(3) 
-
-        ## Fix the starting point
-        self.model_parameter_init = {}
-        #self.model_parameter_init['fracA'] = self.observation_space.high[0] - self.fracA_step_size
-        #self.model_parameter_init['kappa'] = self.observation_space.high[-1] - self.kappa_step_size
-        self.model_parameter_init['kappa'] = self.model_parameter['kappa']
-
+        self.action_space = spaces.Discrete(3)
+        
+        ## reward
+        self.earlyTargetBonus  = 1
+        self.outOfBoundPenalty = -1 
+        self.smape_shift       = 0
+        #self.earlyTargetBonus  = 0
+        self.f_rewardScaling   = True
+        self.f_fixInit = True
+        self.fixInitValue = 0.007
+        
+        ## Initialize current structure
+        self.reset()
+        
+        self.ep=0
+        self.st=0
+        
+        #logger.info ("from __init__")
+        #logger.info (self.model_parameter['kappa'])
+        #print ("init. kappa = ", self.model_parameter['kappa'])
+        
+    def reset(self):
+        ## Clear parameter dict
+        self.model_parameter = self.model_parameter_init.copy()
+        
+        ## start with a random kappa
+        range_top = int(round((self.observation_space.high[-1]-self.observation_space.low[-1])/self.kappa_step_size + 1))
+        random.seed(datetime.now())
+        r = random.randint(0,range_top-1)
+        self.model_parameter['kappa'] = round(self.observation_space.low[-1]+self.kappa_step_size*r,3)
+        
+        ## start with a static kappa
+        if self.f_fixInit:
+            self.model_parameter['kappa']=self.fixInitValue
+        
+        print("init. kappa: ", self.model_parameter['kappa'])
+        print("target precision value: ", round((-1+self.smape_shift)+self.target_precision,3))
+        
+        ## init. kappa different than the one target structure used 
+        ## cannot reach 100% target even follow the perfect action trajectory
+        self.reward_scale = self._getRewardScale(self.model_parameter['kappa'])
+        
+        # Clear state and environment
+        self.Phi = self.app.InitRandomField(0.5,self._getParametersStruct(self.model_parameter))
+        field = self._getFieldFromPhi(self.Phi)
+        #print ("init. field: ", field[:5])
+        self.current_structure, self.current_vol = self._get1DFFT(field)
+        #self.current_structure = np.zeros(len(self.target_structure))
+        
+        self.state = np.zeros(self.observation_space.shape)
+        self.state = self._getState(self.current_structure)
+        
+        ## Return the state
         self.current_reward = 0
+        self.best_reward    = 0
         self.total_reward   = 0
         
-        ## Use reset function to do the rest
-        self.reset(True)
-        logger.info ("from __init__")
-        logger.info (self.model_parameter)
+        #print ("reset structure:" ,self.current_structure)
+        #print ("reset state:", self.state)
+    
+        return self.state
+    
+    def _getRewardScale(self, initKappa):
+        switcher={
+            0.004:  0.81,
+            0.005:  0.80 ,
+            0.006:  0.82 ,
+            0.007:  0.84,
+            0.008:  0.87,
+            0.009:  1.0,
+            0.010:  1.0,
+            0.011:  1.0,
+            0.012:  0.87}
+            
+        return switcher.get(initKappa)
+            
+    
+    def _getParametersStruct(self,paramDict):
+        paramStruct = self.app.ParametersStruct(
+            time   = paramDict['time'],
+            dx     = paramDict['dx'],
+            dy     = paramDict['dy'],
+            dz     = paramDict['dz'],
+            NX     = paramDict['NX'],
+            NY     = paramDict['NY'],
+            NZ     = paramDict['NZ'],
+            Ntotal = paramDict['NX']*paramDict['NY']*paramDict['NZ'],
+            dt     = paramDict['dt'],
+            seed   = paramDict['seed'],
+            threads= self.app_threads,
+            a      = paramDict['a'],
+            b      = paramDict['b'],
+            c      = paramDict['c'],
+            kappa  = paramDict['kappa'],
+            fracA  = paramDict['fracA'],
+            noise  = paramDict['noise'])
+        return paramStruct
 
     def set_results_dir(self,results_dir):
         comm = MPI.COMM_WORLD
@@ -122,86 +205,133 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
                         inMemDict = {'inMem':True,'next_state':next_state,'reward':reward,'done':done}                
         return inMemDict
     
-    def _getState(self):
-        #return [round(self.model_parameter['fracA'],3),round(self.model_parameter['kappa'],3)]
-        return np.append(self.current_structure,round(self.model_parameter['kappa'],3))
+    def _getState(self, s):
+        print (s)
+        k = round(self.model_parameter['kappa'],3)
+        #s_normal = list(map(lambda x, r=float(self.observation_space.high[0]-self.observation_space.low[0]): ((x - self.observation_space.low[0]) / r), s))
+        #s_normal = list(map(lambda x, r=float(350-0): ((x - 0) / r), s))
+        s_normal = [n / 350.0 for n in s]
+        print (s_normal)
+        #k_normal = list(map(lambda x, r=float(self.observation_space.high[-1]-self.observation_space.low[-1]): ((x - self.observation_space.low[-1]) / r), [k]))[0]
+        k_normal = (k-self.observation_space.low[-1])/(self.observation_space.high[-1]-self.observation_space.low[-1])
+        state = np.append(s_normal,k_normal)
+        return state
     
     def step(self, action):
-        logger.info('Env::step()')
-
         ## Default returns
         done   = False
-        reward = -111 ## Default penalty
+        self.f_outOfBound = False
+        self.f_earlyTargetAchieve = False
+        
+        if self.f_expert:
+            k = round(self.model_parameter['kappa'],3)
+            #print ("expert k: ", str(k))
+            if k<0.01:
+                action = 1
+            elif k>0.01:
+                action = 2
+            else:
+                action = 0
+            
+            #print ("expert action: ", action)
 
         ## Check if the state-action has already been calculated
-        inMem = self._inMemory(str(self._getState()),action)
+        inMem = self._inMemory(str(self._getState(self.current_structure)),action)
 
         ## Apply discrete actions
-        if action==1:
+        if action==2:
             self.model_parameter['kappa']+=self.kappa_step_size
-            if self.model_parameter['kappa']>self.observation_space.high[1]:
+            if self.model_parameter['kappa']>self.observation_space.high[-1]:
                 self.model_parameter['kappa']-=self.kappa_step_size
-                done = True
-                return self._getState(),reward,done, {}
+                self.f_outOfBound = True
                 
-        elif action==2:
+        elif action==0:
             self.model_parameter['kappa']-=self.kappa_step_size
-            if self.model_parameter['kappa']<self.observation_space.low[1]:
+            if self.model_parameter['kappa']<self.observation_space.low[-1]:
                 self.model_parameter['kappa']+=self.kappa_step_size
-                done = True
-                return self._getState(),reward,done, {}
+                self.f_outOfBound = True
+                
 
         ## Avoid running model
         if inMem['inMem']==True:
             logger.info('### In memory ... skipping simulation ###')
+            print ('### In memory ... skipping simulation ###')
             return inMem['next_state'],float(inMem['reward']),inMem['done'], {}
-
-        ## Run model
-        if os.path.exists(self.worker_dir+'/field.in') : os.remove(self.worker_dir+'/field.in')
-        if os.path.exists(self.worker_dir+'/field.out'): os.rename(self.worker_dir+'/field.out',self.worker_dir+'/field.in')
         
+        ## Run model
         self._run_TDLG()
 
-        ## Get structure from model output 
-        self.current_structure_name = self.worker_dir + '/field.out'
-        self.current_structure, self.current_vol = self._get1DFFT(self.worker_dir + '/field.out')
-        #copyfile(self.worker_dir + '/field.out', self.worker_dir + '/archive/'+str(self.episode_num)+'_field_'+str(self.step_num)+'.out')
+        ## Get FFT from model output 
+        field = self._getFieldFromPhi(self.Phi)
+        self.current_structure, self.current_vol = self._get1DFFT(field)
         
         ## Calculate reward
         reward = self._calculateReward()
-        self.total_reward += reward
-
+        #if action == 0: reward += 10
         ## Define done based on how close it's
-        if reward>self.target_precision:
-            reward = 1000 
+        if self.f_earlyTargetAchieve or self.f_outOfBound:
             done = True
+        
+        ##=========print and save plot============
+        #print ("action: ", action)
+        #print ("current structure: ", self.current_structure[:5]) 
+        #print ("target structure: ", self.target_structure[:5])
+        #print ("reward: ", reward) 
+        #print ("kappa: ", self.model_parameter['kappa'])
+        
+        plt.plot(self.target_structure,label='target')
+        plt.plot(self.current_structure,label='current')
+        plt.legend()
+        plt.title("episode_"+str(self.ep)+"_step_"+str(self.st)+"\nreward "+str(round(reward,2)))
+        plt.savefig(self.plot_path+"/episode_"+str(self.ep)+"_step_"+str(self.st)+".png")
+        plt.close()
+        
+        np.savetxt(self.field_path+"/episode_"+str(self.ep)+"_step_"+str(self.st)+"_field"+str(self.st)+".out",self.current_structure)
+        #==========================================
+    
+        
+        self.total_reward += reward
+        if self.f_earlyTargetAchieve and self.best_reward < reward - self.earlyTargetBonus:
+            self.best_reward = reward - self.earlyTargetBonus
+        elif self.f_outOfBound and self.best_reward < reward - self.outOfBoundPenalty :
+            self.best_reward = reward - self.outOfBoundPenalty
+        elif self.best_reward < reward:
+            self.best_reward = reward
             
         ## Rendering
-        if self.rendering:
-            logger.info("Plotting...")
-            self._render()
+        #if self.rendering:
+        #    logger.info("Plotting...")
+        #    self._render()
 
         ## Return output
-        return self._getState(),reward,done, {}
+        return self._getState(self.current_structure),reward,done, {}
 
-    def setTargetStructure(self,input_file_name):
+    def setTargetStructure(self,file_name):
         """
         Description: Read in a 3D volume file based on the TDLG output structure
         """
-        structure,self.target_vol = self._get1DFFT(input_file_name)  
+        field = self._readFieldFromFile(file_name) 
+        structure, self.target_vol = self._get1DFFT(field)
+        print ("Target Strcuture: ", structure)
         return structure
-    
-    def setTarget(self,input_file_name):
-        """
-        Description: Read in a 3D volume file based on the TDLG output structure
-        """
-        return self._get1DFFT(input_file_name)  
         
-    def _get1DFFT(self, input_file_name):
+    def _readFieldFromFile(self, input_file_name):
+        ## Read in model output file ##
+        with open(input_file_name, 'rb') as file:
+            # read a list of lines into data
+            field = file.readlines()
+        return field
+        
+    def _getFieldFromPhi(self, Phi):
+        Parameters = self._getParametersStruct(self.model_parameter)
+        field = self._getField(Phi, Parameters)
+        return field
+        
+    def _get1DFFT(self, fieldData):
         """
         Description: Process 3D data from model output using Kevin's code
         """
-        data = self._parseModelOutput(input_file_name)
+        data = self._getPaddedVol(fieldData)
         
         # Define expectations for simulations results    
         scale = 1 # Conversion of simulation units into realspace units
@@ -209,16 +339,17 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
         q0_expected = 2*np.pi/d0_expected
 
         # Compute the structure vector
-        vector = structure_vector(data, q0_expected, scale=scale)
+        vector = self.structure_vector(data, q0_expected, scale=scale)
         return vector[-1], data
         
-    def _parseModelOutput(self, input_file_name):
+    def _getPaddedVol(self, filedata):
         """
         Description: Read the model output and convert to readable format for Kevin's software
         """
         
         ## TODO: Add try-exception if these parameters are not defined in the parameter input file
-        nshapshots = int(float(self.model_parameter['time'])/float(self.model_parameter['samp_freq']))
+        #nshapshots = int(float(self.model_parameter['time'])/float(self.model_parameter['samp_freq']))
+        nshapshots = 1
         nx = int(self.model_parameter['NX'])
         ny = int(self.model_parameter['NY'])
         nz = int(self.model_parameter['NZ'])
@@ -227,11 +358,6 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
         nbox = nx if nx > ny else ny
         nbox = nbox if nbox > nz else nz
         padded_vol = np.zeros([nbox,nbox,nbox])
-        
-        ## Read in model output file ##
-        with open(input_file_name, 'rb') as file:
-            # read a list of lines into data
-            filedata = file.readlines()
 
         ## Check if file is empty
         if len(filedata)==0:
@@ -258,25 +384,15 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
 
         np.copyto(padded_vol[:nx,:ny,:nz],vols[-1])
         return padded_vol
-    
-    def _plot_vol(self,vol): 
-        X, Y, Z = np.mgrid[0:32:32j, 0:32:32j, 0:8:8j]
-        data = go.Volume(
-            x=X.flatten(), y=Y.flatten(), z=Z.flatten(),
-            value=vol.flatten(),
-            isomin=vol.min(),
-            isomax=vol.max(),
-            opacity=0.25,
-            surface_count=25,
-            colorscale='RdBu',
-            showscale = False
-        )
-        return data
+
     
     def _calculateReward(self):
         """
         Description: Calculate the reduced chi^2 between the target structure and the current structure in 1D FFTW space
         """
+        #print ("current structure: ",  self.current_structure)
+        #print ("target structure: ",  self.target_structure)
+
         chi2=0
         smape=0
         nvalues=len(self.target_structure)
@@ -289,15 +405,49 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
         chi2 = chi2/nvalues if nvalues > 0 else -1
         smape = smape/nvalues if nvalues > 0 else -1
         
-        reward = -smape*100.0 ## yeilds a value between [0,100]
+        reward = -smape*100.0 ## yeilds a value between [-100,0]
+        reward = -smape+self.smape_shift  ##yeilds a value between [0,1]
+        #reward = math.sqrt(chi2)
+        #reward = chi2
+        #reward = - similaritymeasures.frechet_dist(self.target_structure, self.current_structure)
         
+        target_peaks, tpp  = find_peaks(self.target_structure , height=50)
+        current_peaks, cpp = find_peaks(self.current_structure, height=50)
+        #print ("target_peaks:",target_peaks,tpp['peak_heights'])
+        #print ("current_peaks:",current_peaks,cpp['peak_heights'])
+        
+        target_peaks_width  = peak_widths(self.target_structure ,target_peaks, rel_height=0.5)
+        current_peaks_width = peak_widths(self.current_structure,current_peaks,rel_height=0.5)
+        #print ("target_peaks_width:",target_peaks_width[0])
+        #print ("current_peaks_width:",current_peaks_width[0])
+        
+        self.last_reward = reward
+        
+        #print ('raw reward: ',reward)
+        if self.f_rewardScaling:
+            reward = (reward+(1-self.smape_shift))/self.reward_scale-(1-self.smape_shift)
+            
+        if reward>=round((-1+self.smape_shift)+self.target_precision,3):
+            reward = self.earlyTargetBonus
+            #reward += self.earlyTargetBonus
+            print ("reach target early")
+            self.f_earlyTargetAchieve = True
+        elif self.f_outOfBound:
+            reward = self.outOfBoundPenalty
+            #reward += self.outOfBoundPenalty  #still reward the closeness to the target from smape above, but panelize the out of bound
+            print ("out of bound")
+        
+        
+            
         return reward
 
     def _updateParamDict(self,param_file):
         """
         Description: 
            - Reads parameter file and make dict
+           - Save the dict in self.model_parameter
         """
+        model_parameter = defaultdict(float)
         ## Read default parameter file
         filedata = []
         with open(param_file, 'r') as file:
@@ -313,131 +463,117 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
                 value = round(float(value),3)
             else:
                 value = float(value)
-            self.model_parameter[key] = value
+            model_parameter[key] = value
+        return model_parameter
             
     def _run_TDLG(self):
         """
         Description: 
-           - Creates a new param.in file based on the para dict
            - Run TDLG model
         """
+        Parameters = self._getParametersStruct(self.model_parameter)
         
-        print ('current folder:', self.worker_dir)
-        ## Prepare ##
-        if os.path.exists(self.worker_dir+'/param.in'):
-            os.remove(self.worker_dir+'/param.in')
+        #field=self._getField(self.Phi, Parameters)
+        #print ("pre_run_field: ", field[:5])
         
-        new_filedata = []
-        for key, value in self.model_parameter.items():
-            param = '%s  %s' % (str(value),str(key)) + '\n'    
-            new_filedata.append(param)
+        if self.app_core == 'cpu':
+            self.app.TDLG_CPU(Parameters,self.Phi)
+        elif self.app_core == 'gpu':
+            self.app.TDLG_GPU(Parameters,self.Phi)
+        
+        #field=self._getField(self.Phi, Parameters)
+        #print ("post_run_field: ", field[:5])
 
-        logger.info("## New parameter file ##")
-        logger.info(new_filedata)
-            
-        with open(self.worker_dir+'/param.in', 'w') as file:
-            file.writelines( new_filedata )
-          
-        ## Run model state ##
-        print ("app: ", self.app)
-        env_out = subprocess.Popen([self.app], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=self.worker_dir)#,env={'OMP_NUM_THREADS': '1'})
-        stdout,stderr = env_out.communicate()
         
-        logger.info(stdout)
-        logger.info(stderr)
-
-    def reset(self,init=False):
-        # Clear state and environment
-        self.state=np.zeros(self.observation_space.shape)
-        self.current_structure = np.zeros(len(self.target_structure))
-        
-        ## Clear parameter dict
-        self.model_parameter = {}
-
-        ## Re-read parameter file and setup dict
-        self._updateParamDict(self.param_file)
-        
-        ## Return the state
-        self.current_reward = 0
-        self.total_reward   = 0
-        
-        if init==False:
-            logger.info("=====reset=====")
-            if os.path.exists(self.worker_dir+'/field.in'):
-                os.remove(self.worker_dir+'/field.in')
-            if os.path.exists(self.worker_dir+'/field.out'):
-                os.remove(self.worker_dir+'/field.out')
-            if os.path.exists(self.worker_dir+'/E.out'):
-                os.remove(self.worker_dir+'/E.out')
-       
-        return self._getState()
-
-    ## set rendering parameters
-    def render(self):
-        self.rendering = True
-        data = self.cfg_data
-        
-        self.plot_folder = data['plot_folder'] if 'plot_folder' in data.keys() else 'plot_bcp_tdlg/worker'+str(self.worker_index)+'/'
-        if os.path.exists(self.plot_folder): rmtree(self.plot_folder)
-        os.makedirs(self.plot_folder)
-        
-        self.fig_target = self._plot_vol(self.target_vol)
-
-    def _render(self):
-        
-        self.fig = make_subplots(rows=2, 
-                                 cols=6,
-                                 subplot_titles=("current structure","","","target structure", "","", 
-                                                 "current FFT","","target FFT","","FFT difference",""),
-                                 specs=[[{'type': 'scatter','colspan':3},{},{}, {'type': 'scatter','colspan':3},{},{}],
-                                        [{'type': 'xy','colspan':2},{}, {'type': 'xy','colspan':2},{}, {'type': 'xy','colspan':2},{}]],
-                                 vertical_spacing   = 0.1,
-                                 horizontal_spacing = 0.1)
-        figName = 'ep_'+str(self.episode_num)+'_step_'+str(self.step_num)
-        
-        self.fig.add_trace(go.Scatter(x=list(range(len(self.current_structure))), y=list(self.current_structure)),row=2, col=1)
-        self.fig.update_yaxes(range=[-500, 1100], row=2, col=1)
-        
-        self.fig.add_trace(go.Scatter(x=list(range(len(self.target_structure))), y=list(self.target_structure)),row=2, col=3)
-        self.fig.update_yaxes(range=[-500, 1100], row=2, col=3)
-        
-        self.fig.add_trace(go.Scatter(x=list(range(len(self.current_structure))), y=[c - t for c, t in zip(self.current_structure, self.target_structure)]),row=2, col=5)
-        
-        #self.fig_current = self._plot_vol(self.current_vol)
-        #self.fig.add_trace(self.fig_current, row=1, col=1)
-        
-        #current strcuture
-        self.fig.add_trace(go.Scatter(x=[0, 276],y=[0, 205],mode="markers",marker_opacity=0),row=1,col=1)
-        self.fig.update_xaxes(visible=False,range=[0, 276])
-        self.fig.update_yaxes(visible=False,range=[0, 205],scaleanchor="x")
-        self.fig.add_layout_image(
-            go.layout.Image(
-                source="/home/d3x632/VizExample/tmp/Snap0_2.png",
-                xref="x",yref="y",x=0,sizex=276,y=205,sizey=205,sizing="stretch",opacity=1.0,layer="below")
-        )
-        
-        #target structure
-        self.fig.add_trace(go.Scatter(x=[0, 276],y=[0, 205],mode="markers",marker_opacity=0),row=1,col=4)
-        self.fig.update_xaxes(visible=False,range=[0, 276])
-        self.fig.update_yaxes(visible=False,range=[0, 205],scaleanchor="x")
-        self.fig.add_layout_image(
-            go.layout.Image(
-                source="/home/d3x632/VizExample/tmp/Snap0_2.png",
-                xref="x",yref="y",x=0+375,sizex=276,y=205,sizey=205,sizing="stretch",opacity=1.0,layer="below")
-        )
-                           
-        self.fig.update_layout(height=800, width=1000, 
-                               title_text = 'episode '+str(self.episode_num)+' step '+str(self.step_num),
-                               showlegend=False,
-                               margin={"l": 100, "r": 100, "t": 100, "b": 100},
-                               scene_xaxis_showticklabels=False,
-                               scene_yaxis_showticklabels=False,
-                               scene_zaxis_showticklabels=False)
-        
-        filename = self.plot_folder + figName
-        self.fig.write_image(filename + ".png")
-        logger.info("Plot saved to: "+filename+".png")
-        
+    def _getField(self, Phi, Parameters):
+        NX = Parameters.NX
+        NY = Parameters.NY
+        NZ = Parameters.NZ
+        field=[]
+        for z in range(0,NZ):
+            for y in range(0,NY):
+                for x in range(0,NX):
+                    i = z + NZ * (y + NY * x)
+                    field.append(Phi[i])
+        return field
 
     def close(self):
         return 0
+        
+    def structure_vector(self,result, expected, range_rel=1.0, scale=1, adjust=None, plot=False, output_dir='./', output_name='result', output_condition=''):
+    
+        # Compute FFT
+        result_fft = np.fft.fftn(result)
+    
+        # Recenter FFT (by default the origin is in the 'corners' but we want the origin in the center of the matrix)
+        hq, wq, dq = result_fft.shape
+        result_fft = np.concatenate( (result_fft[int(hq/2):,:,:], result_fft[0:int(hq/2),:,:]), axis=0 )
+        result_fft = np.concatenate( (result_fft[:,int(wq/2):,:], result_fft[:,0:int(wq/2),:]), axis=1 )
+        result_fft = np.concatenate( (result_fft[:,:,int(dq/2):], result_fft[:,:,0:int(dq/2)]), axis=2 )
+        origin = [int(wq/2), int(hq/2), int(dq/2)]
+        qy_scale, qx_scale, qz_scale = 2*np.pi/(scale*hq), 2*np.pi/(scale*wq), 2*np.pi/(scale*dq)
+
+        data = np.absolute(result_fft)
+    
+        # Compute 1D curve by doing a circular average (about the origin)
+        qs, data1D = self.circular_average(data, scale=[qy_scale, qz_scale, qz_scale], origin=origin)
+    
+        # Eliminate the first point (which is absurdly high due to FFT artifacts)
+        qs = qs[1:]
+        data1D = data1D[1:]
+    
+        # Optionally adjust the curve to improve data extraction
+        if adjust is not None:
+            data1D *= np.power(qs, adjust)
+    
+        ## Modify the code to use the max as the peak estimation
+        idx = np.where( data1D==np.max(data1D) )[0][0]
+
+        expected = qs[idx] 
+    
+        # Fit the 1D curve to a Gaussian
+        #lm_result, fit_line, fit_line_extended = self.peak_fit(qs, data1D, x_expected=expected, range_rel=range_rel)
+        p = 0#lm_result.params['prefactor'].value # Peak height (prefactor)
+        q = 0#lm_result.params['x_center'].value # Peak position (center) ==> use this
+        sigma = 0#lm_result.params['sigma'].value # Peak width (stdev) ==> use this
+        I = 0#p*sigma*np.sqrt(2*np.pi) # Integrated peak area
+        m = 0#lm_result.params['m'].value # Baseline slope
+        b = 0#lm_result.params['b'].value # Baseline intercept
+        return p, q, sigma, I, m, b, qs, data1D
+        
+    def circular_average(self,data, scale=[1,1,1], origin=None, bins_relative=3.0):
+    
+         h, w, d = data.shape
+         y_scale, x_scale, z_scale = scale
+         if origin is None:
+             x0, y0, z0 = int(w/2), int(h/2), int(d/2)
+         else:
+             x0, y0, z0 = origin
+        
+         # Compute map of distances to the origin
+         x = (np.arange(w) - x0)*x_scale
+         y = (np.arange(h) - y0)*y_scale
+         z = (np.arange(d) - y0)*z_scale
+         X,Y,Z = np.meshgrid(x,y,z)
+         R = np.sqrt(X**2 + Y**2 + X**2)
+
+         # Compute histogram
+         data = data.ravel()
+         R = R.ravel()
+    
+         scale = (x_scale + y_scale + z_scale)/2.0
+         r_range = [0, np.max(R)]
+         num_bins = int( bins_relative * abs(r_range[1]-r_range[0])/scale )
+         num_per_bin, rbins = np.histogram(R, bins=num_bins, range=r_range)
+         idx = np.where(num_per_bin!=0) # Bins that actually have data
+    
+         r_vals, rbins = np.histogram( R, bins=num_bins, range=r_range, weights=R )
+         r_vals = r_vals[idx]/num_per_bin[idx]
+         I_vals, rbins = np.histogram( R, bins=num_bins, range=r_range, weights=data )
+         I_vals = I_vals[idx]/num_per_bin[idx]
+
+         return r_vals, I_vals
+         
+
+        
+
