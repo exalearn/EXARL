@@ -79,7 +79,8 @@ class ExaLearner():
     def set_training(self,nepisodes,nsteps):
         self.nepisodes = nepisodes
         self.nsteps    = nsteps
-        self.env._max_episode_steps = self.nsteps
+        #self.env._max_episode_steps = self.nsteps
+        self.env.spec.max_episode_steps  = self.nsteps
 
     # Use with CANDLE
     def set_config(self, params):
