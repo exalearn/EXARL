@@ -42,7 +42,8 @@ class ExaLearner():
         self.agent_id = agent_id
         self.env_id   = env_id
         self.agent, self.env = self.make()
-        self.env._max_episode_steps = self.nsteps
+        #self.env._max_episode_steps = self.nsteps
+        self.env.spec.max_episode_steps  = self.nsteps
 
         # Set configuration
         self.mpi_children_per_parent = run_params['mpi_children_per_parent']
