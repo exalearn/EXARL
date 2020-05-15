@@ -6,7 +6,6 @@ sys.path.append(lib_path2)
 
 import keras
 import candle
-import default_utils as du
 from pprint import pprint
 
 import json
@@ -96,7 +95,7 @@ def parser_from_json(json_file):
     new_defs = []
     for key in params:
         if params[key] == "True" or params[key] == "False":
-            new_def = {'name':key, 'type':(type(du.str2bool(params[key]))), 'default':du.str2bool(params[key])}
+            new_def = {'name':key, 'type':(type(candle.str2bool(params[key]))), 'default':candle.str2bool(params[key])}
         else:
             new_def = {'name':key, 'type':(type(params[key])), 'default':params[key]}
         new_defs.append(new_def)
