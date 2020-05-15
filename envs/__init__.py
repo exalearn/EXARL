@@ -5,10 +5,10 @@ register(
     entry_point='envs.env_vault:CahnHilliardEnv',
 )
 
-#register(
-#    id='ExaLearnBlockCoPolymerTDLG-v0',
-#    entry_point='envs.env_vault:BlockCoPolymerTDLG',
-#)
+register(
+    id='ExaLearnBlockCoPolymerTDLG-v0',
+    entry_point='envs.env_vault:BlockCoPolymerTDLG',
+)
 
 register(
     id='ExaLearnCartpole-v0',
