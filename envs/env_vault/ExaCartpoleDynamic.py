@@ -50,3 +50,6 @@ class ExaCartpoleDynamic(gym.Env, erl.ExaEnv):
 
     def render(self, mode='human', close=False):
         return self.env.render()
+
+    def set_env(self):
+        print('Use this function to set hyperparameters, if any')
