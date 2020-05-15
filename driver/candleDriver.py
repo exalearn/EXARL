@@ -9,6 +9,7 @@ import candle
 from pprint import pprint
 
 import json
+import argparse
 
 '''
 # These are just added to the command line options
@@ -71,6 +72,23 @@ def initialize_parameters():
 
     return gParameters
 
+def base_parser(params):
+    # checks for env or agent command line override before reasing json files
+    parser = argparse.ArgumentParser(description = "Base parser")
+    parser.add_argument("--agent")
+    parser.add_argument("--env")
+    args, leftovers = parser.parse_known_args()
+
+    if args.agent is not None:
+        params['agent'] = args.agent
+        print("Agent overwitten from command line: ", args.agent)
+
+    if args.env is not None:
+        params['env'] = args.env
+        print("Environment overwitten from command line: ", args.env)
+
+    return params
+
 def parser_from_json(json_file):
     file = open(json_file,)
     params = json.load(file)
@@ -87,6 +105,7 @@ def get_driver_params():
     print('Learner parameters from ', lrn_cfg)
     pprint(lrn_defs)
     params = json.load(open(lrn_cfg))
+    params = base_parser(params)
     agent_cfg = 'agents/agent_vault/agent_cfg/'+params['agent']+'.json'
     agent_defs = parser_from_json(agent_cfg)
     print('Agent parameters from ', agent_cfg)
