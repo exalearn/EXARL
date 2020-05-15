@@ -175,6 +175,9 @@ class ExaLearner():
         if self.agent!=None:
             self.agent.set_agent()
 
+        if self.env!=None:
+            self.env.set_env()
+
         if run_type == 'static':
             if self.agent_comm != MPI.COMM_NULL:
                 self.run_exarl(self.agent_comm)
