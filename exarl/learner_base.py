@@ -155,7 +155,8 @@ class ExaLearner():
                     self.agent.save(self.results_dir+'/'+filename_prefix+'.h5')
 
                 steps += 1
-                done = True if steps>=self.nsteps else False
+                if steps >= self.nsteps:
+                    done = True
 
             end_time_episode = time.time()
             logger.info('Rank[%s] run-time for episode %s: %s ' % (str(comm.rank), str(e), str(end_time_episode - start_time_episode)))
