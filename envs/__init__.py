@@ -8,6 +8,7 @@ from gym.envs.registration import register
 register(
     id='ExaLearnBlockCoPolymerTDLG-v0',
     entry_point='envs.env_vault:BlockCoPolymerTDLG',
+    max_episode_steps=200,
     kwargs={'cfg_file': 'envs/env_vault/env_cfg/tdlg_setup.json'}
 )
 
