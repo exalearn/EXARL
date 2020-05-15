@@ -132,6 +132,8 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
         # Use the learner_defined results directory. 
         self.plot_path              = env_data['output_dir']
         self.field_path             = env_data['output_dir']
+=======
+>>>>>>> Stashed changes
 
         sys.path.append(self.app_dir)
         # inly TDLG is valid, app_name is never used
