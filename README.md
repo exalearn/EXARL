@@ -147,7 +147,7 @@ Example:-
 self.run_type = <`static` or 'dynamic'>
 step()      # returns new state after an action
 reset()     # reset the environment to initial state; marks end of an episode
-render()    # render the environment
+set_env()    # set environment hyper-paramters
 ```
 * Register the environment in ```ExaRl/envs/__init__.py```
     
@@ -285,6 +285,7 @@ action()        # Next action based on current state
 load()          # load weights from memory
 save()          # save weights to memory
 monitor()       # monitor progress of learning
+set_agent()     # set agent hyper-parameters
 ```
 * Register the agent in ```ExaRL/agents/__init__.py```
     
