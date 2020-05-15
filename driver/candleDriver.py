@@ -84,16 +84,16 @@ def parser_from_json(json_file):
 def get_driver_params():
     lrn_cfg = 'learner_cfg.json'
     lrn_defs = parser_from_json(lrn_cfg)
-    print('Learner parameters')
+    print('Learner parameters from ', lrn_cfg)
     pprint(lrn_defs)
     params = json.load(open(lrn_cfg))
     agent_cfg = 'agents/agent_vault/agent_cfg/'+params['agent']+'.json'
     agent_defs = parser_from_json(agent_cfg)
-    print('Agent parameters')
+    print('Agent parameters from ', agent_cfg)
     pprint(agent_defs)
     env_cfg = 'envs/env_vault/env_cfg/'+params['env']+'.json'
     env_defs = parser_from_json(env_cfg)
-    print('Environment parameters')
+    print('Environment parameters from ', env_cfg)
     pprint(env_defs)
     return lrn_defs+agent_defs+env_defs
 
