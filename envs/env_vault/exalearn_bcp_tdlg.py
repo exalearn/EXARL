@@ -13,6 +13,7 @@ from datetime import datetime
 #from utils.utils_tdlg.sv import *
 import exarl as erl
 #from utils.tdlg_plot import *
+from pprint import pprint
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('BlockCoPolymerTDLG-Logger')
@@ -44,12 +45,8 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
            - Increase/decrease kappa (2)
            - No change (1)
         """
-        '''
-        with open(cfg_file) as json_file:
-            self.cfg_data = json.load(json_file)
-        print(self.cfg_data)
-        '''
 
+        # Declare hyper-parameters, initialized for determining datatype
         # Some of these methods need to initialize complex objects, for now we need to hard-code a valid path
         ## Application setup
         self.app_dir  = './envs/env_vault/LibTDLG/'
@@ -77,19 +74,19 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
 
         ## Setup target structure
         self.target_structure_name = 'envs/env_vault/env_cfg/target_field.out'
-        self.target_precision = 0.0 #99%
+        self.target_precision = 0.0
         self.target_structure = self.setTargetStructure(self.target_structure_name)
         self.structure_len = len(self.target_structure)
 
         ## Define state and action spaces
-        self.observation_space = spaces.Box(low=np.append(np.zeros(self.structure_len),[0.004]), high=np.append(np.ones(self.structure_len),[0.012]),dtype=np.float32)
+        self.observation_space = spaces.Box(low=np.append(np.zeros(self.structure_len),[0.004]), 
+                                            high=np.append(np.ones(self.structure_len),[0.012]),dtype=np.float32)
         self.action_space = spaces.Discrete(3)
 
         ## reward
         self.earlyTargetBonus  = 0
         self.outOfBoundPenalty = 0
         self.smape_shift       = 0
-        #self.earlyTargetBonus  = 0
         self.f_rewardScaling   = True
         self.f_fixInit = True
         self.fixInitValue = 0.0
@@ -108,28 +105,36 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
 
         env_data = super().get_config()
 
-        self.app_dir = env_data['app_dir']
-        self.app_name = env_data['app_name']
-        self.param_dir = env_data['param_dir']
-        self.param_name = env_data['param_name']
-        self.fracA_step_size = env_data['fracA_step_size']
-        self.kappa_step_size = env_data['kappa_step_size']
-        self.target_structure_name = env_data['target_structure_name']
-        self.target_precision = env_data['target_precision']
-        self.plot_path = env_data['plot_path']
-        self.field_path = env_data['field_path']
-        self.app_core = env_data['app_core']
-        self.kappa_step_size = env_data['kappa_step_size']
-        self.earlyTargetBonus = env_data['earlyTargetBonus']
-        self.outOfBoundPenalty = env_data['outOfBoundPenalty']
-        self.smape_shift = env_data['smape_shift']
-        self.f_rewardScaling = env_data['f_rewardScaling']
-        self.f_fixInit = env_data['f_fixInit']
-        self.fixInitValue = env_data['fixInitValue']
-        self.ep = env_data['ep']
-        self.st = env_data['st']
+        print('In TDLG env_data is: ')
+        pprint(env_data)
+
+        self.app_dir                = env_data['app_dir']
+        self.app_name               = env_data['app_name']
+        self.param_dir              = env_data['param_dir']
+        self.param_name             = env_data['param_name']
+        self.fracA_step_size        = env_data['fracA_step_size']
+        self.kappa_step_size        = env_data['kappa_step_size']
+        self.target_structure_name  = env_data['target_structure_name']
+        self.target_precision       = env_data['target_precision']
+        self.plot_path              = env_data['plot_path']
+        self.field_path             = env_data['field_path']
+        self.app_core               = env_data['app_core']
+        self.kappa_step_size        = env_data['kappa_step_size']
+        self.earlyTargetBonus       = env_data['earlyTargetBonus']
+        self.outOfBoundPenalty      = env_data['outOfBoundPenalty']
+        self.smape_shift            = env_data['smape_shift']
+        self.f_rewardScaling        = env_data['f_rewardScaling']
+        self.f_fixInit              = env_data['f_fixInit']
+        self.fixInitValue           = env_data['fixInitValue']
+        self.ep                     = env_data['ep']
+        self.st                     = env_data['st']
+
+        # Use the learner_defined results directory. 
+        self.plot_path              = env_data['output_dir']
+        self.field_path             = env_data['output_dir']
 
         sys.path.append(self.app_dir)
+        # inly TDLG is valid, app_name is never used
         import TDLG as TDLG
         self.app = TDLG
 
@@ -482,12 +487,12 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
         if reward>=round((-1+self.smape_shift)+self.target_precision,3):
             reward = self.earlyTargetBonus
             #reward += self.earlyTargetBonus
-            print ("reach target early")
+            print ("Reached target early")
             self.f_earlyTargetAchieve = True
         elif self.f_outOfBound:
             reward = self.outOfBoundPenalty
             #reward += self.outOfBoundPenalty  #still reward the closeness to the target from smape above, but panelize the out of bound
-            print ("out of bound")
+            print ("Out of bounds")
 
 
 
