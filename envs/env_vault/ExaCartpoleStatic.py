@@ -58,3 +58,6 @@ class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
 
     def render(self, mode='human', close=False):
         return self.env.render()
+
+    def set_env(self):
+        print('Use this function to set hyper-parameters, if any')

@@ -32,7 +32,7 @@ class ExaLearner():
         # Default training
         self.nepisodes = 1
         self.nsteps = 10
-        self.results_dir = './results'
+        self.results_dir = './results' # Default dir, will be overridden by candle 
         self.do_render = False
 
         self.mpi_children_per_parent = int(run_params['mpi_children_per_parent'])
@@ -155,7 +155,8 @@ class ExaLearner():
                     self.agent.save(self.results_dir+'/'+filename_prefix+'.h5')
 
                 steps += 1
-                done = True if steps>=self.nsteps else False
+                if steps >= self.nsteps:
+                    done = True
 
             end_time_episode = time.time()
             logger.info('Rank[%s] run-time for episode %s: %s ' % (str(comm.rank), str(e), str(end_time_episode - start_time_episode)))
