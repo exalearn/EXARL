@@ -19,17 +19,11 @@ class ExaEnv(ABC):
         self.base_dir = os.path.dirname(__file__)
         print(self.base_dir)
         
-    def set_results_dir(self,results_dir):
-        # Default method to save environment specific information 
-        if not os.path.exists(results_dir):
-            os.makedirs(results_dir)
-        # Top level directory 
-        self.results_dir=results_dir
-
     def set_config(self, env_data):
         self.env_data = env_data
         self.run_type = env_data['run_type']
-        # Add any MPI parameters                                                                                       
+         
+       # Add any MPI parameters                                                                                       
         self.mpi_children_per_parent = int(env_data['mpi_children_per_parent']) if 'mpi_children_per_parent' in env_data.keys() else 0
 
         # Add any OMP parameters
@@ -60,3 +54,10 @@ class ExaEnv(ABC):
         '''
         pass
 
+    @abstractmethod
+    def set_env(self):
+        '''
+        Required by all environment to be implemented by user.
+        This function is used to set all the hyper-parameters for the environment
+        '''
+        pass

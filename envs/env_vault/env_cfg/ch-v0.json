@@ -4,12 +4,12 @@
     "changeT"         : 0.1,
     "initT"           : 0.5,
     "targetT"         : 0.5,
-    "notTrain"        : False,
+    "notTrain"        : "False",
     "rewardOption"    : 1,
     "target_file"     : "target",
-    "notPlotRL"       : False,
+    "notPlotRL"       : "False",
     "length"          : 100,
-    "genTarget"       : True,
-    "randInitial"     : False,
+    "genTarget"       : "True",
+    "randInitial"     : "False",
     "num_control_params" : 1
 }

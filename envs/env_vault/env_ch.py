@@ -50,46 +50,8 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, env_comm=None, cfg_env_file='./envs/env_vault/env_cfg/ch-v0.json',
-                                      cfg_agt_file='learner_cfg.json'):
-
-        # Define action and observation space
-        # They must be gym.spaces objects
-        '''
-        data = []
-
-        with open(cfg_env_file) as json_file:
-            data = json.load(json_file)
-
-        self.cfg_data = data
-
-        ## Application setupenvs/env_vault/env_cfg
-        self.debug           = int(data['debug'])           if 'debug' in data.keys() else -1
-        self.size_struct_vec = int(data['size_struct_vec']) if 'size_struct_vec' in data.keys() else 200
-        self.change_T        = float(data['changeT'])       if 'changeT' in data.keys() else 0.1
-        self.initT           = float(data['initT'])         if 'initT' in data.keys() else 0.5
-        self.targetT         = float(data['targetT'])        if 'targetT' in data.keys() else 0.5
-        self.notTrain        = data['notTrain']             if 'notTrain' in data.keys() else False
-        self.rewardOption    = int(data['rewardOption'])    if 'rewardOption' in data.keys() else 1
-        self.output_dir      = data['output_dir']           if 'output_dir' in data.keys() else "./"
-        self.target_dir      = data['target_dir']           if 'target_dir' in data.keys() else "./"
-        self.target_file     = data['target_file']          if 'target_file' in data.keys() else "target"
-        self.notPlotRL       = data['notPlotRL']            if 'notPlotRL' in data.keys() else False
-        self.length          = int(data['length'])          if 'length' in data.keys() else 1000
-        # self.episodes        = int(data['episodes'])        if 'episodes' in data.keys() else 10
-        # self.steps           = int(data['steps'])           if 'steps' in data.keys() else 50
-        self.genTarget       = data['genTarget']            if 'genTarget' in data.keys() else True
-        self.randInitial     = data['randInitial']          if 'randInitial' in data.keys() else False
-        self.num_control_params = int(data['num_control_params']) if 'num_control_params' in data.keys() else 1   # number of controlling parameter                             
-
-        with open(cfg_agt_file) as json_file:
-            data = json.load(json_file)
-
-        self.steps           = int(data['n_steps'])           if 'n_steps' in data.keys() else 50
-        self.episodes        = int(data['episodes'])        if 'episodes' in data.keys() else 100
+    def __init__(self, env_comm=None):
         
-
-        '''
         # Declare hyper-parameters, initialized for determining datatype
         super().__init__()
         self.debug           = 0
@@ -99,9 +61,9 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         self.targetT         = 0.0
         self.notTrain        = False
         self.rewardOption    = 0
-        self.output_dir      = './'
-        self.target_dir      = './'
-        self.target_file     = 'target'
+        self.output_dir      = ''
+        self.target_dir      = ''
+        self.target_file     = ''
         self.notPlotRL       = False
         self.length          = 0
         self.genTarget       = True
@@ -146,14 +108,12 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         self.isTest               = True if self.notTrain else False
         self.isTarget = False
 
-        #self.setTargetState()
-
     def set_env(self):
-        self.output_dir = super().get_results_dir()
-        self.target_dir = self.output_dir
-
+        # Obtain hyperparameteres
         env_data = super().get_config()
 
+        self.output_dir = env_data['output_dir']
+        self.target_dir = env_data['output_dir']
         self.debug = env_data['debug']
         self.size_struct_vec = env_data['size_struct_vec']
         self.change_T        = env_data['changeT']

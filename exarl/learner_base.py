@@ -47,8 +47,6 @@ class ExaLearner():
 
         # Set configuration
         self.mpi_children_per_parent = run_params['mpi_children_per_parent']
-        self.results_dir = run_params['output_dir']
-        self.set_results_dir()
         self.set_config(run_params)
 
     def make(self):
@@ -88,17 +86,9 @@ class ExaLearner():
         # set the agent up
         self.agent.set_config(params)
         self.env.set_config(params)
-
-    def set_results_dir(self):
+        self.results_dir = params['output_dir']
         if not os.path.exists(self.results_dir):
             os.makedirs(self.results_dir)
-
-        ## Set for agent
-        if self.agent != None:
-            self.agent.set_results_dir(self.results_dir)
-        ## Set for env
-        #if self.env != None:
-        self.env.set_results_dir(self.results_dir)
 
     def render_env(self):
         self.do_render=True
