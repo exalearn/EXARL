@@ -1,6 +1,6 @@
 {
     "agent": "DQN-v0",
-    "env": "ExaLearnBlockCoPolymerTDLG-v0",
+    "env": "ch-v0",
     "n_episodes": 1,
     "n_steps": 10,
     "mpi_children_per_parent": 3,

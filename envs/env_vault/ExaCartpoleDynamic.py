@@ -9,7 +9,7 @@ import exarl as erl
 class ExaCartpoleDynamic(gym.Env, erl.ExaEnv):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, cfg='envs/env_vault/env_cfg/env_setup.json'):
+    def __init__(self, env_comm, cfg='envs/env_vault/env_cfg/env_setup.json'):
         super().__init__(env_cfg=cfg)
         self._max_episode_steps = 0
         self.env = gym.make('CartPole-v0')

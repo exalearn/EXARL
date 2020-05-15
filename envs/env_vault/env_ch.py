@@ -156,7 +156,7 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         self.setInitSimParams()  # TODO: I do not have to initialze all parameter at each episode
 
         if self.randInitial: self.T = self.setRandInitT()
-        else:                self.T = self.initialT
+        else:                self.T = self.initT
         # initial value, always start from the same initial value for now.
         
         if self.debug >= 10: 
