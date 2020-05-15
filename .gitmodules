@@ -8,5 +8,5 @@
 	branch = docker
 [submodule "envs/env_vault/TDLG"]
 	path = envs/env_vault/TDLG
-	url = https://github.com/exalearn/TDLG
+	url = https://github.com/exalearn/LibTDLG
 	branch = master
