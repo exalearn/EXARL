@@ -19,3 +19,8 @@ register(
     id='ExaLearnCartpole-v1',
     entry_point='envs.env_vault:ExaCartpoleStatic'
 )
+
+register(
+    id='ExaCovid-v0',
+    entry_point='envs.env_vault:ExaCOVID'
+)
