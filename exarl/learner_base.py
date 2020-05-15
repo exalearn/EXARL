@@ -4,7 +4,7 @@
 # National Laboratory (LANL), which is operated by Triad National Security, LLC for the U.S.
 # Department of Energy/National Nuclear Security Administration. All rights in the program are
 # reserved by Triad National Security, LLC, and the U.S. Department of Energy/National Nuclear
-# Security Administration. The Government is granted for itself and others acting on its behalf a
+#1;95;0c Security Administration. The Government is granted for itself and others acting on its behalf a
 # nonexclusive, paid-up, irrevocable worldwide license in this material to reproduce, prepare
 # derivative works, distribute copies to the public, perform publicly and display publicly, and
 # to permit others to do so.
@@ -42,7 +42,8 @@ class ExaLearner():
         self.agent_id = agent_id
         self.env_id   = env_id
         self.agent, self.env = self.make()
-        self.env._max_episode_steps = self.nsteps
+        #self.env._max_episode_steps = self.nsteps
+        self.env.spec.max_episode_steps  = self.nsteps
 
         # Set configuration
         self.mpi_children_per_parent = run_params['mpi_children_per_parent']
@@ -78,7 +79,8 @@ class ExaLearner():
     def set_training(self,nepisodes,nsteps):
         self.nepisodes = nepisodes
         self.nsteps    = nsteps
-        self.env._max_episode_steps = self.nsteps
+        #self.env._max_episode_steps = self.nsteps
+        self.env.spec.max_episode_steps  = self.nsteps
 
     # Use with CANDLE
     def set_config(self, params):
@@ -115,7 +117,7 @@ class ExaLearner():
             current_state = self.env.reset()
             total_reward = 0
             done = False
-  
+
             start_time_episode = time.time()
             steps = 0
             while done != True:
@@ -162,7 +164,7 @@ class ExaLearner():
                 if comm.rank == 0:
                     self.agent.save(self.results_dir+'/'+filename_prefix+'.h5')
 
-                steps += 1                                                                                                      
+                steps += 1
                 done = True if steps>=self.nsteps else False
 
             end_time_episode = time.time()
