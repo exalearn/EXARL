@@ -78,7 +78,7 @@ E.g.:-
     "loss" : "mse"
 }
 ```
-* Add/modify the learner parameters in ```ExaRL/envs/env_vault/env_cfg/<EnvName>.json```\
+* Add/modify the environment parameters in ```ExaRL/envs/env_vault/env_cfg/<EnvName>.json```\
 E.g.:-
 ```
 {
