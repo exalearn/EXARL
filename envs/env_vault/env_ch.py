@@ -77,13 +77,10 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         self.comm_rank = self.comm.Get_rank() if self.comm else 0
 
         self.action_space = spaces.Discrete( self.getActionSize() )
-        self.observation_space = spaces.Box(
-        low=np.zeros(self.size_struct_vec+1),
-        high=np.ones(self.size_struct_vec+1)*10000, dtype=np.uint8)  # TODO: fix the high values
 
-        #self.observation_space = spaces.Box(low=0, high=255, shape=
-        #                (HEIGHT, WIDTH, N_CHANNELS), dtype=np.uint8)
-
+        # TODO: fix the high values later since I do not know the maximum valus
+        self.observation_space = spaces.Box(low=np.append(np.zeros(self.getStateSize()),[0.000]), high=np.append(np.ones(self.getStateSize()),[1000]),dtype=np.float32) 
+        
         self.currStructVec   = np.zeros(self.size_struct_vec)   # stores current structure vector
         self.targetStructVec = np.zeros(self.size_struct_vec)   # target  structure vector (loaded or generated at setTargetState() once)
         self.targetStructVecNorm = 1.
@@ -129,17 +126,17 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         self.num_control_params = env_data['num_control_params']
         self.steps           = env_data['n_steps']
         self.episodes        = env_data['n_episodes']
-        
+    
         self.setTargetState()
 
     ##################### get state space (mean, sd) #####################
     def getStateSize(self):  # state size is # of structured vector components and the current temperature
-        return self.size_struct_vec+1
+        return self.size_struct_vec + self.num_control_params
 
 
     ##################### get action space space (3^N) #####################
     def getActionSize(self):
-      return 3  # 3^N
+      return 3  # This is fixed for now
 
     ##################### set the initial temperature randomly #####################
     def setRandInitT(self):
