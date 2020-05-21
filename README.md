@@ -38,7 +38,7 @@ A scalable software framework for reinforcement learning environments and agents
 ## Installing 
 * Pull code from repo
 ```
-git clone https://github.com/exalearn/ExaRL.git
+git clone --recursive https://github.com/exalearn/ExaRL.git
 ```
 * Install dependencies for ExaRL:
 ```
@@ -78,7 +78,7 @@ E.g.:-
     "loss" : "mse"
 }
 ```
-* Add/modify the learner parameters in ```ExaRL/envs/env_vault/env_cfg/<EnvName>.json```\
+* Add/modify the environment parameters in ```ExaRL/envs/env_vault/env_cfg/<EnvName>.json```\
 E.g.:-
 ```
 {
@@ -141,7 +141,7 @@ Example:-
 self.run_type = <`static` or 'dynamic'>
 step()      # returns new state after an action
 reset()     # reset the environment to initial state; marks end of an episode
-render()    # render the environment
+set_env()   # set environment hyperparameters
 ```
 * Register the environment in ```ExaRl/envs/__init__.py```
     
@@ -279,6 +279,7 @@ action()        # Next action based on current state
 load()          # load weights from memory
 save()          # save weights to memory
 monitor()       # monitor progress of learning
+set_agent()     # set agent hyperparameters
 ```
 * Register the agent in ```ExaRL/agents/__init__.py```
     

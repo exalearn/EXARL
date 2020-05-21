@@ -28,17 +28,6 @@ class ExaAgent(ABC):
         self.candle = candle  # make CANDLE functions accessible to all agents.
         self.agent_data = {}
 
-    # Default method to set output directory
-    def set_results_dir(self,results_dir):
-        if not os.path.exists(results_dir):
-            os.makedirs(results_dir)
-        # Top level directory 
-        self.results_dir=results_dir
-
-    # Default method to get output directory
-    def get_results_dir(self):
-        return self.results_dir
-
     # Default method to set arguments
     def set_config(self, agent_data):
         self.agent_data = agent_data
@@ -77,4 +66,8 @@ class ExaAgent(ABC):
 
     @abstractmethod
     def monitor(self):
+        pass
+
+    @abstractmethod
+    def set_agent(self):
         pass

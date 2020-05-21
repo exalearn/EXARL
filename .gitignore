@@ -1,3 +1,6 @@
+# Job scripts
+*.lsf
+
 # emacs and vim cache
 *~
 \#*\#
@@ -103,7 +106,6 @@ celerybeat-schedule
 # Environments
 .env
 .venv
-env/
 venv/
 ENV/
 env.bak/
