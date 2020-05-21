@@ -1,5 +1,5 @@
 {
-    "app_dir"   : "/home/schr476/exalearn/tdlg_fy19/build_cpu/",
+    "app_dir"   : "envs/env_vault/LibTDLG",
     "app_name"  : "tdlg_run",
     "param_dir" : "envs/env_vault/env_cfg/",
     "param_name": "tdlg_param.in",

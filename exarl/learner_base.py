@@ -4,7 +4,7 @@
 # National Laboratory (LANL), which is operated by Triad National Security, LLC for the U.S.
 # Department of Energy/National Nuclear Security Administration. All rights in the program are
 # reserved by Triad National Security, LLC, and the U.S. Department of Energy/National Nuclear
-# Security Administration. The Government is granted for itself and others acting on its behalf a
+#1;95;0c Security Administration. The Government is granted for itself and others acting on its behalf a
 # nonexclusive, paid-up, irrevocable worldwide license in this material to reproduce, prepare
 # derivative works, distribute copies to the public, perform publicly and display publicly, and
 # to permit others to do so.
@@ -32,7 +32,7 @@ class ExaLearner():
         # Default training
         self.nepisodes = 1
         self.nsteps = 10
-        self.results_dir = './results'
+        self.results_dir = './results' # Default dir, will be overridden by candle 
         self.do_render = False
 
         self.mpi_children_per_parent = int(run_params['mpi_children_per_parent'])
@@ -42,12 +42,11 @@ class ExaLearner():
         self.agent_id = agent_id
         self.env_id   = env_id
         self.agent, self.env = self.make()
-        self.env._max_episode_steps = self.nsteps
+        #self.env._max_episode_steps = self.nsteps
+        self.env.spec.max_episode_steps  = self.nsteps
 
         # Set configuration
         self.mpi_children_per_parent = run_params['mpi_children_per_parent']
-        self.results_dir = run_params['output_dir']
-        self.set_results_dir()
         self.set_config(run_params)
 
     def make(self):
@@ -78,7 +77,8 @@ class ExaLearner():
     def set_training(self,nepisodes,nsteps):
         self.nepisodes = nepisodes
         self.nsteps    = nsteps
-        self.env._max_episode_steps = self.nsteps
+        #self.env._max_episode_steps = self.nsteps
+        self.env.spec.max_episode_steps  = self.nsteps
 
     # Use with CANDLE
     def set_config(self, params):
@@ -86,24 +86,16 @@ class ExaLearner():
         # set the agent up
         self.agent.set_config(params)
         self.env.set_config(params)
-
-    def set_results_dir(self):
+        self.results_dir = params['output_dir']
         if not os.path.exists(self.results_dir):
             os.makedirs(self.results_dir)
-
-        ## Set for agent
-        if self.agent != None:
-            self.agent.set_results_dir(self.results_dir)
-        ## Set for env
-        #if self.env != None:
-        self.env.set_results_dir(self.results_dir)
 
     def render_env(self):
         self.do_render=True
 
     def run_exarl(self, comm):
 
-        filename_prefix = 'ExaLearner_' + 'Episode%s_Steps%s_Rank%s_memory_v1' % ( str(self.nepisodes), str(self.nsteps), str(comm.rank))
+        filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' % ( str(self.nepisodes), str(self.nsteps), str(comm.rank))
         train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
         train_writer = csv.writer(train_file, delimiter = " ")
         #print('self.world_comm.rank:',self.world_comm.rank)
@@ -115,7 +107,7 @@ class ExaLearner():
             current_state = self.env.reset()
             total_reward = 0
             done = False
-  
+
             start_time_episode = time.time()
             steps = 0
             while done != True:
@@ -162,8 +154,9 @@ class ExaLearner():
                 if comm.rank == 0:
                     self.agent.save(self.results_dir+'/'+filename_prefix+'.h5')
 
-                steps += 1                                                                                                      
-                done = True if steps>=self.nsteps else False
+                steps += 1
+                if steps >= self.nsteps:
+                    done = True
 
             end_time_episode = time.time()
             logger.info('Rank[%s] run-time for episode %s: %s ' % (str(comm.rank), str(e), str(end_time_episode - start_time_episode)))
@@ -174,6 +167,9 @@ class ExaLearner():
     def run(self, run_type):
         if self.agent!=None:
             self.agent.set_agent()
+
+        if self.env!=None:
+            self.env.set_env()
 
         if run_type == 'static':
             if self.agent_comm != MPI.COMM_NULL:

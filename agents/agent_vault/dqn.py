@@ -53,7 +53,7 @@ class DQN(erl.ExaAgent):
 
         ## Setup GPU cfg
         if tf_version < 2:
-            # gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
+            gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
             if self.rank==0 and len(gpu_names)>0:
                     num_cores = 1
                     num_CPU   = 1
@@ -74,6 +74,7 @@ class DQN(erl.ExaAgent):
 
         ## Declare hyper-parameters, initialized for determining datatype
         super().__init__()
+        self.results_dir = ''
         self.search_method = ''
         self.gamma = 0.0
         self.epsilon = 0.0
@@ -93,22 +94,21 @@ class DQN(erl.ExaAgent):
             deque(maxlen = 2000) ## TODO: make configurable
 
     def set_agent(self):
-        # Get results directory
-        self.results_dir = super().get_results_dir()
         # Get hyper-parameters
-
         agent_data = super().get_config()
-        self.search_method =  (agent_data['search_method'])
-        self.gamma =  (agent_data['gamma'])
-        self.epsilon = (agent_data['epsilon'])
-        self.epsilon_min = (agent_data['epsilon_min'])
-        self.epsilon_decay = (agent_data['epsilon_decay'])
-        self.learning_rate =  (agent_data['learning_rate'])
-        self.batch_size = int(agent_data['batch_size'])
-        self.tau = (agent_data['tau'])
-        self.dense = (agent_data['dense'])
-        self.activation = (agent_data['activation'])
-        self.optimizer = (agent_data['optimizer'])
+
+        self.results_dir = agent_data['output_dir']
+        self.search_method =  agent_data['search_method']
+        self.gamma =  agent_data['gamma']
+        self.epsilon = agent_data['epsilon']
+        self.epsilon_min = agent_data['epsilon_min']
+        self.epsilon_decay = agent_data['epsilon_decay']
+        self.learning_rate = agent_data['learning_rate']
+        self.batch_size = agent_data['batch_size']
+        self.tau = agent_data['tau']
+        self.dense = agent_data['dense']
+        self.activation = agent_data['activation']
+        self.optimizer = agent_data['optimizer']
 
         # Build network model
         print("Model: ")

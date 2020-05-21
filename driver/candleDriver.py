@@ -9,6 +9,7 @@ import candle
 from pprint import pprint
 
 import json
+import argparse
 
 '''
 # These are just added to the command line options
@@ -71,12 +72,32 @@ def initialize_parameters():
 
     return gParameters
 
+def base_parser(params):
+    # checks for env or agent command line override before reasing json files
+    parser = argparse.ArgumentParser(description = "Base parser")
+    parser.add_argument("--agent")
+    parser.add_argument("--env")
+    args, leftovers = parser.parse_known_args()
+
+    if args.agent is not None:
+        params['agent'] = args.agent
+        print("Agent overwitten from command line: ", args.agent)
+
+    if args.env is not None:
+        params['env'] = args.env
+        print("Environment overwitten from command line: ", args.env)
+
+    return params
+
 def parser_from_json(json_file):
     file = open(json_file,)
     params = json.load(file)
     new_defs = []
     for key in params:
-        new_def = {'name':key, 'type':(type(params[key])), 'default':params[key]}
+        if params[key] == "True" or params[key] == "False":
+            new_def = {'name':key, 'type':(type(candle.str2bool(params[key]))), 'default':candle.str2bool(params[key])}
+        else:
+            new_def = {'name':key, 'type':(type(params[key])), 'default':params[key]}
         new_defs.append(new_def)
     #print(new_defs)
     return new_defs
@@ -84,16 +105,17 @@ def parser_from_json(json_file):
 def get_driver_params():
     lrn_cfg = 'learner_cfg.json'
     lrn_defs = parser_from_json(lrn_cfg)
-    print('Learner parameters')
+    print('Learner parameters from ', lrn_cfg)
     pprint(lrn_defs)
     params = json.load(open(lrn_cfg))
+    params = base_parser(params)
     agent_cfg = 'agents/agent_vault/agent_cfg/'+params['agent']+'.json'
     agent_defs = parser_from_json(agent_cfg)
-    print('Agent parameters')
+    print('Agent parameters from ', agent_cfg)
     pprint(agent_defs)
     env_cfg = 'envs/env_vault/env_cfg/'+params['env']+'.json'
     env_defs = parser_from_json(env_cfg)
-    print('Environment parameters')
+    print('Environment parameters from ', env_cfg)
     pprint(env_defs)
     return lrn_defs+agent_defs+env_defs
 
