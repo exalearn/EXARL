@@ -77,7 +77,7 @@ class ExaLearner():
                 if done != True:
                     action = self.agent.action(current_state)
                     next_state, reward, done, _ = self.env.step(action)
-                
+            
                 total_reward+=reward
                 memory = (current_state, action, reward, next_state, done, total_reward)
                 new_data = comm.gather(memory, root=0)
@@ -159,17 +159,14 @@ class ExaLearner():
                     
                 worker_state = intercomm.gather(worker_state, root=root)
                 
-                if rank < worker_begin: ### leaders
-                    ### spread data from 0 (leader) to all in leader communicator
-                    worker_data = intracomm.bcast(worker_state, root=0)
-                    for wdata in worker_data:
-                        if wdata is not None:
-                            new_data.append([current_state, wdata[0], wdata[1], wdata[2], wdata[3], wdata[4]])
-            
                 ## Learner (also a leader) ##
                 if comm.rank==0:
                 
                     lstim = time.time()
+                    for wdata in worker_state:
+                        if wdata is not None:
+                            new_data.append([current_state, wdata[0], wdata[1], wdata[2], wdata[3], wdata[4]])
+
                     ## Push memories to learner ##
                     if new_data is not None:
                         for data in new_data:
@@ -219,28 +216,31 @@ class ExaLearner():
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
         size = comm.Get_size()
-        root = 0
-        if color == 0:
-            root = MPI.PROC_NULL
-        if rank == 0:
-            root = MPI.ROOT
 
         for e in range(self.nepisodes):
             current_state = self.env.reset()
             total_reward=0
-            done = True # for leaders
-            if color > 0:
+            if color == 0:  # for leaders
+                done = True
+            else:
                 done = False
             all_done = False
-
+            
+            root = 0
+            if color == 0:
+                root = MPI.PROC_NULL
+            if rank == 0:
+                root = MPI.ROOT
+             
             while all_done!=True:
 
                 worker_state = None
                 new_data = [] 
-
+                worker_data = []
+              
                 ### workers
                 if color > 0:
-                    done = intracomm.allreduce(done, op=MPI.LAND)
+                    done = intracomm.allreduce(done, op=MPI.LAND)     
                     if done != True:
                         action = self.agent.action(current_state)
                         next_state, reward, done, _ = self.env.step(action, intracomm)
@@ -250,59 +250,54 @@ class ExaLearner():
                 ### communicate from workers to remote leader of workers
                 if color == 0:
                     for i in range(ncolors-1):
-                        worker_state = intercomm[i].gather(worker_state, root=root)
+                        worker_data = intercomm[i].gather(worker_state, root=root)
                 else:
-                    worker_state = intercomm[0].gather(worker_state, root=root)
+                    worker_data = intercomm[0].gather(worker_state, root=root)
                 
-                if color == 0: ### leaders
-                    ### spread data from 0 (leader) to all in leader communicator
-                    worker_data = intracomm.bcast(worker_state, root=0)
-                    for wdata in worker_data:
-                        if wdata is not None:
-                            new_data.append([current_state, wdata[0], wdata[1], wdata[2], wdata[3], wdata[4]])
-            
                 ## Learner (also a leader) ##
                 if comm.rank==0:
                 
                     lstim = time.time()
+                    for wdata in worker_data:
+                        if wdata is not None:
+                            new_data.append([current_state, wdata[0], wdata[1], wdata[2], wdata[3], wdata[4]])
+
                     ## Push memories to learner ##
                     if new_data is not None:
                         for data in new_data:
                             self.agent.remember(data[0],data[1],data[2],data[3],data[4])
-                    
-                        ## Train learner ##
-                        self.agent.train()
-                        rank0_memories = len(self.agent.memory)
-                        target_weights = self.agent.get_weights()
-                        letim = time.time()
-                        ttim += (letim - lstim)
+                    ## Train learner ##
+                    self.agent.train()
+                    rank0_memories = len(self.agent.memory)
+                    target_weights = self.agent.get_weights()
+                    letim = time.time()
+                    ttim += (letim - lstim)
            
                 comm.barrier()
                 
                 ### communicate from remote leader to local leader of workers
                 ## broadcast the memory size and the model weights to the workers  ##       
                 if color == 0:
-                    ## broadcast from learner root to rest of the processes in leader group
-                    rank0_memories = intracomm.bcast(rank0_memories, root=0)
-                    current_weights = intracomm.bcast(target_weights, root=0)
-                    new_data = intracomm.bcast(new_data, root=0)
                     for i in range(ncolors-1):
                         rank0_memories = intercomm[i].bcast(rank0_memories, root=root)
-                        current_weights = intercomm[i].bcast(target_weights, root=root)
-                        new_data = intercomm[i].bcast(new_data, root=root)
                 else:
                     rank0_memories = intercomm[0].bcast(rank0_memories, root=root)
+                
+                if color == 0:
+                    for i in range(ncolors-1):
+                        current_weights = intercomm[i].bcast(target_weights, root=root)
+                else:
                     current_weights = intercomm[0].bcast(target_weights, root=root)
+                
+                if color == 0:
+                    for i in range(ncolors-1):
+                        new_data = intercomm[i].bcast(new_data, root=root)
+                else:
                     new_data = intercomm[0].bcast(new_data, root=root)       
-       
+ 
                 ## Set the model weight for all the workers
                 if color > 0:
-                    ## broadcast memories/weights from worker leader to rest of the workers
-                    rank0_memories = intracomm.bcast(rank0_memories, root=0)
-                    current_weights = intracomm.bcast(target_weights, root=0)
-                    new_data = intracomm.bcast(new_data, root=0)       
-
-                    if rank0_memories is not None and current_weights is not None and rank0_memories>30:                            
+                    if current_weights is not None and rank0_memories is not None and rank0_memories>30:                            
                         self.agent.set_weights(current_weights)
 
                     ## Update state
