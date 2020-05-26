@@ -234,9 +234,9 @@ class ExaLearner():
              
             while all_done!=True:
 
-                worker_state = None
                 new_data = [] 
                 worker_data = []
+                worker_state = None
               
                 ### workers
                 if color > 0:
@@ -247,6 +247,8 @@ class ExaLearner():
                         total_reward += reward
                         worker_state = (action, reward, next_state, done, total_reward)
 
+                comm.barrier()
+                
                 ### communicate from workers to remote leader of workers
                 if color == 0:
                     for i in range(ncolors-1):
@@ -370,12 +372,13 @@ class ExaLearner():
         elif type == 'static-multi-groups':
             ### Assumes 0 is *always* the leader of agents
             ncolors = self.mpi_children_per_parent+1
-            color = int(rank % ncolors)
+            color = rank % ncolors
             if color > 0: # only workers will update
                 worker_rank = rank
                 filename_prefix = 'ExaLearner_' + 'Episode%s_Steps%s_Rank%s_memory_v1_%s' % (str(self.nepisodes), str(self.nsteps), str(rank), str(type))
                 train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
                 train_writer = csv.writer(train_file, delimiter = " ")
+            
             # one-to-many group communication
             intracomm = comm.Split(color, rank)
             intercomm = [MPI.COMM_NULL]*(ncolors-1)
