@@ -1,0 +1,32 @@
+# This continuous integration is setting up both the CH simulation and image structure,
+# and making sure that the first few iterations of both RL training work for ExaRL.
+
+sudo: required
+
+dist: bionic
+
+language: python
+python:
+  - "3.7"
+
+# Handle git submodules
+git:
+    submodules: true
+
+before_install:
+  - sudo apt-get install -y cmake libboost-all-dev
+  - sudo apt-get install -y libopenmpi-dev openmpi-bin
+  - cd /home/travis/build/exalearn/ExaRL
+  - source test/install.sh
+  - mkdir /home/travis/build/exalearn/ExaRL/envs/envs_vault/CahnHilliard2D
+  - cd /home/travis/build/exalearn/ExaRL/envs/env_vault/CahnHilliard2D/cpp/build; cmake ..; make
+  - cd /home/travis/build/exalearn/ExaRL/envs/env_vault/ImageStructure; make
+  - cd /home/travis/build/exalearn/ExaRL
+
+install:
+  - pip install -e .
+
+script:
+  - export LD_LIBRARY_PATH="ExaRL/envs/env_vault/CahnHilliard2D/cpp/python"
+  - export LD_LIBRARY_PATH="ExaRL/envs/env_vault/CahnHilliard2D/cpp/build"
+  - bash ./test/test_ch.sh
