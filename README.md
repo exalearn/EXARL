@@ -7,6 +7,7 @@ A scalable software framework for reinforcement learning environments and agents
 * The EXARL framework is built on [OpenAI Gym](https://gym.openai.com) 
 * Additional python packages are defined in the setup.py 
 * This document assumes you are running at the top directory 
+* EXARL works best with mpich (You may get errors using OpenMPI
 
 ## Directory Organization
 ```
@@ -78,7 +79,7 @@ E.g.:-
     "loss" : "mse"
 }
 ```
-* Add/modify the learner parameters in ```ExaRL/envs/env_vault/env_cfg/<EnvName>.json```\
+* Add/modify the environment parameters in ```ExaRL/envs/env_vault/env_cfg/<EnvName>.json```\
 E.g.:-
 ```
 {
