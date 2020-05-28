@@ -11,13 +11,15 @@ python:
 
 # Handle git submodules
 git:
-    submodules: true
+    submodules: false
 
 before_install:
   - sudo apt-get install -y cmake libboost-all-dev
   - sudo apt-get install -y libopenmpi-dev openmpi-bin
   - cd /home/travis/build/exalearn/ExaRL
   - source test/install.sh
+  - sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules
+  - git submodule update --init --recursive
   - cd cd /home/travis/build/exalearn/ExaRL/envs/env_vault/CahnHilliard2D
   - git checkout docker-devel
   - mkdir /home/travis/build/exalearn/ExaRL/envs/envs_vault/CahnHilliard2D/build
