@@ -1,6 +1,5 @@
 {
     "debug"           : 0,
-    "size_struct_vec" : 200,
     "changeT"         : 0.1,
     "initT"           : 0.5,
     "targetT"         : 0.5,
@@ -10,6 +9,5 @@
     "notPlotRL"       : "False",
     "length"          : 100,
     "genTarget"       : "True",
-    "randInitial"     : "False",
-    "num_control_params" : 1
+    "randInitial"     : "False"
 }
