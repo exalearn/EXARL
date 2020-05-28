@@ -2,7 +2,7 @@
 # Easily eXtendable Architecture for Reinforcement Learning
 A scalable software framework for reinforcement learning environments and agents/policies used for the Design and Control applications
 
-[![Build Status](https://travis-ci.com/exalearn/ExaRL.svg?token=nVtzNrBfRo4qpVpEQP21&branch=ch)](https://travis-ci.com/exalearn/ExaRL)
+[![Build Status](https://travis-ci.com/exalearn/ExaRL.svg?token=nVtzNrBfRo4qpVpEQP21&branch=ch_test)](https://travis-ci.com/exalearn/ExaRL)
 
 ## Software Requirement
 * Python 3.7 
