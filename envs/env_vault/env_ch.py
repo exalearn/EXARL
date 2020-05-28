@@ -55,7 +55,6 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         # Declare hyper-parameters, initialized for determining datatype
         super().__init__()
         self.debug           = 0
-        self.size_struct_vec = 0
         self.change_T        = 0.0
         self.initT           = 0.0
         self.targetT         = 0.0
@@ -68,7 +67,6 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         self.length          = 0
         self.genTarget       = True
         self.randInitial     = False
-        self.num_control_params = 0
         self.steps           = 0
         self.episodes        = 0
 
@@ -76,10 +74,12 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         self.comm = env_comm
         self.comm_rank = self.comm.Get_rank() if self.comm else 0
 
+        # These are problem dependent and must be available during environment object creation time: cannot be set by CANDLE
+        self.size_struct_vec = 200
+        self.num_control_params = 1
         self.action_space = spaces.Discrete( self.getActionSize() )
-
-        # TODO: fix the high values later since I do not know the maximum valus
-        self.observation_space = spaces.Box(low=np.append(np.zeros(self.getStateSize()),[0.000]), high=np.append(np.ones(self.getStateSize()),[1000]),dtype=np.float32) 
+        self.observation_space = spaces.Box(low=np.zeros(self.getStateSize()), \
+                                            high=np.ones(self.getStateSize()), dtype=np.float32) 
         
         self.currStructVec   = np.zeros(self.size_struct_vec)   # stores current structure vector
         self.targetStructVec = np.zeros(self.size_struct_vec)   # target  structure vector (loaded or generated at setTargetState() once)
@@ -91,6 +91,7 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
 
         self.maxStructVec    = [ -math.inf for _ in range(self.size_struct_vec)]
         self.minStructVec    = [  math.inf for _ in range(self.size_struct_vec)]
+        
 
         self.hasBaseScore = False
 
@@ -112,7 +113,6 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         self.output_dir = env_data['output_dir']
         self.target_dir = env_data['output_dir']
         self.debug = env_data['debug']
-        self.size_struct_vec = env_data['size_struct_vec']
         self.change_T        = env_data['changeT']
         self.initT           = env_data['initT']
         self.targetT         = env_data['targetT']
@@ -123,10 +123,9 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         self.length          = env_data['length']
         self.genTarget       = env_data['genTarget']
         self.randInitial     = env_data['randInitial']
-        self.num_control_params = env_data['num_control_params']
         self.steps           = env_data['n_steps']
         self.episodes        = env_data['n_episodes']
-    
+
         self.setTargetState()
 
     ##################### get state space (mean, sd) #####################
