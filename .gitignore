@@ -121,3 +121,5 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+envs/env_vault/CahnHilliard2D
