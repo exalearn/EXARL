@@ -1,6 +1,6 @@
 [submodule "envs/env_vault/CahnHilliard2D"]
 	path = envs/env_vault/CahnHilliard2D
-	url = https://github.com/exalearn/cahnhilliard_2d.git
+	url = git@github.com:exalearn/cahnhilliard_2d.git #https://github.com/exalearn/cahnhilliard_2d.git
 [submodule "envs/env_vault/ImageStructure"]
 	path = envs/env_vault/ImageStructure
-	url = https://github.com/exalearn/image_structure.git
+	url = # git@github.com:exalearn/image_structure.git #https://github.com/exalearn/image_structure.git
