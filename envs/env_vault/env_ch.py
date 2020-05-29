@@ -78,9 +78,9 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         self.size_struct_vec = 200
         self.num_control_params = 1
         self.action_space = spaces.Discrete( self.getActionSize() )
-        self.observation_space = spaces.Box(low=np.zeros(self.getStateSize()), \
-                                            high=np.ones(self.getStateSize()), dtype=np.float32) 
-        
+        # TODO: fix the high values later since I do not know the maximum values
+        self.observation_space = spaces.Box(low=np.append(np.zeros(self.getStateSize()-1),[0.000]), \
+                                            high=np.append(np.ones(self.getStateSize()-1),[1000]),dtype=np.float32) 
         self.currStructVec   = np.zeros(self.size_struct_vec)   # stores current structure vector
         self.targetStructVec = np.zeros(self.size_struct_vec)   # target  structure vector (loaded or generated at setTargetState() once)
         self.targetStructVecNorm = 1.
