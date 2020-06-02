@@ -15,19 +15,8 @@ git:
 
  
 before_install:
-
-  - pip install -e .
-
   - source install.sh
-
-  - conda install tensorflow
-  - conda install pandas
-
-  - pip install sklearn
-  - pip install gym
-
-  - conda install numba
-  - conda install mpi4py
+  - pip install -e .
 
 script:
   - python driver/driver_example.py

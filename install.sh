@@ -46,3 +46,16 @@ popd
 
 # Activate the python environment we created.
 source activate testenv
+
+# Install requirements via pip in our conda environment
+pip install -r requirements.txt
+
+# Install the following only if running tests
+if [[ "$SKIP_TESTS" != "true" ]]; then
+    conda install --yes pytorch torchvision -c pytorch
+    conda install --yes tensorflow                                                                                                                                                     
+    conda install --yes pandas                                                                                 
+    conda install --yes numba  
+    # Installation
+    # python setup.py install
+fi
