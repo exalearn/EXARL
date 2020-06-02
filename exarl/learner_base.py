@@ -107,15 +107,18 @@ class ExaLearner():
             current_state = self.env.reset()
             total_reward = 0
             done = False
+            all_done = False
 
             start_time_episode = time.time()
             steps = 0
-            while done != True:
+            while all_done != True:
                 ## All workers ##
-                action = self.agent.action(current_state)
-                next_state, reward, done, _ = self.env.step(action)
-                total_reward += reward
-                memory = (current_state, action, reward, next_state, done, total_reward)
+                if done != True:
+                    action = self.agent.action(current_state)
+                    next_state, reward, done, _ = self.env.step(action)
+                    total_reward += reward
+                    memory = (current_state, action, reward, next_state, done, total_reward)
+
                 new_data = comm.gather(memory, root=0)
                 logger.info('Rank[%s] - Memory length: %s ' % (str(comm.rank),len(self.agent.memory)))
 
@@ -157,6 +160,8 @@ class ExaLearner():
                 steps += 1
                 if steps >= self.nsteps:
                     done = True
+
+                all_done = comm.allreduce(done, op=MPI.LAND)
 
             end_time_episode = time.time()
             logger.info('Rank[%s] run-time for episode %s: %s ' % (str(comm.rank), str(e), str(end_time_episode - start_time_episode)))
