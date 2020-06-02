@@ -13,24 +13,18 @@ python:
 git:
     submodules: false
 
+ 
 before_install:
-  - sudo apt-get install -y cmake libboost-all-dev
-  - sudo apt-get install -y libopenmpi-dev openmpi-bin
-  #- cd /home/travis/build/exalearn/ExaRL
-  - source exalearn/ExaRL/test/install.sh
-  - sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules
-  - git submodule update --init --recursive
-  - cd cd /home/travis/build/exalearn/ExaRL/envs/env_vault/CahnHilliard2D
-  - git checkout docker-devel
-  - mkdir /home/travis/build/exalearn/ExaRL/envs/envs_vault/CahnHilliard2D/build
-  - cd /home/travis/build/exalearn/ExaRL/envs/env_vault/CahnHilliard2D/cpp/build; cmake ..; make
-  - cd /home/travis/build/exalearn/ExaRL/envs/env_vault/ImageStructure; git checkout docker; make
-  - cd /home/travis/build/exalearn/ExaRL
 
-install:
   - pip install -e .
 
+  - conda install tensorflow
+  - conda install pandas
+
+  - pip   install sklearn
+
+  - conda install numba
+  - conda install mpi4py
+
 script:
-  - export LD_LIBRARY_PATH="ExaRL/envs/env_vault/CahnHilliard2D/cpp/python"
-  - export LD_LIBRARY_PATH="ExaRL/envs/env_vault/CahnHilliard2D/cpp/build"
-  - bash ./test/test_ch.sh
+  - python driver/driver_example.py
