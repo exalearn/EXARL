@@ -55,7 +55,8 @@ if [[ "$SKIP_TESTS" != "true" ]]; then
     conda install --yes pytorch torchvision -c pytorch
     conda install --yes tensorflow                                                                                                                                                     
     conda install --yes pandas                                                                                 
-    conda install --yes numba  
+    conda install --yes numba
+    conda install --yes mpi4py
     # Installation
     # python setup.py install
 fi
