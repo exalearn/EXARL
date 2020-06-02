@@ -18,6 +18,8 @@ before_install:
 
   - pip install -e .
 
+  - source install.sh
+
   - conda install tensorflow
   - conda install pandas
 
