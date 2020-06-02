@@ -1,6 +1,6 @@
 {
     "agent": "DQN-v0",
-    "env": "ch-v0",
+    "env": "ExaLearnCartpole-v1",
     "n_episodes": 10,
     "n_steps": 100,
     "mpi_children_per_parent": 3,
