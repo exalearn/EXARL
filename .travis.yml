@@ -21,7 +21,8 @@ before_install:
   - conda install tensorflow
   - conda install pandas
 
-  - pip   install sklearn
+  - pip install sklearn
+  - pip install gym
 
   - conda install numba
   - conda install mpi4py
