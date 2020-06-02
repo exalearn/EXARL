@@ -57,6 +57,7 @@ if [[ "$SKIP_TESTS" != "true" ]]; then
     conda install --yes pandas                                                                                 
     conda install --yes numba
     conda install --yes mpi4py
+    conda install --yes plotly
     # Installation
     # python setup.py install
 fi
