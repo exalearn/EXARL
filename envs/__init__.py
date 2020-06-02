@@ -1,9 +1,9 @@
 from gym.envs.registration import register
 
-register(
-    id='ch-v0',
-    entry_point='envs.env_vault:CahnHilliardEnv',
-)    
+#register(
+#    id='ch-v0',
+#    entry_point='envs.env_vault:CahnHilliardEnv',
+#)    
 
 register(
     id='ExaLearnBlockCoPolymerTDLG-v0',
