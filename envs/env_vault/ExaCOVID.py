@@ -106,6 +106,7 @@ class ExaCOVID(gym.Env, erl.ExaEnv):
         return reward
     
     def reset(self):
-
+        return 0
+    
     def render(self):
-
+        return 0
