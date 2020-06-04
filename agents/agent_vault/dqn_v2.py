@@ -88,13 +88,13 @@ class DQN:
         ## Make noisy input data ##
         #state_input = GaussianNoise(0.1)(state_input)
         ## Noisy layer 
-        h1 = Dense(56, activation='relu')(state_input)
-        #h1 = GaussianNoise(0.1)(h1)
+        h1 = Dense(56, activation='tanh')(state_input)
+        h1 = GaussianNoise(0.1)(h1)
         ## Noisy layer
-        h2 = Dense(56, activation='relu')(h1)
-        #h2 = GaussianNoise(0.1)(h2)
+        h2 = Dense(56, activation='tanh')(h1)
+        h2 = GaussianNoise(0.1)(h2)
         ## Output layer
-        h3 = Dense(56, activation='relu')(h2)
+        h3 = Dense(56, activation='tanh')(h2)
         ## Output: action ##   
         output = Dense(self.env.action_space.n,activation='linear')(h3)
         model = Model(input=state_input, output=output)
