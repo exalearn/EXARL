@@ -1,10 +1,11 @@
 {
-    "app_dir"   : "/home/schr476/exalearn/tdlg_fy19/build_cpu/",
-    "app_name"  : "tdlg_run",
+    "app_dir"   : "utils/utils_tdlg",
+    "app_threads": 24,
+    "app_core":"cpu",
     "param_dir" : "envs/env_vault/env_cfg/",
     "param_name": "tdlg_param.in",
     "fracA_step_size": "0.01",
     "kappa_step_size":"0.001",
     "target_structure_name" : "envs/env_vault/env_cfg/target_field.out",
-    "target_precision" : "-10"
+    "target_precision" : "-2"
 }
