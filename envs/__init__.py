@@ -6,7 +6,7 @@ register(
 )
 
 register(
-    id='ExaLearnBlockCoPolymerTDLG-v0',
+    id='TDLG-v0',
     entry_point='envs.env_vault:BlockCoPolymerTDLG',
 )
 
