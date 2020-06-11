@@ -1,26 +1,35 @@
 from gym.envs.registration import register
+import driver.candleDriver as cd
 
-register(
-    id='ch-v0',
-    entry_point='envs.env_vault:CahnHilliardEnv',
-)
+run_params = cd.initialize_parameters()
+env = run_params['env']
 
-register(
-    id='TDLG-v0',
-    entry_point='envs.env_vault:BlockCoPolymerTDLG',
-)
+if env == 'ch-v0':
+    register(
+        id=env,
+        entry_point='envs.env_vault:CahnHilliardEnv',
+    )
 
-register(
-    id='ExaLearnCartpole-v0',
-    entry_point='envs.env_vault:ExaCartpoleDynamic'
-)
+elif env == 'ExaLearnBlockCoPolymerTDLG-v0':
+    register(
+        id=env,
+        entry_point='envs.env_vault:BlockCoPolymerTDLG',
+    )
 
-register(
-    id='ExaLearnCartpole-v1',
-    entry_point='envs.env_vault:ExaCartpoleStatic'
-)
+elif env == 'ExaLearnCartpole-v0':
+    register(
+        id=env,
+        entry_point='envs.env_vault:ExaCartpoleDynamic'
+    )
 
-#register(
-#    id='ExaCovid-v0',
-#    entry_point='envs.env_vault:ExaCOVID'
-#)
+elif env == 'ExaLearnCartpole-v1':
+    register(
+        id=env,
+        entry_point='envs.env_vault:ExaCartpoleStatic'
+    )
+
+elif env == 'ExaCovid-v0':
+    register(
+        id=env,
+        entry_point='envs.env_vault:ExaCOVID'
+    )
