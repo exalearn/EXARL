@@ -1,0 +1,3 @@
+[submodule "/ccs/home/vinayr/ExaLearn/ExaRL/envs/env_vault/Corvid"]
+	path = /ccs/home/vinayr/ExaLearn/ExaRL/envs/env_vault/Corvid
+	url = https://github.com/exalearn/epiCorvid
