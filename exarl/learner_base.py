@@ -35,6 +35,7 @@ class ExaLearner():
         self.results_dir = './results' # Default dir, will be overridden by candle 
         self.do_render = False
 
+        self.run_type = run_params['run_type']
         self.mpi_children_per_parent = int(run_params['mpi_children_per_parent'])
         # Setup agent and environments
         agent_id = 'agents:'+run_params['agent']
@@ -44,11 +45,9 @@ class ExaLearner():
         self.agent, self.env = self.make()
         #self.env._max_episode_steps = self.nsteps
         self.env.spec.max_episode_steps  = self.nsteps
-        
+
         self.leader = False
         self.worker_begin = -1
-        self.intercomm = MPI.COMM_NULL
-        self.intracomm = MPI.COMM_NULL
 
         # Set configuration
         self.mpi_children_per_parent = run_params['mpi_children_per_parent']
@@ -60,48 +59,46 @@ class ExaLearner():
         world_rank = self.world_comm.rank
         world_size = self.world_comm.size
 
-        run_type = run_params['run_type']
-        
-        if run_type == 'static_two_groups':
+        if self.run_type == 'static-two-groups':
             ### leaders: {0:worker_begin-1}, workers: {worker_begin, size-1}
             self.worker_begin = int(world_size / self.mpi_children_per_parent)
             if self.worker_begin == 0:
                 print('[Aborting] Worker and Leader cannot have the same rank. Increase #processes and try again.')
-                world_comm.Abort()
+                self.world_comm.Abort()
             if world_rank < self.worker_begin:
                 self.leader = True 
             ### Identify leader colors (assumes 0 is *always* a leader)
             color = 2
-            if world_rank >= worker_begin:
+            if world_rank >= self.worker_begin:
                 color = 1
             ### leaders(2) and workers(1) intracomm
-            self.intracomm = world_comm.Split(color, world_rank)
+            self.intracomm = self.world_comm.Split(color, world_rank)
             env = gym.make(self.env_id, env_comm=self.intracomm)
             # group 1 (worker) communicates with group 2 (leader)
             if color == 1:
-                self.intercomm = MPI.Intracomm.Create_intercomm(self.intracomm, 0, world_comm, 0)
+                self.intercomm = MPI.Intracomm.Create_intercomm(self.intracomm, 0, self.world_comm, 0)
             # group 2 (leader) communicates with group 1 (worker)
             agent = None
             if color == 2:
                 agent = agents.make(self.agent_id, env=env, agent_comm=self.intracomm)
-                self.intercomm = MPI.Intracomm.Create_intercomm(self.intracomm, 0, world_comm, worker_begin)
-        elif run_type == 'static_multi_groups':
+                self.intercomm = MPI.Intracomm.Create_intercomm(self.intracomm, 0, self.world_comm, self.worker_begin)
+        elif self.run_type == 'static-multi-groups':
             ### Assumes 0 is *always* the leader of agents
             ncolors = self.mpi_children_per_parent+1
             color = int(world_rank % ncolors)
             if color == 0: 
                 self.leader = True
             # one-to-many group communication
-            self.intracomm = comm.Split(color, rank)
+            self.intracomm = self.world_comm.Split(color, world_rank)
             env = gym.make(self.env_id, env_comm=self.intracomm)
             self.intercomm = [MPI.COMM_NULL]*(ncolors-1)
             agent = None
             if color == 0:
                 agent = agents.make(self.agent_id, env=env, agent_comm=self.intracomm)
                 for i in range(ncolors-1):
-                    self.intercomm[i] = MPI.Intracomm.Create_intercomm(self.intracomm, 0, world_comm, i+1)
+                    self.intercomm[i] = MPI.Intracomm.Create_intercomm(self.intracomm, 0, self.world_comm, i+1)
             else:
-                self.intercomm[0] = MPI.Intracomm.Create_intercomm(self.intracomm, 0, world_comm, 0)
+                self.intercomm[0] = MPI.Intracomm.Create_intercomm(self.intracomm, 0, self.world_comm, 0)
         else:
             # Environment communicator
             env_color = int(world_rank/(self.mpi_children_per_parent))#+1))
@@ -218,7 +215,7 @@ class ExaLearner():
         train_file.close()
         
     ### Uses two intercomms for communicating agent comm with environment comms
-    def run_exarl_two_groups(self):
+    def run_exarl_two_groups(self, intracomm, intercomm):
         rank0_memories = 0
         target_weights = None
         comm = MPI.COMM_WORLD
@@ -236,7 +233,7 @@ class ExaLearner():
             current_state = self.env.reset()
             total_reward=0
             done = True # for leaders
-            if rank >= worker_begin:
+            if self.leader is False:
                 done = False
             all_done = False
             root = MPI.ROOT
@@ -248,7 +245,7 @@ class ExaLearner():
 
                 ### workers
                 if self.leader is False:
-                    done = self.intracomm.allreduce(done, op=MPI.LAND)
+                    done = intracomm.allreduce(done, op=MPI.LAND)
                     if done != True:
                         action = self.agent.action(current_state)
                         next_state, reward, done, _ = self.env.step(action)
@@ -259,13 +256,13 @@ class ExaLearner():
                 root = 0
                 if rank == 0:
                     root = MPI.ROOT # remote leader
-                if rank != 0 and rank < self.worker_begin:
+                if rank != 0 and self.leader is True:
                     root = MPI.PROC_NULL
                     
-                worker_state = self.intercomm.gather(worker_state, root=root)
+                worker_state = intercomm.gather(worker_state, root=root)
                 
                 ## Learner (also a leader) ##
-                if rank==0:
+                if rank == 0:
                     for wdata in worker_state:
                         if wdata is not None:
                             new_data.append([current_state, wdata[0], wdata[1], wdata[2], wdata[3], wdata[4]])
@@ -283,12 +280,12 @@ class ExaLearner():
                 ### communicate from remote leader to local leader of workers
                 ## Broadcast the memory size and the model weights to the workers  ##        
                 ## TODO only send to worker root
-                rank0_memories = self.intercomm.bcast(rank0_memories, root=root)
-                current_weights = self.intercomm.bcast(target_weights, root=root)
-                new_data = self.intercomm.bcast(new_data, root=root)
+                rank0_memories = intercomm.bcast(rank0_memories, root=root)
+                current_weights = intercomm.bcast(target_weights, root=root)
+                new_data = intercomm.bcast(new_data, root=root)
                 
                 ## Set the model weight for all the workers
-                if rank >= worker_begin:
+                if self.leader is False:
                     if rank0_memories is not None and rank0_memories>30:                            
                         self.agent.set_weights(current_weights)
 
@@ -303,11 +300,6 @@ class ExaLearner():
                             train_writer.writerow([current_state,data[1],data[2],data[3],data[5],data[4]])
                             train_file.flush()
                            
-                ## Save memory for offline analysis
-                if self.leader is False: 
-                    train_writer.writerow([current_state,action,reward,next_state,total_reward,done])
-                    train_file.flush()
-
                 ## Save Learning target model
                 if rank == 0:
                     self.agent.save(self.results_dir+'/'+filename_prefix+'.h5')
@@ -329,14 +321,14 @@ class ExaLearner():
                 train_file.close()
  
     ### Uses multiple intercomms for communicating agent comm with environment comms
-    def run_exarl_multi_groups(self):
+    def run_exarl_multi_groups(self, intracomm, intercomm):
         rank0_memories = 0
         target_weights = None
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
         size = comm.Get_size()
         ## TODO do not compute again
-        ncolors = self.mpi_children_per_parent+1
+        ncolors = int(self.mpi_children_per_parent)+1
         color = int(rank % ncolors)
         
         if self.leader is False: # only workers will update
@@ -351,11 +343,11 @@ class ExaLearner():
             total_reward=0
             all_done = False
             done = False
-            if color == 0:  # for leaders
+            if self.leader is True: # for leaders
                 done = True
             
             root = 0
-            if color == 0:
+            if self.leader is True: 
                 root = MPI.PROC_NULL
             if rank == 0:
                 root = MPI.ROOT
@@ -367,7 +359,7 @@ class ExaLearner():
                 worker_state = None
               
                 ### workers
-                if color > 0:
+                if self.leader is False: 
                     done = intracomm.allreduce(done, op=MPI.LAND)
                     if done != True:
                         action = self.agent.action(current_state)
@@ -376,15 +368,14 @@ class ExaLearner():
                         worker_state = (action, reward, next_state, done, total_reward)
 
                 ### communicate from workers to remote leader of workers
-                if color == 0:
+                if self.leader is True: 
                     for i in range(ncolors-1):
-                        worker_data = self.intercomm[i].gather(worker_state, root=root)
+                        worker_data = intercomm[i].gather(worker_state, root=root)
                 else:
-                    worker_data = self.intercomm[0].gather(worker_state, root=root)
+                    worker_data = intercomm[0].gather(worker_state, root=root)
                 
                 ## Learner (also a leader) ##
                 if rank == 0:
-                 
                     for wdata in worker_data:
                         if wdata is not None:
                             new_data.append([current_state, wdata[0], wdata[1], wdata[2], wdata[3], wdata[4]])
@@ -401,26 +392,26 @@ class ExaLearner():
                 
                 ### communicate from remote leader to local leader of workers
                 ## broadcast the memory size and the model weights to the workers  ##       
-                if color == 0:
+                if self.leader is True: 
                     for i in range(ncolors-1):
-                        rank0_memories = self.intercomm[i].bcast(rank0_memories, root=root)
+                        rank0_memories = intercomm[i].bcast(rank0_memories, root=root)
                 else:
-                    rank0_memories = self.intercomm[0].bcast(rank0_memories, root=root)
+                    rank0_memories = intercomm[0].bcast(rank0_memories, root=root)
                 
-                if color == 0:
+                if self.leader is True: 
                     for i in range(ncolors-1):
-                        current_weights = self.intercomm[i].bcast(target_weights, root=root)
+                        current_weights = intercomm[i].bcast(target_weights, root=root)
                 else:
-                    current_weights = self.intercomm[0].bcast(target_weights, root=root)
+                    current_weights = intercomm[0].bcast(target_weights, root=root)
                 
-                if color == 0:
+                if self.leader is True: 
                     for i in range(ncolors-1):
-                        new_data = self.intercomm[i].bcast(new_data, root=root)
+                        new_data = intercomm[i].bcast(new_data, root=root)
                 else:
-                    new_data = self.intercomm[0].bcast(new_data, root=root)       
+                    new_data = intercomm[0].bcast(new_data, root=root)       
  
                 ## Set the model weight for all the workers
-                if color > 0:
+                if self.leader is False: 
                     if current_weights is not None and rank0_memories is not None and rank0_memories>30:                            
                         self.agent.set_weights(current_weights)
 
@@ -455,19 +446,18 @@ class ExaLearner():
             self.env.set_env()
 
         if run_type == 'static-two-groups':
-            self.run_exarl_two_groups(self.worker_begin, self.intracomm, self.intercomm)
-            self.agent_comm.Free()
+            self.run_exarl_two_groups(self.intracomm, self.intercomm)
+            self.intracomm.Free()
             self.intercomm.Free()
         elif run_type == 'static-multi-groups':
-            self.run_exarl_multi_groups(self.agent_comm)
-            self.agent_comm.Free()
-            self.intercomm.Free()
-            if color == 0:
+            self.run_exarl_multi_groups(self.intracomm, self.intercomm)
+            self.intracomm.Free()
+            ncolors = self.mpi_children_per_parent+1
+            if self.leader is True: 
                 for i in range(ncolors-1):
-                    intercomm[i].Free()
+                    self.intercomm[i].Free()
             else:
-                intercomm[0].Free()
-            intracomm.Free()
+                self.intercomm[0].Free()
         elif run_type == 'dynamic':
             self.run_exarl(self.world_comm)
         else:
