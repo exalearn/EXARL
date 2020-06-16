@@ -73,6 +73,7 @@ class DQN(erl.ExaAgent):
             sess = tf.compat.v1.Session(config=config)
             tf.compat.v1.keras.backend.set_session(sess)
             '''
+            tf.debugging.set_log_device_placement(True)
             gpus = tf.config.experimental.list_physical_devices('GPU')
             if gpus:
                 # Currently, memory growth needs to be the same across GPUs
