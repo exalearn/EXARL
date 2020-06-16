@@ -80,8 +80,8 @@ class ExaLearner():
             # group 2 (leader) communicates with group 1 (worker)
             agent = None
             if color == 2:
-                agent = agents.make(self.agent_id, env=env, agent_comm=self.intracomm)
                 self.intercomm = MPI.Intracomm.Create_intercomm(self.intracomm, 0, self.world_comm, self.worker_begin)
+                agent = agents.make(self.agent_id, env=env, agent_comm=self.intracomm)
         elif self.run_type == 'static-multi-groups':
             ### Assumes 0 is *always* the leader of agents
             ncolors = self.mpi_children_per_parent+1
@@ -236,8 +236,12 @@ class ExaLearner():
             if self.leader is False:
                 done = False
             all_done = False
-            root = MPI.ROOT
-
+            root = 0
+            if rank == 0:
+                root = MPI.ROOT # remote leader
+            if rank != 0 and self.leader is True:
+                root = MPI.PROC_NULL
+ 
             while all_done!=True:
 
                 worker_state = None
@@ -252,13 +256,7 @@ class ExaLearner():
                         total_reward += reward
                         worker_state = (action, reward, next_state, done, total_reward)
 
-                ### communicate from workers to remote leader of workers
-                root = 0
-                if rank == 0:
-                    root = MPI.ROOT # remote leader
-                if rank != 0 and self.leader is True:
-                    root = MPI.PROC_NULL
-                    
+                ### communicate from workers to remote leader of workers                   
                 worker_state = intercomm.gather(worker_state, root=root)
                 
                 ## Learner (also a leader) ##
@@ -276,7 +274,11 @@ class ExaLearner():
                         self.agent.train()
                         rank0_memories = len(self.agent.memory)
                         target_weights = self.agent.get_weights()
-           
+                    
+                    if rank0_memories%(intracomm.size) == 0:
+                        self.agent.save(self.results_dir+'/'+filename_prefix+'.h5')
+
+  
                 ### communicate from remote leader to local leader of workers
                 ## Broadcast the memory size and the model weights to the workers  ##        
                 ## TODO only send to worker root
@@ -425,7 +427,11 @@ class ExaLearner():
                         for data in new_data:
                             train_writer.writerow([current_state,data[1],data[2],data[3],data[5],data[4]])
                             train_file.flush()
-           
+                           
+                steps += 1
+                if steps >= self.nsteps:
+                    done = True
+
                 ## Exit criteria
                 all_done = comm.allreduce(done, op=MPI.LAND)
             
