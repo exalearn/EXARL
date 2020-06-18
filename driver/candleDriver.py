@@ -6,7 +6,12 @@ sys.path.append(lib_path2)
 
 import keras
 import candle
+from pprint import pprint
 
+import json
+import argparse
+
+'''
 # These are just added to the command line options
 additional_definitions =  [
 # learner params
@@ -33,6 +38,7 @@ additional_definitions =  [
 {'name':'batch_size', 'type':int},
 {'name':'tau', 'type':float}
 ]
+'''
 
 #required = ['agent', 'env', 'n_episodes', 'n_steps']
 required = ['agent', 'env']
@@ -46,6 +52,9 @@ class BenchmarkDriver(candle.Benchmark):
         benchmark.
         """
 
+        print('Additional definitions built from json files')
+        additional_definitions = get_driver_params()
+        #pprint(additional_definitions, flush=True)
         if required is not None:
             self.required = set(required)
         if additional_definitions is not None:
@@ -54,7 +63,7 @@ class BenchmarkDriver(candle.Benchmark):
 def initialize_parameters():
 
     # Build agent object
-    driver = BenchmarkDriver(file_path, '../combo_setup.txt', 'keras',
+    driver = BenchmarkDriver(file_path, '', 'keras',
                             prog='CANDLE_example', desc='CANDLE example driver script')
 
     # Initialize parameters
@@ -63,4 +72,50 @@ def initialize_parameters():
 
     return gParameters
 
-run_params = initialize_parameters()
+def base_parser(params):
+    # checks for env or agent command line override before reasing json files
+    parser = argparse.ArgumentParser(description = "Base parser")
+    parser.add_argument("--agent")
+    parser.add_argument("--env")
+    args, leftovers = parser.parse_known_args()
+
+    if args.agent is not None:
+        params['agent'] = args.agent
+        print("Agent overwitten from command line: ", args.agent)
+
+    if args.env is not None:
+        params['env'] = args.env
+        print("Environment overwitten from command line: ", args.env)
+
+    return params
+
+def parser_from_json(json_file):
+    file = open(json_file,)
+    params = json.load(file)
+    new_defs = []
+    for key in params:
+        if params[key] == "True" or params[key] == "False":
+            new_def = {'name':key, 'type':(type(candle.str2bool(params[key]))), 'default':candle.str2bool(params[key])}
+        else:
+            new_def = {'name':key, 'type':(type(params[key])), 'default':params[key]}
+        new_defs.append(new_def)
+    #print(new_defs)
+    return new_defs
+
+def get_driver_params():
+    lrn_cfg = 'learner_cfg.json'
+    lrn_defs = parser_from_json(lrn_cfg)
+    print('Learner parameters from ', lrn_cfg)
+    pprint(lrn_defs)
+    params = json.load(open(lrn_cfg))
+    params = base_parser(params)
+    agent_cfg = 'agents/agent_vault/agent_cfg/'+params['agent']+'.json'
+    agent_defs = parser_from_json(agent_cfg)
+    print('Agent parameters from ', agent_cfg)
+    pprint(agent_defs)
+    env_cfg = 'envs/env_vault/env_cfg/'+params['env']+'.json'
+    env_defs = parser_from_json(env_cfg)
+    print('Environment parameters from ', env_cfg)
+    pprint(env_defs)
+    return lrn_defs+agent_defs+env_defs
+

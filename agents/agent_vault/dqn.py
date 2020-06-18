@@ -30,11 +30,11 @@ logger.setLevel(logging.INFO)
 
 #The Deep Q-Network (DQN)
 class DQN(erl.ExaAgent):
-    def __init__(self, env, agent_comm, cfg='agents/agent_vault/agent_cfg/dqn_setup.json'):
+    def __init__(self, env, agent_comm):
 
         self.env = env
         self.agent_comm = agent_comm
-        self.default_cfg = 'agents/agent_vault/agent_cfg/dqn_setup.json'
+
         ## Implement the UCB approach
         self.sigma = 2 # confidence level
         self.total_actions_taken = 1
@@ -50,7 +50,7 @@ class DQN(erl.ExaAgent):
         num_cores = os.cpu_count()
         num_CPU   = os.cpu_count()
         num_GPU   = 0
-        
+
         ## Setup GPU cfg
         if tf_version < 2:
             gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
@@ -67,49 +67,80 @@ class DQN(erl.ExaAgent):
             sess = tf.Session(config=config)
             set_session(sess)
         elif tf_version >= 2:
+            '''
             config = tf.compat.v1.ConfigProto()
             config.gpu_options.allow_growth = True
             sess = tf.compat.v1.Session(config=config)
             tf.compat.v1.keras.backend.set_session(sess)
+            '''
+            tf.debugging.set_log_device_placement(True)
+            gpus = tf.config.experimental.list_physical_devices('GPU')
+            if gpus:
+                # Currently, memory growth needs to be the same across GPUs
+                try:
+                    for gpu in gpus:
+                        tf.config.experimental.set_memory_growth(gpu, True)
+                    '''
+                    # Restrict TensorFlow to only allocate MEM_LIMIT amount of memory
+                    MEM_LIMIT = 16000 / self.size
+                    for devIdx in np.arange(len(gpus)):
+                        tf.config.experimental.set_virtual_device_configuration(
+                            gpus[devIdx],
+                            [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=MEM_LIMIT)])
+                    '''
+                    logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+                    print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+                except RuntimeError as e:
+                    # Memory growth / Virtual devices must be set before GPUs have been initialized
+                    print(e)
 
         ## Declare hyper-parameters, initialized for determining datatype
-        super().__init__(agent_cfg=cfg)
+        super().__init__()
+        self.results_dir = ''
         self.search_method = ''
-        self.gamma = 0
-        self.epsilon = 0
-        self.epsilon_min = 0
-        self.epsilon_decay = 0
-        self.learning_rate = 0
+        self.gamma = 0.0
+        self.epsilon = 0.0
+        self.epsilon_min = 0.0
+        self.epsilon_decay = 0.0
+        self.learning_rate = 0.0
         self.batch_size = 0
-        self.tau = 0
-               
+        self.tau = 0.0
+        self.dense = [0, 0]
+        self.activation = 'relu'
+        self.optimizer = 'adam'
+        self.loss = 'mse'
+
         ## TODO: Assuming rank==0 is the only learner
         self.memory = deque(maxlen = 0)
         if self.rank==0:
             deque(maxlen = 2000) ## TODO: make configurable
-            
-        ##
+
+    def set_agent(self):
+        # Get hyper-parameters
+        agent_data = super().get_config()
+
+        self.results_dir = agent_data['output_dir']
+        self.search_method =  agent_data['search_method']
+        self.gamma =  agent_data['gamma']
+        self.epsilon = agent_data['epsilon']
+        self.epsilon_min = agent_data['epsilon_min']
+        self.epsilon_decay = agent_data['epsilon_decay']
+        self.learning_rate = agent_data['learning_rate']
+        self.batch_size = agent_data['batch_size']
+        self.tau = agent_data['tau']
+        self.dense = agent_data['dense']
+        self.activation = agent_data['activation']
+        self.optimizer = agent_data['optimizer']
+
+        # Build network model
+        print("Model: ")
         self.model = self._build_model()
+        print("Target model: ")
         self.target_model = self._build_model()
         self.target_weights = self.target_model.get_weights()
-       
-    def stage_info(self):
-        # Get results directory
-        self.results_dir = super().get_results_dir()
-        # Get hyper-parameters
-        
-        agent_data = super().get_config()
-        self.search_method =  (agent_data['search_method'])
-        self.gamma =  float(agent_data['gamma'])
-        self.epsilon = float(agent_data['epsilon'])
-        self.epsilon_min = float(agent_data['epsilon_min'])
-        self.epsilon_decay = float(agent_data['epsilon_decay'])
-        self.learning_rate =  float(agent_data['learning_rate'])
-        self.batch_size = int(agent_data['batch_size'])
-        self.tau = float(agent_data['tau'])
 
         train_file_name = "dqn_exacartpole_%s_lr%s_tau%s_v1.log" % (self.search_method, str(self.learning_rate) ,str(self.tau) )
-        self.train_file = open(self.results_dir + train_file_name, 'w')
+        self.train_file = open(self.results_dir + '/' + train_file_name, 'w')
         self.train_writer = csv.writer(self.train_file, delimiter = " ")
 
     def _huber_loss(self, target, prediction):
@@ -118,6 +149,7 @@ class DQN(erl.ExaAgent):
 
     def _build_model(self):
         ## Input: state ##       
+        '''
         state_input = Input(self.env.observation_space.shape)
         #s1 = BatchNormalization()(state_input)
         h1 = Dense(64, activation='relu')(state_input)
@@ -131,6 +163,32 @@ class DQN(erl.ExaAgent):
         adam = Adam(lr=self.learning_rate)
         model.compile(loss='mse', optimizer=adam)
         #model.compile(loss='mean_squared_logarithmic_error', optimizer=adam)
+        '''
+
+        layers= []
+        state_input = Input(shape=self.env.observation_space.shape)
+        layers.append(state_input)
+        #model = Sequential()
+        #print('Dense layers: ', self.dense)
+        #print('Length: ', len(self.dense))
+        length = len(self.dense)
+        #for i, layer_width in enumerate(self.dense):
+        for i in range(length):
+            layer_width = self.dense[i]
+            #if i == 0:
+                #layers.append(Dense(layer_width, activation=self.activation, input_shape=self.env.observation_space.shape))
+                #pass
+            #else:
+            layers.append(Dense(layer_width, activation=self.activation)(layers[-1]))
+        # output layer
+        layers.append(Dense(self.env.action_space.n, activation=self.activation)(layers[-1]))
+
+        model = Model(inputs=layers[0], outputs=layers[-1])
+        model.summary()
+        print('', flush=True)
+
+        optimizer = self.candle.build_optimizer(self.optimizer, self.learning_rate, self.candle.keras_default_config())
+        model.compile(loss=self._huber_loss, optimizer=optimizer)
         return model
 
     def remember(self, state, action, reward, next_state, done):
@@ -210,7 +268,7 @@ class DQN(erl.ExaAgent):
 
     def set_weights(self, weights):
         self.target_model.set_weights(weights)
-    
+
     def load(self, filename):
         #self.model.load_weights(filename)
         layers = self.model.layers
@@ -231,7 +289,7 @@ class DQN(erl.ExaAgent):
 
         with open(filename, 'wb') as f:
             pickle.dump(pickle_list, f, -1)
- 
+
     def update(self):
         print("Implement update method in dqn.py")
 

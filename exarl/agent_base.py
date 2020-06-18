@@ -14,39 +14,19 @@ import json
 import os
 from abc import ABC, abstractmethod
 
+import sys
+file_path = os.path.dirname(os.path.realpath(__file__))
+lib_path = os.path.abspath(os.path.join(file_path, '..', 'candlelib'))
+sys.path.append(lib_path)
+
+import keras
+import candle
+
 class ExaAgent(ABC):
 
     def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            if key == 'agent_cfg':
-                self.agent_cfg = value
-            else:
-                self.agent_cfg = 'agents/agent_vault/agent_cfg/dqn_setup.json'
-
-        with open(self.agent_cfg) as json_file:
-            agent_data = json.load(json_file)
-
-        self.agent_data = agent_data
-        self.search_method =  (agent_data['search_method']).lower() if 'search_method' in agent_data.keys() else "epsilon"  # discount rate
-        self.gamma =  float(agent_data['gamma']) if 'gamma' in agent_data.keys() else 0.95  # discount rate
-        self.epsilon = float(agent_data['epsilon']) if 'epsilon' in agent_data.keys() else 1.0  # exploration rate
-        self.epsilon_min = float(agent_data['epsilon_min']) if 'epsilon_min' in agent_data.keys() else 0.05
-        self.epsilon_decay = float(agent_data['epsilon_decay']) if 'epsilon_decay' in agent_data.keys() else 0.995
-        self.learning_rate =  float(agent_data['learning_rate']) if 'learning_rate' in agent_data.keys() else  0.001
-        self.batch_size = int(agent_data['batch_size']) if 'batch_size' in agent_data.keys() else 32
-        self.tau = float(agent_data['tau']) if 'tau' in agent_data.keys() else 0.5
-        self.results_dir = '' # Default output directory
-
-    # Default method to set output directory
-    def set_results_dir(self,results_dir):
-        if not os.path.exists(results_dir):
-            os.makedirs(results_dir)
-        # Top level directory 
-        self.results_dir=results_dir
-
-    # Default method to get output directory
-    def get_results_dir(self):
-        return self.results_dir
+        self.candle = candle  # make CANDLE functions accessible to all agents.
+        self.agent_data = {}
 
     # Default method to set arguments
     def set_config(self, agent_data):
@@ -86,4 +66,8 @@ class ExaAgent(ABC):
 
     @abstractmethod
     def monitor(self):
+        pass
+
+    @abstractmethod
+    def set_agent(self):
         pass

@@ -1,4 +1,4 @@
-10000  time
+50000  time
 0.15  dx
 0.15  dy
 0.15  dz
@@ -9,11 +9,7 @@
 100  seed
 1.0  a
 1.0  b
-2.0  c
-0.006  kappa
-0.05  noise
-10000  samp_freq
-0.5  mean_excess
-0.5  fracA
-1.0e-16  Halt
-1  RandomInit
+1.0  c
+0.01  kappa
+0.25  fracA
+0.00  noise

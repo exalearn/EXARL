@@ -1,0 +1,9 @@
+{
+    "agent": "DQN-v0",
+    "env": "ExaLearnCartpole-v1",
+    "n_episodes": 10,
+    "n_steps": 100,
+    "mpi_children_per_parent": 3,
+    "run_type": "static",
+    "output_dir": "./results_dir/"
+}

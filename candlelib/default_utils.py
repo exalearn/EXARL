@@ -113,7 +113,7 @@ def set_up_logger(logfile, logger, verbose):
 
 def eval_string_as_list(str_read, separator, dtype):
     """ Parse a string and convert it into a list of lists.
-        
+
         Parameters
         ----------
         str_read : string
@@ -122,7 +122,7 @@ def eval_string_as_list(str_read, separator, dtype):
             Character that specifies the separation between the lists
         dtype : data type
             Data type to decode the elements of the list
-            
+
         Return
         ----------
         decoded_list : list
@@ -149,7 +149,7 @@ def eval_string_as_list(str_read, separator, dtype):
 
 def eval_string_as_list_of_lists(str_read, separator_out, separator_in, dtype):
     """ Parse a string and convert it into a list of lists.
-        
+
         Parameters
         ----------
         str_read : string
@@ -160,7 +160,7 @@ def eval_string_as_list_of_lists(str_read, separator_out, separator_in, dtype):
             Character that specifies the separation between the inner level lists
         dtype : data type
             Data type to decode the elements of the lists
-            
+
         Return
         ----------
         decoded_list : list
@@ -238,7 +238,7 @@ class ListOfListsAction(argparse.Action):
         """Initialize a ListOfListsAction object. If no type is specified,
            an integer is assumed by default as the type for the elements
            of the list-of-lists.
- 
+
            Parameters
            ----------
            option_strings : string
@@ -257,13 +257,13 @@ class ListOfListsAction(argparse.Action):
         self.dtype = type
         if self.dtype is None:
             self.dtype = np.int32
-    
+
 
 
     def __call__(self, parser, namespace, values, option_string=None):
         """This function overrides the __call__ method of the base
            argparse.Action class.
-  
+
            This function implements the action of the ListOfListAction
            class by parsing an input string (command-line option or argument)
            and maping it into a list-of-lists. The resulting list-of-lists is
@@ -363,6 +363,7 @@ def finalize_parameters(bmk):
     bmk.check_required_exists(gParameters)
     print ('Finalized parameters:')
     pprint(gParameters)
+    print('', flush=True)
 
     return gParameters
 
@@ -370,7 +371,7 @@ def finalize_parameters(bmk):
 def get_default_neon_parser(parser):
     """Parse command-line arguments that are default in neon parser (and are common to all frameworks). 
         Ignore if not present.
-        
+
         Parameters
         ----------
         parser : ArgumentParser object
@@ -382,7 +383,7 @@ def get_default_neon_parser(parser):
     parser.add_argument("-l", "--log", dest='logfile',
                         default=None,
                         help="log file")
-                        
+
     # Logging utilities
     parser.add_argument("-s", "--save_path", dest='save_path',
                         default=argparse.SUPPRESS, type=str,
@@ -424,17 +425,17 @@ def get_default_neon_parser(parser):
 
 def get_common_parser(parser):
     """Parse command-line arguments. Ignore if not present.
-        
+
         Parameters
         ----------
         parser : ArgumentParser object
             Parser for command-line options
     """
-    
+
     # Configuration file
     parser.add_argument("--config_file", dest='config_file', default=argparse.SUPPRESS,
         help="specify model configuration file")
-    
+
     # General behavior
     parser.add_argument("--train_bool", dest='train_bool', type=str2bool,
                         default=True,
@@ -452,7 +453,7 @@ def get_common_parser(parser):
     parser.add_argument("--home_dir", dest='home_dir',
                         default=argparse.SUPPRESS, type=str,
                         help="set home directory")
-                        
+
     parser.add_argument("--train_data", action="store",
                         default=argparse.SUPPRESS,
                         help="training data filename")
@@ -464,7 +465,7 @@ def get_common_parser(parser):
     parser.add_argument("--output_dir", dest='output_dir',
                         default=argparse.SUPPRESS, type=str,
                         help="output directory")
-                        
+
     parser.add_argument("--data_url", dest='data_url',
                         default=argparse.SUPPRESS, type=str,
                         help="set data source url")
@@ -472,7 +473,7 @@ def get_common_parser(parser):
     parser.add_argument("--experiment_id", default="EXP000", type=str, help="set the experiment unique identifier")
 
     parser.add_argument("--run_id", default="RUN000", type=str, help="set the run unique identifier")
-    
+
 
 
     # Model definition
@@ -489,16 +490,16 @@ def get_common_parser(parser):
     parser.add_argument("--out_activation",
                         default=argparse.SUPPRESS,
                         help="keras activation function to use in out layer: softmax, linear, ...")
-                        
-                        
+
+
     parser.add_argument("--lstm_size", nargs='+', type=int,
                         default= argparse.SUPPRESS,
                         help="integer array describing size of LSTM internal state per layer")
     parser.add_argument("--recurrent_dropout", action="store",
                         default=argparse.SUPPRESS, type=float,
                         help="ratio of recurrent dropout")
-                        
-                        
+
+
     # Processing between layers
     parser.add_argument("--drop", type=float,
                         default=argparse.SUPPRESS,
@@ -509,7 +510,7 @@ def get_common_parser(parser):
     parser.add_argument("--batch_normalization", type=str2bool,
                         default=argparse.SUPPRESS,
                         help="use batch normalization")
-                        
+
     # Model Evaluation
     parser.add_argument("--loss",
                         default=argparse.SUPPRESS,
@@ -521,13 +522,13 @@ def get_common_parser(parser):
     parser.add_argument("--metrics",
                         default=argparse.SUPPRESS,
                         help="metrics to evaluate performance: accuracy, ...")
-    
+
     # Data preprocessing
     parser.add_argument("--scaling",
                         default=argparse.SUPPRESS,
                         choices=['minabs', 'minmax', 'std', 'none'],
                         help="type of feature scaling; 'minabs': to [-1,1]; 'minmax': to [0,1], 'std': standard unit normalization; 'none': no normalization")
-                        
+
     parser.add_argument("--shuffle", type=str2bool, default=False,
                         help="randomly shuffle data set (produces different training and testing partitions each run depending on the seed)")
 
@@ -540,7 +541,7 @@ def get_common_parser(parser):
     parser.add_argument("--learning_rate",
                         default= argparse.SUPPRESS, type=float,
                         help="overrides the learning rate for training")
-    
+
     parser.add_argument("--initialization",
                         default=argparse.SUPPRESS,
                         choices=['constant', 'uniform', 'normal', 'glorot_uniform', 'lecun_uniform', 'he_normal'],
@@ -563,8 +564,8 @@ def get_common_parser(parser):
     parser.add_argument("--val_samples", action="store",
                         default=argparse.SUPPRESS, type=int,
                         help="overrides the number of validation samples if set to nonzero")
-    
-    
+
+
     # Backend configuration
     parser.add_argument("--gpus", action="store", nargs='*',
                         default=[], type=int,
@@ -582,7 +583,7 @@ def get_common_parser(parser):
 def args_overwrite_config(args, config):
     """Overwrite configuration parameters with 
         parameters specified via command-line.
-        
+
         Parameters
         ----------
         args : ArgumentParser object
@@ -590,15 +591,15 @@ def args_overwrite_config(args, config):
         config : python dictionary
             Parameters read from configuration file
     """
-    
+
     params = config
-    
+
     args_dict = vars(args)
-    
+
     for key in args_dict.keys():
         params[key] = args_dict[key]
-    
-    
+
+
     if 'datatype' not in params:
         params['datatype'] = DEFAULT_DATATYPE
     else:
@@ -625,16 +626,16 @@ def get_choice(name):
     """ Maps name string to the right type of argument
     """
     mapping = {}
-    
+
     # dtype
     mapping['f16'] = np.float16
     mapping['f32'] = np.float32
     mapping['f64'] = np.float64
-    
+
     mapped = mapping.get(name)
     if not mapped:
         raise Exception('No mapping found for "{}"'.format(name))
-    
+
     return mapped
 
 
@@ -649,7 +650,7 @@ def directory_from_parameters(params, commonroot='Output'):
             String to specify the common folder to store results.
 
     """
-    
+
     if commonroot in set(['.', './']): # Same directory --> convert to absolute path
         outdir = os.path.abspath('.')
     else: # Create path specified
@@ -700,7 +701,7 @@ class Benchmark:
             parser : argparser (default None)
                 if 'neon' framework a NeonArgparser is passed. Otherwise an argparser is constructed.
         """
-        
+
         if parser is None:
             parser = argparse.ArgumentParser(prog=prog, formatter_class=argparse.ArgumentDefaultsHelpFormatter, description=desc, conflict_handler='resolve')
 
@@ -708,11 +709,11 @@ class Benchmark:
         self.file_path = filepath
         self.default_model = defmodel
         self.framework = framework
-        
+
         self.required = set([])
         self.additional_definitions = []
         self.set_locals()
-        
+
 
 
     def parse_from_common(self):
@@ -722,15 +723,15 @@ class Benchmark:
            'get_common_parser' which are defined previously(above). If the order changes
            or they are moved, the calling has to be updated.
         """
-        
-        
+
+
         # Parse has been split between arguments that are common with the default neon parser
         # and all the other options
         parser = self.parser
         if self.framework is not 'neon':
             parser = get_default_neon_parser(parser)
         parser = get_common_parser(parser)
-    
+
         self.parser = parser
 
         # Set default configuration file
@@ -741,7 +742,7 @@ class Benchmark:
         """Functionality to parse options specific
            specific for each benchmark.
         """
-        
+
         for d in self.additional_definitions:
             if 'type' not in d:
                 d['type'] = None
@@ -767,13 +768,13 @@ class Benchmark:
                     self.parser.add_argument('--' + d['name'], choices=d['choices'], default=d['default'], help=d['help'])
                 else: # Non an action, one parameter, no choices
                     self.parser.add_argument('--' + d['name'], type=d['type'], default=d['default'], help=d['help'])
-                
+
 
 
     def format_benchmark_config_arguments(self, dictfileparam):
         """ Functionality to format the particular parameters of
             the benchmark.
-           
+
             Parameters
             ----------
             dictfileparam : python dictionary
@@ -783,7 +784,7 @@ class Benchmark:
                 Most of the time command-line overwrites configuration file
                 except when the command-line is using default values and
                 config file defines those values
-           
+
         """
 
         configOut = dictfileparam.copy()
@@ -794,7 +795,7 @@ class Benchmark:
                     dtype = d['type']
                 else:
                     dtype = None
-                
+
                 if 'action' in d:
                     if inspect.isclass(d['action']):
                         str_read = dictfileparam[d['name']]
@@ -816,7 +817,7 @@ class Benchmark:
         config.read(file)
         section=config.sections()
         fileParams={}
-        
+
         # parse specified arguments (minimal validation: if arguments
         # are written several times in the file, just the first time
         # will be used)
@@ -824,7 +825,7 @@ class Benchmark:
             for k,v in config.items(sec):
                 if not k in fileParams:
                     fileParams[k] = eval(v)
-    
+
         fileParams = self.format_benchmark_config_arguments(fileParams)
         pprint(fileParams)
 
