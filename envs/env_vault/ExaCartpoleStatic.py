@@ -20,8 +20,8 @@ def computePI(N,new_comm):
 class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, env_comm, cfg='envs/env_vault/env_cfg/env_setup.json'):
-        super().__init__(env_cfg=cfg)
+    def __init__(self, env_comm):
+        super().__init__()
         self.env_comm = env_comm
         self._max_episode_steps = 0
         self.env = gym.make('CartPole-v0')
@@ -30,8 +30,6 @@ class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
         #self.env = gym.make('FrozenLake-v0')
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
-        self.run_type = 'static'
-        self.default_cfg = 'envs/env_vault/env_cfg/env_setup.json'
 
     def step(self, action):
         next_state, reward, done, info = self.env.step(action)
@@ -42,6 +40,7 @@ class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
             N = 100
         else:
             N = None
+
         N = self.env_comm.bcast(N, root=0)	
         myPI = computePI(N, self.env_comm) # Calls python function
         #myPI = cp.compute_pi(N, self.env_comm) # Calls C++ function
@@ -59,3 +58,6 @@ class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
 
     def render(self, mode='human', close=False):
         return self.env.render()
+
+    def set_env(self):
+        print('Use this function to set hyper-parameters, if any')
