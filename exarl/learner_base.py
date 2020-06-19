@@ -130,7 +130,8 @@ class ExaLearner():
     def set_config(self, params):
         self.set_training(int(params['n_episodes']), int(params['n_steps']))
         # set the agent up
-        self.agent.set_config(params)
+        if self.agent != None::
+            self.agent.set_config(params)
         self.env.set_config(params)
         self.results_dir = params['output_dir']
         if not os.path.exists(self.results_dir):
