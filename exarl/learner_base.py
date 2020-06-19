@@ -73,15 +73,17 @@ class ExaLearner():
                 color = 1
             ### leaders(2) and workers(1) intracomm
             self.intracomm = self.world_comm.Split(color, world_rank)
-            env = gym.make(self.env_id, env_comm=self.intracomm)
+            self.env_comm = self.intracomm
+            self.agent_comm = self.env_comm
+            env = gym.make(self.env_id, env_comm=self.env_comm)
+            agent = agents.make(self.agent_id, env=env, agent_comm=self.agent_comm)
+            # intercommunicator
             # group 1 (worker) communicates with group 2 (leader)
             if color == 1:
                 self.intercomm = MPI.Intracomm.Create_intercomm(self.intracomm, 0, self.world_comm, 0)
             # group 2 (leader) communicates with group 1 (worker)
-            agent = None
             if color == 2:
                 self.intercomm = MPI.Intracomm.Create_intercomm(self.intracomm, 0, self.world_comm, self.worker_begin)
-                agent = agents.make(self.agent_id, env=env, agent_comm=self.intracomm)
         elif self.run_type == 'static-multi-groups':
             ### Assumes 0 is *always* the leader of agents
             ncolors = self.mpi_children_per_parent+1
@@ -90,33 +92,27 @@ class ExaLearner():
                 self.leader = True
             # one-to-many group communication
             self.intracomm = self.world_comm.Split(color, world_rank)
-            env = gym.make(self.env_id, env_comm=self.intracomm)
+            self.env_comm = self.intracomm
+            self.agent_comm = self.env_comm
+            env = gym.make(self.env_id, env_comm=self.env_comm)
+            agent = agents.make(self.agent_id, env=env, agent_comm=self.agent_comm)
+            # intercommunicators
             self.intercomm = [MPI.COMM_NULL]*(ncolors-1)
-            agent = None
             if color == 0:
-                agent = agents.make(self.agent_id, env=env, agent_comm=self.intracomm)
                 for i in range(ncolors-1):
                     self.intercomm[i] = MPI.Intracomm.Create_intercomm(self.intracomm, 0, self.world_comm, i+1)
             else:
                 self.intercomm[0] = MPI.Intracomm.Create_intercomm(self.intracomm, 0, self.world_comm, 0)
         else:
             # Environment communicator
-            env_color = int(world_rank/(self.mpi_children_per_parent))#+1))
-            self.env_comm = self.world_comm.Split(env_color, world_rank)
+            color = int(world_rank/(self.mpi_children_per_parent))#+1))
+            self.env_comm = self.world_comm.Split(color, world_rank)
+            self.agent_comm = self.env_comm
 
             # Create environment object
             env = gym.make(self.env_id, env_comm=self.env_comm)
-
-            # Agent communicator
-            agent_color = MPI.UNDEFINED
-            if world_rank%(self.mpi_children_per_parent+1) == 0:
-                agent_color = 0 # Can be anything, just assigning a common value for color
-            self.agent_comm = self.world_comm.Split(agent_color, world_rank)
-            # Create agent object
-            agent = None
-            if world_rank%(self.mpi_children_per_parent+1) == 0:
-                agent = agents.make(self.agent_id, env=env, agent_comm=self.agent_comm)
-
+            agent = agents.make(self.agent_id, env=env, agent_comm=self.agent_comm)
+         
         return agent, env
 
 
@@ -221,7 +217,7 @@ class ExaLearner():
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
         size = comm.Get_size()
-        
+                        
         if self.leader is False: # only workers will update
             filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' % ( str(self.nepisodes), str(self.nsteps), str(comm.rank))
             train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
@@ -236,17 +232,13 @@ class ExaLearner():
             if self.leader is False:
                 done = False
             all_done = False
-            root = 0
-            if rank == 0:
-                root = MPI.ROOT # remote leader
-            if rank != 0 and self.leader is True:
-                root = MPI.PROC_NULL
- 
+            root = MPI.ROOT
+
             while all_done!=True:
 
                 worker_state = None
                 new_data = [] 
-
+                
                 ### workers
                 if self.leader is False:
                     done = intracomm.allreduce(done, op=MPI.LAND)
@@ -255,7 +247,13 @@ class ExaLearner():
                         next_state, reward, done, _ = self.env.step(action)
                         total_reward += reward
                         worker_state = (action, reward, next_state, done, total_reward)
-
+               
+                root = 0
+                if rank == 0:
+                    root = MPI.ROOT # remote leader
+                if rank != 0 and self.leader == True:
+                    root = MPI.PROC_NULL
+ 
                 ### communicate from workers to remote leader of workers                   
                 worker_state = intercomm.gather(worker_state, root=root)
                 
@@ -319,7 +317,7 @@ class ExaLearner():
             if rank == 0:
                 logger.info('Average execution time (in secs.) for %s episodes: %s ' % (str(rank), str(e), str(ptim / size)))
 
-            if self.leader is False:
+            if self.leader == False:
                 train_file.close()
  
     ### Uses multiple intercomms for communicating agent comm with environment comms
@@ -332,7 +330,6 @@ class ExaLearner():
         ## TODO do not compute again
         ncolors = int(self.mpi_children_per_parent)+1
         color = int(rank % ncolors)
-        
         if self.leader is False: # only workers will update
             filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' % ( str(self.nepisodes), str(self.nsteps), str(comm.rank))
             train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
