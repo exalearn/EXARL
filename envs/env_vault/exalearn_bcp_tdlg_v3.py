@@ -19,7 +19,7 @@ logger = logging.getLogger('BlockCoPolymerTDLG-Logger')
 #logger.setLevel(logging.INFO)
 logger.setLevel(logging.ERROR)
 
-class BlockCoPolymerTDLG(gym.Env):
+class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
     metadata = {'render.modes': ['human']}
 
     def __init__(self,cfg_file='cfg/tdlg_setup.json'):
@@ -93,6 +93,59 @@ class BlockCoPolymerTDLG(gym.Env):
         
         self.ep=0
         self.st=0
+
+    def set_env(self):
+
+        env_data = super().get_config()
+
+        print('In TDLG env_data is: ')
+        pprint(env_data)
+
+        self.app_dir                = env_data['app_dir']
+        self.app_name               = env_data['app_name']
+        self.param_dir              = env_data['param_dir']
+        self.param_name             = env_data['param_name']
+        self.fracA_step_size        = env_data['fracA_step_size']
+        self.kappa_step_size        = env_data['kappa_step_size']
+        self.target_structure_name  = env_data['target_structure_name']
+        self.target_precision       = env_data['target_precision']
+        self.plot_path              = env_data['plot_path']
+        self.field_path             = env_data['field_path']
+        self.app_core               = env_data['app_core']
+        self.kappa_step_size        = env_data['kappa_step_size']
+        self.earlyTargetBonus       = env_data['earlyTargetBonus']
+        self.outOfBoundPenalty      = env_data['outOfBoundPenalty']
+        self.smape_shift            = env_data['smape_shift']
+        self.f_rewardScaling        = env_data['f_rewardScaling']
+        self.f_fixInit              = env_data['f_fixInit']
+        self.fixInitValue           = env_data['fixInitValue']
+        self.ep                     = env_data['ep']
+        self.st                     = env_data['st']
+
+        # Use the learner_defined results directory. 
+        self.plot_path              = env_data['output_dir']
+        self.field_path             = env_data['output_dir']
+
+        sys.path.append(self.app_dir)
+        # inly TDLG is valid, app_name is never used
+        import TDLG as TDLG
+        self.app = TDLG
+
+        ## Model parameters
+        self.param_file = os.path.join(self.param_dir,self.param_name)
+        self.model_parameter_init  = self._updateParamDict(self.param_file)
+        ## Fix the starting point
+        self.model_parameter = self.model_parameter_init
+
+        ## Setup target structure
+        self.target_structure = self.setTargetStructure(self.target_structure_name)
+        self.structure_len = len(self.target_structure)
+
+        ## Define state and action spaces
+        self.observation_space = spaces.Box(low=np.append(np.zeros(self.structure_len),[0.004]), high=np.append(np.ones(self.structure_len),[0.012]),dtype=np.float32)
+        self.action_space = spaces.Discrete(3)
+
+        self.reset()
         
     def reset(self):
         ## Clear parameter dict
