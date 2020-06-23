@@ -229,13 +229,13 @@ class ExaLearner():
             current_state = self.env.reset()
             total_reward=0
             done = True # for leaders
-            if self.leader is False:
+            if is_leader is False:
                 done = False
             all_done = False
             root = 0
             if rank == 0:
                 root = MPI.ROOT # remote leader
-            if rank != 0 and self.leader == True:
+            if rank != 0 and is_leader == True:
                 root = MPI.PROC_NULL
             
             while all_done!=True:
@@ -302,7 +302,7 @@ class ExaLearner():
 
                 ## Exit criteria
                 all_done = comm.allreduce(done, op=MPI.LAND)
-           
+          
             end_time_episode = time.time()
             mtim = end_time_episode - start_time_episode 
             ptim = comm.reduce(mtim, op=MPI.SUM, root=0)
