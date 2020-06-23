@@ -450,6 +450,9 @@ class ExaLearner():
                     self.intercomm[i].Free()
             else:
                 self.intercomm[0].Free()
+        elif type == 'static-omp':
+            #os.environ['OMP_NUM_THREADS']='{:d}'.format(self.omp_num_threads)
+            self.run_exarl(MPI.COMM_WORLD)
         elif run_type == 'dynamic':
             self.run_exarl(self.world_comm)
         else:
