@@ -460,7 +460,8 @@ class ExaLearner():
             if self.env_comm != MPI.COMM_NULL:
                 self.env_comm.Free()
         elif run_type == 'static-omp':
-            # TODO add self.omp_num_threads
+            # TODO add self.omp_num_threads as a param, override
+            # with OMP_NUM_THREADS
             #os.environ['OMP_NUM_THREADS']='{:d}'.format(self.omp_num_threads)
             self.run_exarl(self.agent_comm)
         elif run_type == 'dynamic':
