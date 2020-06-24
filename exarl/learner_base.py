@@ -104,6 +104,13 @@ class ExaLearner():
                     self.intercomm[i] = MPI.Intracomm.Create_intercomm(self.intracomm, 0, self.world_comm, i+1)
             else:
                 self.intercomm[0] = MPI.Intracomm.Create_intercomm(self.intracomm, 0, self.world_comm, 0)
+        elif self.run_type == 'static-omp':
+            self.env_comm = MPI.COMM_SELF
+            self.agent_comm = MPI.COMM_WORLD
+
+            # Create environment object
+            env = gym.make(self.env_id, env_comm=self.env_comm)
+            agent = agents.make(self.agent_id, env=env, agent_comm=self.agent_comm)
         else:
             # Environment communicator
             color = int(world_rank/(self.mpi_children_per_parent))#+1))
@@ -450,15 +457,19 @@ class ExaLearner():
                     self.intercomm[i].Free()
             else:
                 self.intercomm[0].Free()
-        elif type == 'static-omp':
+            if self.env_comm != MPI.COMM_NULL:
+                self.env_comm.Free()
+        elif run_type == 'static-omp':
+            # TODO add self.omp_num_threads
             #os.environ['OMP_NUM_THREADS']='{:d}'.format(self.omp_num_threads)
-            self.run_exarl(MPI.COMM_WORLD)
+            self.run_exarl(self.agent_comm)
         elif run_type == 'dynamic':
             self.run_exarl(self.world_comm)
+            if self.env_comm != MPI.COMM_NULL:
+                self.env_comm.Free()
         else:
             if self.agent_comm != MPI.COMM_NULL:
                 self.run_exarl(self.agent_comm)
                 self.agent_comm.Free()
-
-        if self.env_comm != MPI.COMM_NULL:
-            self.env_comm.Free()
+            if self.env_comm != MPI.COMM_NULL:
+                self.env_comm.Free()
