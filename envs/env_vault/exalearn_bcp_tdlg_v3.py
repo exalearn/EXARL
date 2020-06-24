@@ -19,10 +19,10 @@ logger = logging.getLogger('BlockCoPolymerTDLG-Logger')
 #logger.setLevel(logging.INFO)
 logger.setLevel(logging.ERROR)
 
-class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
+class BlockCoPolymerTDLGv3(gym.Env,erl.ExaEnv):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self,cfg_file='cfg/tdlg_setup.json'):
+    def __init__(self,env_comm,cfg_file='envs/env_vault/env_cfg/ExaLearnBlockCoPolymerTDLG-v3.json'):
         super().__init__()
         """ 
         Description:
@@ -56,7 +56,7 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
         self.app_core     = self.cfg_data['app_core'] if 'app_core' in self.cfg_data.keys() else 'cpu'
 
         ## Model parameters
-        self.param_dir  = self.cfg_data['param_dir']  if 'param_dir' in self.cfg_data.keys()  else 'cfg/'
+        self.param_dir  = self.cfg_data['param_dir']  if 'param_dir' in self.cfg_data.keys()  else 'env_cfg/'
         self.param_name = self.cfg_data['param_name'] if 'param_name' in self.cfg_data.keys() else 'tdlg_param.in'
         self.param_file = os.path.join(self.param_dir,self.param_name)
         self.model_parameter_init  = self._updateParamDict(self.param_file)
@@ -88,18 +88,23 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
         self.f_fixInit = True
         self.fixInitValue = 0.01
         
+        self._max_episode_steps=10
+        #self._max_episode_steps=self.spec.max_episode_steps
+        #print('max steps: '.format( self._max_episode_steps))
+        
         ## Initialize current structure
         self.reset()
-        
+
+
         self.ep=0
         self.st=0
 
     def set_env(self):
-
+        '''
         env_data = super().get_config()
-
+       
         print('In TDLG env_data is: ')
-        pprint(env_data)
+        print(env_data)
 
         self.app_dir                = env_data['app_dir']
         self.app_name               = env_data['app_name']
@@ -113,14 +118,6 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
         self.field_path             = env_data['field_path']
         self.app_core               = env_data['app_core']
         self.kappa_step_size        = env_data['kappa_step_size']
-        self.earlyTargetBonus       = env_data['earlyTargetBonus']
-        self.outOfBoundPenalty      = env_data['outOfBoundPenalty']
-        self.smape_shift            = env_data['smape_shift']
-        self.f_rewardScaling        = env_data['f_rewardScaling']
-        self.f_fixInit              = env_data['f_fixInit']
-        self.fixInitValue           = env_data['fixInitValue']
-        self.ep                     = env_data['ep']
-        self.st                     = env_data['st']
 
         # Use the learner_defined results directory. 
         self.plot_path              = env_data['output_dir']
@@ -146,6 +143,7 @@ class BlockCoPolymerTDLG(gym.Env,erl.ExaEnv):
         self.action_space = spaces.Discrete(3)
 
         self.reset()
+        '''
         
     def reset(self):
         ## Clear parameter dict

@@ -19,7 +19,7 @@ elif env == 'ExaLearnBlockCoPolymerTDLG-v0':
 elif env == 'ExaLearnBlockCoPolymerTDLG-v3':
     register(
         id=env,
-        entry_point='envs.env_vault:BlockCoPolymerTDLG-v3',
+        entry_point='envs.env_vault:BlockCoPolymerTDLGv3',
     )
     
 elif env == 'ExaLearnCartpole-v0':
