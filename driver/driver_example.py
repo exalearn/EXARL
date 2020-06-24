@@ -1,3 +1,4 @@
+import mpi4py.rc; mpi4py.rc.threads = False
 import exarl as erl
 import driver.candleDriver as cd
 import time
