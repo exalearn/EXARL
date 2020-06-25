@@ -2,6 +2,7 @@ import mpi4py.rc; mpi4py.rc.threads = False
 from mpi4py import MPI
 import random,sys,os
 import numpy as np
+from datetime import datetime
 from collections import deque
 from keras.models import Sequential,Model
 from keras.layers import Dense,Dropout,Input,GaussianNoise,BatchNormalization,LSTM
@@ -144,8 +145,14 @@ class DQN_LSTM(erl.ExaAgent):
         self.memory.append((state, action, reward, next_state, done))
 
     def action(self, state):
-        if np.random.rand() <= self.epsilon:
+        random.seed(datetime.now())
+        random_data = os.urandom(4)
+        np.random.seed(int.from_bytes(random_data, byteorder="big"))
+        rdm = np.random.rand()
+        #print(rdm)
+        if rdm <= self.epsilon:
             action = random.randrange(self.env.action_space.n)
+            #print(action)
             ## Update randomness
             if len(self.memory)>(self.batch_size):
                 self.epsilon_adj()
