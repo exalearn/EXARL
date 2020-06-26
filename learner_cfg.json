@@ -1,8 +1,8 @@
 {
-    "agent": "DQN-v0",
+    "agent": "DQN-LSTM-v0",
     "env": "ExaLearnBlockCoPolymerTDLG-v3",
-    "n_episodes": 10,
-    "n_steps": 100,
+    "n_episodes": 2500,
+    "n_steps": 10,
     "mpi_children_per_parent": 1,
     "run_type": "static",
     "output_dir": "./results_dir/"
