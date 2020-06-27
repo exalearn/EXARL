@@ -97,10 +97,11 @@ class DQN_LSTM(erl.ExaAgent):
         self.optimizer = 'adam'
         self.loss = 'mse'
 
-        ## TODO: Assuming rank==0 is the only learner
-        self.memory = deque(maxlen = 0)
-        if self.rank==0:
-            deque(maxlen = 2000) ## TODO: make configurable
+        ## WRONG ASSUMPTION ##
+        ## TODO: Assuming rank==0 is the only learner 
+        #self.memory = deque(maxlen = 0)
+        #if self.rank==0:
+        self.memory = deque(maxlen = 20000) ## TODO: make configurable
 
     def set_agent(self):
         # Get hyper-parameters
@@ -143,19 +144,24 @@ class DQN_LSTM(erl.ExaAgent):
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
+        #print('memory length:',len(self.memory))
+        #print(self.memory)
+        if len(self.memory)>(self.batch_size):
+            self.train()
+            self.epsilon_adj()
 
     def action(self, state):
         random.seed(datetime.now())
         random_data = os.urandom(4)
         np.random.seed(int.from_bytes(random_data, byteorder="big"))
         rdm = np.random.rand()
-        #print(rdm)
+        #print('epsilon:',self.epsilon)
         if rdm <= self.epsilon:
             action = random.randrange(self.env.action_space.n)
             #print(action)
             ## Update randomness
-            if len(self.memory)>(self.batch_size):
-                self.epsilon_adj()
+            #if len(self.memory)>(self.batch_size):
+            #    self.epsilon_adj()
             return action #, 0
         else:
             np_state = np.array(state).reshape(1,1,len(state))
