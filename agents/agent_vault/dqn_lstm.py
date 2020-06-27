@@ -4,6 +4,7 @@ import random,sys,os
 import numpy as np
 from datetime import datetime
 from collections import deque
+from tensorflow.python.client import device_lib
 from keras.models import Sequential,Model
 from keras.layers import Dense,Dropout,Input,GaussianNoise,BatchNormalization,LSTM
 from keras.optimizers import Adam
