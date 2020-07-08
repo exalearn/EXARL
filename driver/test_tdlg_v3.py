@@ -63,7 +63,7 @@ if __name__ == "__main__":
         if done:
             break
     end = time.time()
-    ave_step_time=((end - estart)/60.0)/nsteps
+    ave_step_time=((end - estart))/nsteps
     print('Average time per step: {}'.format(ave_step_time))
 
     total_reward = round(total_reward,6)
