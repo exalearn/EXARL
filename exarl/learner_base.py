@@ -200,14 +200,14 @@ class ExaLearner():
                     self.agent.set_weights(current_weights)
                     self.agent.epsilon = rank0_epsilon
 
-                ## Update state
-                current_state = next_state
-                logger.info('Rank[%s] - Total Reward:%s' % (str(comm.rank),str(total_reward)))
-
                 ## Save memory for offline analysis
                 train_writer.writerow([current_state,action,reward,next_state,total_reward,done])
                 train_file.flush()
 
+                ## Update state
+                current_state = next_state
+                logger.info('Rank[%s] - Total Reward:%s' % (str(comm.rank),str(total_reward)))
+                
                 ## Save Learning target model
                 if comm.rank == 0:
                     self.agent.save(self.results_dir+'/'+filename_prefix+'.h5')
