@@ -165,7 +165,7 @@ class ExaLearner():
             while all_done != True:
                 ## All workers ##
                 if done != True:
-                    action = self.agent.action(current_state)
+                    action, policy_type = self.agent.action(current_state)
                     next_state, reward, done, _ = self.env.step(action)
                     total_reward += reward
                     memory = (current_state, action, reward, next_state, done, total_reward)
@@ -201,7 +201,7 @@ class ExaLearner():
                     self.agent.epsilon = rank0_epsilon
 
                 ## Save memory for offline analysis
-                train_writer.writerow([current_state,action,reward,next_state,total_reward,done])
+                train_writer.writerow([current_state,action,reward,next_state,total_reward, done, e, steps, policy_type, rank0_epsilon])
                 train_file.flush()
 
                 ## Update state
