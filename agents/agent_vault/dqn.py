@@ -196,6 +196,7 @@ class DQN(erl.ExaAgent):
 
     def action(self, state):
         action = -1
+        policy_type = 0
         ## TODO: Update greed-epsilon to something like UBC
         if np.random.rand() <= self.epsilon and self.search_method=="epsilon":
             logger.info('Random action')
@@ -209,6 +210,7 @@ class DQN(erl.ExaAgent):
             np_state = np.array(state).reshape(1,len(state))
             act_values = self.target_model.predict(np_state)
             action = np.argmax(act_values[0])
+            policy_type = 1
             mask = [i for i in range(len(act_values[0])) if act_values[0][i] == act_values[0][action]]
             ncands=len(mask)
             # print( 'Number of cands: %s' % str(ncands))
@@ -220,7 +222,7 @@ class DQN(erl.ExaAgent):
         self.total_actions_taken += 1
         self.individual_action_taken[action]+=1
 
-        return action
+        return action, policy_type
 
     def play(self,state):
         act_values = self.target_model.predict(state)

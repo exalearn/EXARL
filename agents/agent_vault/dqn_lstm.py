@@ -61,26 +61,37 @@ class DQN_LSTM(erl.ExaAgent):
             sess = tf.compat.v1.Session(config=config)
             tf.compat.v1.keras.backend.set_session(sess)
             '''
-            tf.debugging.set_log_device_placement(True)
-            gpus = tf.config.experimental.list_physical_devices('GPU')
-            if gpus:
-                # Currently, memory growth needs to be the same across GPUs
-                try:
-                    for gpu in gpus:
-                        tf.config.experimental.set_memory_growth(gpu, True)
-                    '''
-                    # Restrict TensorFlow to only allocate MEM_LIMIT amount of memory
-                    MEM_LIMIT = 16000 / self.size
-                    for devIdx in np.arange(len(gpus)):
-                        tf.config.experimental.set_virtual_device_configuration(
-                            gpus[devIdx],
-                            [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=MEM_LIMIT)])
-                    '''
-                    logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-                    print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-                except RuntimeError as e:
-                    # Memory growth / Virtual devices must be set before GPUs have been initialized
-                    print(e)
+            #tf.debugging.set_log_device_placement(True)
+            #cpus = tf.config.experimental.list_physical_devices('CPU')
+            #print('### CPUS:\n {}'.format(cpus))
+            #tf.config.experimental.set_visible_devices([], 'GPU')
+            os.environ["CUDA_VISIBLE_DEVICES"]=""
+            my_devices = tf.config.experimental.list_physical_devices(device_type='CPU')
+            tf.config.experimental.set_visible_devices(devices= my_devices, device_type='CPU')
+            #config = tf.ConfigProto(
+            #    device_count = {'GPU': 0}
+            #)
+            #sess = tf.Session(config=config)
+            #set_session(sess)
+            #gpus = tf.config.experimental.list_physical_devices('GPU')
+            #if gpus:
+            #    # Currently, memory growth needs to be the same across GPUs
+            #    try:
+            #        for gpu in gpus:
+            #            tf.config.experimental.set_memory_growth(gpu, True)
+            #        '''
+            #        # Restrict TensorFlow to only allocate MEM_LIMIT amount of memory
+            #        MEM_LIMIT = 16000 / self.size
+            #        for devIdx in np.arange(len(gpus)):
+            #            tf.config.experimental.set_virtual_device_configuration(
+            #                gpus[devIdx],
+            #                [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=MEM_LIMIT)])
+            #        '''
+            #        logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+            #        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+            #    except RuntimeError as e:
+            #        # Memory growth / Virtual devices must be set before GPUs have been initialized
+            #        print(e)
 
         ## Declare hyper-parameters, initialized for determining datatype
         super().__init__()
@@ -163,12 +174,12 @@ class DQN_LSTM(erl.ExaAgent):
             ## Update randomness
             #if len(self.memory)>(self.batch_size):
             #    self.epsilon_adj()
-            return action #, 0
+            return action , 0
         else:
             np_state = np.array(state).reshape(1,1,len(state))
             act_values = self.target_model.predict(np_state)
             action = np.argmax(act_values[0])
-            return action #, 1
+            return action , 1
 
     def play(self,state):
         act_values = self.target_model.predict(state)
