@@ -309,7 +309,7 @@ where ExaRL/agents/agent_vault/foo_agent.py is the file containing your agent
 ## Cite this software
 ```
 @misc{EXARL,
-  author = {Vinay Ramakrishnaiah, Malachi Schram, Jamal Mohd-Yusof, Yunzhi Huang, Sayan Ghosh, Ai Kagawa, Christine Sweeney, Shinjae Yoo},
+  author = {Vinay Ramakrishnaiah, Malachi Schram, Jamal Mohd-Yusof, Sayan Ghosh, Yunzhi Huang, Ai Kagawa, Christine Sweeney, Shinjae Yoo},
   title = {Easily eXtendable Architecture for Reinforcement Learning (EXARL)},
   year = {2020},
   publisher = {GitHub},
