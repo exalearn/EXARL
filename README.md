@@ -306,6 +306,16 @@ where ExaRL/agents/agent_vault/foo_agent.py is the file containing your agent
 * Base classes are provided for agents, environments, and learner in the directory ```ExaRL/exarl/```
 * Users can inherit from the correspoding agent and environment base classes
 
+## Cite this software
+@misc{EXARL,
+  author = {Vinay Ramakrishnaiah, Malachi Schram, Jamal Mohd-Yusof, Yunzhi Huang, Sayan Ghosh, Ai Kagawa, Christine Sweeney, Shinjae Yoo},
+  title = {Easily eXtendable Architecture for Reinforcement Learning (EXARL)},
+  year = {2020},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/exalearn/ExaRL}},
+}
+
 ## Contacts
 If you have any questions or concerns regarding EXARL, please contact Vinay Ramakrishnaiah (vinayr@lanl.gov) and/or Malachi Schram (Malachi.Schram@pnnl.gov).
 
