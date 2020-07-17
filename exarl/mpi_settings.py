@@ -1,3 +1,4 @@
+import mpi4py.rc; mpi4py.rc.threads = False
 from mpi4py import MPI
 
 def init(env_procs):
@@ -14,5 +15,5 @@ def init(env_procs):
     global env_color
     env_color = int(world_rank/(env_procs))
     global env_comm
-    env_comm = MPI.COMM_WORLD.Split(env_color ,key=0)# world_rank)
+    env_comm = MPI.COMM_WORLD.Split(env_color ,key=0)
     world_comm.barrier()
