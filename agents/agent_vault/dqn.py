@@ -22,6 +22,7 @@ from keras.models import Sequential,Model
 from keras.layers import Dense,Dropout,Input,BatchNormalization
 from keras.optimizers import Adam
 from keras import backend as K
+import exartl.mpi_settings as mpi_settings
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
@@ -33,7 +34,7 @@ class DQN(erl.ExaAgent):
     def __init__(self, env, agent_comm):
 
         self.env = env
-        self.agent_comm = agent_comm
+        self.agent_comm = mpi_settings.agent_comm
 
         ## Implement the UCB approach
         self.sigma = 2 # confidence level
