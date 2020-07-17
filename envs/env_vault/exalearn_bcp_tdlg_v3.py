@@ -22,7 +22,7 @@ logger.setLevel(logging.ERROR)
 class BlockCoPolymerTDLGv3(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self,env_comm,cfg_file='envs/env_vault/env_cfg/ExaLearnBlockCoPolymerTDLG-v3.json'):
+    def __init__(self,cfg_file='envs/env_vault/env_cfg/ExaLearnBlockCoPolymerTDLG-v3.json'):
         super().__init__()
         """ 
         Description:
