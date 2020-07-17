@@ -2,7 +2,7 @@ import gym, subprocess, os, logging, json, math, sys, lmfit,random
 import numpy as np
 import pandas as pd 
 #import plotly.graph_objects as go
-from mpi4py import MPI
+#from mpi4py import MPI
 from gym import spaces
 from shutil import copyfile,rmtree
 from collections import defaultdict
@@ -19,7 +19,7 @@ logger = logging.getLogger('BlockCoPolymerTDLG-Logger')
 #logger.setLevel(logging.INFO)
 logger.setLevel(logging.ERROR)
 
-class BlockCoPolymerTDLGv3(gym.Env,erl.ExaEnv):
+class BlockCoPolymerTDLGv3(gym.Env):
     metadata = {'render.modes': ['human']}
 
     def __init__(self,env_comm,cfg_file='envs/env_vault/env_cfg/ExaLearnBlockCoPolymerTDLG-v3.json'):
