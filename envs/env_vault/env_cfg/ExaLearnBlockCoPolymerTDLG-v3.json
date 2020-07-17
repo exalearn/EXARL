@@ -1,5 +1,5 @@
 {
-    "app_dir"   : "/qfs/projects/ecp_exalearn/controls/tdlg_libs",
+    "app_dir"   : "envs/env_vault/LibTDLG/",
     "app_threads": 4,
     "app_core":"cpu",
     "app_name"  : "tdlg_run",    
