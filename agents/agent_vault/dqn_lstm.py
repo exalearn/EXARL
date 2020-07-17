@@ -12,6 +12,7 @@ from keras import backend as K
 import csv,json,math
 import exarl as erl
 import pickle
+import exarl.mpi_settings as mpi_settings
 
 import tensorflow as tf
 tf_version = int((tf.__version__)[0])
@@ -25,10 +26,10 @@ logger.setLevel(logging.ERROR)
 
 #The Deep Q-Network (DQN)
 class DQN_LSTM(erl.ExaAgent):
-    def __init__(self, env, agent_comm):
+    def __init__(self, env):
 
         self.env = env
-        self.agent_comm = agent_comm
+        self.agent_comm = mpi_settings.agent_comm
 
         # MPI
         self.rank = self.agent_comm.rank
