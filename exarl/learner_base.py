@@ -109,8 +109,8 @@ class ExaLearner():
             self.agent_comm = MPI.COMM_WORLD
 
             # Create environment object
-            env = gym.make(self.env_id, env_comm=self.env_comm)
-            agent = agents.make(self.agent_id, env=env, agent_comm=self.agent_comm)
+            env = gym.make(self.env_id)
+            agent = agents.make(self.agent_id, env=env)
         else:
             # Environment communicator
             color = int(world_rank/(self.mpi_children_per_parent))#+1))
