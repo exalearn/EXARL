@@ -7,6 +7,10 @@ def init(env_procs):
     world_rank = world_comm.rank
     world_size = world_comm.size
 
+    # TODO: we need to make this properly done in the future
+    global agent_comm
+    agent_comm = MPI.COMM_WORLD
+
     global env_ranks
     env_ranks = []
     for i in range(world_size):
@@ -17,8 +21,4 @@ def init(env_procs):
     global env_comm
     env_comm = MPI.COMM_WORLD.Split(env_color ,key=0)
 
-
-    # TODO: we need to make this properly done in the future 
-    global agent_comm
-    agent_comm = MPI.COMM_WORLD
     world_comm.barrier()
