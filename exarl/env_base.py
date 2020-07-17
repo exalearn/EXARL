@@ -14,15 +14,16 @@ import json, os, sys, gym, time
 #from abc import ABC, abstractmethod
 from gym import Wrapper
 from mpi4py import MPI
+import exarl.mpi_settings as mpi_settings
 
 class ExaEnv(gym.Wrapper):
-    def __init__(self, env, env_comm, **kwargs):  
+    def __init__(self, env, **kwargs):  
         super(ExaEnv, self).__init__(env)     
         # Use relative path not absolute
         self.base_dir = os.path.dirname(__file__)
         print(self.base_dir)
         #self.env = env
-        self.env_comm = env_comm
+        self.env_comm = mpi_settings.env_comm
         
         self.env_cfg = os.path.join(self.base_dir, '../envs/env_vault/env_cfg/env_setup.json')
         for key, value in kwargs.items():
