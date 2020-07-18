@@ -16,7 +16,7 @@ from gym import Wrapper
 from mpi4py import MPI
 import exarl.mpi_settings as mpi_settings
 
-class ExaEnv(gym.Wrapper):
+class ExaEnv(Wrapper):
     def __init__(self, env, **kwargs):  
         super(ExaEnv, self).__init__(env)     
         # Use relative path not absolute
