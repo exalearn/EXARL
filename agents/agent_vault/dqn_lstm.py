@@ -28,8 +28,8 @@ logger.setLevel(logging.ERROR)
 class DQN_LSTM(erl.ExaAgent):
     def __init__(self, env):
 
-        import pdb
-        pdb.set_trace()
+        #import pdb
+        #pdb.set_trace()
         self.env = env
         self.agent_comm = mpi_settings.agent_comm
 
