@@ -22,6 +22,7 @@ import gym
 import envs
 import agents
 
+import exarl.mpi_settings as mpi_settings
 from agents.agent_vault.dqn_lstm import DQN_LSTM
 
 if __name__ == "__main__":
@@ -35,7 +36,7 @@ if __name__ == "__main__":
     comm = MPI.COMM_WORLD
     rank = comm.rank
     size = comm.size
- 
+    mpi_settings.init(1)
     ###########
     ## Train ##
     ###########
@@ -45,8 +46,8 @@ if __name__ == "__main__":
     #######################
     ## Setup environment ##
     #######################
-    env = gym.make('envs:ExaLearnBlockCoPolymerTDLG-v3', env_comm=comm)
-    agent = agents.make('DQN-LSTM-v0', env=env, agent_comm=comm)
+    env = gym.make('envs:ExaLearnBlockCoPolymerTDLG-v3')#, env_comm=comm)
+    agent = agents.make('DQN-LSTM-v0', env=env)#, agent_comm=comm)
     logger.info('Using environment: %s' % env)
     print('Observation_space: %s' % env.observation_space.shape)
     logger.info('Action_size: %s' % env.action_space)
