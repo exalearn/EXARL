@@ -1,7 +1,7 @@
 {
     "app_dir"   : "envs/env_vault/LibTDLG/",
     "app_threads": 4,
-    "app_core":"cpu",
+    "app_core":"gpu",
     "app_name"  : "tdlg_run",    
     "param_dir" : "envs/env_vault/env_cfg/",
     "param_name": "tdlg_param.in",

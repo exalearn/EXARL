@@ -45,38 +45,35 @@ class BlockCoPolymerTDLGv3(gym.Env):
            - Increase/decrease kappa (2)
            - No change (1)
         """
-        with open(cfg_file) as json_file:
-            self.cfg_data = json.load(json_file)
 
         ## Application setup
-        self.app_dir  = self.cfg_data['app_dir'] if 'app_dir' in self.cfg_data.keys() else 'utils/utils_tdlg'
+        self.app_dir  = './envs/env_vault/LibTDLG/'
         sys.path.append(self.app_dir)
         import TDLG as TDLG
         self.app = TDLG
-        self.app_threads  = self.cfg_data['app_threads'] if 'app_threads' in self.cfg_data.keys() else 24
-        self.app_core     = self.cfg_data['app_core'] if 'app_core' in self.cfg_data.keys() else 'cpu'
-
+        self.app_threads  = 0
+        self.app_core     = ''
+        
         ## Model parameters
-        self.param_dir  = self.cfg_data['param_dir']  if 'param_dir' in self.cfg_data.keys()  else 'env_cfg/'
-        self.param_name = self.cfg_data['param_name'] if 'param_name' in self.cfg_data.keys() else 'tdlg_param.in'
+        self.param_dir  = './envs/env_vault/env_cfg/'
+        self.param_name = 'tdlg_param.in'
         self.param_file = os.path.join(self.param_dir,self.param_name)
         self.model_parameter_init  = self._updateParamDict(self.param_file)
         ## Fix the starting point
         self.model_parameter = self.model_parameter_init
         
-        ## for plotting #TODO:rendering is available in offline mode for v3. 
-        self.rendering = False
+        ## Step sizes for discrete environment
+        self.kappa_step_size = 0.001
 
-        ## Step sizes for discrete environment 
-        self.kappa_step_size = float(self.cfg_data['kappa_step_size']) if 'kappa_step_size' in self.cfg_data.keys() else 0.001
-        
         ## Setup target structure
-        self.target_structure_name = self.cfg_data['target_structure_name'] if 'target_structure_name' in self.cfg_data.keys() else 'envs/env_vault/env_cfg/tdlg_cfg/target_field.out'
-        self.target_precision = float(self.cfg_data['target_precision']) if 'target_precision' in self.cfg_data.keys() else -2 ## 98[%]
-        #self.target_precision = 0.98 #98%
+        self.target_structure_name = 'envs/env_vault/env_cfg/target_field.out'
+        self.target_precision = 0.0
         self.target_structure = self.setTargetStructure(self.target_structure_name)
         self.structure_len = len(self.target_structure)
-        
+
+        self.rendering = False
+
+
         ## Define state and action spaces
         self.observation_space = spaces.Box(low=np.append(np.zeros(self.structure_len),[0.004]), high=np.append(np.ones(self.structure_len)*350,[0.012]),dtype=np.float32)
         self.action_space = spaces.Discrete(3)
@@ -94,42 +91,37 @@ class BlockCoPolymerTDLGv3(gym.Env):
         #print('max steps: '.format( self._max_episode_steps))
         
         ## Initialize current structure
-        self.reset()
+        #self.reset()
 
 
         self.ep=0
         self.st=0
 
     def set_env(self):
-        '''
+        
         env_data = super().get_config()
        
         print('In TDLG env_data is: ')
         print(env_data)
 
         self.app_dir                = env_data['app_dir']
-        self.app_name               = env_data['app_name']
+        #self.app                    = env_data['app']
         self.param_dir              = env_data['param_dir']
         self.param_name             = env_data['param_name']
-        self.fracA_step_size        = env_data['fracA_step_size']
-        self.kappa_step_size        = env_data['kappa_step_size']
         self.target_structure_name  = env_data['target_structure_name']
         self.target_precision       = env_data['target_precision']
-        self.plot_path              = env_data['plot_path']
-        self.field_path             = env_data['field_path']
-        self.app_core               = env_data['app_core']
         self.kappa_step_size        = env_data['kappa_step_size']
 
         # Use the learner_defined results directory. 
-        self.plot_path              = env_data['output_dir']
-        self.field_path             = env_data['output_dir']
+
 
         sys.path.append(self.app_dir)
-        # inly TDLG is valid, app_name is never used
+        # only TDLG is valid, app_name is never used
         import TDLG as TDLG
         self.app = TDLG
 
         ## Model parameters
+        self.param_file = os.path.join(self.param_dir,self.param_name)
         self.param_file = os.path.join(self.param_dir,self.param_name)
         self.model_parameter_init  = self._updateParamDict(self.param_file)
         ## Fix the starting point
@@ -144,7 +136,7 @@ class BlockCoPolymerTDLGv3(gym.Env):
         self.action_space = spaces.Discrete(3)
 
         self.reset()
-        '''
+        
         
     def reset(self):
         ## Clear parameter dict
