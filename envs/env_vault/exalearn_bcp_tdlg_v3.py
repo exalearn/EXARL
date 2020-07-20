@@ -13,6 +13,7 @@ from datetime import datetime
 #from utils.utils_tdlg.sv import *
 import exarl as erl
 #from utils.tdlg_plot import *
+from importlib import reload
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('BlockCoPolymerTDLG-Logger')
@@ -52,7 +53,7 @@ class BlockCoPolymerTDLGv3(gym.Env):
         import TDLG as TDLG
         self.app = TDLG
         self.app_threads  = 0
-        self.app_core     = ''
+        self.app_core     = 'cpu'
         
         ## Model parameters
         self.param_dir  = './envs/env_vault/env_cfg/'
@@ -105,6 +106,7 @@ class BlockCoPolymerTDLGv3(gym.Env):
         print(env_data)
 
         self.app_dir                = env_data['app_dir']
+        self.app_core               = 'cpu'
         #self.app                    = env_data['app']
         self.param_dir              = env_data['param_dir']
         self.param_name             = env_data['param_name']
@@ -118,6 +120,7 @@ class BlockCoPolymerTDLGv3(gym.Env):
         sys.path.append(self.app_dir)
         # only TDLG is valid, app_name is never used
         import TDLG as TDLG
+        TDLG = reload(TDLG)
         self.app = TDLG
 
         ## Model parameters
