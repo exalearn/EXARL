@@ -10,7 +10,7 @@ import csv,json,math
 import exarl as erl
 import pickle
 import exarl.mpi_settings as mpi_settings
-
+import sys
 import tensorflow as tf
 tf_version = int((tf.__version__)[0])
 import keras as keras
@@ -150,6 +150,8 @@ class DQN(erl.ExaAgent):
         elif self.model_type == 'LSTM':
             from agents.agent_vault._build_lstm import build_model
             return build_model(self)
+        else:
+            sys.exit("Oops! That was not a valid model type. Try again...")
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
