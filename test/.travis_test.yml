@@ -1,0 +1,16 @@
+
+# TODO: add the setup later.
+
+
+before_install:
+  - cd /home/travis/build/exalearn/ExaRL
+  - mkdir /home/travis/build/exalearn/ExaRL/envs/envs_vault/CahnHilliard2D
+  - cd /home/travis/build/exalearn/ExaRL/envs/env_vault/CahnHilliard2D/cpp/build; cmake ..; make
+  - cd /home/travis/build/exalearn/ExaRL/envs/env_vault/ImageStructure; make
+  - cd /home/travis/build/exalearn/ExaRL
+
+install:
+  - pip install -e .
+
+script:
+  - bash ./test/test_ch.sh

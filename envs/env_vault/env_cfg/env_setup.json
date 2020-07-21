@@ -1,4 +1,5 @@
 {
 	"mpi_children_per_parent": "3",
-	"worker_app": "./envs/env_vault/cpi.py"
+	"worker_app": "./envs/env_vault/cpi.py",
+	"run_type":"static"
 }

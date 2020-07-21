@@ -22,6 +22,7 @@ from keras.models import Sequential,Model
 from keras.layers import Dense,Dropout,Input,BatchNormalization
 from keras.optimizers import Adam
 from keras import backend as K
+import exarl.mpi_settings as mpi_settings
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
@@ -33,7 +34,7 @@ class DQN(erl.ExaAgent):
     def __init__(self, env, agent_comm):
 
         self.env = env
-        self.agent_comm = agent_comm
+        self.agent_comm = mpi_settings.agent_comm
 
         ## Implement the UCB approach
         self.sigma = 2 # confidence level
@@ -53,7 +54,7 @@ class DQN(erl.ExaAgent):
 
         ## Setup GPU cfg
         if tf_version < 2:
-            # gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
+            gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
             if self.rank==0 and len(gpu_names)>0:
                     num_cores = 1
                     num_CPU   = 1
@@ -67,13 +68,36 @@ class DQN(erl.ExaAgent):
             sess = tf.Session(config=config)
             set_session(sess)
         elif tf_version >= 2:
+            '''
             config = tf.compat.v1.ConfigProto()
             config.gpu_options.allow_growth = True
             sess = tf.compat.v1.Session(config=config)
             tf.compat.v1.keras.backend.set_session(sess)
+            '''
+            tf.debugging.set_log_device_placement(True)
+            gpus = tf.config.experimental.list_physical_devices('GPU')
+            if gpus:
+                # Currently, memory growth needs to be the same across GPUs
+                try:
+                    for gpu in gpus:
+                        tf.config.experimental.set_memory_growth(gpu, True)
+                    '''
+                    # Restrict TensorFlow to only allocate MEM_LIMIT amount of memory
+                    MEM_LIMIT = 16000 / self.size
+                    for devIdx in np.arange(len(gpus)):
+                        tf.config.experimental.set_virtual_device_configuration(
+                            gpus[devIdx],
+                            [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=MEM_LIMIT)])
+                    '''
+                    logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+                    print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+                except RuntimeError as e:
+                    # Memory growth / Virtual devices must be set before GPUs have been initialized
+                    print(e)
 
         ## Declare hyper-parameters, initialized for determining datatype
         super().__init__()
+        self.results_dir = ''
         self.search_method = ''
         self.gamma = 0.0
         self.epsilon = 0.0
@@ -93,22 +117,21 @@ class DQN(erl.ExaAgent):
             deque(maxlen = 2000) ## TODO: make configurable
 
     def set_agent(self):
-        # Get results directory
-        self.results_dir = super().get_results_dir()
         # Get hyper-parameters
-
         agent_data = super().get_config()
-        self.search_method =  (agent_data['search_method'])
-        self.gamma =  (agent_data['gamma'])
-        self.epsilon = (agent_data['epsilon'])
-        self.epsilon_min = (agent_data['epsilon_min'])
-        self.epsilon_decay = (agent_data['epsilon_decay'])
-        self.learning_rate =  (agent_data['learning_rate'])
-        self.batch_size = int(agent_data['batch_size'])
-        self.tau = (agent_data['tau'])
-        self.dense = (agent_data['dense'])
-        self.activation = (agent_data['activation'])
-        self.optimizer = (agent_data['optimizer'])
+
+        self.results_dir = agent_data['output_dir']
+        self.search_method =  agent_data['search_method']
+        self.gamma =  agent_data['gamma']
+        self.epsilon = agent_data['epsilon']
+        self.epsilon_min = agent_data['epsilon_min']
+        self.epsilon_decay = agent_data['epsilon_decay']
+        self.learning_rate = agent_data['learning_rate']
+        self.batch_size = agent_data['batch_size']
+        self.tau = agent_data['tau']
+        self.dense = agent_data['dense']
+        self.activation = agent_data['activation']
+        self.optimizer = agent_data['optimizer']
 
         # Build network model
         print("Model: ")
@@ -174,6 +197,7 @@ class DQN(erl.ExaAgent):
 
     def action(self, state):
         action = -1
+        policy_type = 0
         ## TODO: Update greed-epsilon to something like UBC
         if np.random.rand() <= self.epsilon and self.search_method=="epsilon":
             logger.info('Random action')
@@ -187,6 +211,7 @@ class DQN(erl.ExaAgent):
             np_state = np.array(state).reshape(1,len(state))
             act_values = self.target_model.predict(np_state)
             action = np.argmax(act_values[0])
+            policy_type = 1
             mask = [i for i in range(len(act_values[0])) if act_values[0][i] == act_values[0][action]]
             ncands=len(mask)
             # print( 'Number of cands: %s' % str(ncands))
@@ -198,7 +223,7 @@ class DQN(erl.ExaAgent):
         self.total_actions_taken += 1
         self.individual_action_taken[action]+=1
 
-        return action
+        return action, policy_type
 
     def play(self,state):
         act_values = self.target_model.predict(state)
