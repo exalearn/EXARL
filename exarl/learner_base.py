@@ -19,7 +19,7 @@ from exarl.env_base import ExaEnv
 
 import os
 import csv
-
+import sys
 from mpi4py import MPI
 import json
 
