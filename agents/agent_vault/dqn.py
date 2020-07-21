@@ -14,7 +14,8 @@ import sys
 import tensorflow as tf
 tf_version = int((tf.__version__)[0])
 import keras as keras
-from keras.backend.tensorflow_backend import set_session
+#from keras.backend.tensorflow_backend import set_session
+from tensorflow.compat.v1.keras.backend import set_session
 
 import logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
