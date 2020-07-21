@@ -47,13 +47,18 @@ class BlockCoPolymerTDLGv3(gym.Env):
            - No change (1)
         """
 
+        # Load the json file 
+        
+        with open(cfg_file, "r") as read_file:
+            cfg_data = json.load(read_file)
+
         ## Application setup
-        self.app_dir  = './envs/env_vault/LibTDLG/'
+        self.app_dir  = cfg_data['app_dir'] # './envs/env_vault/LibTDLG/'
         sys.path.append(self.app_dir)
         import TDLG as TDLG
         self.app = TDLG
         self.app_threads  = 0
-        self.app_core     = 'cpu'
+        self.app_core     = cfg_data['app_core']
         
         ## Model parameters
         self.param_dir  = './envs/env_vault/env_cfg/'
@@ -106,8 +111,7 @@ class BlockCoPolymerTDLGv3(gym.Env):
         print(env_data)
 
         self.app_dir                = env_data['app_dir']
-        self.app_core               = 'cpu'
-        #self.app                    = env_data['app']
+        self.app_core               = env_data['app_core']
         self.param_dir              = env_data['param_dir']
         self.param_name             = env_data['param_name']
         self.target_structure_name  = env_data['target_structure_name']
