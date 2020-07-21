@@ -22,6 +22,8 @@ import image_structure
 import shutil
 import datetime as dt
 
+import exarl.mpi_settings as mpi_settings
+
 
 def print_status(msg, *args, comm_rank=None, showtime=True, barrier=True, allranks=False, flush=True):
     if comm_rank == None:
@@ -45,12 +47,12 @@ def print_status(msg, *args, comm_rank=None, showtime=True, barrier=True, allran
 
 ############################# Environment class #############################
 
-class CahnHilliardEnv(gym.Env, erl.ExaEnv):
+class CahnHilliardEnv(gym.Env):
 
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, env_comm, cfg_file='./envs/env_vault/env_cfg/ch-v0.json'):
+    def __init__(self, cfg_file='./envs/env_vault/env_cfg/ch-v0.json'):
 
         super(CahnHilliardEnv, self).__init__()
         # Define action and observation space
@@ -81,7 +83,7 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         self.randInitial     = data['randInitial']     if 'randInitial' in data.keys() else False
 
         #self.args = args
-        self.comm = env_comm
+        self.comm = mpi_settings.env_comm
 
         self.action_space = spaces.Discrete( self.getActionSize() )
         self.observation_space = spaces.Box(
