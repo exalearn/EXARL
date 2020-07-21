@@ -6,15 +6,15 @@ import pandas as pd
 from collections import namedtuple
 import matplotlib.pyplot as plt
 
-import exarl as erl
-
 import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
+import exarl as erl
 
-sys.path.append('envs/env_vault/CahnHilliard2D/cpp/python')
-sys.path.append('envs/env_vault/ImageStructure')
-
+# TODO: the path has been changed
+# sys.path.append('./cahnhilliard_2d/cpp/python')
+sys.path.append('/ccs/home/vinayr/ExaLearn/ExaRL/envs/env_vault/CahnHilliard2D/cpp/python')
+sys.path.append('/ccs/home/vinayr/ExaLearn/ExaRL/envs/env_vault/ImageStructure')
 import ch2d.aligned_vector as av
 import ch2d.cahnhilliard as ch
 import image_structure
@@ -50,37 +50,58 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, env_comm=None):
-        
-        # Declare hyper-parameters, initialized for determining datatype
-        super().__init__()
-        self.debug           = 0
-        self.change_T        = 0.0
-        self.initT           = 0.0
-        self.targetT         = 0.0
-        self.notTrain        = False
-        self.rewardOption    = 0
-        self.output_dir      = ''
-        self.target_dir      = ''
-        self.target_file     = ''
-        self.notPlotRL       = False
-        self.length          = 0
-        self.genTarget       = True
-        self.randInitial     = False
-        self.steps           = 0
-        self.episodes        = 0
+    def __init__(self, env_comm, cfg_file='./envs/env_vault/env_cfg/ch-v0.json'):
+
+        super(CahnHilliardEnv, self).__init__()
+        # Define action and observation space
+        # They must be gym.spaces objects
+
+        data = []
+
+        with open(cfg_file) as json_file:
+            data = json.load(json_file)
+
+        self.cfg_data = data
+
+        ## Application setupenvs/env_vault/env_cfg
+        self.debug           = int(data['debug'])           if 'debug' in data.keys() else 0
+        self.size_struct_vec = int(data['size_struct_vec']) if 'size_struct_vec' in data.keys() else 200
+        self.changeT         = float(data['changeT'])         if 'changeT' in data.keys() else 0.1
+        self.initT           = float(data['initT'])           if 'initT' in data.keys() else 0.5
+        self.notTrain        = data['notTrain']        if 'notTrain' in data.keys() else False
+        self.rewardOption    = int(data['rewardOption'])    if 'rewardOption' in data.keys() else 1
+        self.output_dir      = data['output_dir']      if 'output_dir' in data.keys() else "./"
+        self.target_dir      = data['target_dir']      if 'target_dir' in data.keys() else "./"
+        self.target_file     = data['target_file']     if 'target_file' in data.keys() else "target"
+        self.notPlotRL       = data['notPlotRL']       if 'notPlotRL' in data.keys() else False
+        self.length          = int(data['length'])          if 'length' in data.keys() else 1000
+        self.episodes        = int(data['episodes'])        if 'episodes' in data.keys() else 10
+        self.steps           = int(data['steps'])           if 'steps' in data.keys() else 50
+        self.genTarget       = data['genTarget']       if 'genTarget' in data.keys() else True
+        self.randInitial     = data['randInitial']     if 'randInitial' in data.keys() else False
 
         #self.args = args
         self.comm = env_comm
-        self.comm_rank = self.comm.Get_rank() if self.comm else 0
 
-        # These are problem dependent and must be available during environment object creation time: cannot be set by CANDLE
-        self.size_struct_vec = 200
-        self.num_control_params = 1
         self.action_space = spaces.Discrete( self.getActionSize() )
-        # TODO: fix the high values later since I do not know the maximum values
-        self.observation_space = spaces.Box(low=np.append(np.zeros(self.getStateSize()-1),[0.000]), \
-                                            high=np.append(np.ones(self.getStateSize()-1),[1000]),dtype=np.float32) 
+        self.observation_space = spaces.Box(
+        low=np.zeros(self.size_struct_vec+1),
+        high=np.ones(self.size_struct_vec+1)*10000, dtype=np.uint8)
+
+        #self.observation_space = spaces.Box(low=0, high=255, shape=
+        #                (HEIGHT, WIDTH, N_CHANNELS), dtype=np.uint8)
+
+        if self.comm:
+          self.comm_rank = self.comm.Get_rank()
+        else:
+          self.comm_rank = 0
+
+        self.num_control_params = 1        # number of controlling parameter
+
+        self.change_T = self.changeT  # 0.1   #
+        self.initialT = self.initT    # 0.5   # initial temperature value for RL training
+        self.targetT  = 0.8                # target temperature value to generate target
+
         self.currStructVec   = np.zeros(self.size_struct_vec)   # stores current structure vector
         self.targetStructVec = np.zeros(self.size_struct_vec)   # target  structure vector (loaded or generated at setTargetState() once)
         self.targetStructVecNorm = 1.
@@ -91,7 +112,6 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
 
         self.maxStructVec    = [ -math.inf for _ in range(self.size_struct_vec)]
         self.minStructVec    = [  math.inf for _ in range(self.size_struct_vec)]
-        
 
         self.hasBaseScore = False
 
@@ -106,36 +126,16 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         self.isTest               = True if self.notTrain else False
         self.isTarget = False
 
-    def set_env(self):
-        # Obtain hyperparameteres
-        env_data = super().get_config()
-
-        self.output_dir = env_data['output_dir']
-        self.target_dir = env_data['output_dir']
-        self.debug = env_data['debug']
-        self.change_T        = env_data['changeT']
-        self.initT           = env_data['initT']
-        self.targetT         = env_data['targetT']
-        self.notTrain        = env_data['notTrain']
-        self.rewardOption    = env_data['rewardOption']
-        self.target_file     = env_data['target_file']
-        self.notPlotRL       = env_data['notPlotRL']
-        self.length          = env_data['length']
-        self.genTarget       = env_data['genTarget']
-        self.randInitial     = env_data['randInitial']
-        self.steps           = env_data['n_steps']
-        self.episodes        = env_data['n_episodes']
-
         self.setTargetState()
 
     ##################### get state space (mean, sd) #####################
     def getStateSize(self):  # state size is # of structured vector components and the current temperature
-        return self.size_struct_vec + self.num_control_params
+        return self.size_struct_vec+1
 
 
     ##################### get action space space (3^N) #####################
     def getActionSize(self):
-      return 3  # This is fixed for now
+      return 3  # 3^N
 
     ##################### set the initial temperature randomly #####################
     def setRandInitT(self):
@@ -144,15 +144,15 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
     ##################### reset to the initial state #####################
     def reset(self):
 
-        self.episode   += 1
-        self.time_step  = -1
-        # print('episode', self.episode)
+        self.episode += 1
+        self.time_step = -1
+        #print('episode', self.episode)
         if self.episode == self.episodes: self.isTest=True
 
         self.setInitSimParams()  # TODO: I do not have to initialze all parameter at each episode
 
         if self.randInitial: self.T = self.setRandInitT()
-        else:                self.T = self.initT
+        else:                self.T = self.initialT
         # initial value, always start from the same initial value for now.
         
         if self.debug >= 10: 
@@ -241,8 +241,7 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
     def step(self, action_idx):
 
         self.time_step = self.time_step + 1
-        # self.time_step = self.time_step % self.steps
-        
+
         #get the next state
         if self.debug>=1: time_tmp = time.time()
         self.currStructVec = self.getNextState(action_idx, self.time_step)
@@ -284,6 +283,8 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
     ############################ reward function ####################################
     # TODO: modify this reward function
     def getReward(self, t):
+
+        #self.adjustWeight()
 
         if self.debug>=30: print_status("wt {}".format(self.vecWeight), comm_rank=self.comm_rank, allranks=True)
 
@@ -362,7 +363,6 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
 
         return img_struct
 
-
     ########################## initialize parameters for the simulation #########################
     # TODO: this function should be called once, not each episode
     def setInitSimParams(self):
@@ -439,10 +439,10 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         self.info.t0      = 0
         self.info.iter    = 0
         stiff_dt          = np.min([ self.biharm_dt , self.diff_dt , self.lin_dt ])
-        self.t            = np.linspace(self.info.t0 , self.info.t0 + n_dt * stiff_dt , n_tsteps+1)
+        self.t            = np.linspace(self.info.t0 , self.info.t0 + n_dt * stiff_dt , n_tsteps+2)
         dt_check          = self.t[1]-self.t[0]
 
-        # print('self.t:', self.t)
+        #print('self.t:', self.t)
 
         # Run solver
         if self.debug>=1:
