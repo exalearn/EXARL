@@ -58,7 +58,6 @@ E.g.:-
     "env": "ExaLearnCartpole-v1",
     "n_episodes": 1,
     "n_steps": 10,
-    "mpi_children_per_parent": 3,
     "run_type": "static",
     "output_dir": "./exa_results_dir"
 }
@@ -67,25 +66,26 @@ E.g.:-
 E.g.:-
 ```
 {
-    "search_method": "epsilon",
-    "gamma": 0.95,
+    "gamma": 0.75,
     "epsilon": 1.0,
-    "epsilon_min" : 0.1,
-    "epsilon_decay" : 0.995,
-    "learning_rate" : 0.01,
-    "batch_size" : 10,
-    "tau" : 1.0,
+    "epsilon_min" : 0.01,
+    "epsilon_decay" : 0.999,
+    "learning_rate" : 0.001,
+    "batch_size" : 32,
+    "tau" : 0.5,
+    "model_type" : "MLP",
     "dense" : [64, 128],
     "activation" : "relu",
     "optimizer" : "adam",
     "loss" : "mse"
 }
 ```
+Currently, DQN agent takes either MLP or LSTM as model_type.
 * Add/modify the environment parameters in ```ExaRL/envs/env_vault/env_cfg/<EnvName>.json```\
 E.g.:-
 ```
 {
-        "mpi_children_per_parent": "3",
+        "mpi_children_per_parent": "1",
         "worker_app": "./envs/env_vault/cpi.py"
 }
 ```
@@ -113,6 +113,13 @@ exa_learner.run(run_type)
 mpiexec -np <num_parent_processes> python driver/driver_example.py --<run_params>=<param_value>
 ```
 * The ```get_config()``` method is available in the base classes ```ExaRL/exarl/agent_base.py``` and ```ExaRL/exarl/env_base.py``` to obtain the parameters from CANDLE.
+* If running a multi-process environment or agent, the communicators are available in ```exarl/mpi_settings.py```. 
+E.g.:-
+```
+import exarl.mpi_settings as mpi_settings
+self.env_comm = mpi_settings.env_comm
+self.agent_comm = mpi_settings.agent_comm
+```
 
 ### Using parameters set in CANDLE configuration/get parameters from terminal
 * Declare the parameters in the constructor of your agent/environment class
@@ -132,10 +139,10 @@ self.gamma =  (agent_data['gamma'])
 
 ## Creating custom environments
 * ExaRL uses OpenAI gym environments
-* Environments inherit from gym.Env and exarl.ExaEnv
+* Environments inherit from gym.Env
 ```
 Example:-
-    class envName(gym.Env, exarl.ExaEnv):
+    class envName(gym.Env):
         ...
 ```
 * Environments must include the following variables and functions:
