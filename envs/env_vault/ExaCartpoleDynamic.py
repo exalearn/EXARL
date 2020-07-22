@@ -29,7 +29,7 @@ class ExaCartpoleDynamic(gym.Env):
         #parent_comm = MPI.Comm.Get_parent()
         spawn_comm = MPI.COMM_SELF.Spawn(sys.executable,
                                    args=[self.worker],
-                                   maxprocs=self.mpi_children_per_parent)#.Merge()
+                                         maxprocs=self.process_per_env)#.Merge()
 
         N = np.array(100, 'i')
         spawn_comm.Bcast([N, MPI.INT], root=MPI.ROOT)
