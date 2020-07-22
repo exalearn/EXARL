@@ -85,7 +85,7 @@ Currently, DQN agent takes either MLP or LSTM as model_type.
 E.g.:-
 ```
 {
-        "mpi_children_per_parent": "1",
+        "process_per_env": "1",
         "worker_app": "./envs/env_vault/cpi.py"
 }
 ```

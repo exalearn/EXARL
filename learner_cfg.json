@@ -4,5 +4,6 @@
     "n_episodes": 2500,
     "n_steps": 10,
     "run_type": "static",
-    "output_dir": "./results_dir/"
+    "output_dir": "./results_dir/",
+    "process_per_env": 1
 }

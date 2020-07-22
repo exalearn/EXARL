@@ -45,16 +45,16 @@ class ExaLearner():
         self.do_render = False
 
         self.run_type = run_params['run_type']
-        self.mpi_children_per_parent = int(run_params['mpi_children_per_parent'])
+        self.process_per_env = int(run_params['process_per_env'])
 
         ## Sanity check
-        if world_size<self.mpi_children_per_parent:
+        if world_size < self.process_per_env:
             sys.exit('Not enough processes.')
-        if world_size%self.mpi_children_per_parent!=0:
+        if world_size % self.process_per_env != 0:
             sys.exit('Uneven number of processes.')
 
         ## Setup MPI
-        mpi_settings.init(self.mpi_children_per_parent)
+        mpi_settings.init(self.process_per_env)
         # Setup agent and environments
         agent_id = 'agents:'+run_params['agent']
         env_id   = 'envs:'+run_params['env']

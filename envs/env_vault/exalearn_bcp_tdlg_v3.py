@@ -120,13 +120,13 @@ class BlockCoPolymerTDLGv3(gym.Env):
 
         # Use the learner_defined results directory. 
 
-
+    
         sys.path.append(self.app_dir)
         # only TDLG is valid, app_name is never used
         import TDLG as TDLG
         TDLG = reload(TDLG)
         self.app = TDLG
-
+        
         ## Model parameters
         self.param_file = os.path.join(self.param_dir,self.param_name)
         self.param_file = os.path.join(self.param_dir,self.param_name)

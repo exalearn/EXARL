@@ -1,4 +1,3 @@
 {
-	"mpi_children_per_parent": "1",
 	"worker_app": "./envs/env_vault/cpi.py"
 }
