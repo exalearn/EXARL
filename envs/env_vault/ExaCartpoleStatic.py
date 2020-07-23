@@ -24,11 +24,7 @@ class ExaCartpoleStatic(gym.Env):
     def __init__(self):
         super().__init__()
         self.env_comm = mpi_settings.env_comm
-        self._max_episode_steps = 0
         self.env = gym.make('CartPole-v0')
-        self.env._max_episode_steps=self._max_episode_steps
-        #print('Max steps: %s' % str(self._max_episode_steps))
-        #self.env = gym.make('FrozenLake-v0')
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
 
@@ -53,7 +49,7 @@ class ExaCartpoleStatic(gym.Env):
         return next_state, reward, done, info
 
     def reset(self):
-        self.env._max_episode_steps=self._max_episode_steps
+        #self.env._max_episode_steps=self._max_episode_steps
         #print('Max steps: %s' % str(self._max_episode_steps))
         return self.env.reset()
 
