@@ -26,7 +26,8 @@ def run_impala(self, comm):
 
             start_time_episode = time.time()
             steps = 0
-            memory = None
+            memory = (current_state, None, -9999, None, False, 0)
+
             while all_done != True:
                 ## All workers ##
 
@@ -35,9 +36,6 @@ def run_impala(self, comm):
                     next_state, reward, done, _ = self.env.step(action)
                     total_reward += reward
                     memory = (current_state, action, reward, next_state, done, total_reward)
-                    #print('memory:{}'.format(memory))
-                else:
-                    memory = (current_state, None, -9999, None, True, 0)
 
                 new_data = comm.gather(memory, root=0)
                 logger.info('Rank[%s] - Memory length: %s ' % (str(comm.rank),len(self.agent.memory)))
