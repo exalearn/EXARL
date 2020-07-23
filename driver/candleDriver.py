@@ -110,12 +110,21 @@ def get_driver_params():
     params = json.load(open(lrn_cfg))
     params = base_parser(params)
     agent_cfg = 'agents/agent_vault/agent_cfg/'+params['agent']+'.json'
+    if os.path.exists(agent_cfg):
+        print('Agent parameters from ', agent_cfg)
+    else:
+        env_cfg = 'envs/env_vault/env_cfg/defaagent_env_cfg.json'
+        print('Agent configuration does not exist, using default configuration')
     agent_defs = parser_from_json(agent_cfg)
-    print('Agent parameters from ', agent_cfg)
     pprint(agent_defs)
-    env_cfg = 'envs/env_vault/env_cfg/'+params['env']+'.json'
-    env_defs = parser_from_json(env_cfg)
-    print('Environment parameters from ', env_cfg)
-    pprint(env_defs)
-    return lrn_defs+agent_defs+env_defs
 
+    env_cfg = 'envs/env_vault/env_cfg/'+params['env']+'.json'
+    if os.path.exists(env_cfg):
+        print('Environment parameters from ', env_cfg)
+    else:
+        env_cfg = 'envs/env_vault/env_cfg/default_env_cfg.json'
+        print('Environment configuration does not exist, using default configuration')
+    env_defs = parser_from_json(env_cfg)
+    pprint(env_defs)
+
+    return lrn_defs+agent_defs+env_defs
