@@ -26,12 +26,11 @@ def run_impala(self, comm):
 
             start_time_episode = time.time()
             steps = 0
-            reward =
 
             while all_done != True:
                 ## All workers ##
                 reward = -9999
-                memory = (current_state, action, reward, None, done, 0)
+                memory = (current_state, None, reward, None, done, 0)
                 if done != True:
                     action, policy_type = self.agent.action(current_state)
                     next_state, reward, done, _ = self.env.step(action)
