@@ -1,6 +1,6 @@
 import mpi4py.rc; mpi4py.rc.threads = False
 from mpi4py import MPI
-import random,sys,os
+import random,sys,os, time
 import numpy as np
 from datetime import datetime
 from collections import deque
@@ -185,16 +185,11 @@ class DQN(erl.ExaAgent):
         act_values = self.target_model.predict(state)
         return np.argmax(act_values[0])
 
-    #@profile
-    def train(self):
-        if len(self.memory)<(self.batch_size):
-            return
-
-        print('Using batch method')
-        #logger.info('### TRAINING MODEL ###')
-        losses = []
+    def generate_data(self):
+        ''' Worker method to create samples for training '''
+        start_time_episode = time.time()
         minibatch = random.sample(self.memory, self.batch_size)
-
+        logger.info('Mini batch time: %s ' % (str(time.time() - start_time_episode)))
         batch_states = []
         batch_target = []
         for state, action, reward, next_state, done in minibatch:
@@ -212,7 +207,44 @@ class DQN(erl.ExaAgent):
             else:
                 batch_states = np.append(batch_states, np_state, axis=0)
                 batch_target = np.append(batch_target, target_f, axis=0)
+        logger.info('Generator time: %s ' % (str(time.time() - start_time_episode)))
+        yield batch_states,batch_target
+
+    #@profile
+    def train(self):
+        if len(self.memory)<(self.batch_size):
+            return
+        start_time_episode = time.time()
+        #print('Using batch method')
+        #logger.info('### TRAINING MODEL ###')
+        #losses = []
+        #minibatch = random.sample(self.memory, self.batch_size)
+
+        ## TODO: This is where we improve the time to complete (90% time spend doing this)
+        ## Training is NOT a big factor for the current environements (10% time spend training)
+        '''
+        batch_states = []
+        batch_target = []
+        for state, action, reward, next_state, done in minibatch:
+            np_state = np.array(state).reshape(1, 1, len(state))
+            np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
+            expectedQ = 0
+            if not done:
+                expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
+            target = reward + expectedQ
+            target_f = self.model.predict(np_state)
+            target_f[0][action] = target
+            if batch_states == []:
+                batch_states = np_state
+                batch_target = target_f
+            else:
+                batch_states = np.append(batch_states, np_state, axis=0)
+                batch_target = np.append(batch_target, target_f, axis=0)
+
+        logger.info('Data prep time for training: %s ' % ( str(time.time() - start_time_episode)))
         history = self.model.fit(batch_states, batch_target, epochs=1, verbose=0)
+        logger.info('Total run-time for training: %s ' % ( str(time.time() - start_time_episode)))
+        '''
         '''
         for state, action, reward, next_state, done in minibatch:
             np_state = np.array(state).reshape(1,1,len(state))
@@ -225,40 +257,13 @@ class DQN(erl.ExaAgent):
             target_f[0][action] = target
             history = self.model.fit(np_state, target_f, epochs = 1, verbose = 0)
             losses.append(history.history['loss'])
-        '''
+        logger.info('Total run-time for training: %s ' % (str(time.time() - start_time_episode)))
         self.target_train()
-        
-        #batch_states = []
-        #batch_target = []
-
-        #for state, action, reward, next_state, done in minibatch:
-        #    #
-        #
-        #    np_state = np.array(state).reshape(1,len(state))
-        #    np_next_state = np.array(next_state).reshape(1,len(next_state))
-        #    expectedQ =0 
-        #    #if not done:
-        #    #    expectedQ = self.gamma*np.amax(self.target_model.predict(np_next_state)[0])
-        #    target = reward + expectedQ
-        #    target_f = self.target_model.predict(np_state)
-        #    target_f[0][action] = target
-        #    
-        #    #if batch_states==[]:
-        #    #    batch_states=np_state
-        #    #    batch_target=target_f
-        #    #else:
-        #    #    batch_states=np.append(batch_states,np_state,axis=0)
-        #    #    batch_target=np.append(batch_target,target_f,axis=0)
-        #        
-        #history = self.model.fit(batch_states, batch_target, epochs = 1, verbose = 0)
-        #losses.append(history.history['loss'][0])
-        #self.train_writer.writerow([np.mean(losses)])
-        #self.train_file.flush()
-        
-        #if self.target_train_counter%self.target_train_interval == 0:
-        #    #logger.info('### TRAINING TARGET MODEL ###')
-        #    self.target_train()
-            
+        '''
+        #history = self.model.fit_generator(self.generate_data(), epochs=1,steps_per_epoch=5, verbose=0)
+        batch_states,batch_target = next(self.generate_data())
+        history = self.model.fit(batch_states, batch_target, epochs=1, verbose=0)
+        logger.info('Total run-time for training: %s ' % (str(time.time() - start_time_episode)))
         return 0#np.mean(losses)
 
     def get_weights(self):
