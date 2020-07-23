@@ -190,10 +190,30 @@ class DQN(erl.ExaAgent):
         if len(self.memory)<(self.batch_size):
             return
 
+        print('Using batch method')
         #logger.info('### TRAINING MODEL ###')
         losses = []
         minibatch = random.sample(self.memory, self.batch_size)
 
+        batch_states = []
+        batch_target = []
+        for state, action, reward, next_state, done in minibatch:
+            np_state = np.array(state).reshape(1, 1, len(state))
+            np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
+            expectedQ = 0
+            if not done:
+                expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
+            target = reward + expectedQ
+            target_f = self.model.predict(np_state)
+            target_f[0][action] = target
+            if batch_states == []:
+                batch_states = np_state
+                batch_target = target_f
+            else:
+                batch_states = np.append(batch_states, np_state, axis=0)
+                batch_target = np.append(batch_target, target_f, axis=0)
+        history = self.model.fit(batch_states, batch_target, epochs=1, verbose=0)
+        '''
         for state, action, reward, next_state, done in minibatch:
             np_state = np.array(state).reshape(1,1,len(state))
             np_next_state = np.array(next_state).reshape(1,1,len(next_state))
@@ -205,6 +225,7 @@ class DQN(erl.ExaAgent):
             target_f[0][action] = target
             history = self.model.fit(np_state, target_f, epochs = 1, verbose = 0)
             losses.append(history.history['loss'])
+        '''
         self.target_train()
         
         #batch_states = []
@@ -284,3 +305,39 @@ class DQN(erl.ExaAgent):
 
     def monitor(self):
         print("Implement monitor method in dqn.py")
+
+'''
+    class MemoryDatasetclass(tf.data.Dataset):
+        def __init__(self):
+            self.agent
+        def _generator(self.batch_size):
+
+            minibatch = random.sample(self.memory, self.batch_size)
+
+            batch_states = []
+            batch_target = []
+            for state, action, reward, next_state, done in minibatch:
+                np_state = np.array(state).reshape(1, 1, len(state))
+                np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
+                expectedQ = 0
+                if not done:
+                    expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
+                target = reward + expectedQ
+                target_f = self.model.predict(np_state)
+                target_f[0][action] = target
+                if batch_states==[]:
+                    batch_states=np_state
+                    batch_target=target_f
+                else:
+                    batch_states=np.append(batch_states,np_state,axis=0)
+                    batch_target=np.append(batch_target,target_f,axis=0)
+            yield batch_states,batch_target
+
+        def __new__(cls, num_samples=32):
+            return tf.data.Dataset.from_generator(
+                cls._generator,
+                output_types=tf.dtypes.float32,
+                output_shapes=(None,),
+                args=(num_samples,)
+                )
+'''
