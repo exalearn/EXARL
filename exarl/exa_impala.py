@@ -26,13 +26,18 @@ def run_impala(self, comm):
 
             start_time_episode = time.time()
             steps = 0
+            memory = None
             while all_done != True:
                 ## All workers ##
+
                 if done != True:
                     action, policy_type = self.agent.action(current_state)
                     next_state, reward, done, _ = self.env.step(action)
                     total_reward += reward
                     memory = (current_state, action, reward, next_state, done, total_reward)
+                    #print('memory:{}'.format(memory))
+                else:
+                    memory = (current_state, None, -9999, None, True, 0)
 
                 new_data = comm.gather(memory, root=0)
                 logger.info('Rank[%s] - Memory length: %s ' % (str(comm.rank),len(self.agent.memory)))
@@ -41,15 +46,15 @@ def run_impala(self, comm):
                 if comm.rank == 0:
                     ## Push memories to learner ##
                     for data in new_data:
-                        #print(data)
-                        self.agent.remember(data[0],data[1],data[2],data[3],data[4])
-                        ## Train learner ##
-                        #self.agent.train()
-                        rank0_epsilon = self.agent.epsilon
-                        rank0_memories = len(self.agent.memory)
-                        target_weights = self.agent.get_weights()
-                        if rank0_memories%(comm.size) == 0:
-                            self.agent.save(self.results_dir+'/'+filename_prefix+'.h5')
+                        if data[2] != -9999:
+                            self.agent.remember(data[0],data[1],data[2],data[3],data[4])
+                            ## Train learner ##
+                            #self.agent.train()
+                            rank0_epsilon = self.agent.epsilon
+                            rank0_memories = len(self.agent.memory)
+                            target_weights = self.agent.get_weights()
+                            if rank0_memories%(comm.size) == 0:
+                                self.agent.save(self.results_dir+'/'+filename_prefix+'.h5')
 
                 ## Broadcast the memory size and the model weights to the workers  ##
                 rank0_epsilon = comm.bcast(rank0_epsilon, root=0)
@@ -64,10 +69,6 @@ def run_impala(self, comm):
                     self.agent.set_weights(current_weights)
                     self.agent.epsilon = rank0_epsilon
 
-                ## Save memory for offline analysis
-                train_writer.writerow([current_state,action,reward,next_state,total_reward, done, e, steps, policy_type, rank0_epsilon])
-                train_file.flush()
-
                 ## Update state
                 current_state = next_state
                 logger.info('Rank[%s] - Total Reward:%s' % (str(comm.rank),str(total_reward)))
@@ -80,9 +81,17 @@ def run_impala(self, comm):
                 if steps >= self.nsteps:
                     done = True
 
+                ## Save memory for offline analysis
+                if reward!=-9999:
+                    train_writer.writerow([current_state,action,reward,next_state,total_reward, done, e, steps, policy_type, rank0_epsilon])
+                    train_file.flush()
+
                 all_done = comm.allreduce(done, op=MPI.LAND)
 
             end_time_episode = time.time()
+            print('nsteps:{}'.format(self.nsteps))
+            print('steps:{}'.format(steps))
             logger.info('Rank[%s] run-time for episode %s: %s ' % (str(comm.rank), str(e), str(end_time_episode - start_time_episode)))
-
+            logger.info('Rank[%s] run-time for episode per step %s: %s '
+                        % (str(comm.rank), str(e), str((end_time_episode - start_time_episode)/steps)))
         train_file.close()
