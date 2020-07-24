@@ -22,6 +22,9 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.ERROR)
 
+##
+import multiprocessing
+
 #The Deep Q-Network (DQN)
 class DQN(erl.ExaAgent):
     def __init__(self, env):
@@ -156,11 +159,6 @@ class DQN(erl.ExaAgent):
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
-        #print('memory length:',len(self.memory))
-        #print(self.memory)
-        if len(self.memory)>(self.batch_size):
-            self.train()
-            self.epsilon_adj()
 
     def action(self, state):
         random.seed(datetime.now())
@@ -187,9 +185,11 @@ class DQN(erl.ExaAgent):
 
     def generate_data(self):
         ''' Worker method to create samples for training '''
+        ## TODO: This method is the most expensive and takes 90% of the agent compute time
+        ## TODO: Reduce computational time
         start_time_episode = time.time()
         minibatch = random.sample(self.memory, self.batch_size)
-        logger.info('Mini batch time: %s ' % (str(time.time() - start_time_episode)))
+        logger.info('Agent - Minibatch time: %s ' % (str(time.time() - start_time_episode)))
         batch_states = []
         batch_target = []
         for state, action, reward, next_state, done in minibatch:
@@ -207,22 +207,16 @@ class DQN(erl.ExaAgent):
             else:
                 batch_states = np.append(batch_states, np_state, axis=0)
                 batch_target = np.append(batch_target, target_f, axis=0)
-        logger.info('Generator time: %s ' % (str(time.time() - start_time_episode)))
+        logger.info('Agent - Data generator time: %s ' % (str(time.time() - start_time_episode)))
+
         yield batch_states,batch_target
 
     #@profile
+    #@property
     def train(self):
-        if len(self.memory)<(self.batch_size):
-            return
-        start_time_episode = time.time()
-        #print('Using batch method')
-        #logger.info('### TRAINING MODEL ###')
-        #losses = []
-        #minibatch = random.sample(self.memory, self.batch_size)
-
-        ## TODO: This is where we improve the time to complete (90% time spend doing this)
-        ## Training is NOT a big factor for the current environements (10% time spend training)
+        self.epsilon_adj()
         '''
+        minibatch = random.sample(self.memory, self.batch_size)
         batch_states = []
         batch_target = []
         for state, action, reward, next_state, done in minibatch:
@@ -260,11 +254,15 @@ class DQN(erl.ExaAgent):
         logger.info('Total run-time for training: %s ' % (str(time.time() - start_time_episode)))
         self.target_train()
         '''
-        #history = self.model.fit_generator(self.generate_data(), epochs=1,steps_per_epoch=5, verbose=0)
-        batch_states,batch_target = next(self.generate_data())
-        history = self.model.fit(batch_states, batch_target, epochs=1, verbose=0)
-        logger.info('Total run-time for training: %s ' % (str(time.time() - start_time_episode)))
-        return 0#np.mean(losses)
+        #history = self.model.fit(self.generator, epochs=1,steps_per_epoch=1, verbose=1)
+        if len(self.memory) > (self.batch_size):
+            batch_states,batch_target = next(self.generate_data())
+            start_time_episode = time.time()
+            history = self.model.fit(batch_states, batch_target, epochs=1, verbose=0)
+            logger.info('Agent - Training: %s ' % (str(time.time() - start_time_episode)))
+            start_time_episode = time.time()
+            self.target_train()
+            logger.info('Agent - Target update time: %s ' % (str(time.time() - start_time_episode)))
 
     def get_weights(self):
         return self.target_model.get_weights()
@@ -311,38 +309,11 @@ class DQN(erl.ExaAgent):
     def monitor(self):
         print("Implement monitor method in dqn.py")
 
-'''
-    class MemoryDatasetclass(tf.data.Dataset):
-        def __init__(self):
-            self.agent
-        def _generator(self.batch_size):
-
-            minibatch = random.sample(self.memory, self.batch_size)
-
-            batch_states = []
-            batch_target = []
-            for state, action, reward, next_state, done in minibatch:
-                np_state = np.array(state).reshape(1, 1, len(state))
-                np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
-                expectedQ = 0
-                if not done:
-                    expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
-                target = reward + expectedQ
-                target_f = self.model.predict(np_state)
-                target_f[0][action] = target
-                if batch_states==[]:
-                    batch_states=np_state
-                    batch_target=target_f
-                else:
-                    batch_states=np.append(batch_states,np_state,axis=0)
-                    batch_target=np.append(batch_target,target_f,axis=0)
-            yield batch_states,batch_target
-
-        def __new__(cls, num_samples=32):
-            return tf.data.Dataset.from_generator(
-                cls._generator,
-                output_types=tf.dtypes.float32,
-                output_shapes=(None,),
-                args=(num_samples,)
-                )
-'''
+    def benchmark(dataset, num_epochs=1):
+        start_time = time.perf_counter()
+        for epoch_num in range(num_epochs):
+            for sample in dataset:
+                # Performing a training step
+                time.sleep(0.01)
+                print(sample)
+        tf.print("Execution time:", time.perf_counter() - start_time)
