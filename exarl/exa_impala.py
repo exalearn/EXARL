@@ -7,6 +7,8 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.INFO)
 
+import multiprocessing
+
 def run_impala(self, comm):
 
         filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' % ( str(self.nepisodes), str(self.nsteps), str(comm.rank))
@@ -42,18 +44,24 @@ def run_impala(self, comm):
 
                 ## Learner ##
                 if comm.rank == 0:
+                    ## Create a pool to train the learner agent asynchronous
+                    ## TODO: This will only scale on a single node !!!
+                    PROCESSES = multiprocessing.cpu_count() - 1
+                    training_pool = multiprocessing.Pool(PROCESSES)
                     ## Push memories to learner ##
                     for data in new_data:
                         if data[2] != -9999:
                             self.agent.remember(data[0],data[1],data[2],data[3],data[4])
                             ## Train learner ##
-                            #self.agent.train()
+                            training_pool.apply_async(self.agent.train())
                             rank0_epsilon = self.agent.epsilon
                             rank0_memories = len(self.agent.memory)
                             target_weights = self.agent.get_weights()
                             if rank0_memories%(comm.size) == 0:
                                 self.agent.save(self.results_dir+'/'+filename_prefix+'.h5')
-
+                    training_pool.close()
+                    training_pool.join()
+                    #self.agent.flush_pool()
                 ## Broadcast the memory size and the model weights to the workers  ##
                 rank0_epsilon = comm.bcast(rank0_epsilon, root=0)
                 rank0_memories = comm.bcast(rank0_memories, root=0)
