@@ -47,6 +47,7 @@ def run_impala(self, comm):
                     ## Create a pool to train the learner agent asynchronous
                     ## TODO: This will only scale on a single node !!!
                     PROCESSES = multiprocessing.cpu_count() - 1
+                    print('PROCESSES:{}'.format(PROCESSES))
                     training_pool = multiprocessing.Pool(PROCESSES)
                     ## Push memories to learner ##
                     for data in new_data:
