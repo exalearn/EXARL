@@ -54,7 +54,7 @@ def run_impala(self, comm):
                         if data[2] != -9999:
                             self.agent.remember(data[0],data[1],data[2],data[3],data[4])
                             ## Train learner ##
-                            training_pool.apply_async(self.agent.train())
+                            training_pool.apply_async(self.agent.train)
                             rank0_epsilon = self.agent.epsilon
                             rank0_memories = len(self.agent.memory)
                             target_weights = self.agent.get_weights()
@@ -62,7 +62,6 @@ def run_impala(self, comm):
                                 self.agent.save(self.results_dir+'/'+filename_prefix+'.h5')
                     training_pool.close()
                     training_pool.join()
-                    #self.agent.flush_pool()
                 ## Broadcast the memory size and the model weights to the workers  ##
                 rank0_epsilon = comm.bcast(rank0_epsilon, root=0)
                 rank0_memories = comm.bcast(rank0_memories, root=0)
