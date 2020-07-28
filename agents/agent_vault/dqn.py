@@ -258,7 +258,8 @@ class DQN(erl.ExaAgent):
         if len(self.memory) > (self.batch_size):
             batch_states,batch_target = next(self.generate_data())
             start_time_episode = time.time()
-            history = self.model.fit(batch_states, batch_target, epochs=1, verbose=0)
+            history = self.model.fit(batch_states, batch_target, epochs=1, verbose=1)
+            print('Train history{}'.format(history))
             logger.info('Agent - Training: %s ' % (str(time.time() - start_time_episode)))
             start_time_episode = time.time()
             self.target_train()
