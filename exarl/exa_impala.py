@@ -54,7 +54,8 @@ def run_impala(self, comm):
                         if data[2] != -9999:
                             self.agent.remember(data[0],data[1],data[2],data[3],data[4])
                             ## Train learner ##
-                            training_pool.apply_async(self.agent.train)
+                            training_pool.apply_async(self.agent.train())
+                            #self.agent.train()
                             rank0_epsilon = self.agent.epsilon
                             rank0_memories = len(self.agent.memory)
                             target_weights = self.agent.get_weights()
@@ -89,7 +90,7 @@ def run_impala(self, comm):
 
                 ## Save memory for offline analysis
                 if reward!=-9999:
-                    train_writer.writerow([current_state,action,reward,next_state,total_reward, done, e, steps, policy_type, rank0_epsilon])
+                    train_writer.writerow([time.time(),current_state,action,reward,next_state,total_reward, done, e, steps, policy_type, rank0_epsilon])
                     train_file.flush()
 
                 all_done = comm.allreduce(done, op=MPI.LAND)
