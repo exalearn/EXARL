@@ -106,11 +106,10 @@ class ExaLearner():
         # TODO add self.omp_num_threads as a param, override
         # with OMP_NUM_THREADS
         #os.environ['OMP_NUM_THREADS']='{:d}'.format(self.omp_num_threads)
-        if run_type=='impala':
-            from exarl.exa_impala import run_impala
-            run_impala(self,mpi_settings.agent_comm)
-            
         if run_type=='seed':
             from exarl.exa_seed import run_seed
             self.run_seed(mpi_settings.agent_comm)
         
+        else:
+            from exarl.exa_impala import run_impala
+            run_impala(self,mpi_settings.agent_comm)
