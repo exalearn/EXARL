@@ -39,18 +39,24 @@ def run_impala(self, comm):
                     total_reward += reward
                     memory = (current_state, action, reward, next_state, done, total_reward)
 
+                ## TODO: gatherall to share memories with all agents 
+                ## TODO: we need a memory class to scale 
                 new_data = comm.gather(memory, root=0)
+                ## TODO: agent.generate_data() for all ranks
+                ## TODO: gather the generated data for the learner
+                
                 logger.info('Rank[%s] - Memory length: %s ' % (str(comm.rank),len(self.agent.memory)))
 
                 ## Learner ##
                 if comm.rank == 0:
                     ## Create a pool to train the learner agent asynchronous
-                    ## TODO: This will only scale on a single node !!!
+                    ## TODO: Remove multiprocessing
                     PROCESSES = multiprocessing.cpu_count() - 1
                     print('PROCESSES:{}'.format(PROCESSES))
                     training_pool = multiprocessing.Pool(PROCESSES)
                     ## Push memories to learner ##
                     for data in new_data:
+                        ## TODO: move this filter to the remember method 
                         if data[2] != -9999:
                             self.agent.remember(data[0],data[1],data[2],data[3],data[4])
                             ## Train learner ##
