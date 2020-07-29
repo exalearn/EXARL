@@ -40,41 +40,35 @@ def run_impala(self, comm):
                     memory = (current_state, action, reward, next_state, done, total_reward)
 
                 ## TODO: gatherall to share memories with all agents 
-                ## TODO: we need a memory class to scale 
-                new_data = comm.gather(memory, root=0)
-                ## TODO: agent.generate_data() for all ranks
-                ## TODO: gather the generated data for the learner
-                
+                new_data = comm.allgather(memory)
+                for data in new_data:
+                    if data[2] != -9999:
+                        ## TODO: Improve remember function
+                        self.agent.remember(data[0], data[1], data[2], data[3], data[4])
                 logger.info('Rank[%s] - Memory length: %s ' % (str(comm.rank),len(self.agent.memory)))
+
+                ## TODO: we need a memory class to scale
+                batch_data = next(self.agent.generate_data())
+                #print(batch_data)
+
+                ## TODO: gather the generated data for the learner
+                new_batch = comm.gather(batch_data,root=0)
 
                 ## Learner ##
                 if comm.rank == 0:
-                    ## Create a pool to train the learner agent asynchronous
-                    ## TODO: Remove multiprocessing
-                    PROCESSES = multiprocessing.cpu_count() - 1
-                    print('PROCESSES:{}'.format(PROCESSES))
-                    training_pool = multiprocessing.Pool(PROCESSES)
                     ## Push memories to learner ##
-                    for data in new_data:
-                        ## TODO: move this filter to the remember method 
-                        if data[2] != -9999:
-                            self.agent.remember(data[0],data[1],data[2],data[3],data[4])
-                            ## Train learner ##
-                            training_pool.apply_async(self.agent.train())
-                            #self.agent.train()
-                            rank0_epsilon = self.agent.epsilon
-                            rank0_memories = len(self.agent.memory)
-                            target_weights = self.agent.get_weights()
-                            if rank0_memories%(comm.size) == 0:
-                                self.agent.save(self.results_dir+'/'+filename_prefix+'.h5')
-                    training_pool.close()
-                    training_pool.join()
+                    for batch in new_batch:
+                        self.agent.train(batch)
+                        rank0_epsilon = self.agent.epsilon
+                        target_weights = self.agent.get_weights()
+                        #if rank0_memories%(comm.size) == 0:
+                        #    self.agent.save(self.results_dir+'/'+filename_prefix+'.h5')
+
                 ## Broadcast the memory size and the model weights to the workers  ##
                 rank0_epsilon = comm.bcast(rank0_epsilon, root=0)
-                rank0_memories = comm.bcast(rank0_memories, root=0)
                 current_weights = comm.bcast(target_weights, root=0)
 
-                logger.info('Rank[%s] - rank0 memories: %s' % (str(comm.rank), str(rank0_memories)))
+                logger.info('Rank[%s] - Memories: %s' % (str(comm.rank), str(len(self.agent.memory))))
 
                 ## Set the model weight for all the workers
                 if comm.rank > 0:# and rank0_memories > 30:# and rank0_memories%(size)==0:

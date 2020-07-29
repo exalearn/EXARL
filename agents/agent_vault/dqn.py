@@ -117,7 +117,7 @@ class DQN(erl.ExaAgent):
         ## TODO: Assuming rank==0 is the only learner 
         #self.memory = deque(maxlen = 0)
         #if self.rank==0:
-        self.memory = deque(maxlen = 20000) ## TODO: make configurable
+        self.memory = deque(maxlen = 5000) ## TODO: make configurable
 
     def set_agent(self):
         # Get hyper-parameters
@@ -187,11 +187,15 @@ class DQN(erl.ExaAgent):
         ''' Worker method to create samples for training '''
         ## TODO: This method is the most expensive and takes 90% of the agent compute time
         ## TODO: Reduce computational time
+        batch_states = []
+        batch_target = []
+        ## Return empty batch
+        if len(self.memory)<self.batch_size:
+            yield batch_states, batch_target
+
         start_time_episode = time.time()
         minibatch = random.sample(self.memory, self.batch_size)
         logger.info('Agent - Minibatch time: %s ' % (str(time.time() - start_time_episode)))
-        batch_states = []
-        batch_target = []
         for state, action, reward, next_state, done in minibatch:
             np_state = np.array(state).reshape(1, 1, len(state))
             np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
@@ -213,8 +217,9 @@ class DQN(erl.ExaAgent):
 
     #@profile
     #@property
-    def train(self):
+    def train(self, batch):
         self.epsilon_adj()
+        batch_states, batch_target = batch
         '''
         minibatch = random.sample(self.memory, self.batch_size)
         batch_states = []
@@ -255,8 +260,7 @@ class DQN(erl.ExaAgent):
         self.target_train()
         '''
         #history = self.model.fit(self.generator, epochs=1,steps_per_epoch=1, verbose=1)
-        if len(self.memory) > (self.batch_size):
-            batch_states,batch_target = next(self.generate_data())
+        if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
             start_time_episode = time.time()
             history = self.model.fit(batch_states, batch_target, epochs=1, verbose=1)
             print('Train history{}'.format(history))
