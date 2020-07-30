@@ -63,7 +63,7 @@ def run_impala(self, comm):
                 ##
                 if memory[2] != -9999:
                     self.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
-                logger.info('Rank [{}] - memories: {}'.format(comm.rank,len(self.agent.memory)))
+                logger.info('Rank[{}] - Memories: {}'.format(comm.rank,len(self.agent.memory)))
 
                 ## TODO: gatherall to share memories with all agents 
                 #new_data = comm.allgather(memory)
@@ -78,11 +78,12 @@ def run_impala(self, comm):
 
                 ## TODO: we need a memory class to scale
                 batch_data = next(self.agent.generate_data())
-                logger.info('Rank [{}] - batch data: {}'.format(comm.rank,len(self.agent.memory)))
+                logger.info('Rank[{}] - Generated data: {}'.format(comm.rank,len(batch_data[0])))
 
                 #print('batch_data {}'.format(batch_data))
 
                 ## TODO: gather the generated data for the learner
+                ## TODO: should it be an isend irecv ?
                 new_batch = comm.gather(batch_data,root=0)
 
                 ## Learner ##
@@ -99,8 +100,6 @@ def run_impala(self, comm):
                 ## Broadcast the memory size and the model weights to the workers  ##
                 rank0_epsilon = comm.bcast(rank0_epsilon, root=0)
                 current_weights = comm.bcast(target_weights, root=0)
-
-                logger.info('Rank[%s] - Memories: %s' % (str(comm.rank), str(len(self.agent.memory))))
 
                 ## Set the model weight for all the workers
                 #if comm.rank > 0:# and rank0_memories > 30:# and rank0_memories%(size)==0:
@@ -128,8 +127,6 @@ def run_impala(self, comm):
                 all_done = comm.allreduce(done, op=MPI.LAND)
 
             end_time_episode = time.time()
-            print('nsteps:{}'.format(self.nsteps))
-            print('steps:{}'.format(steps))
             logger.info('Rank[%s] run-time for episode %s: %s ' % (str(comm.rank), str(e), str(end_time_episode - start_time_episode)))
             logger.info('Rank[%s] run-time for episode per step %s: %s '
                         % (str(comm.rank), str(e), str((end_time_episode - start_time_episode)/steps)))
