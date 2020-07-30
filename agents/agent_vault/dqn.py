@@ -23,7 +23,7 @@ logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.ERROR)
 
 ##
-import multiprocessing
+#import multiprocessing
 
 #The Deep Q-Network (DQN)
 class DQN(erl.ExaAgent):
@@ -59,19 +59,19 @@ class DQN(erl.ExaAgent):
             sess = tf.Session(config=config)
             set_session(sess)
         elif tf_version >= 2:
-            '''
+
             config = tf.compat.v1.ConfigProto()
             config.gpu_options.allow_growth = True
             sess = tf.compat.v1.Session(config=config)
             tf.compat.v1.keras.backend.set_session(sess)
-            '''
+
             #tf.debugging.set_log_device_placement(True)
             #cpus = tf.config.experimental.list_physical_devices('CPU')
             #print('### CPUS:\n {}'.format(cpus))
             #tf.config.experimental.set_visible_devices([], 'GPU')
-            os.environ["CUDA_VISIBLE_DEVICES"]=""
-            my_devices = tf.config.experimental.list_physical_devices(device_type='CPU')
-            tf.config.experimental.set_visible_devices(devices= my_devices, device_type='CPU')
+            #os.environ["CUDA_VISIBLE_DEVICES"]=""
+            #my_devices = tf.config.experimental.list_physical_devices(device_type='CPU')
+            #tf.config.experimental.set_visible_devices(devices= my_devices, device_type='CPU')
             #config = tf.ConfigProto(
             #    device_count = {'GPU': 0}
             #)
@@ -117,7 +117,7 @@ class DQN(erl.ExaAgent):
         ## TODO: Assuming rank==0 is the only learner 
         #self.memory = deque(maxlen = 0)
         #if self.rank==0:
-        self.memory = deque(maxlen = 5000) ## TODO: make configurable
+        self.memory = deque(maxlen = 1000) ## TODO: make configurable
 
     def set_agent(self):
         # Get hyper-parameters
@@ -168,10 +168,6 @@ class DQN(erl.ExaAgent):
         #print('epsilon:',self.epsilon)
         if rdm <= self.epsilon:
             action = random.randrange(self.env.action_space.n)
-            #print(action)
-            ## Update randomness
-            #if len(self.memory)>(self.batch_size):
-            #    self.epsilon_adj()
             return action , 0
         else:
             np_state = np.array(state).reshape(1,1,len(state))
@@ -195,7 +191,7 @@ class DQN(erl.ExaAgent):
 
         start_time_episode = time.time()
         minibatch = random.sample(self.memory, self.batch_size)
-        logger.info('Agent - Minibatch time: %s ' % (str(time.time() - start_time_episode)))
+        #logger.info('Agent - Minibatch time: %s ' % (str(time.time() - start_time_episode)))
         for state, action, reward, next_state, done in minibatch:
             np_state = np.array(state).reshape(1, 1, len(state))
             np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
@@ -211,7 +207,7 @@ class DQN(erl.ExaAgent):
             else:
                 batch_states = np.append(batch_states, np_state, axis=0)
                 batch_target = np.append(batch_target, target_f, axis=0)
-        logger.info('Agent - Data generator time: %s ' % (str(time.time() - start_time_episode)))
+        #logger.info('Agent - Data generator time: %s ' % (str(time.time() - start_time_episode)))
 
         yield batch_states,batch_target
 
@@ -259,29 +255,31 @@ class DQN(erl.ExaAgent):
         logger.info('Total run-time for training: %s ' % (str(time.time() - start_time_episode)))
         self.target_train()
         '''
-        #history = self.model.fit(self.generator, epochs=1,steps_per_epoch=1, verbose=1)
         if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
             start_time_episode = time.time()
-            history = self.model.fit(batch_states, batch_target, epochs=1, verbose=1)
-            print('Train history{}'.format(history))
-            logger.info('Agent - Training: %s ' % (str(time.time() - start_time_episode)))
+            history = self.model.fit(batch_states, batch_target, epochs=2, verbose=2)
+            logger.info('Agent[%s]- Training: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
             start_time_episode = time.time()
-            self.target_train()
-            logger.info('Agent - Target update time: %s ' % (str(time.time() - start_time_episode)))
+            #self.target_train()
+            logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
 
     def get_weights(self):
+        logger.info('Agent[%s] - get target weight.' % str(self.rank))
         return self.target_model.get_weights()
 
     def set_weights(self, weights):
+        #logger.info('Agent[%s] - set target weight.' % str(self.rank))
+        #logger.info('Agent[%s] - set target weight: %s' % (str(self.rank),weights))
         self.target_model.set_weights(weights)
         
     def target_train(self):
-        self.target_train_counter = 0
+        #logger.info('Agent[%s] - update target weights.' % str(self.rank))
+        #self.target_train_counter = 0
         model_weights  = self.model.get_weights()
         target_weights =self.target_model.get_weights()
         for i in range(len(target_weights)):
             target_weights[i] = self.tau*model_weights[i] + (1-self.tau)*target_weights[i]
-        self.target_model.set_weights(target_weights)
+        self.set_weights(target_weights)
 
     def epsilon_adj(self):
         if self.epsilon > self.epsilon_min:
