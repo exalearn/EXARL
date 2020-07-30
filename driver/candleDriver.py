@@ -113,7 +113,7 @@ def get_driver_params():
     if os.path.exists(agent_cfg):
         print('Agent parameters from ', agent_cfg)
     else:
-        env_cfg = 'envs/env_vault/env_cfg/defaagent_env_cfg.json'
+        agent_cfg = 'agents/agent_vault/agent_cfg/default_agent_cfg.json'
         print('Agent configuration does not exist, using default configuration')
     agent_defs = parser_from_json(agent_cfg)
     pprint(agent_defs)
