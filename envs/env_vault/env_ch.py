@@ -22,6 +22,7 @@ import image_structure
 import shutil
 import datetime as dt
 
+import exarl.mpi_settings as mpi_settings
 
 def print_status(msg, *args, comm_rank=None, showtime=True, barrier=True, allranks=False, flush=True):
     if comm_rank == None:
@@ -45,12 +46,12 @@ def print_status(msg, *args, comm_rank=None, showtime=True, barrier=True, allran
 
 ############################# Environment class #############################
 
-class CahnHilliardEnv(gym.Env, erl.ExaEnv):
+class CahnHilliardEnv(gym.Env):
 
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, env_comm=None):
+    def __init__(self):
         
         # Declare hyper-parameters, initialized for determining datatype
         super().__init__()
@@ -71,7 +72,7 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         self.episodes        = 0
 
         #self.args = args
-        self.comm = env_comm
+        self.comm = mpi_settings.env_comm
         self.comm_rank = self.comm.Get_rank() if self.comm else 0
 
         # These are problem dependent and must be available during environment object creation time: cannot be set by CANDLE
