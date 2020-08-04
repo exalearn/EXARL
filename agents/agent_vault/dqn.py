@@ -65,38 +65,6 @@ class DQN(erl.ExaAgent):
             sess = tf.compat.v1.Session(config=config)
             tf.compat.v1.keras.backend.set_session(sess)
 
-            #tf.debugging.set_log_device_placement(True)
-            #cpus = tf.config.experimental.list_physical_devices('CPU')
-            #print('### CPUS:\n {}'.format(cpus))
-            #tf.config.experimental.set_visible_devices([], 'GPU')
-            #os.environ["CUDA_VISIBLE_DEVICES"]=""
-            #my_devices = tf.config.experimental.list_physical_devices(device_type='CPU')
-            #tf.config.experimental.set_visible_devices(devices= my_devices, device_type='CPU')
-            #config = tf.ConfigProto(
-            #    device_count = {'GPU': 0}
-            #)
-            #sess = tf.Session(config=config)
-            #set_session(sess)
-            #gpus = tf.config.experimental.list_physical_devices('GPU')
-            #if gpus:
-            #    # Currently, memory growth needs to be the same across GPUs
-            #    try:
-            #        for gpu in gpus:
-            #            tf.config.experimental.set_memory_growth(gpu, True)
-            #        '''
-            #        # Restrict TensorFlow to only allocate MEM_LIMIT amount of memory
-            #        MEM_LIMIT = 16000 / self.size
-            #        for devIdx in np.arange(len(gpus)):
-            #            tf.config.experimental.set_virtual_device_configuration(
-            #                gpus[devIdx],
-            #                [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=MEM_LIMIT)])
-            #        '''
-            #        logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-            #        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-            #    except RuntimeError as e:
-            #        # Memory growth / Virtual devices must be set before GPUs have been initialized
-            #        print(e)
-
         ## Declare hyper-parameters, initialized for determining datatype
         super().__init__()
         self.results_dir = ''
@@ -181,8 +149,6 @@ class DQN(erl.ExaAgent):
 
     def generate_data(self):
         ''' Worker method to create samples for training '''
-        ## TODO: This method is the most expensive and takes 90% of the agent compute time
-        ## TODO: Reduce computational time
         batch_states = []
         batch_target = []
         ## Return empty batch
@@ -199,6 +165,8 @@ class DQN(erl.ExaAgent):
             if not done:
                 expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
             target = reward + expectedQ
+            import pdb
+            pdb.set_trace()
             target_f = self.target_model.predict(np_state)
             target_f[0][action] = target
             if batch_states == []:
@@ -211,56 +179,16 @@ class DQN(erl.ExaAgent):
 
         yield batch_states,batch_target
 
-    #@profile
-    #@property
+
     def train(self, batch):
         self.epsilon_adj()
         batch_states, batch_target = batch
-        '''
-        minibatch = random.sample(self.memory, self.batch_size)
-        batch_states = []
-        batch_target = []
-        for state, action, reward, next_state, done in minibatch:
-            np_state = np.array(state).reshape(1, 1, len(state))
-            np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
-            expectedQ = 0
-            if not done:
-                expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
-            target = reward + expectedQ
-            target_f = self.model.predict(np_state)
-            target_f[0][action] = target
-            if batch_states == []:
-                batch_states = np_state
-                batch_target = target_f
-            else:
-                batch_states = np.append(batch_states, np_state, axis=0)
-                batch_target = np.append(batch_target, target_f, axis=0)
 
-        logger.info('Data prep time for training: %s ' % ( str(time.time() - start_time_episode)))
-        history = self.model.fit(batch_states, batch_target, epochs=1, verbose=0)
-        logger.info('Total run-time for training: %s ' % ( str(time.time() - start_time_episode)))
-        '''
-        '''
-        for state, action, reward, next_state, done in minibatch:
-            np_state = np.array(state).reshape(1,1,len(state))
-            np_next_state = np.array(next_state).reshape(1,1,len(next_state))
-            expectedQ =0
-            if not done:
-                expectedQ = self.gamma*np.amax(self.target_model.predict(np_next_state)[0])
-            target = reward + expectedQ
-            target_f = self.model.predict(np_state)
-            target_f[0][action] = target
-            history = self.model.fit(np_state, target_f, epochs = 1, verbose = 0)
-            losses.append(history.history['loss'])
-        logger.info('Total run-time for training: %s ' % (str(time.time() - start_time_episode)))
-        self.target_train()
-        '''
         if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
             start_time_episode = time.time()
             history = self.model.fit(batch_states, batch_target, epochs=2, verbose=2)
             logger.info('Agent[%s]- Training: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
             start_time_episode = time.time()
-            #self.target_train()
             logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
 
     def get_weights(self):
