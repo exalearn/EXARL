@@ -199,7 +199,7 @@ class DQN(erl.ExaAgent):
             if not done:
                 expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
             target = reward + expectedQ
-            target_f = self.model.predict(np_state)
+            target_f = self.target_model.predict(np_state)
             target_f[0][action] = target
             if batch_states == []:
                 batch_states = np_state
