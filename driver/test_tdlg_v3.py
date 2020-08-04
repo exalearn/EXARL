@@ -47,6 +47,7 @@ if __name__ == "__main__":
     #######################
     ## Setup environment ##
     #######################
+
     env = ExaEnv(gym.make('envs:ExaLearnBlockCoPolymerTDLG-v3'))#, env_comm=comm)
     agent = agents.make('DQN-v0', env=env)#, agent_comm=comm)
     logger.info('Using environment: %s' % env)
