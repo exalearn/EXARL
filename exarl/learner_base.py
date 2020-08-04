@@ -111,5 +111,5 @@ class ExaLearner():
             self.run_seed(mpi_settings.agent_comm)
         
         else:
-            from exarl.exa_impala import run_impala
-            run_impala(self,mpi_settings.agent_comm)
+            from exarl.exa_single_learner import run_single_learner
+            run_single_learner(self,mpi_settings.agent_comm)
