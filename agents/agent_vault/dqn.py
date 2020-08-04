@@ -147,8 +147,39 @@ class DQN(erl.ExaAgent):
         act_values = self.target_model.predict(state)
         return np.argmax(act_values[0])
 
+    def calc_target_f(self, exp):                                                                                                    
+        state, action, reward, next_state, done = exp
+        np_state = np.array(state).reshape(1, 1, len(state))
+        np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
+        expectedQ = 0
+        if not done:
+                expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
+        target = reward + expectedQ
+        target_f = self.target_model.predict(np_state)
+        target_f[0][action] = target
+        return target_f[0]
+    
     def generate_data(self):
-        ''' Worker method to create samples for training '''
+        # Worker method to create samples for training
+        ## TODO: This method is the most expensive and takes 90% of the agent compute time
+        ## TODO: Reduce computational time
+        batch_states = []
+        batch_target = []
+        ## Return empty batch
+        if len(self.memory)<self.batch_size:
+            yield batch_states, batch_target
+        start_time_episode = time.time()
+        minibatch = random.sample(self.memory, self.batch_size)
+        #logger.info('Agent - Minibatch time: %s ' % (str(time.time() - start_time_episode)))
+        batch_target = list(map(self.calc_target_f, minibatch))
+        batch_states = [np.array(exp[0]).reshape(1,1,len(exp[0]))[0] for exp in minibatch]
+        batch_states=np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
+        batch_target=np.reshape(batch_target, [len(minibatch), self.env.action_space.n])        
+        yield batch_states,batch_target
+        
+    '''
+    def generate_data(self):
+        # Worker method to create samples for training
         batch_states = []
         batch_target = []
         ## Return empty batch
@@ -165,8 +196,6 @@ class DQN(erl.ExaAgent):
             if not done:
                 expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
             target = reward + expectedQ
-            import pdb
-            pdb.set_trace()
             target_f = self.target_model.predict(np_state)
             target_f[0][action] = target
             if batch_states == []:
@@ -176,9 +205,9 @@ class DQN(erl.ExaAgent):
                 batch_states = np.append(batch_states, np_state, axis=0)
                 batch_target = np.append(batch_target, target_f, axis=0)
         #logger.info('Agent - Data generator time: %s ' % (str(time.time() - start_time_episode)))
-
+    
         yield batch_states,batch_target
-
+    '''
 
     def train(self, batch):
         self.epsilon_adj()

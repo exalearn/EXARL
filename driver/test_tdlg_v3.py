@@ -6,6 +6,7 @@ import gym
 import time
 import numpy as np
 
+from exarl.env_base import ExaEnv
 ##
 import logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
@@ -23,7 +24,7 @@ import envs
 import agents
 
 import exarl.mpi_settings as mpi_settings
-from agents.agent_vault.dqn import DQN_LSTM
+from agents.agent_vault.dqn import DQN
 
 if __name__ == "__main__":
 
@@ -46,8 +47,8 @@ if __name__ == "__main__":
     #######################
     ## Setup environment ##
     #######################
-    env = gym.make('envs:ExaLearnBlockCoPolymerTDLG-v3')#, env_comm=comm)
-    agent = agents.make('DQN-LSTM-v0', env=env)#, agent_comm=comm)
+    env = ExaEnv(gym.make('envs:ExaLearnBlockCoPolymerTDLG-v3'))#, env_comm=comm)
+    agent = agents.make('DQN-v0', env=env)#, agent_comm=comm)
     logger.info('Using environment: %s' % env)
     print('Observation_space: %s' % env.observation_space.shape)
     logger.info('Action_size: %s' % env.action_space)
