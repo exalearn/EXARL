@@ -23,7 +23,7 @@ import envs
 import agents
 
 import exarl.mpi_settings as mpi_settings
-from agents.agent_vault.dqn_lstm import DQN_LSTM
+from agents.agent_vault.dqn import DQN_LSTM
 
 if __name__ == "__main__":
 
