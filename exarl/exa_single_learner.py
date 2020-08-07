@@ -61,8 +61,12 @@ def run_single_learner(self, comm):
                     memory = (current_state, action, reward, next_state, done, total_reward)
 
                 ##
+                batch_data = []
                 if memory[2] != -9999:
                     self.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
+                    ## TODO: we need a memory class to scale
+                    batch_data = next(self.agent.generate_data())
+                    logger.info('Rank[{}] - Generated data: {}'.format(comm.rank, len(batch_data[0])))
                 logger.info('Rank[{}] - Memories: {}'.format(comm.rank,len(self.agent.memory)))
 
                 ## TODO: gatherall to share memories with all agents 
@@ -75,10 +79,6 @@ def run_single_learner(self, comm):
                 #        ## TODO: Improve remember function
                 #        self.agent.remember(data[0], data[1], data[2], data[3], data[4])
                 #logger.info('Rank[%s] - Memory length: %s ' % (str(comm.rank),len(self.agent.memory)))
-
-                ## TODO: we need a memory class to scale
-                batch_data = next(self.agent.generate_data())
-                logger.info('Rank[{}] - Generated data: {}'.format(comm.rank,len(batch_data[0])))
 
                 #print('batch_data {}'.format(batch_data))
 
