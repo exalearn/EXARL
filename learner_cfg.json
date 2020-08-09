@@ -3,7 +3,7 @@
     "env": "ExaLearnCartpole-v1",
     "n_episodes": 10,
     "n_steps": 10,
-    "run_type": "static",
+    "learner_type": "static",
     "output_dir": "./results_dir/",
     "process_per_env": 1,
     "model_type": "LSTM"
