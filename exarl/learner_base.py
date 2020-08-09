@@ -44,7 +44,7 @@ class ExaLearner():
         self.results_dir = './results' # Default dir, will be overridden by candle 
         self.do_render = False
 
-        self.run_type = run_params['run_type']
+        self.learner_type = run_params['learner_type']
         self.process_per_env = int(run_params['process_per_env'])
 
         ## Sanity check
@@ -106,10 +106,14 @@ class ExaLearner():
         # TODO add self.omp_num_threads as a param, override
         # with OMP_NUM_THREADS
         #os.environ['OMP_NUM_THREADS']='{:d}'.format(self.omp_num_threads)
-        if run_type=='seed':
+        if self.learner_type == 'seed':
             from exarl.exa_seed import run_seed
-            self.run_seed(mpi_settings.agent_comm)
+            run_seed(self, mpi_settings.agent_comm)
+
+        if self.learner_type == 'async':
+            from exarl.exa_async_learner import run_async_learner
+            run_async_learner(self, mpi_settings.agent_comm)
         
         else:
             from exarl.exa_single_learner import run_single_learner
-            run_single_learner(self,mpi_settings.agent_comm)
+            run_single_learner(self, mpi_settings.agent_comm)
