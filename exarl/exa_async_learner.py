@@ -64,14 +64,12 @@ def run_async_learner(self, comm):
                 train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
                 train_writer = csv.writer(train_file, delimiter = " ")
                 
-                # Reset variables each episode
-                current_state = self.env.reset()
-                total_reward = 0
-                steps        = 0
-                done         = False
-                all_done     = False
-
                 while episode != -1:
+                        # Reset variables each episode
+                        current_state = self.env.reset()
+                        total_reward = 0
+                        steps = 0
+                        done         = False
 
                         # Steps in an episode
                         for i in range(self.nsteps):
@@ -101,13 +99,15 @@ def run_async_learner(self, comm):
                                 
                                 # Update state
                                 current_state = next_state
+                                steps += 1
+
                                 logger.info('Rank[%s] - Total Reward:%s' % (str(comm.rank),str(total_reward)))
 
                                 train_writer.writerow([time.time(),current_state,action,reward,next_state,total_reward, \
                                                        done, steps, policy_type, rank0_epsilon])
                                 train_file.flush()
 
-                                # Break loop if done
+                                # Break for loop if done
                                 if done:
                                         break
 
