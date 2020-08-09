@@ -58,7 +58,7 @@ E.g.:-
     "env": "ExaLearnCartpole-v1",
     "n_episodes": 1,
     "n_steps": 10,
-    "run_type": "static",
+    "learner_type": "single_learner",
     "output_dir": "./exa_results_dir"
 }
 ```
@@ -104,8 +104,8 @@ run_params = cd.initialize_parameters()
 
 ## Create learner object and run
 exa_learner = erl.ExaLearner(run_params)
-run_type = run_params['run_type'] # can be either 'static' or 'dynamic'
-exa_learner.run(run_type)
+learner_type = run_params['learner_type'] # can be either 'static' or 'dynamic'
+exa_learner.run(learner_type)
 ```
 * Write your own script or modify the above as needed
 * Run the following command:
@@ -147,8 +147,7 @@ Example:-
 ```
 * Environments must include the following variables and functions:
 ```
-# Use 'dynamic' for dynamic MPI process spawning, else 'static' 
-self.run_type = <`static` or 'dynamic'>
+self.learner_type = <`async` or 'single_learner'>
 step()      # returns new state after an action
 reset()     # reset the environment to initial state; marks end of an episode
 set_env()   # set environment hyperparameters
