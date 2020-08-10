@@ -213,9 +213,10 @@ class DQN(erl.ExaAgent):
         self.epsilon_adj()
         batch_states, batch_target = batch
 
-        if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
+        #if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
+        if len(batch_states)>=(self.batch_size):
             start_time_episode = time.time()
-            history = self.model.fit(batch_states, batch_target, epochs=2, verbose=2)
+            history = self.model.fit(batch_states, batch_target, epochs=1, verbose=2)
             logger.info('Agent[%s]- Training: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
             start_time_episode = time.time()
             logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
@@ -225,7 +226,7 @@ class DQN(erl.ExaAgent):
         return self.target_model.get_weights()
 
     def set_weights(self, weights):
-        #logger.info('Agent[%s] - set target weight.' % str(self.rank))
+        logger.info('Agent[%s] - set target weight.' % str(self.rank))
         #logger.info('Agent[%s] - set target weight: %s' % (str(self.rank),weights))
         self.target_model.set_weights(weights)
         
