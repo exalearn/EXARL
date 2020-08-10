@@ -36,7 +36,7 @@ class ExaLearner():
         # World communicator
         self.world_comm = MPI.COMM_WORLD
         world_rank = self.world_comm.rank
-        world_size = self.world_comm.size
+        self.world_size = self.world_comm.size
         
         # Default training
         self.nepisodes = 1
@@ -48,11 +48,11 @@ class ExaLearner():
         self.process_per_env = int(run_params['process_per_env'])
 
         ## Sanity check
-        if world_size < self.process_per_env:
+        if self.world_size < self.process_per_env:
             sys.exit('Not enough processes.')
-        if world_size % self.process_per_env != 0:
+        if self.world_size % self.process_per_env != 0:
             sys.exit('Uneven number of processes.')
-        if world_size < 2 and self.learner_type == 'async':
+        if self.world_size < 2 and self.learner_type == 'async':
             print('\n################\nNot enough processes, running synchronous single learner ...\n################\n')
 
         ## Setup MPI
@@ -112,7 +112,7 @@ class ExaLearner():
             from exarl.exa_seed import run_seed
             run_seed(self, mpi_settings.agent_comm)
 
-        if self.learner_type == 'async' and world_size > 2:
+        if self.learner_type == 'async' and self.world_size > 2:
             from exarl.exa_async_learner import run_async_learner
             run_async_learner(self, mpi_settings.agent_comm)
         
