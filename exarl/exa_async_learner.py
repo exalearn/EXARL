@@ -89,7 +89,7 @@ def run_async_learner(self, comm):
                                 total_reward += reward
                                 memory = (current_state, action, reward, next_state, done, total_reward)
                                 
-                                batch_data = []
+                                #batch_data = []
                                 self.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
                     
                                 batch_data = next(self.agent.generate_data())
