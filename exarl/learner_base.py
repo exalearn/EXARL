@@ -52,6 +52,9 @@ class ExaLearner():
             sys.exit('Not enough processes.')
         if world_size % self.process_per_env != 0:
             sys.exit('Uneven number of processes.')
+        if world_size < 2 and self.learner_type == 'async':
+            MPI.Finalize()
+            sys.exit('\n################\nNot enough processes.\n################\n')
 
         ## Setup MPI
         mpi_settings.init(self.process_per_env)

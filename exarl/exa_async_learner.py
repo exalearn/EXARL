@@ -3,14 +3,12 @@ import csv
 from mpi4py import MPI
 import numpy as np
 import logging
-
+import sys
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.INFO)
 
 def run_async_learner(self, comm):
-
-        ## Initial setup
 
         # Set target model the sample for all
         target_weights = None
@@ -31,25 +29,27 @@ def run_async_learner(self, comm):
                 while 1:
                         if episode < self.nepisodes:
                                 print("Running scheduler/learner")
-                                done = False
-                                while done != True: 
+                                #done = False
+                                #while done != True:
                                         # Receive batch
-                                        recv_data = comm.recv(source=MPI.ANY_SOURCE)
-                                        whofrom = recv_data[0]
-                                        batch = recv_data[1]
-                                        done = recv_data[2]
+                                recv_data = comm.recv(source=MPI.ANY_SOURCE)
+                                whofrom = recv_data[0]
+                                batch = recv_data[1]
+                                done = recv_data[2]
                                 
-                                        # Train
-                                        self.agent.train(batch)
-                                        self.agent.target_train()
-                                        rank0_epsilon = self.agent.epsilon
-                                        target_weights =self.agent.get_weights()
-                                        
-                                        # Send target weights
-                                        comm.send([episode, rank0_epsilon, target_weights], dest = whofrom)
+                                # Train
+                                self.agent.train(batch)
+                                self.agent.target_train()
+                                rank0_epsilon = self.agent.epsilon
+                                target_weights =self.agent.get_weights()
+
+                                if done:
+                                        episode += 1
+                                # Send target weights
+                                comm.send([episode, rank0_epsilon, target_weights], dest = whofrom)
                                 
                                 # Increment episode
-                                episode += 1
+                                #episode += 1
                         else:
                                 print("Finishing up ...")
                                 episode = -1
@@ -66,10 +66,10 @@ def run_async_learner(self, comm):
                 
                 while episode != -1:
                         # Reset variables each episode
-                        current_state = self.env.reset()
-                        total_reward = 0
-                        steps = 0
-                        done         = False
+                        current_state   = self.env.reset()
+                        total_reward    = 0
+                        steps           = 0
+                        done            = False
 
                         # Steps in an episode
                         for i in range(self.nsteps):
