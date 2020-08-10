@@ -74,6 +74,7 @@ def run_async_learner(self, comm):
                         # Steps in an episode
                         while steps<self.nsteps:
                                 ## I want to the latest weights ##
+
                                 action, policy_type = self.agent.action(current_state)
                                 next_state, reward, done, _ = self.env.step(action)
                                 total_reward += reward
@@ -88,23 +89,24 @@ def run_async_learner(self, comm):
 
                                 # Send batched memories
                                 comm.send([comm.rank, batch_data, done], dest=0)
-                                
+
                                 # Receive target weights
                                 recv_data = comm.recv(source=0)
                                 episode = recv_data[0]
                                 if episode == -1:
                                         break
-
                                 self.agent.epsilon = recv_data[1]
                                 self.agent.set_weights(recv_data[2])
                                 
                                 # Update state
                                 current_state = next_state
                                 steps += 1
+                                if steps >= self.nsteps:
+                                        done = True
 
                                 logger.info('Rank[%s] - Total Reward:%s' % (str(comm.rank),str(total_reward)))
 
-                                train_writer.writerow([time.time(),current_state,action,reward,next_state,total_reward, \
+                                train_writer.writerow([MPI_Wtime(),current_state,action,reward,next_state,total_reward, \
                                                        done, steps, policy_type, rank0_epsilon])
                                 train_file.flush()
 
