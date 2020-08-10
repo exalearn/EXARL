@@ -23,7 +23,6 @@ def run_async_learner(self, comm):
         episode = 0
         rank0_memories = 0
         rank0_epsilon  = 0
-        episodes = np.arange(0, self.nepisodes)
 
         ## Round-Robin Scheduler
         if comm.rank == 0:
