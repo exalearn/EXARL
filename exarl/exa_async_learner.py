@@ -72,7 +72,8 @@ def run_async_learner(self, comm):
                         done            = False
 
                         # Steps in an episode
-                        for i in range(self.nsteps):
+                        while steps<self.nsteps:
+                                ## I want to the latest weights ##
                                 action, policy_type = self.agent.action(current_state)
                                 next_state, reward, done, _ = self.env.step(action)
                                 total_reward += reward
