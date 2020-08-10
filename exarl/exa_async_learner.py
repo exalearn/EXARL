@@ -26,13 +26,20 @@ def run_async_learner(self, comm):
 
         ## Round-Robin Scheduler
         if comm.rank == 0:
+                total_learner_time = 0
+                
                 while episode < self.nepisodes:
-                        print("Running scheduler/learner")
+                        start_learner_time = time.time()
+                        print("Running scheduler/learner episode: {}".format(episode))
                         
                         # Receive the rank of the worker ready for more work
-                        whofrom = comm.recv(source=MPI.ANY_SOURCE, tag=1)
-                        
+                        recv_data = comm.recv(source=MPI.ANY_SOURCE, tag=1)
+                        whofrom = recv_data[0]
+                        step = recv_data[1]
+                        #print('whofrom: {}'.format(whofrom))
                         # Send target weights
+                        if step==0:
+                                episode += 1
                         rank0_epsilon = self.agent.epsilon
                         target_weights = self.agent.get_weights()
                         comm.send([episode, rank0_epsilon, target_weights], dest = whofrom)
@@ -45,18 +52,19 @@ def run_async_learner(self, comm):
                         # Train
                         self.agent.train(batch)
                         self.agent.target_train()
-
                         
                         # Increment episode when complete
-                        if done:
-                                episode += 1
-                                        
+                        #if done:
+                                
+                        stop_learner_time = time.time()
+                        total_learner_time = stop_learner_time - start_learner_time
                         
                 print("Finishing up ...")
                 episode = -1
                 for s in range(1, comm.Get_size()):
                         comm.send([episode, 0], dest=s)
-                        
+                
+                print('Learner time: {}'.format(total_learner_time))
 
         else:                   
                 # Setup logger
@@ -67,6 +75,7 @@ def run_async_learner(self, comm):
                 
                 while episode != -1:
                         # Reset variables each episode
+                        self.env.seed(0)
                         current_state   = self.env.reset()
                         total_reward    = 0
                         steps           = 0
@@ -75,7 +84,7 @@ def run_async_learner(self, comm):
                         # Steps in an episode
                         while steps < self.nsteps:                                
                                 # Indicate availability by sending rank to the learner
-                                comm.send(comm.rank, dest=0, tag=1)
+                                comm.send([comm.rank, steps], dest=0, tag=1)
 
                                 # Receive target weights
                                 recv_data = comm.recv(source=0)
@@ -103,7 +112,7 @@ def run_async_learner(self, comm):
                                 # Update state
                                 current_state = next_state
                                 steps += 1
-                                print("episode = ", episode, "step = ", steps)
+                                print("'Rank[", comm.rank,"], episode = ", episode, "step = ", steps)
                                 if steps >= self.nsteps:
                                         done = True
 
