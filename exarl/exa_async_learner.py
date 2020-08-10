@@ -33,6 +33,8 @@ def run_async_learner(self, comm):
                         whofrom = comm.recv(source=MPI.ANY_SOURCE, tag=1)
                         
                         # Send target weights
+                        rank0_epsilon = self.agent.epsilon
+                        target_weights = self.agent.get_weights()
                         comm.send([episode, rank0_epsilon, target_weights], dest = whofrom)
                         
                         # Receive batch
@@ -43,8 +45,7 @@ def run_async_learner(self, comm):
                         # Train
                         self.agent.train(batch)
                         self.agent.target_train()
-                        rank0_epsilon = self.agent.epsilon
-                        target_weights =self.agent.get_weights()
+
                         
                         # Increment episode when complete
                         if done:
