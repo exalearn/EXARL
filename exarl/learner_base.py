@@ -112,7 +112,7 @@ class ExaLearner():
             from exarl.exa_seed import run_seed
             run_seed(self, mpi_settings.agent_comm)
 
-        if self.learner_type == 'async' and self.world_size > 2:
+        if self.learner_type == 'async' and self.world_size >= 2:
             from exarl.exa_async_learner import run_async_learner
             run_async_learner(self, mpi_settings.agent_comm)
         
