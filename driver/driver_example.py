@@ -14,11 +14,11 @@ run_params = cd.initialize_parameters()
 
 ## Create learner object and run
 exa_learner = erl.ExaLearner(run_params)
-run_type = run_params['run_type']
+learner_type = run_params['learner_type']
 
 # Run the learner, measure time
 start = time.time()
-exa_learner.run(run_type) # can be either 'static' or 'dynamic'
+exa_learner.run(learner_type)
 elapse = time.time() -start
 
 # Compute and print average time
