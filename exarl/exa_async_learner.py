@@ -23,41 +23,40 @@ def run_async_learner(self, comm):
         episode = 0
         rank0_memories = 0
         rank0_epsilon  = 0
+        episodes = np.arange(0, self.nepisodes)
 
         ## Round-Robin Scheduler
         if comm.rank == 0:
-                while 1:
-                        if episode < self.nepisodes:
-                                print("Running scheduler/learner")
-
-                                # Receive the rank of the worker ready for more work
-                                whofrom = comm.recv(source=MPI.ANY_SOURCE, tag=1)
-
-                                # Send target weights
-                                comm.send([episode, rank0_epsilon, target_weights], dest = whofrom)
- 
-                                # Receive batch
-                                recv_data = comm.recv(source=MPI.ANY_SOURCE, tag=2)
-                                batch = recv_data[0]
-                                done = recv_data[1]
-                                
-                                # Train
-                                self.agent.train(batch)
-                                self.agent.target_train()
-                                rank0_epsilon = self.agent.epsilon
-                                target_weights =self.agent.get_weights()
-                                
-                                print("episode = ",episode)
-                                # Increment episode when complete
-                                if done:
-                                        episode += 1
-
-                        else:
-                                print("Finishing up ...")
-                                episode = -1
-                                for s in range(1, comm.Get_size()):
-                                        comm.send([episode, 0], dest=s)
-                                break
+                while episode < self.nepisodes:
+                        print("Running scheduler/learner")
+                        
+                        # Receive the rank of the worker ready for more work
+                        whofrom = comm.recv(source=MPI.ANY_SOURCE, tag=1)
+                        
+                        # Send target weights
+                        comm.send([episode, rank0_epsilon, target_weights], dest = whofrom)
+                        
+                        # Receive batch
+                        recv_data = comm.recv(source=MPI.ANY_SOURCE, tag=2)
+                        batch = recv_data[0]
+                        done = recv_data[1]
+                        
+                        # Train
+                        self.agent.train(batch)
+                        self.agent.target_train()
+                        rank0_epsilon = self.agent.epsilon
+                        target_weights =self.agent.get_weights()
+                        
+                        # Increment episode when complete
+                        if done:
+                                episode += 1
+                                        
+                        
+                print("Finishing up ...")
+                episode = -1
+                for s in range(1, comm.Get_size()):
+                        comm.send([episode, 0], dest=s)
+                        
 
         else:                   
                 # Setup logger
@@ -104,6 +103,7 @@ def run_async_learner(self, comm):
                                 # Update state
                                 current_state = next_state
                                 steps += 1
+                                print("episode = ", episode, "step = ", steps)
                                 if steps >= self.nsteps:
                                         done = True
 
