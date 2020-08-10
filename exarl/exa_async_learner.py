@@ -29,6 +29,11 @@ def run_async_learner(self, comm):
                 while 1:
                         if episode < self.nepisodes:
                                 print("Running scheduler/learner")
+                                ## 1) Recv "I need work'
+                                ## 2) Send epoisode and model info
+                                ## 3) Recv new batch
+
+                                ## Send
                                 #done = False
                                 #while done != True:
                                         # Receive batch
@@ -71,10 +76,14 @@ def run_async_learner(self, comm):
                         steps           = 0
                         done            = False
 
+                        # Send
+
                         # Steps in an episode
                         while steps<self.nsteps:
                                 ## I want to the latest weights ##
-
+                                # 1) Send I'm ready
+                                # 2) Recv episode and model info
+                                # 3) Send batch data
                                 action, policy_type = self.agent.action(current_state)
                                 next_state, reward, done, _ = self.env.step(action)
                                 total_reward += reward
