@@ -31,13 +31,13 @@ def run_async_learner(self, comm):
                                 print("Running scheduler/learner")
 
                                 # Receive the rank of the worker ready for more work
-                                whofrom = comm.recv(source=MPI.ANY_SOURCE)
+                                whofrom = comm.recv(source=MPI.ANY_SOURCE, tag=1)
 
                                 # Send target weights
                                 comm.send([episode, rank0_epsilon, target_weights], dest = whofrom)
  
                                 # Receive batch
-                                recv_data = comm.recv(source=MPI.ANY_SOURCE)
+                                recv_data = comm.recv(source=MPI.ANY_SOURCE, tag=2)
                                 batch = recv_data[0]
                                 done = recv_data[1]
                                 
@@ -47,6 +47,7 @@ def run_async_learner(self, comm):
                                 rank0_epsilon = self.agent.epsilon
                                 target_weights =self.agent.get_weights()
                                 
+                                print("episode = ",episode)
                                 # Increment episode when complete
                                 if done:
                                         episode += 1
@@ -73,9 +74,9 @@ def run_async_learner(self, comm):
                         done            = False
 
                         # Steps in an episode
-                        while steps<self.nsteps:                                
+                        while steps < self.nsteps:                                
                                 # Indicate availability by sending rank to the learner
-                                comm.send(comm.rank, dest=0)
+                                comm.send(comm.rank, dest=0, tag=1)
 
                                 # Receive target weights
                                 recv_data = comm.recv(source=0)
@@ -98,7 +99,7 @@ def run_async_learner(self, comm):
                                 logger.info('Rank[{}] - Memories: {}'.format(comm.rank,len(self.agent.memory)))
 
                                 # Send batched memories
-                                comm.send([batch_data, done], dest=0)
+                                comm.send([batch_data, done], dest=0, tag=2)
 
                                 # Update state
                                 current_state = next_state
