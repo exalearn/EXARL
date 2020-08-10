@@ -53,8 +53,7 @@ class ExaLearner():
         if world_size % self.process_per_env != 0:
             sys.exit('Uneven number of processes.')
         if world_size < 2 and self.learner_type == 'async':
-            MPI.Finalize()
-            sys.exit('\n################\nNot enough processes.\n################\n')
+            print('\n################\nNot enough processes, running synchronous single learner ...\n################\n')
 
         ## Setup MPI
         mpi_settings.init(self.process_per_env)
@@ -113,7 +112,7 @@ class ExaLearner():
             from exarl.exa_seed import run_seed
             run_seed(self, mpi_settings.agent_comm)
 
-        if self.learner_type == 'async':
+        if self.learner_type == 'async' and world_size > 2:
             from exarl.exa_async_learner import run_async_learner
             run_async_learner(self, mpi_settings.agent_comm)
         
