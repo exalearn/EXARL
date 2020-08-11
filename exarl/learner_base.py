@@ -93,7 +93,8 @@ class ExaLearner():
         self.env.set_config(params)
         self.results_dir = params['output_dir']
         if not os.path.exists(self.results_dir):
-            os.makedirs(self.results_dir)
+            if (self.world_comm.rank == 0):
+                os.makedirs(self.results_dir)
 
     def render_env(self):
         self.do_render=True
