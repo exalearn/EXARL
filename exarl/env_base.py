@@ -72,4 +72,5 @@ class ExaEnv(Wrapper):
         '''
         env_data = self.get_config()
         for key in env_data:
-            setattr(self.env, key, env_data[key])
+            if key!="env":
+                setattr(self.env, key, env_data[key])
