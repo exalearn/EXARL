@@ -103,45 +103,6 @@ class BlockCoPolymerTDLGv3(gym.Env):
         self.ep=0
         self.st=0
 
-    def set_env(self):
-        
-        env_data = super().get_config()
-       
-        print('In TDLG env_data is: ')
-        print(env_data)
-
-        self.app_dir                = env_data['app_dir']
-        self.app_core               = env_data['app_core']
-        self.param_dir              = env_data['param_dir']
-        self.param_name             = env_data['param_name']
-        self.target_structure_name  = env_data['target_structure_name']
-        self.target_precision       = env_data['target_precision']
-        self.kappa_step_size        = env_data['kappa_step_size']
-
-        # Use the learner_defined results directory. 
-
-    
-        sys.path.append(self.app_dir)
-        # only TDLG is valid, app_name is never used
-        import TDLG as TDLG
-        TDLG = reload(TDLG)
-        self.app = TDLG
-        
-        ## Model parameters
-        self.param_file = os.path.join(self.param_dir,self.param_name)
-        self.param_file = os.path.join(self.param_dir,self.param_name)
-        self.model_parameter_init  = self._updateParamDict(self.param_file)
-        ## Fix the starting point
-        self.model_parameter = self.model_parameter_init
-
-        ## Setup target structure
-        self.target_structure = self.setTargetStructure(self.target_structure_name)
-        self.structure_len = len(self.target_structure)
-
-        ## Define state and action spaces
-        self.observation_space = spaces.Box(low=np.append(np.zeros(self.structure_len),[0.004]), high=np.append(np.ones(self.structure_len),[0.012]),dtype=np.float32)
-        self.action_space = spaces.Discrete(3)
-
         self.reset()
         
         
