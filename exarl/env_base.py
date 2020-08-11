@@ -49,6 +49,8 @@ class ExaEnv(Wrapper):
         else:
             self.worker = None
         
+        self.env = env
+        
     def set_results_dir(self,results_dir):
         ''' 
         Default method to save environment specific information 
@@ -65,4 +67,9 @@ class ExaEnv(Wrapper):
         return self.env_data
         
     def set_env(self):
-        print('Use this function to set hyper-parameters, if any')
+        '''
+        Use this function to set hyper-parameters, if any')
+        '''
+        env_data = self.get_config()
+        for key in env_data:
+            setattr(self.env, key, env_data[key])
