@@ -26,10 +26,9 @@ def run_async_learner(self, comm):
 
         ## Round-Robin Scheduler
         if comm.rank == 0:
-                total_learner_time = 0
-                
+
+                start = MPI.Wtime()
                 while episode < self.nepisodes:
-                        start_learner_time = time.time()
                         print("Running scheduler/learner episode: {}".format(episode))
                         
                         # Receive the rank of the worker ready for more work
@@ -57,15 +56,14 @@ def run_async_learner(self, comm):
                         if step==0:
                                 episode += 1
                                 
-                        stop_learner_time = time.time()
-                        total_learner_time += stop_learner_time - start_learner_time
-                        
+                                        
                 print("Finishing up ...")
                 episode = -1
                 for s in range(1, comm.Get_size()):
                         comm.send([episode, 0], dest=s)
                 
-                print('Learner time: {}'.format(total_learner_time))
+                
+                print('Learner time: {}'.format(MPI.Wtime() - start))
 
         else:                   
                 # Setup logger
@@ -73,7 +71,8 @@ def run_async_learner(self, comm):
                                   % ( str(self.nepisodes), str(self.nsteps), str(comm.rank))
                 train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
                 train_writer = csv.writer(train_file, delimiter = " ")
-                
+             
+                start = MPI.Wtime()
                 while episode != -1:
                         # Reset variables each episode
                         self.env.seed(0)
@@ -133,6 +132,6 @@ def run_async_learner(self, comm):
 
 
                 train_file.close()
-                                
+                print("Worker time = ", MPI.Wtime()-start)                
 
                                 
