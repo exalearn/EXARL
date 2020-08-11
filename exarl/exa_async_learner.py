@@ -38,8 +38,7 @@ def run_async_learner(self, comm):
                         step = recv_data[1]
                         #print('whofrom: {}'.format(whofrom))
                         # Send target weights
-                        if step==0:
-                                episode += 1
+
                         rank0_epsilon = self.agent.epsilon
                         target_weights = self.agent.get_weights()
                         comm.send([episode, rank0_epsilon, target_weights], dest = whofrom)
@@ -55,9 +54,11 @@ def run_async_learner(self, comm):
                         
                         # Increment episode when complete
                         #if done:
+                        if step==0:
+                                episode += 1
                                 
                         stop_learner_time = time.time()
-                        total_learner_time = stop_learner_time - start_learner_time
+                        total_learner_time += stop_learner_time - start_learner_time
                         
                 print("Finishing up ...")
                 episode = -1
@@ -88,13 +89,17 @@ def run_async_learner(self, comm):
 
                                 # Receive target weights
                                 recv_data = comm.recv(source=0)
-                                episode = recv_data[0]
-                                if episode == -1:
+                                if steps==0:
+                                        episode = recv_data[0]
+                                        
+                                if recv_data[0] == -1:
+                                        episode = -1
                                         break
+                                
                                 self.agent.epsilon = recv_data[1]
                                 self.agent.set_weights(recv_data[2])
                                 
-                                action, policy_type = self.agent.action(current_state)
+                                action, policy_type = 0, -11 #self.agent.action(current_state)
                                 next_state, reward, done, _ = self.env.step(action)
                                 total_reward += reward
                                 memory = (current_state, action, reward, next_state, done, total_reward)
@@ -112,11 +117,11 @@ def run_async_learner(self, comm):
                                 # Update state
                                 current_state = next_state
                                 steps += 1
-                                print("'Rank[", comm.rank,"], episode = ", episode, "step = ", steps)
                                 if steps >= self.nsteps:
                                         done = True
 
                                 logger.info('Rank[%s] - Total Reward:%s' % (str(comm.rank),str(total_reward)))
+                                logger.info('Rank[%s] - Episode/Step:%s/%s' % (str(comm.rank),str(episode),str(steps)))
 
                                 train_writer.writerow([time.time(),current_state,action,reward,next_state,total_reward, \
                                                        done, steps, policy_type, rank0_epsilon])
