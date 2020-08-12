@@ -80,5 +80,10 @@ class ExaEnv(Wrapper):
         env_data = self.get_config()
         print (type(self.env))
         for key in env_data:
+<<<<<<< HEAD
             setattr(self.env, key, env_data[key])
             #print("set env attr-->",key,"=",env_data[key])
+=======
+            if key!="env":
+                setattr(self.env, key, env_data[key])
+>>>>>>> 16a4f9f96ba721ed35b0707c433305c0438fcacc
