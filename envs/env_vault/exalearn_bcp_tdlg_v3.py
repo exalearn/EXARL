@@ -24,7 +24,7 @@ class BlockCoPolymerTDLGv3(gym.Env):
     metadata = {'render.modes': ['human']}
 
 
-    def __init__(self, cfg_file='envs/env_vault/env_cfg/ExaLearnBlockCoPolymerTDLG-v3.json',**kwargs):
+    def __init__(self,**kwargs):
         super().__init__()
         """ 
         Description:
@@ -47,54 +47,40 @@ class BlockCoPolymerTDLGv3(gym.Env):
            - No change (1)
         """
 
-        # Load the json file 
-        
-        #with open(cfg_file, "r") as read_file:
-        #    cfg_data = json.load(read_file)
-
         ## Application setup
-        self.app_dir  = kwargs['app_dir'] # './envs/env_vault/LibTDLG/'
-        #print("env--> env spec--->",self.specs)
+        self.app_dir  = kwargs['app_dir'] 
         sys.path.append(self.app_dir)
         import TDLG as TDLG
         self.app = TDLG
         
-        self.app_threads  = 0
-        self.app_core     = 1
-        
-        ## Model parameters
         self.param_dir  = './envs/env_vault/env_cfg/'
         self.param_name = 'tdlg_param.in'
         self.param_file = os.path.join(self.param_dir,self.param_name)
         self.model_parameter_init  = self._updateParamDict(self.param_file)
-        ## Fix the starting point
-        self.model_parameter = self.model_parameter_init
+        self.model_parameter = self.model_parameter_init.copy()
         
-        ## Step sizes for discrete environment
-        self.kappa_step_size = 0.001
-
-        ## Setup target structure
-        self.target_structure_name = 'envs/env_vault/env_cfg/target_field.out'
-        self.target_precision = 0.0
-        self.target_structure = self.setTargetStructure(self.target_structure_name)
+        self.target_structure_name = 'target_field.out'
+        self.target_structure_file = os.path.join(self.param_dir, self.target_structure_name)
+        self.target_structure = self.setTargetStructure(self.target_structure_file)
         self.structure_len = len(self.target_structure)
-
-        ## Define state and action spaces
         self.observation_space = spaces.Box(low=np.append(np.zeros(self.structure_len),[0.004]), high=np.append(np.ones(self.structure_len)*350,[0.012]),dtype=np.float32)
+        self.app_threads  = 4
+        
         self.action_space = spaces.Discrete(3)
         
-        ## reward
-        self.f_fixInit = True
-        self.fixInitValue = 0.01
         
-        self.ep=0
-        self.st=0
-        
-        self.rendering = False
         
     def reset(self):
-        ## Clear parameter dict
+        self.param_file = os.path.join(self.param_dir,self.param_name)
+        self.model_parameter_init  = self._updateParamDict(self.param_file)
         self.model_parameter = self.model_parameter_init.copy()
+        
+        self.target_structure_file = os.path.join(self.param_dir, self.target_structure_name)
+        self.target_structure = self.setTargetStructure(self.target_structure_file)
+        
+        self.structure_len = len(self.target_structure)
+        self.observation_space = spaces.Box(low=np.append(np.zeros(self.structure_len),[0.004]), high=np.append(np.ones(self.structure_len)*350,[0.012]),dtype=np.float32)
+
         
         ## start with a random kappa
         #range_top = int(round((self.observation_space.high[-1]-self.observation_space.low[-1])/self.kappa_step_size + 1))
