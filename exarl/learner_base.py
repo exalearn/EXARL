@@ -62,18 +62,22 @@ class ExaLearner():
         env_id   = 'envs:'+run_params['env']
         self.agent_id = agent_id
         self.env_id   = env_id
-        self.agent, self.env = self.make()
-        #self.env._max_episode_steps = self.nsteps
+        self.agent, self.env = self.make(run_params)
+        self.env.unwrapped.spec.max_episode_steps  = self.nsteps
+        self.env.unwrapped._max_episode_steps = self.nsteps
+        
         self.env.spec.max_episode_steps  = self.nsteps
-
+        self.env._max_episode_steps = self.nsteps
         ##
         self.set_config(run_params)
-
+        self.env.set_env()
+        self.env.reset()
         
-    def make(self):
         
+    def make(self,run_params):
         # Create environment object
-        env = ExaEnv(gym.make(self.env_id))
+        env = gym.make(self.env_id).unwrapped
+        env = ExaEnv(env,run_params)
         agent = agents.make(self.agent_id, env=env)
  
         return agent, env
@@ -82,8 +86,10 @@ class ExaLearner():
     def set_training(self,nepisodes,nsteps):
         self.nepisodes = nepisodes
         self.nsteps    = nsteps
-        #self.env._max_episode_steps = self.nsteps
+        self.env.unwrapped._max_episode_steps = self.nsteps
+        self.env.unwrapped.spec.max_episode_steps  = self.nsteps
         self.env.spec.max_episode_steps  = self.nsteps
+        self.env._max_episode_steps = self.nsteps
 
     # Use with CANDLE
     def set_config(self, params):

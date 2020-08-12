@@ -24,7 +24,7 @@ class BlockCoPolymerTDLGv3(gym.Env):
     metadata = {'render.modes': ['human']}
 
 
-    def __init__(self, cfg_file='envs/env_vault/env_cfg/ExaLearnBlockCoPolymerTDLG-v3.json'):
+    def __init__(self, cfg_file='envs/env_vault/env_cfg/ExaLearnBlockCoPolymerTDLG-v3.json',**kwargs):
         super().__init__()
         """ 
         Description:
@@ -49,16 +49,18 @@ class BlockCoPolymerTDLGv3(gym.Env):
 
         # Load the json file 
         
-        with open(cfg_file, "r") as read_file:
-            cfg_data = json.load(read_file)
+        #with open(cfg_file, "r") as read_file:
+        #    cfg_data = json.load(read_file)
 
         ## Application setup
-        self.app_dir  = cfg_data['app_dir'] # './envs/env_vault/LibTDLG/'
+        self.app_dir  = kwargs['app_dir'] # './envs/env_vault/LibTDLG/'
+        #print("env--> env spec--->",self.specs)
         sys.path.append(self.app_dir)
         import TDLG as TDLG
         self.app = TDLG
+        
         self.app_threads  = 0
-        self.app_core     = cfg_data['app_core']
+        self.app_core     = 1
         
         ## Model parameters
         self.param_dir  = './envs/env_vault/env_cfg/'
@@ -77,34 +79,18 @@ class BlockCoPolymerTDLGv3(gym.Env):
         self.target_structure = self.setTargetStructure(self.target_structure_name)
         self.structure_len = len(self.target_structure)
 
-        self.rendering = False
-
-
         ## Define state and action spaces
         self.observation_space = spaces.Box(low=np.append(np.zeros(self.structure_len),[0.004]), high=np.append(np.ones(self.structure_len)*350,[0.012]),dtype=np.float32)
         self.action_space = spaces.Discrete(3)
         
         ## reward
-        #self.earlyTargetBonus  = 2
-        #self.outOfBoundPenalty = -1
-        #self.smape_shift       = 0.5
-        #self.f_rewardScaling   = True
         self.f_fixInit = True
         self.fixInitValue = 0.01
         
-        self._max_episode_steps=10
-        #self._max_episode_steps=self.spec.max_episode_steps
-        #print('max steps: '.format( self._max_episode_steps))
-        
-        ## Initialize current structure
-        #self.reset()
-
-
         self.ep=0
         self.st=0
-
-        self.reset()
         
+        self.rendering = False
         
     def reset(self):
         ## Clear parameter dict
