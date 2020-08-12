@@ -38,14 +38,12 @@ class ExaEnv(Wrapper):
 
         ## TODO: Add any GPU parameters
 
-
         ## TODO: executable 
         if(self.process_per_env > 0):
             # defaults to running toy example of computing PI
             self.worker = (env_data['worker_app']).lower() if 'worker_app' in env_data.keys() else "envs/env_vault/cpi.py"
         else:
             self.worker = None
-        #self.env = env
         
         
     def set_results_dir(self,results_dir):
@@ -80,10 +78,4 @@ class ExaEnv(Wrapper):
         env_data = self.get_config()
         print (type(self.env))
         for key in env_data:
-<<<<<<< HEAD
             setattr(self.env, key, env_data[key])
-            #print("set env attr-->",key,"=",env_data[key])
-=======
-            if key!="env":
-                setattr(self.env, key, env_data[key])
->>>>>>> 16a4f9f96ba721ed35b0707c433305c0438fcacc
