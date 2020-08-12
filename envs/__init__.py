@@ -1,8 +1,12 @@
+from gym.envs import registration
 from gym.envs.registration import register
 import driver.candleDriver as cd
 
+
 run_params = cd.initialize_parameters()
 env = run_params['env']
+
+
 
 if env == 'ch-v0':
     register(
@@ -20,6 +24,7 @@ elif env == 'ExaLearnBlockCoPolymerTDLG-v3':
     register(
         id=env,
         entry_point='envs.env_vault:BlockCoPolymerTDLGv3',
+        kwargs={"app_dir":'/qfs/projects/ecp_exalearn/controls/tdlg_libs'},
     )
     
 elif env == 'ExaLearnCartPole-v0':

@@ -16,22 +16,19 @@ from gym import Wrapper
 from mpi4py import MPI
 import exarl.mpi_settings as mpi_settings
 
+
 class ExaEnv(Wrapper):
-    def __init__(self, env, **kwargs):  
+    def __init__(self, env, run_params,**kwargs):  
+        
         super(ExaEnv, self).__init__(env)     
+        
         # Use relative path not absolute
         self.base_dir = os.path.dirname(__file__)
         print(self.base_dir)
         #self.env = env
         self.env_comm = mpi_settings.env_comm
         
-        self.env_cfg = os.path.join(self.base_dir, '../envs/env_vault/env_cfg/env_setup.json')
-        for key, value in kwargs.items():
-            if key == 'env_cfg':
-                self.env_cfg = value
-
-        with open(self.env_cfg) as json_file:
-            env_data = json.load(json_file)
+        env_data = run_params
 
         ## TODO: Add any MPI parameters
         self.process_per_env = int(env_data['process_per_env']) if 'process_per_env' in env_data.keys() else 0
@@ -48,8 +45,8 @@ class ExaEnv(Wrapper):
             self.worker = (env_data['worker_app']).lower() if 'worker_app' in env_data.keys() else "envs/env_vault/cpi.py"
         else:
             self.worker = None
+        #self.env = env
         
-        self.env = env
         
     def set_results_dir(self,results_dir):
         ''' 
@@ -61,7 +58,17 @@ class ExaEnv(Wrapper):
         self.results_dir=results_dir
 
     def set_config(self, env_data):
-        self.env_data = env_data
+        env_defs={}
+        output={}
+        #read the keys from the cfg file
+        env_cfg = 'envs/env_vault/env_cfg/'+env_data['env']+'.json'
+        if os.path.exists(env_cfg):
+            with open(env_cfg) as f:
+                env_defs = json.load(f)
+        #fill in values from CANDLE combined cfg
+        for key in env_defs:
+            output[key]=env_data[key]
+        self.env_data = output
 
     def get_config(self):
         return self.env_data
@@ -71,5 +78,7 @@ class ExaEnv(Wrapper):
         Use this function to set hyper-parameters, if any')
         '''
         env_data = self.get_config()
+        print (type(self.env))
         for key in env_data:
             setattr(self.env, key, env_data[key])
+            #print("set env attr-->",key,"=",env_data[key])
