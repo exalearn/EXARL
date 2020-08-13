@@ -24,5 +24,4 @@ elapse = time.time() -start
 # Compute and print average time
 elapse = comm.reduce(elapse, op=MPI.SUM, root=0)
 if rank == 0:
-    print(" Total elapsed time = ", elapse)
     print(" Average elapsed time = ", elapse/size)
