@@ -1,4 +1,4 @@
-import mpi4py.rc; mpi4py.rc.threads = False
+import mpi4py.rc; mpi4py.rc.threads = False; mpi4py.rc.recv_mprobe = False
 import exarl as erl
 import driver.candleDriver as cd
 import time
