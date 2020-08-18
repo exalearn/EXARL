@@ -22,3 +22,16 @@ def init(env_procs):
     env_comm = MPI.COMM_WORLD.Split(env_color ,key=0)
 
     world_comm.barrier()
+    '''      
+    # Environment communicator
+    env_color = int((world_rank+1)/env_procs
+    global env_comm
+    env_comm = world_comm.Split(env_color, world_rank)
+    
+    # Agent communicator
+    agent_color = MPI.UNDEFINED
+    if (world_rank+1)%env_procs == 0:
+        agent_color = 0 # Can be anything, just assigning a common value for color
+    global agent_comm
+    agent_comm = world_comm.Split(agent_color, world_rank)
+    '''
