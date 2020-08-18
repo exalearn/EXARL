@@ -106,7 +106,8 @@ class CahnHilliardEnv(gym.Env):
         self.time_step            = -1
         self.isTest               = True if self.notTrain else False
         self.isTarget = False
-
+        
+    '''
     def set_env(self):
         # Obtain hyperparameteres
         env_data = super().get_config()
@@ -129,6 +130,7 @@ class CahnHilliardEnv(gym.Env):
 
         self.setTargetState()
         self.setInitSimParams() 
+    '''
 
     ##################### get state space (mean, sd) #####################
     def getStateSize(self):  # state size is # of structured vector components and the current temperature
@@ -150,8 +152,9 @@ class CahnHilliardEnv(gym.Env):
         self.time_step  = -1
         # print('episode', self.episode)
         if self.episode == self.episodes: self.isTest=True
-
-        #self.setInitSimParams()  # TODO: I do not have to initialze all parameter at each episode
+        
+        self.setTargetState()
+        self.setInitSimParams()  # TODO: I do not have to initialze all parameter at each episode
 
         if self.randInitial: self.T = self.setRandInitT()
         else:                self.T = self.initT

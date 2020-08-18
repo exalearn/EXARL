@@ -28,39 +28,43 @@ def run_async_learner(self, comm):
         if comm.rank == 0:
 
                 start = MPI.Wtime()
+                print("Initializing ...\n")
+                for s in range(1, comm.Get_size()):
+                        # Send target weights
+                        rank0_epsilon = self.agent.epsilon
+                        target_weights = self.agent.get_weights()
+                        comm.send([episode, rank0_epsilon, target_weights], dest = s)
+
+
+                print("Continuing ...\n")
                 while episode < self.nepisodes:
-                        print("Running scheduler/learner episode: {}".format(episode))
+                        #print("Running scheduler/learner episode: {}".format(episode))
                         
                         # Receive the rank of the worker ready for more work
-                        recv_data = comm.recv(source=MPI.ANY_SOURCE, tag=1)
+                        recv_data = comm.recv(source=MPI.ANY_SOURCE)
                         whofrom = recv_data[0]
                         step = recv_data[1]
-                        #print('whofrom: {}'.format(whofrom))
-                        # Send target weights
+                        batch = recv_data[2]
+                        done = recv_data[3]
+                        
+                        # Train                                                                                                         
+                        self.agent.train(batch)
+                        self.agent.target_train()
 
+                        # Send target weights
                         rank0_epsilon = self.agent.epsilon
                         target_weights = self.agent.get_weights()
                         comm.send([episode, rank0_epsilon, target_weights], dest = whofrom)
-                        
-                        # Receive batch
-                        recv_data = comm.recv(source=MPI.ANY_SOURCE, tag=2)
-                        batch = recv_data[0]
-                        done = recv_data[1]
-                        
-                        # Train
-                        self.agent.train(batch)
-                        self.agent.target_train()
                         
                         # Increment episode when complete
                         #if done:
                         if step==0:
                                 episode += 1
                                 
-                                        
-                print("Finishing up ...")
+                print("Finishing up ...\n")
                 episode = -1
                 for s in range(1, comm.Get_size()):
-                        comm.send([episode, 0], dest=s)
+                        comm.send([episode], dest=s)
                 
                 
                 print('Learner time: {}'.format(MPI.Wtime() - start))
@@ -83,9 +87,6 @@ def run_async_learner(self, comm):
 
                         # Steps in an episode
                         while steps < self.nsteps:                                
-                                # Indicate availability by sending rank to the learner
-                                comm.send([comm.rank, steps], dest=0, tag=1)
-
                                 # Receive target weights
                                 recv_data = comm.recv(source=0)
                                 if steps==0:
@@ -111,7 +112,7 @@ def run_async_learner(self, comm):
                                 logger.info('Rank[{}] - Memories: {}'.format(comm.rank,len(self.agent.memory)))
 
                                 # Send batched memories
-                                comm.send([batch_data, done], dest=0, tag=2)
+                                comm.send([comm.rank, steps, batch_data, done], dest=0)
 
                                 # Update state
                                 current_state = next_state
