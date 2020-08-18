@@ -116,13 +116,13 @@ class ExaLearner():
         # with OMP_NUM_THREADS
         #os.environ['OMP_NUM_THREADS']='{:d}'.format(self.omp_num_threads)
         if self.learner_type == 'seed':
-            from exarl.exa_seed import run_seed
+            from exarl.seed import run_seed
             run_seed(self, mpi_settings.agent_comm)
 
         if self.learner_type == 'async' and self.world_size >= 2:
-            from exarl.exa_async_learner import run_async_learner
+            from exarl.async_learner import run_async_learner
             run_async_learner(self, mpi_settings.agent_comm)
         
         else:
-            from exarl.exa_single_learner import run_single_learner
+            from exarl.single_learner import run_single_learner
             run_single_learner(self, mpi_settings.agent_comm)
