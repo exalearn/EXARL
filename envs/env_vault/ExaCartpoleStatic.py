@@ -6,6 +6,7 @@ import sys
 import json
 import exarl as erl
 #from envs.env_vault.computePI import computePI as cp
+import exarl.mpi_settings as mpi_settings
 
 def computePI(N,new_comm):
     h = 1.0 / N
@@ -17,17 +18,13 @@ def computePI(N,new_comm):
         s += 4.0 / (1.0 + x**2)
     return s * h
 
-class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
+class ExaCartpoleStatic(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, env_comm):
+    def __init__(self):
         super().__init__()
-        self.env_comm = env_comm
-        self._max_episode_steps = 0
+        self.env_comm = mpi_settings.env_comm
         self.env = gym.make('CartPole-v0')
-        self.env._max_episode_steps=self._max_episode_steps
-        #print('Max steps: %s' % str(self._max_episode_steps))
-        #self.env = gym.make('FrozenLake-v0')
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
 
@@ -52,7 +49,7 @@ class ExaCartpoleStatic(gym.Env, erl.ExaEnv):
         return next_state, reward, done, info
 
     def reset(self):
-        self.env._max_episode_steps=self._max_episode_steps
+        #self.env._max_episode_steps=self._max_episode_steps
         #print('Max steps: %s' % str(self._max_episode_steps))
         return self.env.reset()
 

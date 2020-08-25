@@ -1,51 +1,43 @@
-import random,sys,os
+import mpi4py.rc; mpi4py.rc.threads = False
+from mpi4py import MPI
+import random,sys,os, time
 import numpy as np
+from datetime import datetime
 from collections import deque
-import tensorflow as tf
-import csv
-import json
-import math
-import logging
+from tensorflow.python.client import device_lib
+from keras import backend as K
+import csv,json,math
 import exarl as erl
 import pickle
-from keras.backend.tensorflow_backend import set_session
+import exarl.mpi_settings as mpi_settings
+import sys
+import tensorflow as tf
 tf_version = int((tf.__version__)[0])
+import keras as keras
+#from keras.backend.tensorflow_backend import set_session
+from tensorflow.compat.v1.keras.backend import set_session
 
-#if tf_version < 2:
-#    from tensorflow.keras.models import Sequential,Model
-#    from tensorflow.keras.layers import Dense,Dropout,Input,BatchNormalization
-#    from tensorflow.keras.optimizers import Adam
-#    from tensorflow.keras import backend as K
-from tensorflow.python.client import device_lib
-#elif tf_version >=2:
-from keras.models import Sequential,Model
-from keras.layers import Dense,Dropout,Input,BatchNormalization
-from keras.optimizers import Adam
-from keras import backend as K
-
+import logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
-logger.setLevel(logging.INFO)
-#logger.setLevel(logging.NOTSET)
+logger.setLevel(logging.ERROR)
+
+##
+#import multiprocessing
 
 #The Deep Q-Network (DQN)
 class DQN(erl.ExaAgent):
-    
-    def __init__(self, env, agent_comm):
 
+    def __init__(self, env):
+
+        #import pdb
+        #pdb.set_trace()
         self.env = env
-        self.agent_comm = agent_comm
-
-        ## Implement the UCB approach
-        self.sigma = 2 # confidence level
-        self.total_actions_taken = 1
-        self.individual_action_taken = np.ones(self.env.action_space.n)
+        self.agent_comm = mpi_settings.agent_comm
 
         # MPI
         self.rank = self.agent_comm.rank
         self.size = self.agent_comm.size
-        #logger.info("Rank: %s" % self.rank)
-        #logger.info("Size: %s" % self.size)
 
         ## Default settings 
         num_cores = os.cpu_count()
@@ -68,31 +60,10 @@ class DQN(erl.ExaAgent):
             sess = tf.Session(config=config)
             set_session(sess)
         elif tf_version >= 2:
-            #config = tf.compat.v1.ConfigProto()
-            #config.gpu_options.allow_growth = True
-            #sess = tf.compat.v1.Session(config=config)
-            #tf.compat.v1.keras.backend.set_session(sess)
-            
-            gpus = tf.config.experimental.list_physical_devices('GPU')
-            if gpus:
-                # Currently, memory growth needs to be the same across GPUs
-                try:
-                    for gpu in gpus:
-                        tf.config.experimental.set_memory_growth(gpu, True)
-                    '''
-                    # Restrict TensorFlow to only allocate MEM_LIMIT amount of memory
-                    MEM_LIMIT = 16000 / self.size
-                    for devIdx in np.arange(len(gpus)):
-                        tf.config.experimental.set_virtual_device_configuration(
-                            gpus[devIdx],
-                            [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=MEM_LIMIT)])
-                    '''
-                    logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-                    print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-                except RuntimeError as e:
-                    # Memory growth / Virtual devices must be set before GPUs have been initialized
-                    print(e)
-
+            config = tf.compat.v1.ConfigProto()
+            config.gpu_options.allow_growth = True
+            sess = tf.compat.v1.Session(config=config)
+            tf.compat.v1.keras.backend.set_session(sess)
 
         ## Declare hyper-parameters, initialized for determining datatype
         super().__init__()
@@ -110,17 +81,17 @@ class DQN(erl.ExaAgent):
         self.optimizer = 'adam'
         self.loss = 'mse'
 
-        ## TODO: Assuming rank==0 is the only learner
-        self.memory = deque(maxlen = 0)
-        if self.rank==0:
-            deque(maxlen = 2000) ## TODO: make configurable
+        ## WRONG ASSUMPTION ##
+        ## TODO: Assuming rank==0 is the only learner 
+        #self.memory = deque(maxlen = 0)
+        #if self.rank==0:
+        self.memory = deque(maxlen = 1000) ## TODO: make configurable
 
     def set_agent(self):
         # Get hyper-parameters
         agent_data = super().get_config()
 
         self.results_dir = agent_data['output_dir']
-        self.search_method =  agent_data['search_method']
         self.gamma =  agent_data['gamma']
         self.epsilon = agent_data['epsilon']
         self.epsilon_min = agent_data['epsilon_min']
@@ -128,6 +99,7 @@ class DQN(erl.ExaAgent):
         self.learning_rate = agent_data['learning_rate']
         self.batch_size = agent_data['batch_size']
         self.tau = agent_data['tau']
+        self.model_type = agent_data['model_type']
         self.dense = agent_data['dense']
         self.activation = agent_data['activation']
         self.optimizer = agent_data['optimizer']
@@ -139,135 +111,136 @@ class DQN(erl.ExaAgent):
         self.target_model = self._build_model()
         self.target_weights = self.target_model.get_weights()
 
-        train_file_name = "dqn_exacartpole_%s_lr%s_tau%s_v1.log" % (self.search_method, str(self.learning_rate) ,str(self.tau) )
-        self.train_file = open(self.results_dir + '/' + train_file_name, 'w')
-        self.train_writer = csv.writer(self.train_file, delimiter = " ")
-
     def _huber_loss(self, target, prediction):
         error = prediction - target
         return K.mean(K.sqrt(1+K.square(error))-1,axis=-1)
-
+        
     def _build_model(self):
-        ## Input: state ##       
-        '''
-        state_input = Input(self.env.observation_space.shape)
-        #s1 = BatchNormalization()(state_input)
-        h1 = Dense(64, activation='relu')(state_input)
-        #b1 = BatchNormalization()(h1)
-        h2 = Dense(128, activation='relu')(h1)
-        #b2 = BatchNormalization()(h2)
-        #h3 = Dense(24, activation='relu')(h2)
-        ## Output: action ##   
-        output = Dense(self.env.action_space.n,activation='relu')(h2)
-        model = Model(inputs=state_input, outputs=output)
-        adam = Adam(lr=self.learning_rate)
-        model.compile(loss='mse', optimizer=adam)
-        #model.compile(loss='mean_squared_logarithmic_error', optimizer=adam)
-        '''
-
-        layers= []
-        state_input = Input(shape=self.env.observation_space.shape)
-        layers.append(state_input)
-        #model = Sequential()
-        #print('Dense layers: ', self.dense)
-        #print('Length: ', len(self.dense))
-        length = len(self.dense)
-        #for i, layer_width in enumerate(self.dense):
-        for i in range(length):
-            layer_width = self.dense[i]
-            #if i == 0:
-                #layers.append(Dense(layer_width, activation=self.activation, input_shape=self.env.observation_space.shape))
-                #pass
-            #else:
-            layers.append(Dense(layer_width, activation=self.activation)(layers[-1]))
-        # output layer
-        layers.append(Dense(self.env.action_space.n, activation=self.activation)(layers[-1]))
-
-        model = Model(inputs=layers[0], outputs=layers[-1])
-        model.summary()
-        print('', flush=True)
-
-        optimizer = self.candle.build_optimizer(self.optimizer, self.learning_rate, self.candle.keras_default_config())
-        model.compile(loss=self._huber_loss, optimizer=optimizer)
-        return model
+        if self.model_type == 'MLP':
+            from agents.agent_vault._build_mlp import build_model
+            return build_model(self)
+        elif self.model_type == 'LSTM':
+            from agents.agent_vault._build_lstm import build_model
+            return build_model(self)
+        else:
+            sys.exit("Oops! That was not a valid model type. Try again...")
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
     def action(self, state):
-        action = -1
-        ## TODO: Update greed-epsilon to something like UBC
-        if np.random.rand() <= self.epsilon and self.search_method=="epsilon":
-            logger.info('Random action')
+        random.seed(datetime.now())
+        random_data = os.urandom(4)
+        np.random.seed(int.from_bytes(random_data, byteorder="big"))
+        rdm = np.random.rand()
+        #print('epsilon:',self.epsilon)
+        if rdm <= self.epsilon:
             action = random.randrange(self.env.action_space.n)
-            ## Update randomness
-            #if len(self.memory)>(self.batch_size):
-            self.epsilon_adj()
-
+            return action , 0
         else:
-            logger.info('Policy action')
-            np_state = np.array(state).reshape(1,len(state))
+            np_state = np.array(state).reshape(1,1,len(state))
             act_values = self.target_model.predict(np_state)
             action = np.argmax(act_values[0])
-            mask = [i for i in range(len(act_values[0])) if act_values[0][i] == act_values[0][action]]
-            ncands=len(mask)
-            # print( 'Number of cands: %s' % str(ncands))
-            if ncands>1:
-                action = mask[random.randint(0,ncands-1)]
-        ## Capture the action statistics for the UBC methods
-        #print('total_actions_taken: %s' % self.total_actions_taken)
-        #print('individual_action_taken[%s]: %s' % (action,self.individual_action_taken[action]))
-        self.total_actions_taken += 1
-        self.individual_action_taken[action]+=1
-
-        return action
+            return action , 1
 
     def play(self,state):
         act_values = self.target_model.predict(state)
         return np.argmax(act_values[0])
 
-    def train(self):
-        if len(self.memory)<(self.batch_size):
-            return
-        logger.info('### TRAINING ###')
-        losses = []
+    def calc_target_f(self, exp):                                                                                                    
+        state, action, reward, next_state, done = exp
+        np_state = np.array(state).reshape(1, 1, len(state))
+        np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
+        expectedQ = 0
+        if not done:
+                expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
+        target = reward + expectedQ
+        target_f = self.target_model.predict(np_state)
+        target_f[0][action] = target
+        return target_f[0]
+    
+    def generate_data(self):
+        # Worker method to create samples for training
+        ## TODO: This method is the most expensive and takes 90% of the agent compute time
+        ## TODO: Reduce computational time
+        batch_states = []
+        batch_target = []
+        ## Return empty batch
+        if len(self.memory)<self.batch_size:
+            yield batch_states, batch_target
+        start_time_episode = time.time()
         minibatch = random.sample(self.memory, self.batch_size)
-        for state, action, reward, next_state, done in minibatch:
-            np_state = np.array(state).reshape(1,len(state))
-            np_next_state = np.array(next_state).reshape(1,len(next_state))
-            expectedQ =0
-            if not done:
-                expectedQ = self.gamma*np.amax(self.target_model.predict(np_next_state)[0])
-            target = reward + expectedQ
-            target_f = self.model.predict(np_state)
-            target_f[0][action] = target
-            history = self.model.fit(np_state, target_f, epochs = 1, verbose = 0)
-            losses.append(history.history['loss'])
-        self.target_train()
-        self.train_writer.writerow([np.mean(losses)])
-        self.train_file.flush()
+        #logger.info('Agent - Minibatch time: %s ' % (str(time.time() - start_time_episode)))
+        batch_target = list(map(self.calc_target_f, minibatch))
+        batch_states = [np.array(exp[0]).reshape(1,1,len(exp[0]))[0] for exp in minibatch]
+        batch_states=np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
+        batch_target=np.reshape(batch_target, [len(minibatch), self.env.action_space.n])        
+        yield batch_states,batch_target
+        
+    '''
+    def generate_data(self):
+        # Worker method to create samples for training
+        batch_states = []
+        batch_target = []
+        ## Return empty batch
+        if len(self.memory)<self.batch_size:
+            yield batch_states, batch_target
 
+        start_time_episode = time.time()
+        minibatch = random.sample(self.memory, self.batch_size)
+        #logger.info('Agent - Minibatch time: %s ' % (str(time.time() - start_time_episode)))
+        for state, action, reward, next_state, done in minibatch:
+            np_state = np.array(state).reshape(1, 1, len(state))
+            np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
+            expectedQ = 0
+            if not done:
+                expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
+            target = reward + expectedQ
+            target_f = self.target_model.predict(np_state)
+            target_f[0][action] = target
+            if batch_states == []:
+                batch_states = np_state
+                batch_target = target_f
+            else:
+                batch_states = np.append(batch_states, np_state, axis=0)
+                batch_target = np.append(batch_target, target_f, axis=0)
+        #logger.info('Agent - Data generator time: %s ' % (str(time.time() - start_time_episode)))
+    
+        yield batch_states,batch_target
+    '''
+
+    def train(self, batch):
+        self.epsilon_adj()
+        #if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
+        if len(batch[0])>=(self.batch_size):
+            #batch_states, batch_target = batch
+            start_time_episode = time.time()
+            history = self.model.fit(batch[0], batch[1], epochs=1, verbose=2)
+            logger.info('Agent[%s]- Training: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
+            start_time_episode = time.time()
+            logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
+
+    def get_weights(self):
+        #logger.info('Agent[%s] - get target weight.' % str(self.rank))
+        return self.target_model.get_weights()
+
+    def set_weights(self, weights):
+        logger.info('Agent[%s] - set target weight.' % str(self.rank))
+        #logger.info('Agent[%s] - set target weight: %s' % (str(self.rank),weights))
+        self.target_model.set_weights(weights)
+        
     def target_train(self):
-        if len(self.memory)%(self.batch_size)!=0:
-            return
-        logger.info('### TARGET UPDATE ###')
+        #logger.info('Agent[%s] - update target weights.' % str(self.rank))
+        #self.target_train_counter = 0
         model_weights  = self.model.get_weights()
-        target_weights = self.target_model.get_weights()
+        target_weights =self.target_model.get_weights()
         for i in range(len(target_weights)):
             target_weights[i] = self.tau*model_weights[i] + (1-self.tau)*target_weights[i]
-        self.target_model.set_weights(target_weights)
-        self.target_weights = target_weights
+        self.set_weights(target_weights)
 
     def epsilon_adj(self):
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
-            logger.info('New epsilon: %s ' % self.epsilon)
-
-    def get_weights(self):
-        return self.target_model.get_weights()
-
-    def set_weights(self, weights):
-        self.target_model.set_weights(weights)
 
     def load(self, filename):
         #self.model.load_weights(filename)
@@ -295,3 +268,12 @@ class DQN(erl.ExaAgent):
 
     def monitor(self):
         print("Implement monitor method in dqn.py")
+
+    def benchmark(dataset, num_epochs=1):
+        start_time = time.perf_counter()
+        for epoch_num in range(num_epochs):
+            for sample in dataset:
+                # Performing a training step
+                time.sleep(0.01)
+                print(sample)
+        tf.print("Execution time:", time.perf_counter() - start_time)

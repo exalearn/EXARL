@@ -58,8 +58,7 @@ E.g.:-
     "env": "ExaLearnCartpole-v1",
     "n_episodes": 1,
     "n_steps": 10,
-    "mpi_children_per_parent": 3,
-    "run_type": "static",
+    "learner_type": "single_learner",
     "output_dir": "./exa_results_dir"
 }
 ```
@@ -67,25 +66,26 @@ E.g.:-
 E.g.:-
 ```
 {
-    "search_method": "epsilon",
-    "gamma": 0.95,
+    "gamma": 0.75,
     "epsilon": 1.0,
-    "epsilon_min" : 0.1,
-    "epsilon_decay" : 0.995,
-    "learning_rate" : 0.01,
-    "batch_size" : 10,
-    "tau" : 1.0,
+    "epsilon_min" : 0.01,
+    "epsilon_decay" : 0.999,
+    "learning_rate" : 0.001,
+    "batch_size" : 32,
+    "tau" : 0.5,
+    "model_type" : "MLP",
     "dense" : [64, 128],
     "activation" : "relu",
     "optimizer" : "adam",
     "loss" : "mse"
 }
 ```
+Currently, DQN agent takes either MLP or LSTM as model_type.
 * Add/modify the environment parameters in ```ExaRL/envs/env_vault/env_cfg/<EnvName>.json```\
 E.g.:-
 ```
 {
-        "mpi_children_per_parent": "3",
+        "process_per_env": "1",
         "worker_app": "./envs/env_vault/cpi.py"
 }
 ```
@@ -104,8 +104,8 @@ run_params = cd.initialize_parameters()
 
 ## Create learner object and run
 exa_learner = erl.ExaLearner(run_params)
-run_type = run_params['run_type'] # can be either 'static' or 'dynamic'
-exa_learner.run(run_type)
+learner_type = run_params['learner_type'] # can be either 'static' or 'dynamic'
+exa_learner.run(learner_type)
 ```
 * Write your own script or modify the above as needed
 * Run the following command:
@@ -113,6 +113,13 @@ exa_learner.run(run_type)
 mpiexec -np <num_parent_processes> python driver/driver_example.py --<run_params>=<param_value>
 ```
 * The ```get_config()``` method is available in the base classes ```ExaRL/exarl/agent_base.py``` and ```ExaRL/exarl/env_base.py``` to obtain the parameters from CANDLE.
+* If running a multi-process environment or agent, the communicators are available in ```exarl/mpi_settings.py```. 
+E.g.:-
+```
+import exarl.mpi_settings as mpi_settings
+self.env_comm = mpi_settings.env_comm
+self.agent_comm = mpi_settings.agent_comm
+```
 
 ### Using parameters set in CANDLE configuration/get parameters from terminal
 * Declare the parameters in the constructor of your agent/environment class
@@ -132,16 +139,15 @@ self.gamma =  (agent_data['gamma'])
 
 ## Creating custom environments
 * ExaRL uses OpenAI gym environments
-* Environments inherit from gym.Env and exarl.ExaEnv
+* Environments inherit from gym.Env
 ```
 Example:-
-    class envName(gym.Env, exarl.ExaEnv):
+    class envName(gym.Env):
         ...
 ```
 * Environments must include the following variables and functions:
 ```
-# Use 'dynamic' for dynamic MPI process spawning, else 'static' 
-self.run_type = <`static` or 'dynamic'>
+self.learner_type = <`async` or 'single_learner'>
 step()      # returns new state after an action
 reset()     # reset the environment to initial state; marks end of an episode
 set_env()   # set environment hyperparameters
@@ -305,6 +311,18 @@ where ExaRL/agents/agent_vault/foo_agent.py is the file containing your agent
 ## Base classes
 * Base classes are provided for agents, environments, and learner in the directory ```ExaRL/exarl/```
 * Users can inherit from the correspoding agent and environment base classes
+
+## Cite this software
+```
+@misc{EXARL,
+  author = {Vinay Ramakrishnaiah, Malachi Schram, Jamal Mohd-Yusof, Sayan Ghosh, Yunzhi Huang, Ai Kagawa, Christine Sweeney, Shinjae Yoo},
+  title = {Easily eXtendable Architecture for Reinforcement Learning (EXARL)},
+  year = {2020},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/exalearn/ExaRL}},
+}
+```
 
 ## Contacts
 If you have any questions or concerns regarding EXARL, please contact Vinay Ramakrishnaiah (vinayr@lanl.gov) and/or Malachi Schram (Malachi.Schram@pnnl.gov).
