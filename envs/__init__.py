@@ -24,7 +24,7 @@ elif env == 'ExaLearnBlockCoPolymerTDLG-v3':
     register(
         id=env,
         entry_point='envs.env_vault:BlockCoPolymerTDLGv3',
-        kwargs={"app_dir":'/qfs/projects/ecp_exalearn/controls/tdlg_libs'},
+        kwargs={"app_dir":'./envs/env_vault/LibTDLG'},
     )
     
 elif env == 'ExaLearnCartPole-v0':
