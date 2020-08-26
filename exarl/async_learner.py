@@ -99,7 +99,7 @@ def run_async_learner(self, comm):
                                 self.agent.epsilon = recv_data[1]
                                 self.agent.set_weights(recv_data[2])
                                 
-                                action, policy_type = 0, -11 #self.agent.action(current_state)
+                                action, policy_type = self.agent.action(current_state)
                                 next_state, reward, done, _ = self.env.step(action)
                                 total_reward += reward
                                 memory = (current_state, action, reward, next_state, done, total_reward)
