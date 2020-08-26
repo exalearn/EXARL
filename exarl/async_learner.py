@@ -124,7 +124,7 @@ def run_async_learner(self, comm):
                                 logger.info('Rank[%s] - Episode/Step:%s/%s' % (str(comm.rank),str(episode),str(steps)))
 
                                 train_writer.writerow([time.time(),current_state,action,reward,next_state,total_reward, \
-                                                       done, steps, policy_type, rank0_epsilon])
+                                                       done, episode, steps, policy_type, self.agent.epsilon])
                                 train_file.flush()
 
                                 # Break for loop if done
