@@ -49,15 +49,16 @@ class ExaLearner():
 
         ## Sanity check before we actually allocate resources ##
         if self.world_size < self.process_per_env:
-            sys.exit('Not enough processes.')
+            sys.exit('EXARL::ERROR Not enough processes.')
         if self.world_size % self.process_per_env != 0:
-            sys.exit('Uneven number of processes.')
+            sys.exit('EXARL::ERROR Uneven number of processes.')
         if self.world_size < 2 and self.learner_type == 'async':
             print('\n################\nNot enough processes, running synchronous single learner ...\n################\n')
 
-        self.set_training(int(run_params['n_episodes']), int(run_params['n_steps']))
-        if self.world_size-1 > self.nepisodes:
-            sys.exit('There is more resources allocated for the number of episodes.\n nprocs should be less than nepisodes.')
+        #self.nepisodes = int(run_params['n_episodes'])
+        #self.nsteps    = int(run_params['n_steps'])
+        #if self.world_size-1 > self.nepisodes:
+        #    sys.exit('There is more resources allocated for the number of episodes.\n nprocs should be less than nepisodes.')
 
         ## Setup MPI
         mpi_settings.init(self.process_per_env)
@@ -89,6 +90,8 @@ class ExaLearner():
     def set_training(self,nepisodes,nsteps):
         self.nepisodes = nepisodes
         self.nsteps    = nsteps
+        if self.world_size > self.nepisodes:
+           sys.exit('EXARL::ERROR There is more resources allocated for the number of episodes.\nnprocs should be less than nepisodes.')
         self.env.unwrapped._max_episode_steps = self.nsteps
         self.env.unwrapped.spec.max_episode_steps  = self.nsteps
         self.env.spec.max_episode_steps  = self.nsteps
@@ -96,7 +99,7 @@ class ExaLearner():
 
     # Use with CANDLE
     def set_config(self, params):
-        #self.set_training(int(params['n_episodes']), int(params['n_steps']))
+        self.set_training(int(params['n_episodes']), int(params['n_steps']))
         # set the agent up
         self.agent.set_config(params)
         self.env.set_config(params)
