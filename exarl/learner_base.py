@@ -47,13 +47,18 @@ class ExaLearner():
         self.learner_type = run_params['learner_type']
         self.process_per_env = int(run_params['process_per_env'])
 
-        ## Sanity check
+        ## Sanity check before we actually allocate resources ##
         if self.world_size < self.process_per_env:
-            sys.exit('Not enough processes.')
+            sys.exit('EXARL::ERROR Not enough processes.')
         if self.world_size % self.process_per_env != 0:
-            sys.exit('Uneven number of processes.')
+            sys.exit('EXARL::ERROR Uneven number of processes.')
         if self.world_size < 2 and self.learner_type == 'async':
             print('\n################\nNot enough processes, running synchronous single learner ...\n################\n')
+
+        #self.nepisodes = int(run_params['n_episodes'])
+        #self.nsteps    = int(run_params['n_steps'])
+        #if self.world_size-1 > self.nepisodes:
+        #    sys.exit('There is more resources allocated for the number of episodes.\n nprocs should be less than nepisodes.')
 
         ## Setup MPI
         mpi_settings.init(self.process_per_env)
@@ -73,7 +78,6 @@ class ExaLearner():
         self.env.set_env()
         self.env.reset()
         
-        
     def make(self,run_params):
         # Create environment object
         env = gym.make(self.env_id).unwrapped
@@ -86,6 +90,8 @@ class ExaLearner():
     def set_training(self,nepisodes,nsteps):
         self.nepisodes = nepisodes
         self.nsteps    = nsteps
+        if self.world_size > self.nepisodes:
+           sys.exit('EXARL::ERROR There is more resources allocated for the number of episodes.\nnprocs should be less than nepisodes.')
         self.env.unwrapped._max_episode_steps = self.nsteps
         self.env.unwrapped.spec.max_episode_steps  = self.nsteps
         self.env.spec.max_episode_steps  = self.nsteps
