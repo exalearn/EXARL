@@ -1,7 +1,39 @@
-import pandas as pd 
+import pandas as pd
+import numpy as np
+import math, sys
+
 def read_data(filename):
+
+        frame = pd.read_csv(filename, sep=' ',
+                            header=None,
+                            names=['time', 'current_state', 'action', 'reward', 'next_state', 'total_reward', 'done',
+                                   'episode', 'step', 'policy_type', 'epsilon'])
+
+        ## Make time relative to the start time ##
+        frame['time'] = pd.to_datetime(frame['time'], unit='ns')
+        frame = frame[frame.done == True]
+        return frame
+
     data = pd.read_csv(filename, header=None, delim_whitespace=True)
     return data 
+
+## Can all log files
+df_ranks = []
+for filename in os.listdir(RESULTS_DIR):
+    if filename.endswith(".log"):
+        print('filename:{}'.format(filename))
+        df = read_data(RESULTS_DIR + filename)
+        df_ranks.append(df)
+        print(df.head())
+
+# df_merged = reduce(lambda  left,right: pd.merge(left,right,on=['time'],how='outer'), df_ranks)
+df_merged = pd.concat(df_ranks)
+df_merged.set_index('episode', inplace=True)
+df_merged = df_merged.reset_index()
+fig,ax = plt.subplots(figsize=(14,12))
+ax.plot(df_merged['total_reward'], label='Total Reward', color='blue')
+plt.xlabel('Episodes')
+plt.ylabel('Total Reward')
 
 import os, pandas
 import matplotlib.pyplot as plt
