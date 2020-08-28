@@ -19,7 +19,7 @@ def read_data(filename):
 def save_reward_plot(results_dir):
     df_ranks = []
     # Candle directory stucture
-    results_dir = results_dir + '/EXP000/RUN000/'
+    results_dir = results_dir
     for filename in os.listdir(results_dir):
         if filename.endswith(".log"):
             print('filename:{}'.format(filename))
