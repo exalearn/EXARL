@@ -38,6 +38,9 @@ def run_async_learner(self, comm):
                         # Increment episode when starting
                         episode+=1
 
+                init_nepisodes = episode
+                print('init_nepisodes:{}'.format(init_nepisodes))
+
                 print("Continuing ...\n")
                 while episode_done < self.nepisodes:
                         #print("Running scheduler/learner episode: {}".format(episode))
@@ -48,22 +51,31 @@ def run_async_learner(self, comm):
                         step = recv_data[1]
                         batch = recv_data[2]
                         done = recv_data[3]
+                        print('step:{}'.format(step))
+                        print('done:{}'.format(done))
                         # Train                                                                                                         
                         self.agent.train(batch)
                         self.agent.target_train()
 
                         # Send target weights
                         rank0_epsilon = self.agent.epsilon
+                        print('rank0_epsilon:{}'.format(rank0_epsilon))
+
                         target_weights = self.agent.get_weights()
-                        comm.send([episode, rank0_epsilon, target_weights], dest = whofrom)
-                        
+
                         # Increment episode when starting
+                        #print('MS::Learner episode:{}'.format(episode))
                         if step==0:
                                 episode += 1
+                        #        print('if episode:{}'.format(episode))
+
                         # Increment the number of completed episodes
                         if done:
                                 episode_done += 1
-                                
+                                print('episode_done:{}'.format(episode_done))
+
+                        comm.send([episode, rank0_epsilon, target_weights], dest = whofrom)
+
                 print("Finishing up ...\n")
                 episode = -1
                 for s in range(1, comm.Get_size()):
@@ -92,19 +104,20 @@ def run_async_learner(self, comm):
                         while steps < self.nsteps:                                
                                 # Receive target weights
                                 recv_data = comm.recv(source=0)
-                                if steps==0:
+                                ##
+                                if steps ==0:
                                         episode = recv_data[0]
-                                        
+
                                 if recv_data[0] == -1:
-                                        episode = -1
+                                        episode=-1
+                                        logger.info('Rank[%s] - Episode/Step:%s/%s' % (str(comm.rank), str(episode), str(steps)))
                                         break
-                                
+
                                 self.agent.epsilon = recv_data[1]
                                 self.agent.set_weights(recv_data[2])
                                 
                                 action, policy_type = self.agent.action(current_state)
                                 next_state, reward, done, _ = self.env.step(action)
-                                steps += 1
                                 total_reward += reward
                                 memory = (current_state, action, reward, next_state, done, total_reward)
                                 
@@ -115,21 +128,22 @@ def run_async_learner(self, comm):
                                 logger.info('Rank[{}] - Generated data: {}'.format(comm.rank, len(batch_data[0])))
                                 logger.info('Rank[{}] - Memories: {}'.format(comm.rank,len(self.agent.memory)))
 
+                                if steps >= self.nsteps - 1:
+                                        done = True
+
                                 # Send batched memories
                                 comm.send([comm.rank, steps, batch_data, done], dest=0)
 
-                                # Update state
-                                current_state = next_state
-
-                                if steps >= self.nsteps:
-                                        done = True
-
                                 logger.info('Rank[%s] - Total Reward:%s' % (str(comm.rank),str(total_reward)))
-                                logger.info('Rank[%s] - Episode/Step:%s/%s' % (str(comm.rank),str(episode),str(steps)))
+                                logger.info('Rank[%s] - Episode/Step/Status:%s/%s/%s' % (str(comm.rank),str(episode),str(steps),str(done)))
 
                                 train_writer.writerow([time.time(),current_state,action,reward,next_state,total_reward, \
                                                        done, episode, steps, policy_type, self.agent.epsilon])
                                 train_file.flush()
+
+                                # Update state and step
+                                current_state = next_state
+                                steps += 1
 
                                 # Break for loop if done
                                 if done:
