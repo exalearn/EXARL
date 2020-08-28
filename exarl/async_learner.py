@@ -29,14 +29,18 @@ def run_async_learner(self, comm):
         if comm.rank == 0:
 
                 start = MPI.Wtime()
+                worker_episodes = np.linspace(0,comm.Get_size()-2,comm.Get_size()-1)
+                print('worker_episodes:{}'.format(worker_episodes))
+                
                 print("Initializing ...\n")
                 for s in range(1, comm.Get_size()):
                         # Send target weights
                         rank0_epsilon = self.agent.epsilon
                         target_weights = self.agent.get_weights()
+                        episode = worker_episodes[s-1]
                         comm.send([episode, rank0_epsilon, target_weights], dest = s)
                         # Increment episode when starting
-                        episode+=1
+                        #episode+=1
 
                 init_nepisodes = episode
                 print('init_nepisodes:{}'.format(init_nepisodes))
@@ -72,9 +76,11 @@ def run_async_learner(self, comm):
                         # Increment the number of completed episodes
                         if done:
                                 episode_done += 1
+                                latest_episode = worker_episodes.max()
+                                worker_episodes[whofrom-1] = latest_episode+1
                                 print('episode_done:{}'.format(episode_done))
 
-                        comm.send([episode, rank0_epsilon, target_weights], dest = whofrom)
+                        comm.send([worker_episodes[whofrom-1], rank0_epsilon, target_weights], dest = whofrom)
 
                 print("Finishing up ...\n")
                 episode = -1
