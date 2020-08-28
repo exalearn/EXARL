@@ -29,4 +29,4 @@ if rank == 0:
     print("Average elapsed time = ", elapse/size)
     print("Maximum elapsed time = ", max_elapse)
     # Save rewards vs. episodes plot
-    ar.save_reward_plot(run_params['output_dir'])
+    ar.save_reward_plot(run_params['output_dir']+'/')
