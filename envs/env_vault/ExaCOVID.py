@@ -1,10 +1,14 @@
 import gym
+from gym import spaces
 import time
 import sys
 import json
 import exarl as erl
 import numpy as np
 import pandas as pd
+import os, sys
+## Load pydemic module ##
+sys.path.append(os.path.dirname(__file__)+'/pydemic/')
 from pydemic.models import SEIRPlusPlusSimulation
 from pydemic import MitigationModel
 
@@ -31,7 +35,7 @@ class ExaCOVID(gym.Env):
         Reward is the number of people infected (??)
 
         """
-        self.cfg_data = super.get_config()
+        #self.cfg_data = super.get_config()
 
         ##
         state = "Illinois"
@@ -75,7 +79,8 @@ class ExaCOVID(gym.Env):
         ## Define state and action spaces
         self.policies_len  =1 ## Only using workfromhome policy for now
         self.workfraction_step =0.1
-        self.observation_space = spaces.Box(low=np.append(np.zeros(self.policies_len)), high=np.append(np.ones(self.policies_len)),dtype=np.float32)
+        self.structure_len = 1
+        self.observation_space = spaces.Box(low=np.append(np.zeros(self.structure_len),[0.004]), high=np.append(np.ones(self.structure_len)*350,[0.012]),dtype=np.float32)
 
         ## Increase, Decrease, Don't change
         self.action_space = spaces.Discrete(3) 
