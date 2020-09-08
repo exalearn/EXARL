@@ -76,10 +76,22 @@ class DQN(erl.ExaAgent):
         self.learning_rate = 0.0
         self.batch_size = 0
         self.tau = 0.0
+
+        # for mlp
         self.dense = [0, 0]
+
+        # for lstm
+        self.lstm_layers = [0, 0]
+        self.gauss_noise = [0.0, 0.0]
+        self.regularizer = [0.0, 0.0]
+
+        # for both
         self.activation = 'relu'
+        self.out_activation = 'relu'
         self.optimizer = 'adam'
         self.loss = 'mse'
+        self.clipnorm = 1.0
+        self.clipvalue = 0.5
 
         ## WRONG ASSUMPTION ##
         ## TODO: Assuming rank==0 is the only learner 
@@ -91,6 +103,7 @@ class DQN(erl.ExaAgent):
         # Get hyper-parameters
         agent_data = super().get_config()
 
+        # dqn intrinsic variables
         self.results_dir = agent_data['output_dir']
         self.gamma =  agent_data['gamma']
         self.epsilon = agent_data['epsilon']
@@ -100,9 +113,21 @@ class DQN(erl.ExaAgent):
         self.batch_size = agent_data['batch_size']
         self.tau = agent_data['tau']
         self.model_type = agent_data['model_type']
+
+        # for mlp
         self.dense = agent_data['dense']
+
+        # for lstm
+        self.lstm_layers=agent_data['lstm_layers']
+        self.gauss_noise = agent_data['gauss_noise']
+        self.regularizer = agent_data['regularizer']
+
+        # for both
         self.activation = agent_data['activation']
+        self.out_activation = agent_data['out_activation']
         self.optimizer = agent_data['optimizer']
+        self.clipnorm = agent_data['clipnorm']
+        self.clipvalue = agent_data['clipvalue']
 
         # Build network model
         print("Model: ")
