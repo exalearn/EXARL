@@ -109,7 +109,7 @@ def get_driver_params():
     pprint(lrn_defs)
     params = json.load(open(lrn_cfg))
     params = base_parser(params)
-    agent_cfg = 'agents/agent_vault/agent_cfg/'+params['agent']+'.json'
+    agent_cfg = 'agents/agent_vault/agent_cfg/'+params['agent']+'_'+params['model_type']+'.json'
     if os.path.exists(agent_cfg):
         print('Agent parameters from ', agent_cfg)
     else:
