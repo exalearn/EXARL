@@ -62,7 +62,7 @@ E.g.:-
     "output_dir": "./exa_results_dir"
 }
 ```
-* Add/modify the agent parameters in ```ExaRL/agents/agent_vault/agent_cfg/<AgentName>.json```\
+* Add/modify the agent parameters in ```ExaRL/agents/agent_vault/agent_cfg/<AgentName>_<model_type>.json```\
 E.g.:-
 ```
 {
