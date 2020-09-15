@@ -86,14 +86,16 @@ class ExaCOVID(gym.Env):
             increment_keys = ('infected', 'dead', 'all_dead', 'positive',
                       'admitted_to_hospital', 'total_discharged')
         '''
+        self.state_variables = SEIRPlusPlusSimulation.increment_keys
+        self.nstates = len(self.state_variables)
         self.result = None
         self.result.y = {}
         self.result.y['infected'] = self.initial_cases * np.array(self.age_distribution)
         self.result.y['susceptible'] = (
                 self.total_population * np.array(self.age_distribution) - self.result.y['infected']
         )
-        self.observation_space = spaces.Box(low=np.append(np.zeros(6)),
-                                            high=np.append(np.ones(6)*self.total_population),
+        self.observation_space = spaces.Box(low=np.append(np.zeros(nstate)),
+                                            high=np.append(np.ones(nstate)*self.total_population),
                                             dtype=np.float32)
 
         ## Increase, Decrease, Don't change
@@ -152,16 +154,14 @@ class ExaCOVID(gym.Env):
             done = True
             info = 'Exceeded the infection capacity'
 
+        ''' Calculate the reward '''
+        if done!=True:
+            reward = self.result.y['infected']/(self.infected_max+1)
+
+        next_state = np.array([result.y[key][-1][-1] for key in state_variables])
+
         ''' Convert dict to state array '''
         return next_state, reward, done, info
-    
-    def __get_reward(self,filename):
-        ''' Description:
-             Calculates the total number of symptomatic people 
-        '''
-
-            
-        return reward
     
     def reset(self):
 
