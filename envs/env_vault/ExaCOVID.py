@@ -1,12 +1,10 @@
 import gym
 from gym import spaces
-import time
-import sys
-import json
-import exarl as erl
 import numpy as np
-import pandas as pd
 
+import os
+import sys
+sys.path.append(os.path.dirname(__file__)+'/pydemic/')
 from pydemic.models import SEIRPlusPlusSimulation
 from pydemic import MitigationModel
 
@@ -88,14 +86,15 @@ class ExaCOVID(gym.Env):
         '''
         self.state_variables = SEIRPlusPlusSimulation.increment_keys
         self.nstates = len(self.state_variables)
-        self.result = None
-        self.result.y = {}
-        self.result.y['infected'] = self.initial_cases * np.array(self.age_distribution)
-        self.result.y['susceptible'] = (
-                self.total_population * np.array(self.age_distribution) - self.result.y['infected']
-        )
-        self.observation_space = spaces.Box(low=np.append(np.zeros(nstate)),
-                                            high=np.append(np.ones(nstate)*self.total_population),
+
+        # self.result = None
+        # self.result_y = {}
+        # self.result_y['infected'] = self.initial_cases * np.array(self.age_distribution)
+        # self.result.y['susceptible'] = (
+        #         self.total_population * np.array(self.age_distribution) - self.result.y['infected']
+        # )
+        self.observation_space = spaces.Box(low=np.zeros(self.nstates),
+                                            high=np.ones(self.nstates)*self.total_population,
                                             dtype=np.float32)
 
         ## Increase, Decrease, Don't change
@@ -148,7 +147,7 @@ class ExaCOVID(gym.Env):
         self.y0['susceptible'] = (
                 self.total_population * np.array(self.age_distribution) - self.y0['infected']
         )
-        self.result = self.sim(tspan, y0, .05)
+        self.result = sim(tspan, y0, .05)
         if self.result.y['infected']>self.infected_max:
             reward = -999
             done = True
@@ -172,5 +171,5 @@ class ExaCOVID(gym.Env):
 
         return 0
     
-    def render(self):
-        return 0
+    #def render(self):
+    #    return 0
