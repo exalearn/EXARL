@@ -93,12 +93,12 @@ class ExaCOVID(gym.Env):
         '''
         self.result = {}
         self.observation_space = spaces.Box(low=np.append(np.zeros(6)),
-                                            high=np.append(np.ones(self.structure_len)*self.total_population),
+                                            high=np.append(np.ones(6)*self.total_population),
                                             dtype=np.float32)
 
         ## Increase, Decrease, Don't change
         self.action_space = spaces.Discrete(3)
-        self.action_mul = 0.01
+        self.action_add = 0.01
 
     def step(self, action):
 
@@ -113,9 +113,9 @@ class ExaCOVID(gym.Env):
 
         ''' Apply discrete actions '''
         if action==1:
-            self.factor_final = self.factor_final * action_mul
+            self.factor_final = self.factor_final + action_add
         elif action == 2:
-            self.factor_final = self.factor_final / action_mul
+            self.factor_final = self.factor_final - action_add
 
         ''' Out of bounds'''
         if self.factor_final>1:
