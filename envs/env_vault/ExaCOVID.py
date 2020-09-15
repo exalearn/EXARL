@@ -35,7 +35,7 @@ class ExaCOVID(gym.Env):
         """
         #self.cfg_data = super.get_config()
 
-        self.icu_max=100
+        self.infected_max=1000
 
         ''' Mitigation factor is used as the action '''
         self.factor_init = 1
@@ -53,6 +53,13 @@ class ExaCOVID(gym.Env):
         self.total_population = get_population(state)
         self.age_distribution = get_age_distribution()
         self.tspan = ('2020-02-15', '2020-05-30')
+
+        self.initial_cases = 100
+        self.y0 = {}
+        self.y0['infected'] = self.initial_cases * np.array(self.age_distribution)
+        self.y0['susceptible'] = (
+                self.total_population * np.array(self.age_distribution) - self.y0['infected']
+        )
 
         from pydemic.distributions import GammaDistribution
 
@@ -128,12 +135,18 @@ class ExaCOVID(gym.Env):
         mitigation = MitigationModel(t0, tf, times, factors)
 
         ## Run model state ##
+
         sim = SEIRPlusPlusSimulation(self.total_population, self.age_distribution,
                                      mitigation=self.mitigation, **self.parameters)
 
         ''' Run simulation and results (dict) '''
+        self.y0 = {}
+        self.y0['infected'] = self.initial_cases * np.array(self.age_distribution)
+        self.y0['susceptible'] = (
+                self.total_population * np.array(self.age_distribution) - self.y0['infected']
+        )
         self.result = self.sim(tspan, y0, .05)
-        if self.result.y['icu']>self.icu_max:
+        if self.result.y['infected']>self.infected_max:
             reward = -999
             done = True
             info = 'Exceeded the ICU capacity'
