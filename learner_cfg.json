@@ -1,9 +1,9 @@
 {
     "agent": "DQN-v0",
-    "env": "ExaLearnCartpole-v1",
+    "env": "CartPole-v0",
     "n_episodes": 10,
     "n_steps": 10,
-    "learner_type": "static",
+    "learner_type": "async",
     "output_dir": "./results_dir/",
     "process_per_env": 1,
     "model_type": "LSTM"
