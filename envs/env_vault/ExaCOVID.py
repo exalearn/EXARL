@@ -1,12 +1,15 @@
 import gym
 from gym import spaces
 import numpy as np
-
+import pandas as pd
 import os
 import sys
-sys.path.append(os.path.dirname(__file__)+'/pydemic/')
+
+sys.path.append(os.path.dirname(__file__) + '/pydemic/')
 from pydemic.models import SEIRPlusPlusSimulation
+from pydemic.models.seirpp import SimulationResult
 from pydemic import MitigationModel
+
 
 class ExaCOVID(gym.Env):
     metadata = {'render.modes': ['human']}
@@ -31,18 +34,20 @@ class ExaCOVID(gym.Env):
         Reward is the number of people infected (??)
 
         """
-        #self.cfg_data = super.get_config()
+        # self.cfg_data = super.get_config()
 
-        self.infected_max=1000
+        self.step = 0
+        self.infected_max = 1000
 
         ''' Mitigation factor is used as the action '''
         self.factor_init = 1
         self.factor_final = 1
 
         ''' Define the model time scale for each step '''
-        self.time_init = 30 # [days] a month delay
-        self.mitigation_dt = 7 # [days]
-        self.time_final = self.time_init+self.mitigation_dt
+        self.time_init = 30  # [days] a month delay
+        self.mitigation_dt = 5  # [days]
+        self.time_final = self.time_init + self.mitigation_dt
+        self.initial_cases = 100
 
         ''' Define the initial model parameters and distributions '''
         state = "Illinois"
@@ -50,10 +55,34 @@ class ExaCOVID(gym.Env):
         self.data = nyt(state)
         self.total_population = get_population(state)
         self.age_distribution = get_age_distribution()
-        self.tspan = ('2020-02-15', '2020-05-30')
+        self.tspan = ('2020-02-15', '2020-02-20')
 
-        self.initial_cases = 100
+        def to_days(date):
+            if isinstance(date, str):
+                date = pd.to_datetime(date)
+            if isinstance(date, pd.Timestamp):
+                days = (date - pd.to_datetime('2020-01-01')) / pd.Timedelta('1D')
+            else:
+                days = date
+            return days
 
+        start_time, end_time = [to_days(x) for x in self.tspan]
+        self.dt = 0.05
+        times = np.arange(start_time, end_time + self.dt, self.dt)
+        n_steps = times.shape[0]
+
+        y0 = {}
+        y0['infected'] = self.initial_cases * np.array(self.age_distribution)
+        y0['susceptible'] = (
+                self.total_population * np.array(self.age_distribution) - y0['infected']
+        )
+        y0_all_t = {}
+        for key in y0:
+            y0_all_t[key] = np.zeros(y0[key].shape + (n_steps,))
+            y0_all_t[key][..., 0] = y0[key]
+
+        self.result = SimulationResult(times, y0_all_t)
+        print(self.result.y['infected'])
         from pydemic.distributions import GammaDistribution
 
         self.parameters = dict(
@@ -87,14 +116,8 @@ class ExaCOVID(gym.Env):
         self.state_variables = SEIRPlusPlusSimulation.increment_keys
         self.nstates = len(self.state_variables)
 
-        # self.result = None
-        # self.result_y = {}
-        # self.result_y['infected'] = self.initial_cases * np.array(self.age_distribution)
-        # self.result.y['susceptible'] = (
-        #         self.total_population * np.array(self.age_distribution) - self.result.y['infected']
-        # )
         self.observation_space = spaces.Box(low=np.zeros(self.nstates),
-                                            high=np.ones(self.nstates)*self.total_population,
+                                            high=np.ones(self.nstates) * self.total_population,
                                             dtype=np.float32)
 
         ## Increase, Decrease, Don't change
@@ -102,37 +125,37 @@ class ExaCOVID(gym.Env):
         self.action_add = 0.01
 
     def step(self, action):
-
+        print('step()')
         ''' Initial step variables '''
-        done   = False
+        done = False
         reward = 0
-        info   = ''
+        info = ''
 
         self.time_init = self.time_final
-        self.time_final = self.time_init+self.mitigation_dt
+        self.time_final = self.time_init + self.mitigation_dt
         self.factor_init = self.factor_final
 
         ''' Apply discrete actions '''
-        if action==1:
+        if action == 1:
             self.factor_final = self.factor_final + action_add
         elif action == 2:
             self.factor_final = self.factor_final - action_add
 
         ''' Out of bounds'''
-        if self.factor_final>1:
+        if self.factor_final > 1:
             done = True
-            reward = -99
+            reward = -999
             info = 'Out of bounds (upper)'
 
         if self.factor_final < 0:
             done = True
-            reward = -99
+            reward = -999
             info = 'Out of bounds (lower)'
 
         ''' Create mitigation model '''
-        t0, tf  = 0, 12*self.mitigation_dt ## TODO: What range should consider ?? ##
-        times   = [self.time_init, self.time_final]  ## days from start (2020/1/1) -- to be defined by step counter
-        factors = [self.factor_init, self.factor_final] ## To be optimized
+        t0, tf = 0, 12 * self.mitigation_dt  ## TODO: What range should consider ?? ##
+        times = [self.time_init, self.time_final]  ## days from start (2020/1/1) -- to be defined by step counter
+        factors = [self.factor_init, self.factor_final]  ## To be optimized
         mitigation = MitigationModel(t0, tf, times, factors)
 
         ## Run model state ##
@@ -148,28 +171,29 @@ class ExaCOVID(gym.Env):
                 self.total_population * np.array(self.age_distribution) - self.y0['infected']
         )
         self.result = sim(tspan, y0, .05)
-        if self.result.y['infected']>self.infected_max:
+        if self.result.y['infected'] > self.infected_max:
             reward = -999
             done = True
             info = 'Exceeded the infection capacity'
 
         ''' Calculate the reward '''
-        if done!=True:
-            reward = self.result.y['infected']/(self.infected_max+1)
-
-        next_state = np.array([result.y[key][-1][-1] for key in state_variables])
+        if done != True:
+            reward = self.result.y['infected'] / (self.infected_max + 1)
 
         ''' Convert dict to state array '''
-        return next_state, reward, done, info
-    
-    def reset(self):
+        next_state = np.array([result.y[key][-1][-1] for key in state_variables])
 
+        return next_state, reward, done, info
+
+    def reset(self):
+        self.step = 0
         self.result.y['infected'] = self.initial_cases * np.array(self.age_distribution)
         self.result.y['susceptible'] = (
                 self.total_population * np.array(self.age_distribution) - self.result.y['infected']
         )
+        # next_state = np.array([self.result.y[key][-1][-1] for key in self.state_variables])
 
-        return 0
-    
-    #def render(self):
+        return np.zeros(self.nstates)
+
+    # def render(self):
     #    return 0
