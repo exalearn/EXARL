@@ -46,6 +46,7 @@ class ExaLearner():
 
         self.learner_type = run_params['learner_type']
         self.process_per_env = int(run_params['process_per_env'])
+        self.action_type = run_params['action_type']
 
         ## Sanity check before we actually allocate resources ##
         if self.world_size < self.process_per_env:

@@ -6,5 +6,6 @@
     "learner_type": "async",
     "output_dir": "./results_dir/",
     "process_per_env": 1,
-    "model_type": "LSTM"
+    "model_type": "LSTM",
+    "action_type": "variable"
 }
