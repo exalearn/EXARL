@@ -36,7 +36,7 @@ class ExaCOVID(gym.Env):
         """
         # self.cfg_data = super.get_config()
 
-        self.step = 0
+        self.steps = 0
         self.infected_max = 1000
 
         ''' Mitigation factor is used as the action '''
@@ -82,7 +82,7 @@ class ExaCOVID(gym.Env):
             y0_all_t[key][..., 0] = y0[key]
 
         self.result = SimulationResult(times, y0_all_t)
-        print(self.result.y['infected'])
+        #print(self.result.y['infected'])
         from pydemic.distributions import GammaDistribution
 
         self.parameters = dict(
@@ -109,10 +109,6 @@ class ExaCOVID(gym.Env):
             all_dead_multiplier=1.,
         )
 
-        ''' Observation state based on the seirpp.py dict
-            increment_keys = ('infected', 'dead', 'all_dead', 'positive',
-                      'admitted_to_hospital', 'total_discharged')
-        '''
         self.state_variables = SEIRPlusPlusSimulation.increment_keys
         self.nstates = len(self.state_variables)
 
@@ -123,7 +119,7 @@ class ExaCOVID(gym.Env):
         ## Increase, Decrease, Don't change
         self.action_space = spaces.Discrete(3)
         self.action_add = 0.01
-
+        
     def step(self, action):
         print('step()')
         ''' Initial step variables '''
@@ -170,7 +166,7 @@ class ExaCOVID(gym.Env):
         self.y0['susceptible'] = (
                 self.total_population * np.array(self.age_distribution) - self.y0['infected']
         )
-        self.result = sim(tspan, y0, .05)
+        self.result = sim(self.tspan, self.y0, .05)
         if self.result.y['infected'] > self.infected_max:
             reward = -999
             done = True
@@ -186,7 +182,7 @@ class ExaCOVID(gym.Env):
         return next_state, reward, done, info
 
     def reset(self):
-        self.step = 0
+        self.steps = 0
         self.result.y['infected'] = self.initial_cases * np.array(self.age_distribution)
         self.result.y['susceptible'] = (
                 self.total_population * np.array(self.age_distribution) - self.result.y['infected']
