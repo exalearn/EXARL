@@ -23,19 +23,18 @@ class ExaCOVID(gym.Env):
         # self.cfg_data = super.get_config()
 
         self.steps = 0
-        self.infected_max = 1000
-        self.dt=0.5
+        self.initial_cases = 100
+        self.infected_max = 10000
+        self.dt=0.05
         ''' Mitigation factor is used as the action '''
-        self.factor_init = 1
-        self.factor_final = 1
+        self.factor_init = 0.5
+        self.factor_final = 0.5
 
         ''' Define the model time scale for each step '''
-        self.time_init = 30  # [days] a month delay
+        self.time_init = 0  # [days] a month delay
         self.mitigation_dt = 1  # [days]
+        self.time_final = self.time_init + self.mitigation_dt
         self.mitigation_length = 5 # [day]
-        self.time_final = self.time_init + self.mitigation_length
-
-        self.initial_cases = 100
 
         ''' Define the initial model parameters and distributions '''
         self.state = "Illinois"
@@ -76,7 +75,7 @@ class ExaCOVID(gym.Env):
         self.state_variables = SEIRPlusPlusSimulation.increment_keys
         self.nstates = len(self.state_variables)
         print('Variables:{}'.format(self.state_variables))
-        self.reset()
+        #self.reset()
 
         self.observation_space = spaces.Box(low=np.zeros(self.nstates),
                                             high=np.ones(self.nstates) * self.total_population,
@@ -84,7 +83,7 @@ class ExaCOVID(gym.Env):
 
         ## Increase, Decrease, Don't change
         self.action_space = spaces.Discrete(3)
-        self.action_add = 0.01
+        self.action_add = 0.05
         
     def step(self, action):
         print('step()')
@@ -93,15 +92,15 @@ class ExaCOVID(gym.Env):
         reward = 0
         info = ''
 
-        self.time_init = self.time_final
-        self.time_final = self.time_init + self.mitigation_dt
+        #self.time_init = self.time_final
+        #self.time_final = self.time_init + self.mitigation_dt
         self.factor_init = self.factor_final
 
         ''' Apply discrete actions '''
         if action == 1:
-            self.factor_final = self.factor_final + action_add
+            self.factor_final = self.factor_final + self.action_add
         elif action == 2:
-            self.factor_final = self.factor_final - action_add
+            self.factor_final = self.factor_final - self.action_add
 
         ''' Out of bounds'''
         if self.factor_final > 1:
@@ -115,46 +114,58 @@ class ExaCOVID(gym.Env):
             info = 'Out of bounds (lower)'
 
         ''' Create mitigation model '''
-        tspan_tmp0 = self.tspan[1]
-        tspan_tmp1 =  (pd.to_datetime(self.tspan[1])+self.mitigation_length*pd.Timedelta('1D')).strftime('%Y-%m-%d')
+        ## TODO: Hacking the timestamp/MitigationModel because SEIR model doesn't properly support MDP approach
+        tspan_tmp0 = self.tspan[0]
+        tspan_tmp1 =  (pd.to_datetime(self.tspan[0])+2*self.mitigation_length*pd.Timedelta('1D')).strftime('%Y-%m-%d')
         self.tspan = (tspan_tmp0,tspan_tmp1)
         print('tspan:{}'.format(self.tspan))
-        t0, tf = 0, 12 * self.mitigation_dt  ## TODO: What range should consider ?? ##
+        t0, tf = 0, self.mitigation_length  ## TODO: What range should consider ?? ##
         times = [self.time_init, self.time_final]  ## days from start (2020/1/1) -- to be defined by step counter
+        print('times:{}'.format(times))
         factors = [self.factor_init, self.factor_final]  ## To be optimized
+        print('factors:{}'.format(factors))
         mitigation = MitigationModel(t0, tf, times, factors)
-
+        _t = np.linspace(t0, tf, 10)
+        print('mitigation{}'.format(mitigation(_t)))
         ## Run model state ##
         # TODO: Update the total population
         sim = SEIRPlusPlusSimulation(self.total_population, self.age_distribution,
                                      mitigation=mitigation, **self.parameters)
 
         ''' Run simulation and results (dict) '''
-        self.total_population -= self.result.y['dead'][-1].sum()
+        self.total_population -= self.result.y['all_dead'].sum(axis=1)[-1]
 
-        self.y0 = {}
-        self.y0['infected'] = self.result.y['infected'][-1]* np.array(self.age_distribution)
-        ## TODO: Need to update the total population
-        self.y0['susceptible'] = (
-                self.total_population * np.array(self.age_distribution) - self.y0['infected'][-1]
-        )
+        #self.y0 = {}
+        #for key in self.result.y.keys():
+        #    self.y0[key] = self.result.y[key][:][-1]
+        #    print('y0{}: {}'.format(key, self.result.y[key].sum(axis=1)[-1]))
+        # infected_per_age = self.result.y['infected'][:][-1]
+        # total_infected = infected_per_age.sum()
+        # self.y0 = {}
+        # self.y0['infected'] = infected_per_age # .sum() * np.array(self.age_distribution)
+        # ## TODO: Need to update the total population
+        # self.y0['susceptible'] = (
+        #         self.total_population * np.array(self.age_distribution) - self.y0['infected']
+        # )
         ## TODO: Need to create a new tspan
         self.result = sim(self.tspan, self.y0, self.dt)
-        print(self.result.y['infected'].shape())
-        print('Total infected:{}'.format(self.result.y['infected'][:][-1].sum()))
-        self.result.y['infected'][:][-1].sum()
-        if self.result.y['infected'][:][-1].sum > self.infected_max:
+        #print(f'Total infected per age:{infected_per_age}')
+        #print('Total infected:{}'.format(total_infected))
+        total_infected = self.result.y['infected'].sum(axis=1)[-1]
+        for key in self.result.y.keys():
+            print('result.y{}: {}'.format(key, self.result.y[key].sum(axis=1)[-1]))
+        if total_infected > self.infected_max:
             reward = -999
             done = True
             info = 'Exceeded the infection capacity'
 
         ''' Calculate the reward '''
         if done != True:
-            reward = self.result.y['infected'][-1][-1] / (self.infected_max + 1)
+            reward = total_infected / (self.infected_max + 1)
 
         ''' Convert dict to state array '''
-        next_state = np.array([self.result.y[key][-1][-1] for key in self.state_variables])
-
+        next_state = np.array([self.result.y[key][:][-1].sum() for key in self.state_variables])
+        self.steps+=1
         return next_state, reward, done, info
 
     def reset(self):
@@ -163,10 +174,13 @@ class ExaCOVID(gym.Env):
         print('self.total_population:{}'.format(self.total_population))
         ##
         ''' Create mitigation model '''
-        t0, tf = 0, 12 * self.mitigation_dt  ## TODO: What range should consider ?? ##
+        t0, tf = 0, self.mitigation_length  ## TODO: What range should consider ?? ##
         times = [self.time_init, self.time_final]  ## days from start (2020/1/1) -- to be defined by step counter
         factors = [self.factor_init, self.factor_final]  ## To be optimized
         mitigation = MitigationModel(t0, tf, times, factors)
+        _t = np.linspace(t0, tf, 10)
+        print('mitigation{}'.format(mitigation(_t)))
+
         sim = SEIRPlusPlusSimulation(self.total_population, self.age_distribution,
                                      mitigation=mitigation, **self.parameters)
 
@@ -175,11 +189,17 @@ class ExaCOVID(gym.Env):
         self.y0['susceptible'] = (
                 self.total_population * np.array(self.age_distribution) - self.y0['infected']
         )
+        print('Total infected:{}'.format(self.y0['infected'][:].sum()))
+
         tspan_tmp0 = '2020-01-01'
         tspan_tmp1 =  (pd.to_datetime(tspan_tmp0)+self.mitigation_length*pd.Timedelta('1D')).strftime('%Y-%m-%d')
         self.tspan = (tspan_tmp0,tspan_tmp1)
         self.result = sim(self.tspan, self.y0, self.dt)
+        print('variables:{}'.format(self.result.y.keys()))
         next_state = np.array([self.result.y[key][-1][-1] for key in self.state_variables])
+        total_infected = self.result.y['infected'].sum(axis=1)[-1]
+        #for key in self.result.y.keys():
+        #    print('{}: {}'.format(key, self.result.y[key].sum(axis=1)[-1]))
 
         return next_state
 
