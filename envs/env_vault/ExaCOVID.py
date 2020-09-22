@@ -116,12 +116,12 @@ class ExaCOVID(gym.Env):
         ''' Out of bounds'''
         if self.mitigation_factors[-1] > 1:
             done = True
-            reward = -999
+            reward = -99
             info = 'Out of bounds (upper)'
 
         if self.mitigation_factors[-1] < 0:
             done = True
-            reward = -999
+            reward = -99
             info = 'Out of bounds (lower)'
 
         ''' Create mitigation model time span '''
@@ -153,7 +153,7 @@ class ExaCOVID(gym.Env):
             info = 'Exceeded the infection capacity'
 
         #Calculate the reward 
-        if reward!=-999:
+        if done!=True:
             reward = total_icu / (self.icu_max + 1)
 
         if pd.to_datetime(self.tspan[1]) >= self.date_max:
