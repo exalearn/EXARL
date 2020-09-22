@@ -25,17 +25,17 @@ class ExaCOVID(gym.Env):
         ''' Initial key variable setup '''
         self.steps = 0
         self.initial_cases = 100
-        self.infected_max = 10000
-        self.dt=0.05
-
-        ''' Mitigation factors is used as the action '''
-        self.mitigation_times   = [0]
-        self.mitigation_factors = [1]
+        self.icu_max = 1000
+        self.model_dt=0.05
 
         ''' Define the model time scale for each step '''
         self.time_init = 0         # [days] a month delay
         self.mitigation_dt = 1     # [days]
         self.mitigation_length = 7 # [day]
+
+        ''' Mitigation factors is used as the action '''
+        self.mitigation_times   = [0,self.mitigation_length]
+        self.mitigation_factors = [1,1]
 
         ''' Define the initial model parameters and distributions '''
         self.state = "Illinois"
@@ -45,7 +45,15 @@ class ExaCOVID(gym.Env):
         self.age_distribution = get_age_distribution()
         ## TODO: Use some initial time (Jan 1st, 2020)
         self.tspan = ('2020-01-01', '2020-02-01')
-        self.tspan_full = ('2020-01-01', '2020-06-01')
+        self.date_max = pd.to_datetime('2020-06-01')
+
+        ''' Model default '''
+        self.y0 = {}
+        self.y0['infected'] = self.initial_cases * np.array(self.age_distribution)
+        self.y0['susceptible'] = (
+                self.total_population * np.array(self.age_distribution) - self.y0['infected']
+        )
+        print('Total infected:{}'.format(self.y0['infected'][:].sum()))
 
         from pydemic.distributions import GammaDistribution
 
@@ -84,8 +92,9 @@ class ExaCOVID(gym.Env):
 
         ## Increase, Decrease, Don't change
         self.action_space = spaces.Discrete(3)
-        self.action_add = 0.05
-        
+        self.action_factors = [0, 0.01, 0.05, 0.1, -0.01, -0.05, -0.1]
+        self.action_space = spaces.Discrete(7)
+
     def step(self, action):
         print('step()')
         ''' Initial step variables '''
@@ -94,17 +103,15 @@ class ExaCOVID(gym.Env):
         info = ''
         self.steps += 1
 
-        ''' Apply discrete actions '''
-        if action == 1:
-            self.mitigation_factors.append(self.mitigation_factors[-1] + self.action_add)
-        elif action == 2:
-            self.mitigation_factors.append(self.mitigation_factors[-1] + self.action_add)
-
-        ''' Append new time step for mitigatioon'''
-        if self.step==0:
-            self.mitigation_times.append(self.mitigation_times[-1]+self.mitigation_dt)
-        else:
-            self.mitigation_times.append(self.mitigation_times[-1]+self.mitigation_dt+self.mitigation_length)
+        ''' Add new mitigation times '''
+        self.mitigation_times.append(self.steps * self.mitigation_length)
+        self.mitigation_times.append(self.mitigation_times[-1] + self.mitigation_dt)
+        
+        ''' Added previous mitgation values '''
+        self.mitigation_factors.append(self.mitigation_factors[-1])
+        ''' Add new mitigation value   '''
+        new_factor = self.mitigation_factors[-1] + self.action_factors[action]
+        self.mitigation_factors.append(new_factor)
 
         ''' Out of bounds'''
         if self.mitigation_factors[-1] > 1:
@@ -119,77 +126,65 @@ class ExaCOVID(gym.Env):
 
         ''' Create mitigation model time span '''
         tspan_tmp0 = self.tspan[0]
-        tspan_tmp1 =  (pd.to_datetime(self.tspan[0])+self.nsteps*self.mitigation_length*pd.Timedelta('1D')).strftime('%Y-%m-%d')
+        tspan_tmp1 =  (pd.to_datetime(self.tspan[0])+(self.steps+1)*self.mitigation_length*pd.Timedelta('1D')).strftime('%Y-%m-%d')
         self.tspan = (tspan_tmp0,tspan_tmp1)
         print('tspan:{}'.format(self.tspan))
 
+
         ''' Create mitigation model time span '''
-        t0, tf = 0, self.nsteps*self.mitigation_length
+        t0, tf = 0, self.steps*self.mitigation_length
 
         ''' New mitigation policy '''
-        print('factors:{}'.format(self.migation_times))
-        print('factors:{}'.format(self.migation_factors))
-        mitigation = MitigationModel(t0, tf, self.migation_times, self.migation_factors)
+        print('mitigation times:{}'.format(self.mitigation_times))
+        print('mitigation factors:{}'.format(self.mitigation_factors))
+        mitigation = MitigationModel(t0, tf, self.mitigation_times, self.mitigation_factors)
 
         ''' Run the model with update mitigation trace '''
         sim = SEIRPlusPlusSimulation(self.total_population, self.age_distribution,
                                      mitigation=mitigation, **self.parameters)
 
-        total_infected = self.result.y['infected'].sum(axis=1)[-1]
-        for key in self.result.y.keys():
-            print('result.y{}: {}'.format(key, self.result.y[key].sum(axis=1)[-1]))
-        if total_infected > self.infected_max:
+        self.result = sim(self.tspan, self.y0, self.model_dt)
+        #for key in self.result.y.keys():
+        #    print('{}: {}'.format(key, self.result.y[key].sum(axis=1)[-1]))
+        total_icu = self.result.y['icu'].sum(axis=1)[-1]
+        if total_icu > self.icu_max:
             reward = -999
             done = True
             info = 'Exceeded the infection capacity'
 
-        ''' Calculate the reward '''
-        if done != True:
-            reward = total_infected / (self.infected_max + 1)
+        #Calculate the reward 
+        if reward!=-999:
+            reward = total_icu / (self.icu_max + 1)
 
-        ''' Convert dict to state array '''
+        if pd.to_datetime(self.tspan[1]) >= self.date_max:
+            done = True
+            info = 'Reached the max date'
+
+        #Convert dict to state array 
         next_state = np.array([self.result.y[key][:][-1].sum() for key in self.state_variables])
-        self.steps+=1
         return next_state, reward, done, info
 
     def reset(self):
         self.steps = 0
-        self.mitigation_times   = [0]
-        self.mitigation_factors = [1]
+        self.mitigation_times   = [0,self.mitigation_dt]
+        self.mitigation_factors = [1,1]
 
-        '''
         self.total_population = get_population(self.state)
         print('self.total_population:{}'.format(self.total_population))
         ##
         t0, tf = 0, self.mitigation_length  ## TODO: What range should consider ?? ##
-        times = [self.time_init, self.time_final]  ## days from start (2020/1/1) -- to be defined by step counter
-        factors = [self.factor_init, self.factor_final]  ## To be optimized
-        mitigation = MitigationModel(t0, tf, times, factors)
-        _t = np.linspace(t0, tf, 10)
-        print('mitigation{}'.format(mitigation(_t)))
+        mitigation = MitigationModel(t0, tf, self.mitigation_times, self.mitigation_factors)
 
         sim = SEIRPlusPlusSimulation(self.total_population, self.age_distribution,
                                      mitigation=mitigation, **self.parameters)
 
-        self.y0 = {}
-        self.y0['infected'] = self.initial_cases * np.array(self.age_distribution)
-        self.y0['susceptible'] = (
-                self.total_population * np.array(self.age_distribution) - self.y0['infected']
-        )
-        print('Total infected:{}'.format(self.y0['infected'][:].sum()))
-
         tspan_tmp0 = '2020-01-01'
         tspan_tmp1 =  (pd.to_datetime(tspan_tmp0)+self.mitigation_length*pd.Timedelta('1D')).strftime('%Y-%m-%d')
         self.tspan = (tspan_tmp0,tspan_tmp1)
-        self.result = sim(self.tspan, self.y0, self.dt)
+        self.result = sim(self.tspan, self.y0, self.model_dt)
         print('variables:{}'.format(self.result.y.keys()))
         next_state = np.array([self.result.y[key][-1][-1] for key in self.state_variables])
-        total_infected = self.result.y['infected'].sum(axis=1)[-1]
-        #for key in self.result.y.keys():
-        #    print('{}: {}'.format(key, self.result.y[key].sum(axis=1)[-1]))
-        '''
-
-        return 0
+        return next_state
 
     # def render(self):
     #    return 0
