@@ -81,7 +81,6 @@ class ExaCOVID(gym.Env):
             all_dead_multiplier=1.,
         )
 
-
         self.state_variables = SEIRPlusPlusSimulation.increment_keys
         self.nstates = len(self.state_variables)
         print('Variables:{}'.format(self.state_variables))
@@ -91,7 +90,6 @@ class ExaCOVID(gym.Env):
                                             dtype=np.float32)
 
         ## Increase, Decrease, Don't change
-        self.action_space = spaces.Discrete(3)
         self.action_factors = [0, 0.01, 0.05, 0.1, -0.01, -0.05, -0.1]
         self.action_space = spaces.Discrete(7)
 
