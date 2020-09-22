@@ -162,6 +162,7 @@ class ExaCOVID(gym.Env):
 
         #Convert dict to state array 
         next_state = np.array([self.result.y[key][:][-1].sum() for key in self.state_variables])
+        next_state /=self.total_population
         return next_state, reward, done, info
 
     def reset(self):
@@ -184,6 +185,8 @@ class ExaCOVID(gym.Env):
         self.result = sim(self.tspan, self.y0, self.model_dt)
         print('variables:{}'.format(self.result.y.keys()))
         next_state = np.array([self.result.y[key][-1][-1] for key in self.state_variables])
+        next_state /=self.total_population
+
         return next_state
 
     # def render(self):
