@@ -178,6 +178,7 @@ class DQN(erl.ExaAgent):
         np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
         expectedQ = 0
         if not done:
+                # BELLMAN EQN
                 expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
         target = reward + expectedQ
         target_f = self.target_model.predict(np_state)
