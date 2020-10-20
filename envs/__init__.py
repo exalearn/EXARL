@@ -44,3 +44,9 @@ elif env == 'ExaCovid-v0':
         id=env,
         entry_point='envs.env_vault:ExaCOVID'
     )
+
+elif env == 'ExaBooster-v1':
+    register(
+        id=env,
+        entry_point='envs.env_vault:ExaBooster'
+    )

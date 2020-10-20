@@ -15,4 +15,5 @@ elif env == 'ch-v0':
     from envs.env_vault.env_ch import CahnHilliardEnv
 elif env == 'ExaCovid-v0':
     from envs.env_vault.ExaCOVID import ExaCOVID
-
+elif env == 'ExaBooster-v1':
+    from envs.env_vault.surrogate_accelerator_v1 import Surrogate_Accelerator_v1 as ExaBooster
