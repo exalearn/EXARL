@@ -8,6 +8,7 @@ from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 import numpy as np
 import requests
+import tensorflow as tf
 
 import logging
 
@@ -68,6 +69,10 @@ class Surrogate_Accelerator_v1(gym.Env):
             logger.error("Successfully created the directory %s " % booster_dir)
 
         # Load surrogate models
+        config = tf.compat.v1.ConfigProto()
+        config.gpu_options.allow_growth = True
+        sess = tf.compat.v1.Session(config=config)
+        tf.compat.v1.keras.backend.set_session(sess)
         booster_model_file = 'fullbooster_noshift_e250_bs99_nsteps250k_invar5_outvar3_axis1_mmscaler_t0_D10122020-T175237_kfold2__e16_vl0.00038.h5'
         booster_model_pfn = os.path.join(booster_dir,booster_model_file)
         self.booster_model = keras.models.load_model(booster_model_pfn)
@@ -143,7 +148,7 @@ class Surrogate_Accelerator_v1(gym.Env):
 
     def step(self, action):
         self.steps += 1
-        logger.info('Episode/State: {}/{}'.format(self.episodes, self.steps))
+        # logger.info('Episode/State: {}/{}'.format(self.episodes, self.steps))
         done = False
 
         # Steps:
