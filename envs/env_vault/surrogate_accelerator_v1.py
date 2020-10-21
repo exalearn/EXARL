@@ -1,5 +1,6 @@
 import gym
 import os
+import errno
 from gym import spaces
 from gym.utils import seeding
 import pandas as pd
@@ -63,28 +64,38 @@ class Surrogate_Accelerator_v1(gym.Env):
         logger.info('booster related directory: '.format(booster_dir))
         try:
             os.mkdir(booster_dir)
-        except OSError:
-            logger.error("Creation of the directory %s failed" % booster_dir)
+        except OSError as exc:
+            if exc.errno != errno.EEXIST:
+                logger.error("Creation of the directory %s failed" % booster_dir)
         else:
             logger.error("Successfully created the directory %s " % booster_dir)
 
         # Load surrogate models
+        self.cpus = tf.config.list_physical_devices('CPU')
         config = tf.compat.v1.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.compat.v1.Session(config=config)
         tf.compat.v1.keras.backend.set_session(sess)
+
         booster_model_file = 'fullbooster_noshift_e250_bs99_nsteps250k_invar5_outvar3_axis1_mmscaler_t0_D10122020-T175237_kfold2__e16_vl0.00038.h5'
         booster_model_pfn = os.path.join(booster_dir,booster_model_file)
-        self.booster_model = keras.models.load_model(booster_model_pfn)
+        with tf.device('/cpu:0'):
+            self.booster_model = keras.models.load_model(booster_model_pfn)
 
         # Check if data is available
         booster_data_file = 'BOOSTR.cvs'
         booster_file_pfn = os.path.join(booster_dir,booster_data_file)
-        logger.error('booster_file_pfn:{}'.format(booster_file_pfn))
+        logger.info('Booster data file pfn:{}'.format(booster_file_pfn))
         if not os.path.exists(booster_file_pfn):
-            url = 'https://zenodo.org/record/4088982/files/data%20release.csv?download=1'
-            r = requests.get(url, allow_redirects=True)
-            open(booster_file_pfn, 'wb').write(r.content)
+            logger.info('No cached file. Downloading...')
+            try:
+                url = 'https://zenodo.org/record/4088982/files/data%20release.csv?download=1'
+                r = requests.get(url, allow_redirects=True)
+                open(booster_file_pfn, 'wb').write(r.content)
+            except:
+                logger.error("Problem downloading file")
+        else:
+            logger.info('Using exiting cached file')
 
         # Load data to initialize the env
         data = load_reformated_cvs(booster_file_pfn, nrows=250000)
@@ -159,7 +170,7 @@ class Surrogate_Accelerator_v1(gym.Env):
 
         # Step 1: Calculate the new B:VINMIN based on policy action
         logger.info('Step() before action VIMIN:{}'.format(self.VIMIN))
-        delta_VIMIN = self.actionMap_VIMIN[int(action)]
+        delta_VIMIN = self.actionMap_VIMIN[action]
         DENORN_BVIMIN = self.scalers[0].inverse_transform(np.array([self.VIMIN]).reshape(1, -1))
         DENORN_BVIMIN += delta_VIMIN
         logger.debug('Step() descaled VIMIN:{}'.format(DENORN_BVIMIN))
@@ -172,7 +183,8 @@ class Surrogate_Accelerator_v1(gym.Env):
         self.state[0][0][self.nsamples - 1] = self.VIMIN
 
         # Step 2: Predict using booster model
-        self.predicted_state = self.booster_model.predict(self.state)
+        with tf.device('/cpu:0'):
+            self.predicted_state = self.booster_model.predict(self.state)
         self.predicted_state = self.predicted_state.reshape(1, 3, 1)
 
         # Step 3: Shift state by one step
