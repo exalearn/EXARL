@@ -3,6 +3,8 @@ import csv
 from mpi4py import MPI
 import numpy as np
 import logging
+from random import randint
+import time
 import sys
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
@@ -13,7 +15,8 @@ def run_async_learner(self, comm):
         # Set target model the sample for all
         target_weights = None
         if comm.rank == 0:
-            target_weights = self.agent.get_weights()
+                self.agent.set_learner()
+                target_weights = self.agent.get_weights()
         
         # Send and set to all other agents
         current_weights = comm.bcast(target_weights, root=0)
@@ -25,14 +28,14 @@ def run_async_learner(self, comm):
         rank0_memories = 0
         rank0_epsilon  = 0
 
-        ## Round-Robin Scheduler
+        # Round-Robin Scheduler
         if comm.rank == 0:
 
                 start = MPI.Wtime()
                 worker_episodes = np.linspace(0,comm.Get_size()-2,comm.Get_size()-1)
-                print('worker_episodes:{}'.format(worker_episodes))
+                logger.debug('worker_episodes:{}'.format(worker_episodes))
                 
-                print("Initializing ...\n")
+                logger.info("Initializing ...\n")
                 for s in range(1, comm.Get_size()):
                         # Send target weights
                         rank0_epsilon = self.agent.epsilon
@@ -43,9 +46,9 @@ def run_async_learner(self, comm):
                         #episode+=1
 
                 init_nepisodes = episode
-                print('init_nepisodes:{}'.format(init_nepisodes))
+                logger.debug('init_nepisodes:{}'.format(init_nepisodes))
 
-                print("Continuing ...\n")
+                logger.debug("Continuing ...\n")
                 while episode_done < self.nepisodes:
                         #print("Running scheduler/learner episode: {}".format(episode))
                         
@@ -55,40 +58,39 @@ def run_async_learner(self, comm):
                         step = recv_data[1]
                         batch = recv_data[2]
                         done = recv_data[3]
-                        print('step:{}'.format(step))
-                        print('done:{}'.format(done))
+                        logger.debug('step:{}'.format(step))
+                        logger.debug('done:{}'.format(done))
                         # Train                                                                                                         
                         self.agent.train(batch)
                         self.agent.target_train()
 
                         # Send target weights
                         rank0_epsilon = self.agent.epsilon
-                        print('rank0_epsilon:{}'.format(rank0_epsilon))
+                        logger.debug('rank0_epsilon:{}'.format(rank0_epsilon))
 
                         target_weights = self.agent.get_weights()
 
                         # Increment episode when starting
-                        #print('MS::Learner episode:{}'.format(episode))
                         if step==0:
                                 episode += 1
-                        #        print('if episode:{}'.format(episode))
+                                logger.debug('if episode:{}'.format(episode))
 
                         # Increment the number of completed episodes
                         if done:
                                 episode_done += 1
                                 latest_episode = worker_episodes.max()
                                 worker_episodes[whofrom-1] = latest_episode+1
-                                print('episode_done:{}'.format(episode_done))
+                                logger.debug('episode_done:{}'.format(episode_done))
 
                         comm.send([worker_episodes[whofrom-1], rank0_epsilon, target_weights], dest = whofrom)
 
-                print("Finishing up ...\n")
+                logger.info("Finishing up ...\n")
                 episode = -1
                 for s in range(1, comm.Get_size()):
                         comm.send([episode,0,0], dest=s)
                 
                 
-                print('Learner time: {}'.format(MPI.Wtime() - start))
+                logger.info('Learner time: {}'.format(MPI.Wtime() - start))
 
         else:                   
                 # Setup logger
@@ -99,6 +101,8 @@ def run_async_learner(self, comm):
              
                 start = MPI.Wtime()
                 while episode != -1:
+                        # Add start jitter to stagger the jobs [ 1-50 milliseconds]
+                        time.sleep(randint(0,50)/1000)
                         # Reset variables each episode
                         self.env.seed(0)
                         current_state   = self.env.reset()
@@ -160,6 +164,6 @@ def run_async_learner(self, comm):
 
 
                 train_file.close()
-                print("Worker time = ", MPI.Wtime()-start)                
+                logger.info('Worker time = {}'.format(MPI.Wtime()-start))
 
                                 
