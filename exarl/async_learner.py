@@ -4,166 +4,159 @@ from mpi4py import MPI
 import numpy as np
 import logging
 from random import randint
-import time
-import sys
+
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.INFO)
 
+
 def run_async_learner(self, comm):
+    # Set target model the sample for all
+    target_weights = None
+    if comm.rank == 0:
+        self.agent.set_learner()
+        target_weights = self.agent.get_weights()
 
-        # Set target model the sample for all
-        target_weights = None
-        if comm.rank == 0:
-                self.agent.set_learner()
-                target_weights = self.agent.get_weights()
-        
-        # Send and set to all other agents
-        current_weights = comm.bcast(target_weights, root=0)
-        self.agent.set_weights(current_weights)
+    # Send and set to all other agents
+    current_weights = comm.bcast(target_weights, root=0)
+    self.agent.set_weights(current_weights)
 
-        # Variables for all
-        episode = 0
-        episode_done = 0
-        rank0_memories = 0
-        rank0_epsilon  = 0
+    # Variables for all
+    episode = 0
+    episode_done = 0
 
-        # Round-Robin Scheduler
-        if comm.rank == 0:
+    # Round-Robin Scheduler
+    if comm.rank == 0:
 
-                start = MPI.Wtime()
-                worker_episodes = np.linspace(0,comm.Get_size()-2,comm.Get_size()-1)
-                logger.debug('worker_episodes:{}'.format(worker_episodes))
-                
-                logger.info("Initializing ...\n")
-                for s in range(1, comm.Get_size()):
-                        # Send target weights
-                        rank0_epsilon = self.agent.epsilon
-                        target_weights = self.agent.get_weights()
-                        episode = worker_episodes[s-1]
-                        comm.send([episode, rank0_epsilon, target_weights], dest = s)
-                        # Increment episode when starting
-                        #episode+=1
+        start = MPI.Wtime()
+        worker_episodes = np.linspace(0, comm.Get_size() - 2, comm.Get_size() - 1)
+        logger.debug('worker_episodes:{}'.format(worker_episodes))
 
-                init_nepisodes = episode
-                logger.debug('init_nepisodes:{}'.format(init_nepisodes))
+        logger.info("Initializing ...\n")
+        for s in range(1, comm.Get_size()):
+            # Send target weights
+            rank0_epsilon = self.agent.epsilon
+            target_weights = self.agent.get_weights()
+            episode = worker_episodes[s - 1]
+            comm.send([episode, rank0_epsilon, target_weights], dest=s)
+            # Increment episode when starting
+            # episode+=1
 
-                logger.debug("Continuing ...\n")
-                while episode_done < self.nepisodes:
-                        #print("Running scheduler/learner episode: {}".format(episode))
-                        
-                        # Receive the rank of the worker ready for more work
-                        recv_data = comm.recv(source=MPI.ANY_SOURCE)
-                        whofrom = recv_data[0]
-                        step = recv_data[1]
-                        batch = recv_data[2]
-                        done = recv_data[3]
-                        logger.debug('step:{}'.format(step))
-                        logger.debug('done:{}'.format(done))
-                        # Train                                                                                                         
-                        self.agent.train(batch)
-                        self.agent.target_train()
+        init_nepisodes = episode
+        logger.debug('init_nepisodes:{}'.format(init_nepisodes))
 
-                        # Send target weights
-                        rank0_epsilon = self.agent.epsilon
-                        logger.debug('rank0_epsilon:{}'.format(rank0_epsilon))
+        logger.debug("Continuing ...\n")
+        while episode_done < self.nepisodes:
+            # print("Running scheduler/learner episode: {}".format(episode))
 
-                        target_weights = self.agent.get_weights()
+            # Receive the rank of the worker ready for more work
+            recv_data = comm.recv(source=MPI.ANY_SOURCE)
+            whofrom = recv_data[0]
+            step = recv_data[1]
+            batch = recv_data[2]
+            done = recv_data[3]
+            logger.debug('step:{}'.format(step))
+            logger.debug('done:{}'.format(done))
+            # Train
+            self.agent.train(batch)
+            self.agent.target_train()
 
-                        # Increment episode when starting
-                        if step==0:
-                                episode += 1
-                                logger.debug('if episode:{}'.format(episode))
+            # Send target weights
+            rank0_epsilon = self.agent.epsilon
+            logger.debug('rank0_epsilon:{}'.format(rank0_epsilon))
 
-                        # Increment the number of completed episodes
-                        if done:
-                                episode_done += 1
-                                latest_episode = worker_episodes.max()
-                                worker_episodes[whofrom-1] = latest_episode+1
-                                logger.debug('episode_done:{}'.format(episode_done))
+            target_weights = self.agent.get_weights()
 
-                        comm.send([worker_episodes[whofrom-1], rank0_epsilon, target_weights], dest = whofrom)
+            # Increment episode when starting
+            if step == 0:
+                episode += 1
+                logger.debug('if episode:{}'.format(episode))
 
-                logger.info("Finishing up ...\n")
-                episode = -1
-                for s in range(1, comm.Get_size()):
-                        comm.send([episode,0,0], dest=s)
-                
-                
-                logger.info('Learner time: {}'.format(MPI.Wtime() - start))
+            # Increment the number of completed episodes
+            if done:
+                episode_done += 1
+                latest_episode = worker_episodes.max()
+                worker_episodes[whofrom - 1] = latest_episode + 1
+                logger.debug('episode_done:{}'.format(episode_done))
 
-        else:                   
-                # Setup logger
-                filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
-                                  % ( str(self.nepisodes), str(self.nsteps), str(comm.rank))
-                train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
-                train_writer = csv.writer(train_file, delimiter = " ")
-             
-                start = MPI.Wtime()
-                while episode != -1:
-                        # Add start jitter to stagger the jobs [ 1-50 milliseconds]
-                        time.sleep(randint(0,50)/1000)
-                        # Reset variables each episode
-                        self.env.seed(0)
-                        current_state   = self.env.reset()
-                        total_reward    = 0
-                        steps           = 0
-                        done            = False
+            comm.send([worker_episodes[whofrom - 1], rank0_epsilon, target_weights], dest=whofrom)
 
-                        # Steps in an episode
-                        while steps < self.nsteps:                                
-                                # Receive target weights
-                                recv_data = comm.recv(source=0)
-                                ##
-                                if steps ==0:
-                                        episode = recv_data[0]
+        logger.info("Finishing up ...\n")
+        episode = -1
+        for s in range(1, comm.Get_size()):
+            comm.send([episode, 0, 0], dest=s)
 
-                                if recv_data[0] == -1:
-                                        episode=-1
-                                        logger.info('Rank[%s] - Episode/Step:%s/%s' % (str(comm.rank), str(episode), str(steps)))
-                                        break
+        logger.info('Learner time: {}'.format(MPI.Wtime() - start))
 
-                                self.agent.epsilon = recv_data[1]
-                                self.agent.set_weights(recv_data[2])
-                                
-                                if self.action_type == 'fixed':
-                                        action, policy_type = 0, -11
-                                else:
-                                        action, policy_type = self.agent.action(current_state)
-                                next_state, reward, done, _ = self.env.step(action)
-                                total_reward += reward
-                                memory = (current_state, action, reward, next_state, done, total_reward)
-                                
-                                #batch_data = []
-                                self.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
-                    
-                                batch_data = next(self.agent.generate_data())
-                                logger.info('Rank[{}] - Generated data: {}'.format(comm.rank, len(batch_data[0])))
-                                logger.info('Rank[{}] - Memories: {}'.format(comm.rank,len(self.agent.memory)))
+    else:
+        # Setup logger
+        filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
+                          % (str(self.nepisodes), str(self.nsteps), str(comm.rank))
+        train_file = open(self.results_dir + '/' + filename_prefix + ".log", 'w')
+        train_writer = csv.writer(train_file, delimiter=" ")
 
-                                if steps >= self.nsteps - 1:
-                                        done = True
+        start = MPI.Wtime()
+        while episode != -1:
+            # Add start jitter to stagger the jobs [ 1-50 milliseconds]
+            time.sleep(randint(0, 50) / 1000)
+            # Reset variables each episode
+            self.env.seed(0)
+            current_state = self.env.reset()
+            total_reward = 0
+            steps = 0
 
-                                # Send batched memories
-                                comm.send([comm.rank, steps, batch_data, done], dest=0)
+            # Steps in an episode
+            while steps < self.nsteps:
+                # Receive target weights
+                recv_data = comm.recv(source=0)
+                ##
+                if steps == 0:
+                    episode = recv_data[0]
 
-                                logger.info('Rank[%s] - Total Reward:%s' % (str(comm.rank),str(total_reward)))
-                                logger.info('Rank[%s] - Episode/Step/Status:%s/%s/%s' % (str(comm.rank),str(episode),str(steps),str(done)))
+                if recv_data[0] == -1:
+                    episode = -1
+                    logger.info('Rank[%s] - Episode/Step:%s/%s' % (str(comm.rank), str(episode), str(steps)))
+                    break
 
-                                train_writer.writerow([time.time(),current_state,action,reward,next_state,total_reward, \
-                                                       done, episode, steps, policy_type, self.agent.epsilon])
-                                train_file.flush()
+                self.agent.epsilon = recv_data[1]
+                self.agent.set_weights(recv_data[2])
 
-                                # Update state and step
-                                current_state = next_state
-                                steps += 1
+                if self.action_type == 'fixed':
+                    action, policy_type = 0, -11
+                else:
+                    action, policy_type = self.agent.action(current_state)
+                next_state, reward, done, _ = self.env.step(action)
+                total_reward += reward
+                memory = (current_state, action, reward, next_state, done, total_reward)
 
-                                # Break for loop if done
-                                if done:
-                                        break
+                # batch_data = []
+                self.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
 
+                batch_data = next(self.agent.generate_data())
+                logger.info('Rank[{}] - Generated data: {}'.format(comm.rank, len(batch_data[0])))
+                logger.info('Rank[{}] - Memories: {}'.format(comm.rank, len(self.agent.memory)))
 
-                train_file.close()
-                logger.info('Worker time = {}'.format(MPI.Wtime()-start))
+                if steps >= self.nsteps - 1:
+                    done = True
 
-                                
+                # Send batched memories
+                comm.send([comm.rank, steps, batch_data, done], dest=0)
+
+                logger.info('Rank[%s] - Total Reward:%s' % (str(comm.rank), str(total_reward)))
+                logger.info(
+                    'Rank[%s] - Episode/Step/Status:%s/%s/%s' % (str(comm.rank), str(episode), str(steps), str(done)))
+
+                train_writer.writerow([time.time(), current_state, action, reward, next_state, total_reward,
+                                       done, episode, steps, policy_type, self.agent.epsilon])
+                train_file.flush()
+
+                # Update state and step
+                current_state = next_state
+                steps += 1
+
+                # Break for loop if done
+                if done:
+                    break
+
+        train_file.close()
+        logger.info('Worker time = {}'.format(MPI.Wtime() - start))
