@@ -27,7 +27,7 @@ def build_model(self):
                    ))
     model.add(GaussianNoise(self.gauss_noise[l]))
     model.add(Dense(self.env.action_space.n,activation=self.out_activation))
-    opt = Adam(lr=1e-3,clipnorm=1.0, clipvalue=0.5)
+    opt = Adam(lr=1e-3)#,clipnorm=1.0, clipvalue=0.5)
     #opt = self.candle.build_optimizer(self.optimizer, self.learning_rate, 
     #                                  #clipnorm= self.clipnorm, clipvalue = self.clipvalue, 
     #                                  self.candle.keras_default_config())
