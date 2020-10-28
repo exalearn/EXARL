@@ -108,7 +108,7 @@ class DQN(erl.ExaAgent):
         if ngpus > 0:
             gpu_id = self.rank % ngpus
             self.device = '/GPU:{}'.format(gpu_id)
-            tf.config.experimental.set_memory_growth(gpus[gpu_id], True)
+            #tf.config.experimental.set_memory_growth(gpus[gpu_id], True)
         else:
             self.device = '/CPU:0'
 
