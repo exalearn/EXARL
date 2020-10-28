@@ -6,7 +6,7 @@ import logging
 import sys
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 def run_async_learner(self, comm):
 
@@ -113,7 +113,6 @@ def run_async_learner(self, comm):
                                 ##
                                 if steps ==0:
                                         episode = recv_data[0]
-
                                 if recv_data[0] == -1:
                                         episode=-1
                                         logger.info('Rank[%s] - Episode/Step:%s/%s' % (str(comm.rank), str(episode), str(steps)))

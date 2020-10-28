@@ -15,18 +15,25 @@ class GameBoard {
         ~GameBoard();
 
         void initEmptyBoard();
-        void printLines();
+        void initRandom(int moves);
         void sortLines(bool print=false);
-        bool checkBox(unsigned int row, unsigned int col);
+        void printBoard();
+        
+        bool checkBox(int row, int col);
         unsigned int lookForNewBoxes();
-        bool makeMove(line_t move);
+
         void flipPlayer();
-        int getScores();
+        bool makeMove(line_t move, bool &valid);
+        
         int findNextMove(int &min, int &max, double &totalScore, int &totalGames, bool flip);
         line_t getNextMove();
-        double scoreMove(line_t move);
+        void OpponentMove();
+
+        double scoreMove(line_t move, bool &flip);
+        void getScores(int &cur, int &opp);
+        bool gameOver();
+        
         std::vector<int> serializeBoard();
-        void printBoard();
 
     private:
         unsigned int dimension;

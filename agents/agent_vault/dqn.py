@@ -118,6 +118,7 @@ class DQN(erl.ExaAgent):
         self.dense = agent_data['dense']
 
         # for lstm
+        # TODO: FOR JAMAL
         self.lstm_layers=agent_data['lstm_layers']
         self.gauss_noise = agent_data['gauss_noise']
         self.regularizer = agent_data['regularizer']

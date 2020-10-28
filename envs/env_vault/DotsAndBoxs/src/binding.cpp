@@ -3,40 +3,59 @@
 #include "dotsAndBoxes.h"
 
 GameBoard * board = NULL;
+int boardSize = 3;
+int numInitMoves = 5;
 
-void dotsAndBoxesReset() {
-    if(board)
-        board->initEmptyBoard();
-    else
-        board = new GameBoard(3);
+void reset() {
+    if(!board) {
+        printf("New\n");
+        board = new GameBoard(boardSize);
+    }
+    board->initRandom(numInitMoves);
+}
+
+double step(int src, int dst) {
+    if(!board)
+        reset();
     
-    board->makeMove(GameBoard::line_t(0,1));
-    board->makeMove(GameBoard::line_t(1,2));
-    board->makeMove(GameBoard::line_t(0,3));
-    board->makeMove(GameBoard::line_t(2,5));
-    board->makeMove(GameBoard::line_t(3,6));
-    board->makeMove(GameBoard::line_t(5,8));
-    board->makeMove(GameBoard::line_t(6,7));
-    board->makeMove(GameBoard::line_t(7,8));
-    board->makeMove(GameBoard::line_t(1,4));
-    board->sortLines();
+    bool endTurn = false;
+    double score = board->scoreMove(GameBoard::line_t(src,dst), endTurn);
+    //If you make an illegal move turn will end and you get worst score.
+    if(endTurn)
+        board->OpponentMove();
+    return score;
 }
 
-double dotsAndBoxesStep(unsigned int src, unsigned int dst) {
+std::vector<int> state() {
     if(!board)
-        dotsAndBoxesReset();
-    return board->scoreMove(GameBoard::line_t(src,dst));
-}
-
-std::vector<int> dotsAndBoxesState() {
-    if(!board)
-        dotsAndBoxesReset();
+        reset();
     return board->serializeBoard();
+}
+
+bool done() {
+    return board->gameOver();
+}
+
+void print() {
+    std::cout << "Dots and Boxes" << std::endl;
+    if(board) {
+        board->printBoard();
+        int player1, player2;
+        board->getScores(player1, player2);
+        std::cout << "Player1: " << player1 << " Player2: " << player2 << std::endl;
+    }
 }
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(DotsAndBoxes, m) {
-    m.doc() = "Dot and Boxes game api"; // optional module docstring
-    m.def("dotsAndBoxesReset", &dotsAndBoxesReset, "Resets a game");
+PYBIND11_MODULE(dotsandboxes, m) {
+    m.doc() = "Dots and Boxes game for Exalearn!";
+
+    m.def("reset", &reset, "Reset");
+    m.def("step", &step, "Step");
+    m.def("state", &state, "State");
+    m.def("print", &print, "Print");
+    m.def("done", &done, "Done");
+    
+    m.attr("__version__") = "dev";
 }

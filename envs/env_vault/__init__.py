@@ -15,4 +15,5 @@ elif env == 'ch-v0':
     from envs.env_vault.env_ch import CahnHilliardEnv
 elif env == 'ExaCovid-v0':
     from envs.env_vault.ExaCOVID import ExaCOVID
-
+elif env == 'ExaDotsAndBoxes-v0':
+    from envs.env_vault.ExaDotsAndBoxes import ExaDotsAndBoxes

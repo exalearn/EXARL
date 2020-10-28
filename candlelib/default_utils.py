@@ -894,4 +894,3 @@ def keras_default_config():
 
 
     return kerasDefaults
-
