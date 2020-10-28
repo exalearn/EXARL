@@ -25,8 +25,6 @@ class DQN(erl.ExaAgent):
     def __init__(self, env):
         #
         self.is_learner = False
-        self.device = self._get_device()
-        logger.info('Using device:{}'.format(self.device))
         self.model = None
         self.target_model = None
         self.target_weights = None
@@ -37,6 +35,9 @@ class DQN(erl.ExaAgent):
         # MPI
         self.rank = self.agent_comm.rank
         self.size = self.agent_comm.size
+
+        self.device = self._get_device()
+        logger.info('Using device:{}'.format(self.device))
 
         # Default settings
         num_cores = os.cpu_count()
