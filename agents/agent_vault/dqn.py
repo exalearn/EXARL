@@ -37,6 +37,7 @@ class DQN(erl.ExaAgent):
         self.size = self.agent_comm.size
 
         self._get_device()
+        #self.device = '/CPU:0'
         logger.info('Using device: {}'.format(self.device))
         #tf.config.experimental.set_memory_growth(self.device, True)
 
@@ -100,6 +101,7 @@ class DQN(erl.ExaAgent):
         self.memory = deque(maxlen=1000)
 
     def _get_device(self):
+        #cpus = tf.config.experimental.list_physical_devices('CPU')
         gpus = tf.config.experimental.list_physical_devices('GPU')
         ngpus = len(gpus)
         logging.info('Number of available GPUs: {}'.format(ngpus))
@@ -144,6 +146,8 @@ class DQN(erl.ExaAgent):
         with tf.device(self.device):
             if self.is_learner:
                 self.model = self._build_model()
+
+        with tf.device('/CPU:0'):
             self.target_model = self._build_model()
             self.target_weights = self.target_model.get_weights()
 
