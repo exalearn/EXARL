@@ -19,3 +19,5 @@ elif env == 'ExaBooster-v1':
     from envs.env_vault.surrogate_accelerator_v1 import Surrogate_Accelerator_v1 as ExaBooster
 if env == 'ExaDotsAndBoxes-v0':
     from envs.env_vault.ExaDotsAndBoxes import ExaDotsAndBoxes
+if env == 'GymSpaceTest-v0':
+    from envs.env_vault.GymSpaceTest import GymSpaceTest

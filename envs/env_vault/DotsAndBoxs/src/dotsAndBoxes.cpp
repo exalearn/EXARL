@@ -291,40 +291,46 @@ GameBoard::line_t GameBoard::getNextMove() {
 
     int min = INT_MAX;
     int max = INT_MIN;
-    
-    bool valid;
+    int rem = availableMoves.size();
 
-    // #pragma omp parallel for
+    printf("Moves: %d\n", rem);
+
+    #pragma omp parallel for shared(maxSumIndex, minSumIndex, minIndex, maxIndex, maxSum, minSum, min, max)
     for(unsigned int i=0; i<availableMoves.size(); i++) {
         int tempMin = 0;
         int tempMax = 0;
         double tempTotalScore = 0;
         int tempTotalGames = 0;
-        
+        bool valid;
         //Make board copy
         GameBoard nextBoard(*this);
         //Do next move and evaluate.  These will be done serially.
         int tempSum = nextBoard.findNextMove(tempMin, tempMax, tempTotalScore, tempTotalGames, !nextBoard.makeMove(availableMoves[i], valid));
         
-        //For parallel make atomic
-        if(tempMax > max) {
-            max = tempMax;
-            maxIndex = i;
-        }
+        #pragma omp critical
+        {
+            if(tempMax > max) {
+                max = tempMax;
+                maxIndex = i;
+            }
 
-        if(tempMin < min) {
-            min = tempMin;
-            minIndex = i;
-        }
+            if(tempMin < min) {
+                min = tempMin;
+                minIndex = i;
+            }
 
-        if(maxSum < tempSum) {
-            maxSum = tempSum;
-            maxSumIndex = i;
-        }
+            if(maxSum < tempSum) {
+                maxSum = tempSum;
+                maxSumIndex = i;
+            }
 
-        if(minSum < tempSum) {
-            minSum = tempSum;
-            minSumIndex = i;
+            if(minSum < tempSum) {
+                minSum = tempSum;
+                minSumIndex = i;
+            }
+            rem--;
+            // if(rem%100 == 0)
+                printf("Rem: %d\n", rem);
         }
     }
 
@@ -402,6 +408,7 @@ bool GameBoard::gameOver() {
 
 std::vector<int> GameBoard::serializeBoard() {
     std::vector<int> ret;
+    // Dimension * (Dimension - 1)
     for(unsigned int i=0; i<dimension; i++) {
         for(unsigned int j=0; j<dimension - 1; j++) {
             auto line = line_t(i*dimension + j, i*dimension + j + 1);
@@ -412,6 +419,7 @@ std::vector<int> GameBoard::serializeBoard() {
         }
     }
 
+    // (Dimension - 1) * Dimension
     for(unsigned int i=0; i<dimension - 1; i++) {
         for(unsigned int j=0; j<dimension; j++) {
             auto line = line_t(i*dimension + j, (i+1)*dimension + j);
@@ -422,6 +430,7 @@ std::vector<int> GameBoard::serializeBoard() {
         }
     }
     
+    // (Dimension - 1) * (Dimension - 1)
     for(unsigned int i=0; i<dimension-1; i++) {
         for(unsigned int j=0; j<dimension-1; j++)
             if(boxes[i][j] == 1)
@@ -430,6 +439,7 @@ std::vector<int> GameBoard::serializeBoard() {
                 ret.push_back(0);    
     }
     
+    // (Dimension - 1) * (Dimension - 1)
     for(unsigned int i=0; i<dimension-1; i++) {
         for(unsigned int j=0; j<dimension-1; j++)
             if(boxes[i][j] == 2)
@@ -437,6 +447,54 @@ std::vector<int> GameBoard::serializeBoard() {
             else
                 ret.push_back(0);    
     }
-    
+
     return ret;
+}
+
+bool GameBoard::deserializeBoard(std::vector<int> state) {
+    // line_t move(0, 0); //This is just a placeholder
+    // unsigned int newMoves = 0;
+    // auto iter = state.begin();
+    // for(unsigned int i=0; i<dimension; i++) {
+    //     for(unsigned int j=0; j<dimension - 1; j++) {
+    //         bool exists = 0;
+    //         if(iter != state.end())
+    //             exists = *iter > 0;
+
+    //         move = line_t(i*dimension + j, i*dimension + j + 1);
+    //         if(std::find(lines.begin(), lines.end(), line) == lines.end())
+    //             ret.push_back(0);
+    //         else
+    //             ret.push_back(1);
+    //     }
+    // }
+
+    // for(unsigned int i=0; i<dimension - 1; i++) {
+    //     for(unsigned int j=0; j<dimension; j++) {
+    //         auto line = line_t(i*dimension + j, (i+1)*dimension + j);
+    //         if(std::find(lines.begin(), lines.end(), line) == lines.end())
+    //             ret.push_back(0);
+    //         else
+    //             ret.push_back(1);
+    //     }
+    // }
+    
+    // for(unsigned int i=0; i<dimension-1; i++) {
+    //     for(unsigned int j=0; j<dimension-1; j++)
+    //         if(boxes[i][j] == 1)
+    //             ret.push_back(1);
+    //         else
+    //             ret.push_back(0);    
+    // }
+    
+    // for(unsigned int i=0; i<dimension-1; i++) {
+    //     for(unsigned int j=0; j<dimension-1; j++)
+    //         if(boxes[i][j] == 2)
+    //             ret.push_back(1);
+    //         else
+    //             ret.push_back(0);    
+    // }
+    
+    // return ret;
+    return true;
 }

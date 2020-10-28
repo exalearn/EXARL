@@ -1,6 +1,6 @@
 {
     "agent": "DQN-v0",
-    "env": "ExaDotsAndBoxes-v0",
+    "env": "GymSpaceTest-v0",
     "n_episodes": 10,
     "n_steps": 10,
     "learner_type": "async",

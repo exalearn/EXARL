@@ -171,7 +171,7 @@ class DQN(erl.ExaAgent):
             sys.exit("Oops! That was not a valid model type. Try again...")
 
     def set_learner(self):
-        logger.debug('Agent[{}] - Creating active model for the learner'.format(self.rank))
+        # logger.debug('Agent[{}] - Creating active model for the learner'.format(self.rank))
         self.is_learner = True
         self.model = self._build_model()
 
@@ -224,7 +224,7 @@ class DQN(erl.ExaAgent):
             yield batch_states, batch_target
         start_time_episode = time.time()
         minibatch = random.sample(self.memory, self.batch_size)
-        logger.debug('Agent - Minibatch time: %s ' % (str(time.time() - start_time_episode)))
+        # logger.debug('Agent - Minibatch time: %s ' % (str(time.time() - start_time_episode)))
         batch_target = list(map(self.calc_target_f, minibatch))
         batch_states = [np.array(exp[0]).reshape(1,1,len(exp[0]))[0] for exp in minibatch]
         batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
@@ -247,12 +247,12 @@ class DQN(erl.ExaAgent):
             logger.warning('Training will not be done because this instance is not set to learn.')
 
     def get_weights(self):
-        logger.debug('Agent[%s] - get target weight.' % str(self.rank))
+        # logger.debug('Agent[%s] - get target weight.' % str(self.rank))
         return self.target_model.get_weights()
 
     def set_weights(self, weights):
         logger.info('Agent[%s] - set target weight.' % str(self.rank))
-        logger.debug('Agent[%s] - set target weight: %s' % (str(self.rank),weights))
+        # logger.debug('Agent[%s] - set target weight: %s' % (str(self.rank),weights))
         with tf.device(self.device):
             self.target_model.set_weights(weights)
 

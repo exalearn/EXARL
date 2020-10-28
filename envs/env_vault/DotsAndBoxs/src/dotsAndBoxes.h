@@ -34,6 +34,7 @@ class GameBoard {
         bool gameOver();
         
         std::vector<int> serializeBoard();
+        bool deserializeBoard(std::vector<int> state);
 
     private:
         unsigned int dimension;

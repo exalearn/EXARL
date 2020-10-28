@@ -6,6 +6,11 @@ GameBoard * board = NULL;
 int boardSize = 3;
 int numInitMoves = 5;
 
+void setParams(int boardDimension, int numberOfInitialMoves) {
+    boardSize = boardDimension;
+    numInitMoves = numberOfInitialMoves;
+}
+
 void reset() {
     if(!board) {
         printf("New\n");
@@ -33,7 +38,11 @@ std::vector<int> state() {
 }
 
 bool done() {
-    return board->gameOver();
+    if(board->gameOver()) {
+        delete board;
+        return true;
+    }
+    return false;
 }
 
 void print() {
@@ -51,6 +60,7 @@ namespace py = pybind11;
 PYBIND11_MODULE(dotsandboxes, m) {
     m.doc() = "Dots and Boxes game for Exalearn!";
 
+    m.def("setParams", &setParams, "Sets the board size and number of initial moves.");
     m.def("reset", &reset, "Reset");
     m.def("step", &step, "Step");
     m.def("state", &state, "State");

@@ -54,4 +54,16 @@ elif env == 'ExaBooster-v1':
 elif env == 'ExaDotsAndBoxes-v0':
     register(
         id=env,
-        entry_point='envs.env_vault:ExaDotsAndBoxes'
+        entry_point='envs.env_vault:ExaDotsAndBoxes',
+        kwargs={
+            "boardSize":run_params["boardSize"],
+            "initialMoves":run_params["initialMoves"]
+            },
+    )
+
+elif env == 'GymSpaceTest-v0':
+    register(
+        id=env,
+        entry_point='envs.env_vault:GymSpaceTest',
+        kwargs={ "params" : run_params }
+    )
