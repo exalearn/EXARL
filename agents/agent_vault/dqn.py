@@ -72,6 +72,7 @@ class DQN(erl.ExaAgent):
         tf.config.optimizer.set_jit(True)
 
         # Optimization using mixed precision (1.5x speedup)
+        # Layers use float16 computations and float32 variables
         from tensorflow.keras.mixed_precision import experimental as mixed_precision
         policy = mixed_precision.Policy('mixed_float16')
         mixed_precision.set_policy(policy)
@@ -193,7 +194,8 @@ class DQN(erl.ExaAgent):
             return action, 1
 
     def play(self, state):
-        act_values = self.target_model.predict(state)
+        with tf.device(self.device):
+            act_values = self.target_model.predict(state)
         return np.argmax(act_values[0])
 
     def calc_target_f(self, exp):
@@ -256,8 +258,9 @@ class DQN(erl.ExaAgent):
     def target_train(self):
         if self.is_learner:
             logger.info('Agent[%s] - update target weights.' % str(self.rank))
-            model_weights = self.model.get_weights()
-            target_weights = self.target_model.get_weights()
+            with tf.device(self.device):
+                model_weights = self.model.get_weights()
+                target_weights = self.target_model.get_weights()
             for i in range(len(target_weights)):
                 target_weights[i] = self.tau*model_weights[i] + (1-self.tau)*target_weights[i]
             self.set_weights(target_weights)
