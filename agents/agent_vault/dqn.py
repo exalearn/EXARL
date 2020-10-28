@@ -155,8 +155,7 @@ class DQN(erl.ExaAgent):
         with tf.device(self.device):
             if self.is_learner:
                 self.model = self._build_model()
-
-        with tf.device('/CPU:0'):
+        #with tf.device('/CPU:0'):
             self.target_model = self._build_model()
             self.target_weights = self.target_model.get_weights()
 
