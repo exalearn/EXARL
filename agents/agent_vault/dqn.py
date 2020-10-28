@@ -100,12 +100,13 @@ class DQN(erl.ExaAgent):
         self.memory = deque(maxlen=1000)
 
     def _get_device(self):
-        ngpus = len(tf.config.experimental.list_physical_devices('GPU'))
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        ngpus = len(gpus)
         logging.info('Number of available GPUs: {}'.format(ngpus))
         if ngpus > 0:
             gpu_id = self.rank % ngpus
             self.device = '/GPU:{}'.format(gpu_id)
-            tf.config.experimental.set_memory_growth(self.device, True)
+            tf.config.experimental.set_memory_growth(gpus[gpu_id], True)
         else:
             self.device = '/CPU:0'
 
