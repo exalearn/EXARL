@@ -18,7 +18,7 @@ from tensorflow.compat.v1.keras.backend import set_session
 import logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
-logger.setLevel(logging.ERROR)
+logger.setLevel(logging.INFO)
 
 # The Deep Q-Network (DQN)
 class DQN(erl.ExaAgent):
@@ -36,8 +36,9 @@ class DQN(erl.ExaAgent):
         self.rank = self.agent_comm.rank
         self.size = self.agent_comm.size
 
-        self.device = self._get_device()
-        logger.info('Using device:{}'.format(self.device))
+        self._get_device()
+        logger.info('Using device: {}'.format(self.device))
+        #tf.config.experimental.set_memory_growth(self.device, True)
 
         # Default settings
         num_cores = os.cpu_count()
@@ -45,26 +46,26 @@ class DQN(erl.ExaAgent):
         num_GPU = 0
 
         # Setup GPU cfg
-        if tf_version < 2:
-            gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
-            if self.rank==0 and len(gpu_names)>0:
-                    num_cores = 1
-                    num_CPU = 1
-                    num_GPU = len(gpu_names)
-            config = tf.ConfigProto(intra_op_parallelism_threads=num_cores,
-                        inter_op_parallelism_threads=num_cores,
-                        allow_soft_placement=True,
-                        device_count = {'CPU' : num_CPU,
-                                        'GPU' : num_GPU})
-            config.gpu_options.allow_growth = True
-            sess = tf.Session(config=config)
-            set_session(sess)
-        elif tf_version >= 2:
-
-            config = tf.compat.v1.ConfigProto()
-            config.gpu_options.allow_growth = True
-            sess = tf.compat.v1.Session(config=config)
-            tf.compat.v1.keras.backend.set_session(sess)
+        # if tf_version < 2:
+        #     gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
+        #     if self.rank==0 and len(gpu_names)>0:
+        #             num_cores = 1
+        #             num_CPU = 1
+        #             num_GPU = len(gpu_names)
+        #     config = tf.ConfigProto(intra_op_parallelism_threads=num_cores,
+        #                 inter_op_parallelism_threads=num_cores,
+        #                 allow_soft_placement=True,
+        #                 device_count = {'CPU' : num_CPU,
+        #                                 'GPU' : num_GPU})
+        #     config.gpu_options.allow_growth = True
+        #     sess = tf.Session(config=config)
+        #     set_session(sess)
+        # elif tf_version >= 2:
+        #
+        #     config = tf.compat.v1.ConfigProto()
+        #     config.gpu_options.allow_growth = True
+        #     sess = tf.compat.v1.Session(config=config)
+        #     tf.compat.v1.keras.backend.set_session(sess)
 
         # Declare hyper-parameters, initialized for determining datatype
         super().__init__()
@@ -100,10 +101,11 @@ class DQN(erl.ExaAgent):
 
     def _get_device(self):
         ngpus = len(tf.config.experimental.list_physical_devices('GPU'))
-        logging.info('Number of available GPUs:{}'.format(ngpus))
+        logging.info('Number of available GPUs: {}'.format(ngpus))
         if ngpus > 0:
             gpu_id = self.rank % ngpus
             self.device = '/GPU:{}'.format(gpu_id)
+            tf.config.experimental.set_memory_growth(self.device, True)
         else:
             self.device = '/CPU:0'
 
@@ -172,7 +174,8 @@ class DQN(erl.ExaAgent):
             return action, 0
         else:
             np_state = np.array(state).reshape(1,1,len(state))
-            act_values = self.target_model.predict(np_state)
+            with tf.device(self.device):
+                act_values = self.target_model.predict(np_state)
             action = np.argmax(act_values[0])
             return action, 1
 
@@ -186,9 +189,11 @@ class DQN(erl.ExaAgent):
         np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
         expectedQ = 0
         if not done:
+            with tf.device(self.device):
                 expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
         target = reward + expectedQ
-        target_f = self.target_model.predict(np_state)
+        with tf.device(self.device):
+            target_f = self.target_model.predict(np_state)
         target_f[0][action] = target
         return target_f[0]
 
@@ -217,7 +222,8 @@ class DQN(erl.ExaAgent):
             if len(batch[0])>=(self.batch_size):
                 # batch_states, batch_target = batch
                 start_time_episode = time.time()
-                history = self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
+                with tf.device(self.device):
+                    history = self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
                 logger.info('Agent[%s]- Training: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
                 start_time_episode = time.time()
                 logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
@@ -231,7 +237,8 @@ class DQN(erl.ExaAgent):
     def set_weights(self, weights):
         logger.info('Agent[%s] - set target weight.' % str(self.rank))
         logger.debug('Agent[%s] - set target weight: %s' % (str(self.rank),weights))
-        self.target_model.set_weights(weights)
+        with tf.device(self.device):
+            self.target_model.set_weights(weights)
 
     def target_train(self):
         if self.is_learner:
