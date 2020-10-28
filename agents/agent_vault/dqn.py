@@ -25,6 +25,8 @@ class DQN(erl.ExaAgent):
     def __init__(self, env):
         #
         self.is_learner = False
+        self.device = self._get_device()
+        logger.info('Using device:{}'.format(self.device))
         self.model = None
         self.target_model = None
         self.target_weights = None
@@ -95,6 +97,15 @@ class DQN(erl.ExaAgent):
         # TODO: make configurable
         self.memory = deque(maxlen=1000)
 
+    def _get_device(self):
+        ngpus = len(tf.config.experimental.list_physical_devices('GPU'))
+        logging.info('Number of available GPUs:{}'.format(ngpus))
+        if ngpus > 0:
+            gpu_id = self.rank % ngpus
+            self.device = '/GPU:{}'.format(gpu_id)
+        else:
+            self.device = '/CPU:0'
+
     def set_agent(self):
         # Get hyper-parameters
         agent_data = super().get_config()
@@ -126,10 +137,11 @@ class DQN(erl.ExaAgent):
         self.clipvalue = agent_data['clipvalue']
 
         # Build network model
-        if self.is_learner:
-            self.model = self._build_model()
-        self.target_model = self._build_model()
-        self.target_weights = self.target_model.get_weights()
+        with tf.device(self.device):
+            if self.is_learner:
+                self.model = self._build_model()
+            self.target_model = self._build_model()
+            self.target_weights = self.target_model.get_weights()
 
     def _build_model(self):
         if self.model_type == 'MLP':
