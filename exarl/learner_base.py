@@ -35,7 +35,6 @@ class ExaLearner():
     def __init__(self, run_params):
         # World communicator
         self.world_comm = MPI.COMM_WORLD
-        world_rank = self.world_comm.rank
         self.world_size = self.world_comm.size
         
         # Default training
@@ -128,7 +127,7 @@ class ExaLearner():
 
         if self.learner_type == 'async' and self.world_size >= 2:
             from exarl.async_learner import run_async_learner
-            run_async_learner(self, mpi_settings.agent_comm)
+            run_async_learner(self, mpi_settings.agent_comm, mpi_settings.env_comm)
         
         else:
             from exarl.single_learner import run_single_learner
