@@ -59,6 +59,7 @@ def run_async_learner(self, comm):
             logger.debug('done:{}'.format(done))
             # Train
             self.agent.train(batch)
+            # TODO: Double check if this is already in the DQN code
             self.agent.target_train()
 
             # Send target weights
@@ -98,7 +99,7 @@ def run_async_learner(self, comm):
         start = MPI.Wtime()
         while episode != -1:
             # Add start jitter to stagger the jobs [ 1-50 milliseconds]
-            time.sleep(randint(0, 50) / 1000)
+            # time.sleep(randint(0, 50) / 1000)
             # Reset variables each episode
             self.env.seed(0)
             current_state = self.env.reset()
@@ -160,3 +161,6 @@ def run_async_learner(self, comm):
 
         train_file.close()
         logger.info('Worker time = {}'.format(MPI.Wtime() - start))
+    #
+    logger.info(f'Agent[{comm.rank}] timing info:\n')
+    self.agent.print_timers()
