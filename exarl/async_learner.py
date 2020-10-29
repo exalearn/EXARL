@@ -9,9 +9,12 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.INFO)
 
+import exarl.mpi_settings as mpi_settings
 
-def run_async_learner(self, agent_comm, env_comm):
+def run_async_learner(self):
     # Set target model the sample for all
+    agent_comm = mpi_settings.agent_comm
+    env_comm = mpi_settings.env_comm
     target_weights = None
     if agent_comm.rank == 0:
         self.agent.set_learner()
