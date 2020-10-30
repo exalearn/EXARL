@@ -51,7 +51,7 @@ class ExaLearner():
         ## Sanity check before we actually allocate resources ##
         if self.world_size < self.process_per_env:
             sys.exit('EXARL::ERROR Not enough processes.')
-        if self.world_size % self.process_per_env != 0:
+        if (self.world_size - 1) % self.process_per_env != 0:
             sys.exit('EXARL::ERROR Uneven number of processes.')
         if self.world_size < 2 and self.learner_type == 'async':
             print('\n################\nNot enough processes, running synchronous single learner ...\n################\n')
