@@ -109,6 +109,7 @@ def run_async_learner(self):
             current_state = self.env.reset()
             total_reward = 0
             steps = 0
+            action = 0
 
             # Steps in an episode
             while steps < self.nsteps:
@@ -120,10 +121,9 @@ def run_async_learner(self):
                         episode = recv_data[0]
 
                 env_comm.Barrier() # Synchonize within env_comm
-                env_comm.Bcast(episode, root=0) # Broadcast episode within env_comm
+                env_comm.bcast(episode, root=0) # Broadcast episode within env_comm
 
-                if recv_data[0] == -1:
-                    episode = -1
+                if episode == -1:
                     logger.info('Rank[%s] - Episode/Step:%s/%s' % (str(agent_comm.rank), str(episode), str(steps)))
                     break
                 
@@ -136,7 +136,9 @@ def run_async_learner(self):
                     else:
                         action, policy_type = self.agent.action(current_state)
 
+                env_comm.Barrier()
                 next_state, reward, done, _ = self.env.step(action)
+                
 
                 if env_comm.rank == 0:
                     total_reward += reward
@@ -149,6 +151,7 @@ def run_async_learner(self):
                     logger.info('Rank[{}] - Generated data: {}'.format(agent_comm.rank, len(batch_data[0])))
                     logger.info('Rank[{}] - Memories: {}'.format(agent_comm.rank, len(self.agent.memory)))
 
+                env_comm.Barrier()
                 if steps >= self.nsteps - 1:
                     done = True
 
@@ -163,11 +166,12 @@ def run_async_learner(self):
                     train_writer.writerow([time.time(), current_state, action, reward, next_state, total_reward,
                                         done, episode, steps, policy_type, self.agent.epsilon])
                     train_file.flush()
-
+                
                 # Update state and step
                 current_state = next_state
                 steps += 1
 
+                env_comm.Barrier()
                 # Break for loop if done
                 if done:
                     break
