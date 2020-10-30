@@ -18,7 +18,7 @@ from tensorflow.compat.v1.keras.backend import set_session
 import logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
-logger.setLevel(logging.ERROR)
+logger.setLevel(logging.INFO)
 
 # The Deep Q-Network (DQN)
 class DQN(erl.ExaAgent):
@@ -35,6 +35,17 @@ class DQN(erl.ExaAgent):
         # MPI
         self.rank = self.agent_comm.rank
         self.size = self.agent_comm.size
+
+        self._get_device()
+        #self.device = '/CPU:0'
+        logger.info('Using device: {}'.format(self.device))
+        #tf.config.experimental.set_memory_growth(self.device, True)
+
+        # Timers
+        self.training_time = 0
+        self.ntraining_time = 0
+        self.dataprep_time = 0
+        self.ndataprep_time = 0
 
         # Default settings
         num_cores = os.cpu_count()
@@ -62,6 +73,16 @@ class DQN(erl.ExaAgent):
             config.gpu_options.allow_growth = True
             sess = tf.compat.v1.Session(config=config)
             tf.compat.v1.keras.backend.set_session(sess)
+
+        # Optimization using XLA (1.1x speedup)
+        #tf.config.optimizer.set_jit(True)
+
+        # Optimization using mixed precision (1.5x speedup)
+        # Layers use float16 computations and float32 variables
+        #from tensorflow.keras.mixed_precision import experimental as mixed_precision
+        #policy = mixed_precision.Policy('mixed_float16')
+        #git diff
+        # mixed_precision.set_policy(policy)
 
         # Declare hyper-parameters, initialized for determining datatype
         super().__init__()
@@ -95,6 +116,18 @@ class DQN(erl.ExaAgent):
         # TODO: make configurable
         self.memory = deque(maxlen=1000)
 
+    def _get_device(self):
+        #cpus = tf.config.experimental.list_physical_devices('CPU')
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        ngpus = len(gpus)
+        logging.info('Number of available GPUs: {}'.format(ngpus))
+        if ngpus > 0:
+            gpu_id = self.rank % ngpus
+            self.device = '/GPU:{}'.format(gpu_id)
+            #tf.config.experimental.set_memory_growth(gpus[gpu_id], True)
+        else:
+            self.device = '/CPU:0'
+
     def set_agent(self):
         # Get hyper-parameters
         agent_data = super().get_config()
@@ -126,10 +159,12 @@ class DQN(erl.ExaAgent):
         self.clipvalue = agent_data['clipvalue']
 
         # Build network model
-        if self.is_learner:
-            self.model = self._build_model()
-        self.target_model = self._build_model()
-        self.target_weights = self.target_model.get_weights()
+        with tf.device(self.device):
+            if self.is_learner:
+                self.model = self._build_model()
+        #with tf.device('/CPU:0'):
+            self.target_model = self._build_model()
+            self.target_weights = self.target_model.get_weights()
 
     def _build_model(self):
         if self.model_type == 'MLP':
@@ -159,12 +194,14 @@ class DQN(erl.ExaAgent):
             return action, 0
         else:
             np_state = np.array(state).reshape(1,1,len(state))
-            act_values = self.target_model.predict(np_state)
+            with tf.device(self.device):
+                act_values = self.target_model.predict(np_state)
             action = np.argmax(act_values[0])
             return action, 1
 
     def play(self, state):
-        act_values = self.target_model.predict(state)
+        with tf.device(self.device):
+            act_values = self.target_model.predict(state)
         return np.argmax(act_values[0])
 
     def calc_target_f(self, exp):
@@ -173,9 +210,11 @@ class DQN(erl.ExaAgent):
         np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
         expectedQ = 0
         if not done:
+            with tf.device(self.device):
                 expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
         target = reward + expectedQ
-        target_f = self.target_model.predict(np_state)
+        with tf.device(self.device):
+            target_f = self.target_model.predict(np_state)
         target_f[0][action] = target
         return target_f[0]
 
@@ -188,13 +227,16 @@ class DQN(erl.ExaAgent):
         # Return empty batch
         if len(self.memory)<self.batch_size:
             yield batch_states, batch_target
-        start_time_episode = time.time()
+        start_time = time.time()
         minibatch = random.sample(self.memory, self.batch_size)
-        logger.debug('Agent - Minibatch time: %s ' % (str(time.time() - start_time_episode)))
         batch_target = list(map(self.calc_target_f, minibatch))
         batch_states = [np.array(exp[0]).reshape(1,1,len(exp[0]))[0] for exp in minibatch]
         batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
         batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
+        end_time = time.time()
+        self.dataprep_time += (end_time - start_time)
+        self.ndataprep_time += 1
+        logger.debug('Agent[{}] - Minibatch time: {} '.format(self.rank,(end_time - start_time)))
         yield batch_states, batch_target
 
     def train(self, batch):
@@ -203,9 +245,13 @@ class DQN(erl.ExaAgent):
             # if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
             if len(batch[0])>=(self.batch_size):
                 # batch_states, batch_target = batch
-                start_time_episode = time.time()
-                history = self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
-                logger.info('Agent[%s]- Training: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
+                start_time = time.time()
+                with tf.device(self.device):
+                    history = self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
+                end_time = time.time()
+                self.training_time += (end_time-start_time)
+                self.ntraining_time += 1
+                logger.info('Agent[{}]- Training: {} '.format(self.rank, (end_time-start_time)))
                 start_time_episode = time.time()
                 logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
         else:
@@ -218,13 +264,15 @@ class DQN(erl.ExaAgent):
     def set_weights(self, weights):
         logger.info('Agent[%s] - set target weight.' % str(self.rank))
         logger.debug('Agent[%s] - set target weight: %s' % (str(self.rank),weights))
-        self.target_model.set_weights(weights)
+        with tf.device(self.device):
+            self.target_model.set_weights(weights)
 
     def target_train(self):
         if self.is_learner:
             logger.info('Agent[%s] - update target weights.' % str(self.rank))
-            model_weights = self.model.get_weights()
-            target_weights = self.target_model.get_weights()
+            with tf.device(self.device):
+                model_weights = self.model.get_weights()
+                target_weights = self.target_model.get_weights()
             for i in range(len(target_weights)):
                 target_weights[i] = self.tau*model_weights[i] + (1-self.tau)*target_weights[i]
             self.set_weights(target_weights)
@@ -268,3 +316,16 @@ class DQN(erl.ExaAgent):
                 time.sleep(0.01)
                 print(sample)
         tf.print("Execution time:", time.perf_counter() - start_time)
+
+    def print_timers(self):
+        if self.ntraining_time>0:
+            logger.info("Agent[{}] - Average training time: {}".format(self.rank,
+                                                                       self.training_time/self.ntraining_time))
+        else:
+            logger.info("Agent[{}] - Average training time: {}".format(self.rank, 0))
+
+        if self.ndataprep_time > 0:
+            logger.info("Agent[{}] - Average data prep time: {}".format(self.rank,
+                                                                       self.dataprep_time/self.ndataprep_time))
+        else:
+            logger.info("Agent[{}] - Average data prep time: {}".format(self.rank, 0))
