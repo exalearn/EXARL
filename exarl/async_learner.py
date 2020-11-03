@@ -93,6 +93,7 @@ def run_async_learner(self):
         logger.info('Learner time: {}'.format(MPI.Wtime() - start))
 
     else:
+        #if True:
         if env_comm.rank == 0:
             # Setup logger
             filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
@@ -110,23 +111,28 @@ def run_async_learner(self):
             total_reward = 0
             steps = 0
             action = 0
+            episode_interim = 0
 
             # Steps in an episode
             while steps < self.nsteps:
+                #if True:
                 if env_comm.rank == 0:
                     # Receive target weights
                     recv_data = agent_comm.recv(source=0)
 
                     if steps == 0:
                         episode = recv_data[0]
+                    episode_interim = recv_data[0]
 
                 env_comm.Barrier() # Synchonize within env_comm
-                env_comm.bcast(episode, root=0) # Broadcast episode within env_comm
+                env_comm.bcast(episode_interim, root=0) # Broadcast episode within env_comm
 
-                if episode == -1:
+                if episode_interim == -1:
+                    episode = -1
                     logger.info('Rank[%s] - Episode/Step:%s/%s' % (str(agent_comm.rank), str(episode), str(steps)))
                     break
                 
+                #if True:
                 if env_comm.rank == 0:
                     self.agent.epsilon = recv_data[1]
                     self.agent.set_weights(recv_data[2])
@@ -139,7 +145,7 @@ def run_async_learner(self):
                 env_comm.Barrier()
                 next_state, reward, done, _ = self.env.step(action)
                 
-
+                #if True:
                 if env_comm.rank == 0:
                     total_reward += reward
                     memory = (current_state, action, reward, next_state, done, total_reward)
@@ -155,6 +161,7 @@ def run_async_learner(self):
                 if steps >= self.nsteps - 1:
                     done = True
 
+                #if True:
                 if env_comm.rank == 0:
                     # Send batched memories
                     agent_comm.send([agent_comm.rank, steps, batch_data, done], dest=0)
