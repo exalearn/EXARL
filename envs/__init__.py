@@ -7,7 +7,6 @@ run_params = cd.initialize_parameters()
 env = run_params['env']
 
 
-
 if env == 'ch-v0':
     register(
         id=env,
@@ -49,4 +48,10 @@ elif env == 'ExaBooster-v1':
     register(
         id=env,
         entry_point='envs.env_vault:ExaBooster'
+    )
+
+elif env == 'ExaLAMMPS-v0':
+    register(
+        id=env,
+        entry_point='envs.env_vault:ExaLAMMPS'
     )

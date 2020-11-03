@@ -162,8 +162,14 @@ class DQN(erl.ExaAgent):
         with tf.device(self.device):
             if self.is_learner:
                 self.model = self._build_model()
+                self.model.compile(loss=self.loss, optimizer=self.optimizer)
+                self.model.summary()
         #with tf.device('/CPU:0'):
+            #self.target_model = self._build_model()
+        with tf.device('/CPU:0'):
             self.target_model = self._build_model()
+            self.target_model.compile(loss=self.loss, optimizer=self.optimizer)
+            self.target_model.summary()
             self.target_weights = self.target_model.get_weights()
 
     def _build_model(self):
@@ -180,7 +186,9 @@ class DQN(erl.ExaAgent):
         logger.debug('Agent[{}] - Creating active model for the learner'.format(self.rank))
         self.is_learner = True
         self.model = self._build_model()
-
+        self.model.compile(loss=self.loss, optimizer=self.optimizer)
+        self.model.summary()
+                
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
