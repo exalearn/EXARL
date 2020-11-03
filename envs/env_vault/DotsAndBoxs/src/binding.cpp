@@ -19,12 +19,12 @@ void reset() {
     board->initRandom(numInitMoves);
 }
 
-double step(int src, int dst) {
+double step(int move) {
     if(!board)
         reset();
     
     bool endTurn = false;
-    double score = board->scoreMove(GameBoard::line_t(src,dst), endTurn);
+    double score = board->scoreMove(GameBoard::line_t(move), endTurn);
     //If you make an illegal move turn will end and you get worst score.
     if(endTurn)
         board->OpponentMove();

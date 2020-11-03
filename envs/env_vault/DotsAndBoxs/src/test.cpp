@@ -1,5 +1,5 @@
 #include "dotsAndBoxes.h"
-#include <omp.h>
+#include "mpi.h"
 #define NANOSECS 1000000000
 
 uint64_t globalTimeStamp(void)
@@ -15,6 +15,7 @@ int boardSize = 3;
 int numInitMoves = 5;
 
 int main(int argc, char* argv[]) {
+    MPI_Init(NULL, NULL);
     if(argc == 3) {
         boardSize = atoi(argv[1]);
         numInitMoves = atoi(argv[2]);
@@ -24,49 +25,52 @@ int main(int argc, char* argv[]) {
     board = new GameBoard(boardSize);
     board->initRandom(numInitMoves);
     auto initEnd = globalTimeStamp();
-    printf("Game Board: %d Init Moves: %d Time: %lf sec\n", boardSize, numInitMoves, (double)(initEnd-initStart)/1e9);
+    // printf("Game Board: %d Init Moves: %d Time: %lf sec\n", boardSize, numInitMoves, (double)(initEnd-initStart)/1e9);
 
-    int action = rand();
-    int numLines = 2 * boardSize * (boardSize - 1);
-    int spaceLen = numLines + 2 * (boardSize - 1) * (boardSize - 1);
-    int src, dst;
-    if(action < numLines/2) {
-        auto row = action / (boardSize - 1);
-        auto col = action % (boardSize - 1);
-        src = row * boardSize + col;
-        dst = src + 1;
-    }
-    else {
-        action -= numLines/2;
-        auto row = action / boardSize;
-        auto col = action % boardSize;
-        src = row * boardSize + col;
-        dst = src + boardSize;
-    }
-
-
-    auto scoreStart = globalTimeStamp();
-    bool endTurn = false;
-    double score = board->scoreMove(GameBoard::line_t(src,dst), endTurn);
-    auto scoreEnd = globalTimeStamp();
-    printf("Player 1 Move Time: %lf\n", (double)(scoreEnd-scoreStart)/1e9);
+    // GameBoard check(boardSize);
+    // check.deserializeBoard(board->serializeBoard());
+    // board->printBoard();
     
+    // printf("Start-------------------------\n");
+    // board->printBoard();
+
+    bool endTurn = false;
+    auto scoreStart = globalTimeStamp();
+    // int action = rand() % 2 * boardSize * (boardSize-1);
+    for(int i=0; i<2 * boardSize * (boardSize-1); i++) {
+        if(board->scoreMove(GameBoard::line_t(i), endTurn) > -1)
+            break;
+    }
+    auto scoreEnd = globalTimeStamp();
+    // printf("Player 1 Move Time: %lf\n", (double)(scoreEnd-scoreStart)/1e9);
+    
+    // printf("Player 1-------------------------\n");
+    // board->printBoard();
+
     auto stateUpdateStart = globalTimeStamp();
-    if(endTurn)
-        board->OpponentMove();
+    // if(endTurn)
+        board->OpponentMove(true);
     auto stateUpdateEnd = globalTimeStamp();
-    printf("Player 2 Move Time: %lf\n", (double)(stateUpdateEnd-stateUpdateStart)/1e9);
+    // printf("Player 2 Move Time: %lf\n", (double)(stateUpdateEnd-stateUpdateStart)/1e9);
+
+    // printf("Player 2-------------------------\n");
+    // board->printBoard();
 
     auto stateStart = globalTimeStamp();
     board->serializeBoard();
     board->gameOver();
     auto stateEnd = globalTimeStamp();
-    printf("State Time: %lf\n", (double)(stateEnd-stateStart)/1e9);
+    // printf("State Time: %lf\n", (double)(stateEnd-stateStart)/1e9);
+
+    printf("Done-------------------------\n");
+    board->printBoard();
 
     auto shutdownStart = globalTimeStamp();
     delete board;
     auto shutdownEnd = globalTimeStamp();
-    printf("Game Board: %d Init Moves: %d Time: %lf sec\n", boardSize, numInitMoves, (double)(shutdownEnd-shutdownStart)/1e9);
+    // printf("Game Board: %d Init Moves: %d Time: %lf sec\n", boardSize, numInitMoves, (double)(shutdownEnd-shutdownStart)/1e9);
 
+    printf("Init: %lf Move: %lf Opp: %lf State: %lf Shutdown: %lf\n", (double)(initEnd-initStart)/1e9, (double)(scoreEnd-scoreStart)/1e9, (double)(stateUpdateEnd-stateUpdateStart)/1e9, (double)(stateEnd-stateStart)/1e9, (double)(shutdownEnd-shutdownStart)/1e9);
+    MPI_Finalize();
     return 0;
 }

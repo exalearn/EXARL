@@ -15,8 +15,7 @@ endif()
 
 find_library(RT_LIB rt)
 find_package(OpenMP)
-
-# find_package(MPI)
+find_package(MPI)
 
 add_executable(test src/test.cpp src/dotsAndBoxes.cpp)
 
@@ -26,4 +25,9 @@ pybind11_add_module(dotsandboxes src/binding.cpp src/dotsAndBoxes.cpp)
 if(OpenMP_CXX_FOUND)
     target_link_libraries(test PUBLIC OpenMP::OpenMP_CXX)
     target_link_libraries(dotsandboxes PUBLIC OpenMP::OpenMP_CXX)
+endif()
+
+if(MPI_CXX_FOUND)
+    target_link_libraries(test PUBLIC MPI::MPI_CXX)
+    target_link_libraries(dotsandboxes PUBLIC MPI::MPI_CXX)
 endif()

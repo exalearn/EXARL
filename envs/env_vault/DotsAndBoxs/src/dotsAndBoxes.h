@@ -7,7 +7,7 @@
 
 class GameBoard {
     public:
-        typedef std::pair<unsigned int, unsigned int> line_t;
+        typedef int line_t;
         typedef std::vector<line_t>::iterator lineIter_t;
         
         GameBoard(unsigned int dim);
@@ -16,34 +16,39 @@ class GameBoard {
 
         void initEmptyBoard();
         void initRandom(int moves);
-        void sortLines(bool print=false);
         void printBoard();
         
-        bool checkBox(int row, int col);
-        unsigned int lookForNewBoxes();
+        bool setLine(line_t move, bool horizontal);
+        bool checkLine(line_t move, bool horizontal);
+        bool checkBox(int box);
+        unsigned int lookForNewBoxes(line_t move);
 
         void flipPlayer();
         bool makeMove(line_t move, bool &valid);
         
-        int findNextMove(int &min, int &max, double &totalScore, int &totalGames, bool flip);
+        int findNextAvailableMove(int &start);
+        int findNextAvailableMoveFromIndex(unsigned int index);
+        int findNextMove(int &min, int &max, int &totalScore, int &totalGames, bool flip);
+        line_t getNextMoveMPI();
         line_t getNextMove();
-        void OpponentMove();
+        void OpponentMove(bool MPI=false);
 
         double scoreMove(line_t move, bool &flip);
         void getScores(int &cur, int &opp);
         bool gameOver();
         
         std::vector<int> serializeBoard();
-        bool deserializeBoard(std::vector<int> state);
+        void deserializeBoard(std::vector<int> state);
+        unsigned int serialBoardSize();
 
     private:
+        uint64_t * horizontalLines;
+        uint64_t * verticalLines;
+        uint64_t * player1Boxes;
+        uint64_t * player2Boxes;
         unsigned int dimension;
-        unsigned int freeBoxes;
-        int curScore;
+        int availableMoves;
+        int player1Score;
+        int player2Score;
         char player;
-        
-        std::vector<line_t> lines;
-        std::vector<line_t> availableMoves;
-
-        char ** boxes;
 };
