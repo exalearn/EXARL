@@ -32,7 +32,7 @@ def build_model(self):
     #                                  #clipnorm= self.clipnorm, clipvalue = self.clipvalue, 
     #                                  self.candle.keras_default_config())
 
-    model.compile(loss=self.loss, optimizer=opt)
-    model.summary()
+    # model.compile(loss=self.loss, optimizer=opt)
+    # model.summary()
 
     return model
