@@ -12,38 +12,44 @@ logger.setLevel(logging.INFO)
 import exarl.mpi_settings as mpi_settings
 
 def run_async_learner(self):
-    # Set target model the sample for all
+    # MPI communicators
+    world_comm = mpi_settings.world_comm
     agent_comm = mpi_settings.agent_comm
     env_comm = mpi_settings.env_comm
+
+    # Set target model
     target_weights = None
-    if agent_comm.rank == 0:
+    if mpi_settings.is_learner():
         self.agent.set_learner()
         target_weights = self.agent.get_weights()
 
     # Send and set to all other agents
-    current_weights = agent_comm.bcast(target_weights, root=0)
-    self.agent.set_weights(current_weights)
+    try:
+        current_weights = agent_comm.bcast(target_weights, root=0)
+        self.agent.set_weights(current_weights)
+    except:
+        logger.debug('Does not contain an agent')
 
     # Variables for all
     episode = 0
     episode_done = 0
+    episode_interim = 0
 
     # Round-Robin Scheduler
-    if agent_comm.rank == 0:
-
+    if mpi_settings.is_learner():
         start = MPI.Wtime()
-        worker_episodes = np.linspace(0, agent_comm.Get_size() - 2, agent_comm.Get_size() - 1)
+        #worker_episodes = np.linspace(0, agent_comm.size - 2, agent_comm.size - 1)
+        worker_episodes = np.arange(1, agent_comm.size)
         logger.debug('worker_episodes:{}'.format(worker_episodes))
 
         logger.info("Initializing ...\n")
-        for s in range(1, agent_comm.Get_size()):
+        for s in range(1, agent_comm.size):
             # Send target weights
             rank0_epsilon = self.agent.epsilon
             target_weights = self.agent.get_weights()
             episode = worker_episodes[s - 1]
+            print('send inside the initialize')
             agent_comm.send([episode, rank0_epsilon, target_weights], dest=s)
-            # Increment episode when starting
-            # episode+=1
 
         init_nepisodes = episode
         logger.debug('init_nepisodes:{}'.format(init_nepisodes))
@@ -54,6 +60,7 @@ def run_async_learner(self):
 
             # Receive the rank of the worker ready for more work
             recv_data = agent_comm.recv(source=MPI.ANY_SOURCE)
+            
             whofrom = recv_data[0]
             step = recv_data[1]
             batch = recv_data[2]
@@ -87,14 +94,13 @@ def run_async_learner(self):
 
         logger.info("Finishing up ...\n")
         episode = -1
-        for s in range(1, agent_comm.Get_size()):
+        for s in range(1, agent_comm.size):
             agent_comm.send([episode, 0, 0], dest=s)
 
         logger.info('Learner time: {}'.format(MPI.Wtime() - start))
 
     else:
-        #if True:
-        if env_comm.rank == 0:
+        if mpi_settings.is_actor():
             # Setup logger
             filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
                             % (str(self.nepisodes), str(self.nsteps), str(agent_comm.rank))
@@ -107,33 +113,34 @@ def run_async_learner(self):
             # time.sleep(randint(0, 50) / 1000)
             # Reset variables each episode
             self.env.seed(0)
+            # TODO: optimize some of these variables out for env processes
             current_state = self.env.reset()
             total_reward = 0
             steps = 0
             action = 0
-            episode_interim = 0
 
             # Steps in an episode
             while steps < self.nsteps:
-                #if True:
-                if env_comm.rank == 0:
+                if mpi_settings.is_actor():
                     # Receive target weights
+                    print('receiving stuff from learner')
                     recv_data = agent_comm.recv(source=0)
-
+                    # Update episode while beginning a new one i.e. step = 0
                     if steps == 0:
                         episode = recv_data[0]
+                    # This variable is used for kill check
                     episode_interim = recv_data[0]
-
-                env_comm.Barrier() # Synchonize within env_comm
-                env_comm.bcast(episode_interim, root=0) # Broadcast episode within env_comm
+                
+                # Broadcast episode within env_comm
+                episode_interim = env_comm.bcast(episode_interim, root=0)
 
                 if episode_interim == -1:
                     episode = -1
-                    logger.info('Rank[%s] - Episode/Step:%s/%s' % (str(agent_comm.rank), str(episode), str(steps)))
+                    if mpi_settings.is_actor():
+                        logger.info('Rank[%s] - Episode/Step:%s/%s' % (str(agent_comm.rank), str(episode), str(steps)))
                     break
                 
-                #if True:
-                if env_comm.rank == 0:
+                if mpi_settings.is_actor():
                     self.agent.epsilon = recv_data[1]
                     self.agent.set_weights(recv_data[2])
 
@@ -142,11 +149,9 @@ def run_async_learner(self):
                     else:
                         action, policy_type = self.agent.action(current_state)
 
-                env_comm.Barrier()
                 next_state, reward, done, _ = self.env.step(action)
                 
-                #if True:
-                if env_comm.rank == 0:
+                if mpi_settings.is_actor():
                     total_reward += reward
                     memory = (current_state, action, reward, next_state, done, total_reward)
 
@@ -157,12 +162,10 @@ def run_async_learner(self):
                     logger.info('Rank[{}] - Generated data: {}'.format(agent_comm.rank, len(batch_data[0])))
                     logger.info('Rank[{}] - Memories: {}'.format(agent_comm.rank, len(self.agent.memory)))
 
-                env_comm.Barrier()
                 if steps >= self.nsteps - 1:
                     done = True
 
-                #if True:
-                if env_comm.rank == 0:
+                if mpi_settings.is_actor():
                     # Send batched memories
                     agent_comm.send([agent_comm.rank, steps, batch_data, done], dest=0)
 
@@ -178,13 +181,15 @@ def run_async_learner(self):
                 current_state = next_state
                 steps += 1
 
-                env_comm.Barrier()
+                # Broadcast done
+                done = env_comm.bcast(done, root=0)
                 # Break for loop if done
                 if done:
                     break
-
-        train_file.close()
         logger.info('Worker time = {}'.format(MPI.Wtime() - start))
-    #
-    logger.info(f'Agent[{agent_comm.rank}] timing info:\n')
-    self.agent.print_timers()
+        if mpi_settings.is_actor():
+            train_file.close()
+        
+    if mpi_settings.is_actor():
+        logger.info(f'Agent[{agent_comm.rank}] timing info:\n')
+        self.agent.print_timers()
