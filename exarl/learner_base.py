@@ -57,8 +57,7 @@ class ExaLearner():
 
         ## Setup MPI
         mpi_settings.init(self.process_per_env)
-        self.env_comm = mpi_settings.env_comm
-        self.agent_comm = mpi_settings.agent_comm
+
         # Setup agent and environments
         agent_id = 'agents:'+run_params['agent']
         env_id   = 'envs:'+run_params['env']
@@ -80,8 +79,11 @@ class ExaLearner():
         env = gym.make(self.env_id).unwrapped
         env = ExaEnv(env, run_params)
         agent = None
-        if self.env_comm.rank == 0:
+        # Only agent_comm processes will create agents
+        try:
             agent = agents.make(self.agent_id, env=env)
+        except:
+            logger.debug('Does not contain an agent')         
  
         return agent, env
 
