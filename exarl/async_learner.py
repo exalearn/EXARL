@@ -13,7 +13,6 @@ import exarl.mpi_settings as mpi_settings
 
 def run_async_learner(self):
     # MPI communicators
-    world_comm = mpi_settings.world_comm
     agent_comm = mpi_settings.agent_comm
     env_comm = mpi_settings.env_comm
 
@@ -23,8 +22,9 @@ def run_async_learner(self):
         self.agent.set_learner()
         target_weights = self.agent.get_weights()
 
-    # Send and set to all other agents
+    # Only agent_comm processes will run this try block
     try:
+         # Send and set weights to all other agents
         current_weights = agent_comm.bcast(target_weights, root=0)
         self.agent.set_weights(current_weights)
     except:

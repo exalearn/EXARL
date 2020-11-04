@@ -8,7 +8,7 @@ def init(procs_per_env):
     world_rank = world_comm.rank
 
     # Agent communicator
-    global agent_comm, agent_color
+    global agent_comm
     agent_color = MPI.UNDEFINED
     if (world_rank == 0) or ((world_rank + procs_per_env - 1) % procs_per_env == 0):
         agent_color = 0
