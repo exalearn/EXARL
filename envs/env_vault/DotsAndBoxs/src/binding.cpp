@@ -24,7 +24,7 @@ double step(int move) {
         reset();
     
     bool endTurn = false;
-    double score = board->scoreMove(GameBoard::line_t(move), endTurn);
+    double score = board->scoreMove(move, endTurn);
     //If you make an illegal move turn will end and you get worst score.
     if(endTurn)
         board->OpponentMove();
@@ -38,7 +38,7 @@ std::vector<int> state() {
 }
 
 bool done() {
-    if(board->gameOver()) {
+    if(board->terminal()) {
         delete board;
         return true;
     }

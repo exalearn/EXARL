@@ -7,8 +7,8 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CMAKE_CXX_FLAGS "-g -Werror -O0")
 else()
     message("Release Build")
-    set(CMAKE_C_FLAGS "-g -O3 -march=native")
-    set(CMAKE_CXX_FLAGS "-g -O3 -march=native")
+    set(CMAKE_C_FLAGS "-g -O0 -march=native")
+    set(CMAKE_CXX_FLAGS "-g -O0 -march=native")
 endif()
 
 #Find Required Libs-------------------------->

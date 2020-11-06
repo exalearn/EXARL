@@ -7,9 +7,6 @@
 
 class GameBoard {
     public:
-        typedef int line_t;
-        typedef std::vector<line_t>::iterator lineIter_t;
-        
         GameBoard(unsigned int dim);
         GameBoard(const GameBoard &gameBoard);
         ~GameBoard();
@@ -18,28 +15,29 @@ class GameBoard {
         void initRandom(int moves);
         void printBoard();
         
-        bool setLine(line_t move, bool horizontal);
-        bool checkLine(line_t move, bool horizontal);
+        bool setLine(int move, bool horizontal);
+        bool checkLine(int move, bool horizontal);
         bool checkBox(int box);
-        unsigned int lookForNewBoxes(line_t move);
+        unsigned int lookForNewBoxes(int move);
+        bool terminal();
 
         void flipPlayer();
-        bool makeMove(line_t move, bool &valid);
+        void flipPerspective();
+        bool makeMove(int move, bool &valid);
         
         int findNextAvailableMove(int &start);
         int findNextAvailableMoveFromIndex(unsigned int index);
-        int findNextMove(int &min, int &max, int &totalScore, int &totalGames, bool flip);
-        line_t getNextMoveMPI();
-        line_t getNextMove();
-        void OpponentMove(bool MPI=false);
+        int findNextMove(int &alpha, int &beta, bool flip);
+        int getNextMove(int &score);
+        int getNextMoveMPI(int numNodes, int &value);
+        int getNextMoveOMP(int start, int end,int &value);
+        void OpponentMove();
 
-        double scoreMove(line_t move, bool &flip);
+        int scoreMove(int move, bool &flip);
         void getScores(int &cur, int &opp);
-        bool gameOver();
         
         std::vector<int> serializeBoard();
         void deserializeBoard(std::vector<int> state);
-        unsigned int serialBoardSize();
 
     private:
         uint64_t * horizontalLines;
@@ -51,4 +49,5 @@ class GameBoard {
         int player1Score;
         int player2Score;
         char player;
+        char perspective;
 };

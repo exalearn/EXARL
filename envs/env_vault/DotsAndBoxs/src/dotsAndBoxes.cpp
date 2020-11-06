@@ -11,7 +11,7 @@
 #include <mpi.h>
 #include "dotsAndBoxes.h"
 
-GameBoard::GameBoard(unsigned int dim): 
+GameBoard::GameBoard(unsigned int dim):
     horizontalLines(NULL),
     verticalLines(NULL),
     player1Boxes(NULL),
@@ -20,7 +20,8 @@ GameBoard::GameBoard(unsigned int dim):
     availableMoves(2 * dim * (dim-1)),
     player1Score(0),
     player2Score(0),
-    player(1) {
+    player(1),
+    perspective(1) {
         auto numBoxes = (dim-1) * (dim-1);
         auto boxArraySize = numBoxes/64 + numBoxes%64;
         player1Boxes = new uint64_t[boxArraySize];
@@ -47,7 +48,8 @@ GameBoard::GameBoard(const GameBoard &gameBoard):
     availableMoves(gameBoard.availableMoves),
     player1Score(gameBoard.player1Score),
     player2Score(gameBoard.player2Score),
-    player(gameBoard.player) {
+    player(gameBoard.player), 
+    perspective(gameBoard.perspective) {
         auto numBoxes = (dimension-1) * (dimension-1);
         auto boxArraySize = numBoxes/64 + numBoxes%64;
         player1Boxes = new uint64_t[boxArraySize];
@@ -77,6 +79,7 @@ void GameBoard::initEmptyBoard() {
     player1Score = 0;
     player2Score = 0;
     player = 1;
+    perspective = 1;
     availableMoves = 2 * dimension * (dimension-1);
 
     auto numBoxes = (dimension-1) * (dimension-1);
@@ -90,7 +93,7 @@ void GameBoard::initEmptyBoard() {
     memset(verticalLines, 0, sizeof(uint64_t)*linesArraySize);
 }
 
-bool GameBoard::setLine(line_t move, bool horizontal) {
+bool GameBoard::setLine(int move, bool horizontal) {
     int index = move / 64;
     int offset = move % 64;
     uint64_t mask = 1UL << offset;
@@ -109,7 +112,7 @@ bool GameBoard::setLine(line_t move, bool horizontal) {
     return false;
 }
 
-bool GameBoard::checkLine(line_t move, bool horizontal) {
+bool GameBoard::checkLine(int move, bool horizontal) {
     int index = move / 64;
     int offset = move % 64;
     uint64_t mask = 1UL << offset;
@@ -118,11 +121,6 @@ bool GameBoard::checkLine(line_t move, bool horizontal) {
         return (horizontalLines[index] & mask);
     else
         return (verticalLines[index] & mask);
-}
-
-bool setBox(int box) {
-    
-    return false;
 }
 
 bool GameBoard::checkBox(int box) {
@@ -157,7 +155,7 @@ bool GameBoard::checkBox(int box) {
     return true;
 }
 
-unsigned int GameBoard::lookForNewBoxes(line_t move) {
+unsigned int GameBoard::lookForNewBoxes(int move) {
     unsigned int score = 0;
     auto numLinesPerDir = dimension * (dimension-1);
     if(move < numLinesPerDir) {
@@ -181,7 +179,7 @@ unsigned int GameBoard::lookForNewBoxes(line_t move) {
     return score;
 }
 
-bool GameBoard::makeMove(line_t move, bool &valid) {
+bool GameBoard::makeMove(int move, bool &valid) {
     bool ret = false;
     auto numLinesPerDir = dimension * (dimension-1);
     if(move < numLinesPerDir) { //Horizontal
@@ -201,7 +199,7 @@ bool GameBoard::makeMove(line_t move, bool &valid) {
             player2Score+=temp;
         return (temp > 0);
     }
-
+    
     return false;
 }
 
@@ -209,15 +207,20 @@ void GameBoard::flipPlayer() {
     player = (player == 1) ? 2 : 1;
 }
 
+void GameBoard::flipPerspective() {
+    perspective = (perspective == 1) ? 2 : 1;
+}
+
 void GameBoard::initRandom(int moves) {
     initEmptyBoard();
-
-    srand (time(NULL));
+    unsigned int seed = time(NULL);
+    MPI_Bcast(&seed, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+    srand(seed);
     int count = 0;
     int failed = 0;
     bool valid;
     while(count < moves && availableMoves) {
-        line_t move = rand() % (2 * dimension * (dimension-1));
+        int move = rand() % (2 * dimension * (dimension-1));
         makeMove(move, valid);
         if(valid) {
             count++;
@@ -315,165 +318,213 @@ int GameBoard::findNextAvailableMoveFromIndex(unsigned int index) {
     return -1;
 }
 
-int GameBoard::findNextMove(int &min, int &max, int &totalScore, int &totalGames, bool flip) {
+bool GameBoard::terminal() {
+    if(availableMoves) {
+        int winningBoxes = (dimension-1) * (dimension-1) / 2;
+        if(player1Score > winningBoxes || player2Score > winningBoxes)
+            return true;
+        return false;
+    }
+    return true;
+}
+
+#define getMax(a,b) ((a) > (b) ? (a) : (b))
+#define getMin(a,b) ((a) < (b) ? (a) : (b))
+
+int GameBoard::findNextMove(int &alpha, int &beta, bool flip) {
     //Base case
-    if(!availableMoves) {
-        totalGames++;
-        if(player == 1) {
-            min = player1Score;       //Always player1's score
-            max = player1Score;       //Always player1's score
-            totalScore+=player1Score; //Always player1's score
+    if(terminal()) {
+        if(perspective == 1) {
+            return player1Score;
         }
-        else { //player 2
-            min = player2Score;       //Always player2's score
-            max = player2Score;       //Always player2's score
-            totalScore+=player2Score; //Always player2's score
+        else {
+            return player2Score;
         }
-        if(player1Score == player2Score)
-            return 0;
-        return (player1Score > player2Score) ? 1 : -1;
     }
 
     //Recursion
-    int sum = 0;
     bool valid;
     int moveStart = 0;
-    for(int i=0; i<availableMoves; i++) {
-        int tempMin, tempMax;
-        GameBoard nextBoard(*this);
-        if(flip)
-            nextBoard.flipPlayer();
-        auto move = findNextAvailableMove(moveStart);
-        sum+=nextBoard.findNextMove(tempMin, tempMax, totalScore, totalGames, !nextBoard.makeMove(move, valid));
-        if(tempMax > max)
-            max = tempMax;
-        if(tempMin < min)
-            min = tempMin;
-    }
-    return sum;
-} 
-
-GameBoard::line_t GameBoard::getNextMove() {
-    int maxSumIndex = -1;
-    int minSumIndex = -1;
-    
-    int minIndex = -1;
-    int maxIndex = -1;
-
-    int maxSum = INT_MIN;
-    int minSum = INT_MAX;
-
-    int min = INT_MAX;
-    int max = INT_MIN;
-
-    #pragma omp parallel for shared(maxSumIndex, minSumIndex, minIndex, maxIndex, maxSum, minSum, min, max)
-    for(unsigned int i=0; i<availableMoves; i++) {
-        int tempMin = 0;
-        int tempMax = 0;
-        int tempTotalScore = 0;
-        int tempTotalGames = 0;
-        bool valid;
-        //Make board copy
-        GameBoard nextBoard(*this);
-        //Do next move and evaluate.  These will be done serially.
-        auto move = findNextAvailableMoveFromIndex(i);
-        int tempSum = nextBoard.findNextMove(tempMin, tempMax, tempTotalScore, tempTotalGames, !nextBoard.makeMove(move, valid));
-        
-        #pragma omp critical
-        {
-            if(tempMax > max) {
-                max = tempMax;
-                maxIndex = i;
-            }
-
-            if(tempMin < min) {
-                min = tempMin;
-                minIndex = i;
-            }
-
-            if(maxSum < tempSum) {
-                maxSum = tempSum;
-                maxSumIndex = i;
-            }
-
-            if(minSum < tempSum) {
-                minSum = tempSum;
-                minSumIndex = i;
-            }
+    bool maxNode = (perspective == player);
+    int value = (maxNode) ? INT_MIN : INT_MAX;
+    if(maxNode) {
+        for(int i=0; i<availableMoves; i++) {
+            GameBoard nextBoard(*this);
+            if(flip)
+                nextBoard.flipPlayer();
+            auto move = findNextAvailableMove(moveStart);
+            value = getMax(value, nextBoard.findNextMove(alpha, beta, !nextBoard.makeMove(move, valid)));
+            alpha = getMax(value, alpha);
+            if(alpha >= beta)
+                break;
         }
-    }
-
-    if(player == 1) {
-        if(maxSum > 0 && maxSumIndex >= 0) //Lets go with the most chances of winning
-            return findNextAvailableMoveFromIndex(maxSumIndex);
-        if(maxIndex >= 0) //Otherwise lets just max out the score
-            return findNextAvailableMoveFromIndex(maxIndex);
     }
     else {
-        if(minSum < 0 && minSumIndex >= 0)
-            return findNextAvailableMoveFromIndex(minSumIndex);
-        if(minIndex >= 0)
-            return findNextAvailableMoveFromIndex(minIndex);
+        for(int i=0; i<availableMoves; i++) {
+            GameBoard nextBoard(*this);
+            if(flip)
+                nextBoard.flipPlayer();
+            auto move = findNextAvailableMove(moveStart);
+            value = getMin(value, nextBoard.findNextMove(alpha, beta, !nextBoard.makeMove(move, valid)));
+            beta = getMin(value, beta);
+            if(beta <= alpha)
+                break;
+        }
     }
+    return value;
+} 
 
-    std::cout << "WE DON'T HAVE A VETTED MOVE..." << std::endl;
-    return findNextAvailableMoveFromIndex(0);
+int GameBoard::getNextMoveOMP(int start, int end, int &value) {
+    value = (perspective==player) ? INT_MIN : INT_MAX;
+    if(!terminal()) {
+        int index = -1;
+        #pragma omp parallel for shared(index, value)
+        for(unsigned int i=start; i<end; i++) {
+            //Thread private variables
+            bool valid;
+            int alpha = INT_MIN;
+            int beta = INT_MAX;
+            GameBoard nextBoard(*this);
+
+            //Do next move and evaluate.  These will be done serially.
+            auto move = findNextAvailableMoveFromIndex(i);
+            int tempValue = nextBoard.findNextMove(alpha, beta, !nextBoard.makeMove(move, valid));
+            
+            #pragma omp critical
+            {
+                if(perspective==player) {
+                    if(tempValue > value) {
+                        value = tempValue;
+                        index = i;
+                    }
+                }
+                else {
+                    if(tempValue < value) {
+                        value = tempValue;
+                        index = i;
+                    }
+                }
+            }
+        }
+        return findNextAvailableMoveFromIndex(index);
+    }
+    std::cout << "Board is terminal..." << std::endl;
+    return -1;
 }
 
-void GameBoard::OpponentMove(bool MPI) {
+int GameBoard::getNextMoveMPI(int numNodes, int &value) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    int ret = -1;
+    value = (perspective==player) ? INT_MIN : INT_MAX;
+    if(!terminal()) {
+        int results[2];
+        int boardsPerRank = availableMoves / numNodes;
+        int rem = availableMoves % numNodes;
+
+        std::vector<int> serial = serializeBoard();
+        MPI_Bcast(&serial[0], serial.size(), MPI_INT, 0, MPI_COMM_WORLD);
+        
+        if(rank)
+            deserializeBoard(serial);
+
+        int startEnd[2];
+        int * sendBuf = NULL;
+        if(!rank) {
+            sendBuf = new int[numNodes*2];
+            int next = 0;
+            for(int i=0; i<numNodes; i++) {
+                sendBuf[i*2] = next;
+                next+=boardsPerRank;
+                if(rem) {
+                    next++;
+                    rem--;
+                }
+                sendBuf[i*2 + 1] = next;
+            }
+        }
+
+        MPI_Scatter(sendBuf, 2, MPI_INT, startEnd, 2, MPI_INT, 0, MPI_COMM_WORLD);
+        results[0] = getNextMoveOMP(startEnd[0], startEnd[1], results[1]);
+
+        int * recvBuf = NULL;
+        if(!rank)
+            recvBuf = new int[2*numNodes];
+        MPI_Gather(results, 2, MPI_INT, recvBuf, 2, MPI_INT, 0, MPI_COMM_WORLD);
+        
+        if(!rank) {
+            for(int i=0; i<numNodes; i++) {
+                int * tempRes = &recvBuf[i*2];
+                if(tempRes[1] > results[1])
+                    results[0] = tempRes[0];
+            }
+            ret = results[0];
+            delete sendBuf;
+            delete recvBuf;
+        }
+        MPI_Bcast(&ret, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&value, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    }
+    fflush(stdout);
+    return ret;
+}
+
+int GameBoard::getNextMove(int &score) {
+    int numNodes;
+    MPI_Comm_size(MPI_COMM_WORLD, &numNodes);
+    if(availableMoves > omp_get_max_threads())
+        return getNextMoveMPI(numNodes, score);
+
+    return getNextMoveOMP(0, availableMoves, score);
+}
+
+void GameBoard::OpponentMove() {
     if(player == 1)
         flipPlayer();
-    bool valid;
-    if(availableMoves) {
-        if(MPI) {
-            auto move = getNextMoveMPI();
-            while(makeMove(move, valid) && availableMoves) {
-                move = getNextMoveMPI();
-            }
+    if(perspective == 1)
+        flipPerspective();
+
+    if(!terminal()) {
+        bool valid;
+        int value;
+        auto move = getNextMove(value);
+        while(makeMove(move, valid) && !terminal()) {
+            move = getNextMove(value);
         }
-        else {
-            auto move = getNextMove();
-            printf("Player 2 move: %d\n", move);
-            while(makeMove(move, valid) && availableMoves) {
-                // printBoard();
-                move = getNextMove();
-                printf("Player 2 move: %d\n", move);
-            }
-            // printBoard();
-        }
+        //Give it back to player1
+        flipPlayer();
+        flipPerspective();
     }
-    //Give it back to player1
-    flipPlayer();
 }
 
-double GameBoard::scoreMove(GameBoard::line_t move, bool &flip) {
+int GameBoard::scoreMove(int move, bool &flip) {
     //Only score player1 moves
     if(player == 2)
         flipPlayer();
+    if(perspective == 2)
+        flipPerspective();
 
-    int min = 0;
-    int max = 0;
-    int totalScore = 0;
-    int totalGames = 0;
-    
     bool valid;
     flip = !makeMove(move, valid);
-    
-    if(!valid)
-        return -DBL_MAX;
 
-    findNextMove(min, max, totalScore, totalGames, flip);
-    // std::cout << totalScore << " / " << totalGames << std::endl;
-    return (double)totalScore/totalGames;
+    if(!valid) //Is is a move that is already made
+        return -INT_MAX;
+
+    if(terminal()) //Is the game over?
+        return player1Score;
+
+    if(flip) //Do we get another turn or no?
+        flipPlayer();
+
+    int value; //Lets get the max score after our move
+    getNextMove(value);
+    return value;
 }
 
 void GameBoard::getScores(int &cur, int &opp) {
     cur=player1Score;
     opp=player2Score;
-}
-
-bool GameBoard::gameOver() {
-    return !availableMoves;
 }
 
 std::vector<int> GameBoard::serializeBoard() {
@@ -514,6 +565,17 @@ std::vector<int> GameBoard::serializeBoard() {
         else
             ret.push_back(0);   
     }
+
+    if(player == 1)
+        ret.push_back(1);
+    else
+        ret.push_back(0);
+
+    if(perspective == 1)
+        ret.push_back(1);
+    else
+        ret.push_back(0);
+
     return ret;
 }
 
@@ -522,14 +584,18 @@ void GameBoard::deserializeBoard(std::vector<int> state) {
     auto iter = state.begin();
     auto numLinesPerDir = dimension * (dimension-1);
     for(int i=0; i<numLinesPerDir; i++) {
-        if(*iter)
+        if(*iter) {
             setLine(i, true);
+            availableMoves--;
+        }
         iter++;
     }
 
     for(int i=0; i<numLinesPerDir; i++) {
-        if(*iter)
+        if(*iter) {
             setLine(i, false);
+            availableMoves--;
+        }
         iter++;
     }
     
@@ -555,166 +621,16 @@ void GameBoard::deserializeBoard(std::vector<int> state) {
         }
         iter++;
     }
-}
 
-unsigned int GameBoard::serialBoardSize() {
-    unsigned int numLinesPerDir = dimension * (dimension-1);
-    unsigned int numBoxes = (dimension-1) * (dimension-1);
-    return 2 * numLinesPerDir + 2 * numBoxes;
-}
-
-GameBoard::line_t GameBoard::getNextMoveMPI() {
-    int ret = -1;
-    int results[8] = {-1, -1, -1, -1, INT_MIN, INT_MAX, INT_MAX, INT_MIN};
-    // {maxSumIndex, minSumIndex, minIndex, maxIndex, maxSum, minSum, min, max}
-
-    int numNodes;
-    MPI_Comm_size(MPI_COMM_WORLD, &numNodes);
-
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-    int tempAvail = availableMoves;
-    int boardsPerRank = availableMoves / numNodes;
-    int rem = availableMoves % numNodes;
-
-    std::vector<int> serial = serializeBoard();
-    // if(!rank) {
-    //     printf("RANK: %d\n", rank);
-    //     printBoard();
-    // }
-    MPI_Bcast(&serial[0], serial.size(), MPI_INT, 0, MPI_COMM_WORLD);
-    if(rank) {
-        deserializeBoard(serial);
-        // printf("RANK: %d\n", rank);
-        // printBoard();
-    }
-
-    int startEnd[2];
-    int * sendBuf = NULL;
-    if(!rank) {
-        sendBuf = new int[numNodes*2];
-        int next = 0;
-        for(int i=0; i<numNodes; i++) {
-            sendBuf[i*2] = next;
-
-            next+=boardsPerRank;
-            if(rem) {
-                next++;
-                rem--;
-            }
-
-            sendBuf[i*2 + 1] = next;
-        }
-    }
-    MPI_Scatter(sendBuf, 2, MPI_INT, startEnd, 2, MPI_INT, 0, MPI_COMM_WORLD);
-    printf("RANK: %d %d %d\n", rank, startEnd[0], startEnd[1]);
-    #pragma omp parallel for shared(results)
-    for(unsigned int i=startEnd[0]; i<startEnd[1]; i++) {
-        int tempMin = 0;
-        int tempMax = 0;
-        int tempTotalScore = 0;
-        int tempTotalGames = 0;
-        bool valid;
-        //Make board copy
-        GameBoard nextBoard(*this);
-        //Do next move and evaluate.  These will be done serially.
-        auto move = findNextAvailableMoveFromIndex(i);
-        int tempSum = nextBoard.findNextMove(tempMin, tempMax, tempTotalScore, tempTotalGames, !nextBoard.makeMove(move, valid));
-        
-        #pragma omp critical
-        {
-            // {maxSumIndex, minSumIndex, minIndex, maxIndex, maxSum, minSum, min, max}
-            // {          0,           1,        2,        3,      4,      5,   6,   7}
-
-            // if(tempMax > max) {
-            if(tempMax > results[7]) {
-                // max = tempMax;
-                results[7] = tempMax;
-                // maxIndex = i;
-                results[3] = i;
-            }
-
-            // if(tempMin < min) {
-            if(tempMin < results[6]) {
-                // min = tempMin;
-                results[6] = tempMin;
-                // minIndex = i;
-                results[2] = i;
-            }
-
-            // if(maxSum < tempSum) {
-            if(results[4] < tempSum) {
-                // maxSum = tempSum;
-                results[4] = tempSum;
-                // maxSumIndex = i;
-                results[0] = i;
-            }
-
-            // if(minSum < tempSum) {
-            if(results[5] < tempSum) {
-                // minSum = tempSum;
-                results[5] = tempSum;
-                // minSumIndex = i;
-                results[1] = i;
-            }
-            printf("Rank %d -- %d %d %d %d %d %d %d %d\n", rank, results[0], results[1], results[2], results[3], results[4], results[5], results[6], results[7]);
-        }
-    }
-
-    int * recvBuf = NULL;
-    if(!rank)
-        recvBuf = new int[8*numNodes];
-    MPI_Gather(results, 8, MPI_INT, recvBuf, 8, MPI_INT, 0, MPI_COMM_WORLD);
-    if(!rank) {
-        for(int i=0; i<numNodes; i++) {
-            int * tempRes = &recvBuf[i*8];
-            printf("%d %d %d %d %d %d %d %d\n", tempRes[0], tempRes[1], tempRes[2], tempRes[3], tempRes[4], tempRes[5], tempRes[6], tempRes[7]);
-            if(tempRes[7] > results[7]) {
-                results[7] = tempRes[7];
-                results[3] = tempRes[3];
-            }
-
-            if(tempRes[6] < results[6]) {
-                results[6] = tempRes[6];
-                results[2] = tempRes[2];
-            }
-
-            if(results[4] < tempRes[4]) {
-                results[4] = tempRes[4];
-                results[0] = tempRes[0];
-            }
-
-            if(results[5] < tempRes[5]) {
-                results[5] = tempRes[5];
-                results[1] = tempRes[1];
-            }
-        }
+    if(*iter)
+        player = 1;
+    else
+        player = 2;
     
-        // {maxSumIndex, minSumIndex, minIndex, maxIndex, maxSum, minSum, min, max}
-        // {          0,           1,        2,        3,      4,      5,   6,   7}
-        if(player == 1) {
-            if(results[4] > 0 && results[0] >= 0) //Lets go with the most chances of winning
-                ret = findNextAvailableMoveFromIndex(results[0]);
-            if(results[3] >= 0) //Otherwise lets just max out the score
-                ret = findNextAvailableMoveFromIndex(results[3]);
-        }
-        else {
-            if(results[5] < 0 && results[1] >= 0)
-                ret = findNextAvailableMoveFromIndex(results[1]);
-            if(results[2] >= 0)
-                ret = findNextAvailableMoveFromIndex(results[2]);
-        }
-
-        delete sendBuf;
-        delete recvBuf;
-    }
-    printf("Before--- %d\n", rank);
-    MPI_Bcast(&ret, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    printf("Rank: %d After--- %d\n", rank, ret);
-    if(ret < 0) {
-        std::cout << rank << " WE DON'T HAVE A VETTED MOVE..." << std::endl;
-        return findNextAvailableMoveFromIndex(0);
-    }
-    return ret;
+    iter++;
+    if(*iter)
+        perspective = 1;
+    else
+        perspective = 2;
+    iter++;
 }
