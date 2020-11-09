@@ -1,0 +1,6 @@
+{
+    "actionSpace" : "Discrete",
+    "observationSpace": "Box",
+    "actionTuple" : "False",
+    "observationTuple" : "False"
+}

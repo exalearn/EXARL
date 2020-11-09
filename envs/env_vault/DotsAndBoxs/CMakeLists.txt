@@ -31,3 +31,5 @@ if(MPI_CXX_FOUND)
     target_link_libraries(test PUBLIC MPI::MPI_CXX)
     target_link_libraries(dotsandboxes PUBLIC MPI::MPI_CXX)
 endif()
+
+add_executable(mcst src/mcst.cpp)

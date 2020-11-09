@@ -11,7 +11,7 @@
 #include <mpi.h>
 #include "dotsAndBoxes.h"
 
-GameBoard::GameBoard(unsigned int dim):
+DotsAndBoxes::DotsAndBoxes(unsigned int dim):
     horizontalLines(NULL),
     verticalLines(NULL),
     player1Boxes(NULL),
@@ -20,6 +20,7 @@ GameBoard::GameBoard(unsigned int dim):
     availableMoves(2 * dim * (dim-1)),
     player1Score(0),
     player2Score(0),
+    nextIndex(0),
     player(1),
     perspective(1) {
         auto numBoxes = (dim-1) * (dim-1);
@@ -39,48 +40,50 @@ GameBoard::GameBoard(unsigned int dim):
         memset(verticalLines, 0, sizeof(uint64_t)*linesArraySize);
     }
 
-GameBoard::GameBoard(const GameBoard &gameBoard):
+DotsAndBoxes::DotsAndBoxes(const DotsAndBoxes &DotsAndBoxes):
     horizontalLines(NULL),
     verticalLines(NULL),
     player1Boxes(NULL),
     player2Boxes(NULL),
-    dimension(gameBoard.dimension),
-    availableMoves(gameBoard.availableMoves),
-    player1Score(gameBoard.player1Score),
-    player2Score(gameBoard.player2Score),
-    player(gameBoard.player), 
-    perspective(gameBoard.perspective) {
+    dimension(DotsAndBoxes.dimension),
+    availableMoves(DotsAndBoxes.availableMoves),
+    player1Score(DotsAndBoxes.player1Score),
+    player2Score(DotsAndBoxes.player2Score),
+    nextIndex(DotsAndBoxes.nextIndex),
+    player(DotsAndBoxes.player), 
+    perspective(DotsAndBoxes.perspective) {
         auto numBoxes = (dimension-1) * (dimension-1);
         auto boxArraySize = numBoxes/64 + numBoxes%64;
         player1Boxes = new uint64_t[boxArraySize];
         player2Boxes = new uint64_t[boxArraySize];
 
-        memcpy(player1Boxes, gameBoard.player1Boxes, sizeof(uint64_t)*boxArraySize);
-        memcpy(player2Boxes, gameBoard.player2Boxes, sizeof(uint64_t)*boxArraySize);
+        memcpy(player1Boxes, DotsAndBoxes.player1Boxes, sizeof(uint64_t)*boxArraySize);
+        memcpy(player2Boxes, DotsAndBoxes.player2Boxes, sizeof(uint64_t)*boxArraySize);
 
         auto numLinesPerDir = dimension * (dimension-1);
         auto linesArraySize = numLinesPerDir/64 + numLinesPerDir%64;
         horizontalLines = new uint64_t[linesArraySize];
         verticalLines = new uint64_t[linesArraySize];
 
-        memcpy(horizontalLines, gameBoard.horizontalLines, sizeof(uint64_t)*linesArraySize);
-        memcpy(verticalLines, gameBoard.verticalLines, sizeof(uint64_t)*linesArraySize);
+        memcpy(horizontalLines, DotsAndBoxes.horizontalLines, sizeof(uint64_t)*linesArraySize);
+        memcpy(verticalLines, DotsAndBoxes.verticalLines, sizeof(uint64_t)*linesArraySize);
     }
 
-GameBoard::~GameBoard() {
+DotsAndBoxes::~DotsAndBoxes() {
     delete player1Boxes;
     delete player2Boxes;
     delete horizontalLines;
     delete verticalLines;
 }
 
-void GameBoard::initEmptyBoard() {
+void DotsAndBoxes::initEmptyBoard() {
     availableMoves = 
     player1Score = 0;
     player2Score = 0;
     player = 1;
     perspective = 1;
     availableMoves = 2 * dimension * (dimension-1);
+    nextIndex = 0;
 
     auto numBoxes = (dimension-1) * (dimension-1);
     auto boxArraySize = numBoxes/64 + numBoxes%64;
@@ -93,7 +96,7 @@ void GameBoard::initEmptyBoard() {
     memset(verticalLines, 0, sizeof(uint64_t)*linesArraySize);
 }
 
-bool GameBoard::setLine(int move, bool horizontal) {
+bool DotsAndBoxes::setLine(int move, bool horizontal) {
     int index = move / 64;
     int offset = move % 64;
     uint64_t mask = 1UL << offset;
@@ -112,7 +115,7 @@ bool GameBoard::setLine(int move, bool horizontal) {
     return false;
 }
 
-bool GameBoard::checkLine(int move, bool horizontal) {
+bool DotsAndBoxes::checkLine(int move, bool horizontal) {
     int index = move / 64;
     int offset = move % 64;
     uint64_t mask = 1UL << offset;
@@ -123,7 +126,7 @@ bool GameBoard::checkLine(int move, bool horizontal) {
         return (verticalLines[index] & mask);
 }
 
-bool GameBoard::checkBox(int box) {
+bool DotsAndBoxes::checkBox(int box) {
     // printf("Checking %d\n", box);
     int horz = box;
     if(!checkLine(horz, true))
@@ -155,7 +158,7 @@ bool GameBoard::checkBox(int box) {
     return true;
 }
 
-unsigned int GameBoard::lookForNewBoxes(int move) {
+unsigned int DotsAndBoxes::lookForNewBoxes(int move) {
     unsigned int score = 0;
     auto numLinesPerDir = dimension * (dimension-1);
     if(move < numLinesPerDir) {
@@ -179,13 +182,14 @@ unsigned int GameBoard::lookForNewBoxes(int move) {
     return score;
 }
 
-bool GameBoard::makeMove(int move, bool &valid) {
+bool DotsAndBoxes::makeMove(int move, bool &valid) {
     bool ret = false;
+    valid = false;
     auto numLinesPerDir = dimension * (dimension-1);
     if(move < numLinesPerDir) { //Horizontal
         valid = setLine(move, true);
     }
-    else { //Vertical
+    else if(move < 2 * numLinesPerDir) { //Vertical
         auto temp = move - numLinesPerDir;
         valid = setLine(temp, false);
     }
@@ -203,18 +207,23 @@ bool GameBoard::makeMove(int move, bool &valid) {
     return false;
 }
 
-void GameBoard::flipPlayer() {
+bool DotsAndBoxes::player1() {
+    return (player == 1);
+}
+
+void DotsAndBoxes::flipPlayer() {
     player = (player == 1) ? 2 : 1;
 }
 
-void GameBoard::flipPerspective() {
+void DotsAndBoxes::flipPerspective() {
     perspective = (perspective == 1) ? 2 : 1;
 }
 
-void GameBoard::initRandom(int moves) {
+void DotsAndBoxes::initRandom(int moves, bool MPI) {
     initEmptyBoard();
     unsigned int seed = time(NULL);
-    MPI_Bcast(&seed, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+    if(MPI)
+        MPI_Bcast(&seed, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
     srand(seed);
     int count = 0;
     int failed = 0;
@@ -232,7 +241,7 @@ void GameBoard::initRandom(int moves) {
     // printf("Good: %u Bad: %u\n", count, failed);
 }
 
-void GameBoard::printBoard() {
+void DotsAndBoxes::printBoard() {
     for(int i=0; i<dimension-1; i++) {
         for(int j=0; j<dimension-1; j++) {
             printf(".");
@@ -273,7 +282,9 @@ void GameBoard::printBoard() {
     printf(".\n");
 }
 
-int GameBoard::findNextAvailableMove(int &start) {
+int DotsAndBoxes::numAvailableMoves() { return availableMoves; }
+
+int DotsAndBoxes::findNextAvailableMove(int &start) {
     auto numLinesPerDir = dimension * (dimension-1);
     int vertStart = 0;
     if(start<numLinesPerDir) {
@@ -297,7 +308,7 @@ int GameBoard::findNextAvailableMove(int &start) {
     return -1;
 }
 
-int GameBoard::findNextAvailableMoveFromIndex(unsigned int index) {
+int DotsAndBoxes::findNextAvailableMoveFromIndex(unsigned int index) {
     unsigned int count = 0;
     auto numLinesPerDir = dimension * (dimension-1);
     for(int i=0; i<numLinesPerDir; i++) {
@@ -318,7 +329,7 @@ int GameBoard::findNextAvailableMoveFromIndex(unsigned int index) {
     return -1;
 }
 
-bool GameBoard::terminal() {
+bool DotsAndBoxes::terminal() {
     if(availableMoves) {
         int winningBoxes = (dimension-1) * (dimension-1) / 2;
         if(player1Score > winningBoxes || player2Score > winningBoxes)
@@ -331,7 +342,7 @@ bool GameBoard::terminal() {
 #define getMax(a,b) ((a) > (b) ? (a) : (b))
 #define getMin(a,b) ((a) < (b) ? (a) : (b))
 
-int GameBoard::findNextMove(int &alpha, int &beta, bool flip) {
+int DotsAndBoxes::findNextMove(int &alpha, int &beta, bool flip) {
     //Base case
     if(terminal()) {
         if(perspective == 1) {
@@ -349,7 +360,7 @@ int GameBoard::findNextMove(int &alpha, int &beta, bool flip) {
     int value = (maxNode) ? INT_MIN : INT_MAX;
     if(maxNode) {
         for(int i=0; i<availableMoves; i++) {
-            GameBoard nextBoard(*this);
+            DotsAndBoxes nextBoard(*this);
             if(flip)
                 nextBoard.flipPlayer();
             auto move = findNextAvailableMove(moveStart);
@@ -361,7 +372,7 @@ int GameBoard::findNextMove(int &alpha, int &beta, bool flip) {
     }
     else {
         for(int i=0; i<availableMoves; i++) {
-            GameBoard nextBoard(*this);
+            DotsAndBoxes nextBoard(*this);
             if(flip)
                 nextBoard.flipPlayer();
             auto move = findNextAvailableMove(moveStart);
@@ -374,7 +385,7 @@ int GameBoard::findNextMove(int &alpha, int &beta, bool flip) {
     return value;
 } 
 
-int GameBoard::getNextMoveOMP(int start, int end, int &value) {
+int DotsAndBoxes::getNextMoveOMP(int start, int end, int &value) {
     value = (perspective==player) ? INT_MIN : INT_MAX;
     if(!terminal()) {
         int index = -1;
@@ -384,7 +395,7 @@ int GameBoard::getNextMoveOMP(int start, int end, int &value) {
             bool valid;
             int alpha = INT_MIN;
             int beta = INT_MAX;
-            GameBoard nextBoard(*this);
+            DotsAndBoxes nextBoard(*this);
 
             //Do next move and evaluate.  These will be done serially.
             auto move = findNextAvailableMoveFromIndex(i);
@@ -412,7 +423,7 @@ int GameBoard::getNextMoveOMP(int start, int end, int &value) {
     return -1;
 }
 
-int GameBoard::getNextMoveMPI(int numNodes, int &value) {
+int DotsAndBoxes::getNextMoveMPI(int numNodes, int &value) {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
@@ -470,16 +481,16 @@ int GameBoard::getNextMoveMPI(int numNodes, int &value) {
     return ret;
 }
 
-int GameBoard::getNextMove(int &score) {
+int DotsAndBoxes::getNextMove(int &score, bool MPI) {
     int numNodes;
     MPI_Comm_size(MPI_COMM_WORLD, &numNodes);
-    if(availableMoves > omp_get_max_threads())
+    if(MPI && availableMoves > omp_get_max_threads())
         return getNextMoveMPI(numNodes, score);
 
     return getNextMoveOMP(0, availableMoves, score);
 }
 
-void GameBoard::OpponentMove() {
+void DotsAndBoxes::OpponentMove() {
     if(player == 1)
         flipPlayer();
     if(perspective == 1)
@@ -498,7 +509,7 @@ void GameBoard::OpponentMove() {
     }
 }
 
-int GameBoard::scoreMove(int move, bool &flip) {
+int DotsAndBoxes::scoreMove(int move, bool &flip) {
     //Only score player1 moves
     if(player == 2)
         flipPlayer();
@@ -522,12 +533,12 @@ int GameBoard::scoreMove(int move, bool &flip) {
     return value;
 }
 
-void GameBoard::getScores(int &cur, int &opp) {
+void DotsAndBoxes::getScores(int &cur, int &opp) {
     cur=player1Score;
     opp=player2Score;
 }
 
-std::vector<int> GameBoard::serializeBoard() {
+std::vector<int> DotsAndBoxes::serializeBoard() {
     std::vector<int> ret;
     
     auto numLinesPerDir = dimension * (dimension-1);
@@ -579,7 +590,7 @@ std::vector<int> GameBoard::serializeBoard() {
     return ret;
 }
 
-void GameBoard::deserializeBoard(std::vector<int> state) {
+void DotsAndBoxes::deserializeBoard(std::vector<int> state) {
     initEmptyBoard();
     auto iter = state.begin();
     auto numLinesPerDir = dimension * (dimension-1);

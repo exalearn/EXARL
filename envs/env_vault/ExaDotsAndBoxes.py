@@ -15,7 +15,7 @@ class ExaDotsAndBoxes(gym.Env):
 
         # 2 * Dimension * (Dimension - 1) + 2 (Dimension - 1)^2
         self.numLines = 2 * self.dim * (self.dim - 1)
-        self.spaceLen = self.numLines + 2 * (self.dim - 1) * (self.dim - 1)
+        self.spaceLen = self.numLines + 2 * (self.dim - 1) * (self.dim - 1) + 2
 
         assert(self.dim > 1)
         assert(self.initMoves < self.numLines)
@@ -26,27 +26,11 @@ class ExaDotsAndBoxes(gym.Env):
         self.action_space = spaces.Discrete(self.numLines)
 
     def step(self, action):
-        # print("ACTION", type(action), action)
         assert(action < self.numLines)
-
-        rndAction = action
-        if rndAction < self.numLines / 2:
-            row = rndAction / (self.dim - 1)
-            col = rndAction % (self.dim - 1)
-            src = row * self.dim + col
-            dst = src + 1
-        else:
-            rndAction -= self.numLines/2
-            row = action / self.dim
-            col = action % self.dim
-            src = row * self.dim + col
-            dst = src + self.dim
-
-        print("Action:", action, "Src:", src, "Dst:", dst)
-        reward = dab.step(int(src),int(dst))
+        # print("Action:", action)
+        reward = dab.step(action)
         done = dab.done()
         next_state = dab.state()
-
         return next_state, reward, done, {}
 
     def reset(self):

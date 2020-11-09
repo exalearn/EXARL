@@ -5,14 +5,14 @@
 #include <string.h>
 #include <stdio.h>
 
-class GameBoard {
+class DotsAndBoxes {
     public:
-        GameBoard(unsigned int dim);
-        GameBoard(const GameBoard &gameBoard);
-        ~GameBoard();
+        DotsAndBoxes(unsigned int dim);
+        DotsAndBoxes(const DotsAndBoxes &DotsAndBoxes);
+        ~DotsAndBoxes();
 
         void initEmptyBoard();
-        void initRandom(int moves);
+        void initRandom(int moves, bool MPI=false);
         void printBoard();
         
         bool setLine(int move, bool horizontal);
@@ -23,12 +23,15 @@ class GameBoard {
 
         void flipPlayer();
         void flipPerspective();
+        bool player1();
         bool makeMove(int move, bool &valid);
         
+        int numAvailableMoves();
+        int findNextAvailableMove();
         int findNextAvailableMove(int &start);
         int findNextAvailableMoveFromIndex(unsigned int index);
         int findNextMove(int &alpha, int &beta, bool flip);
-        int getNextMove(int &score);
+        int getNextMove(int &score, bool MPI=false);
         int getNextMoveMPI(int numNodes, int &value);
         int getNextMoveOMP(int start, int end,int &value);
         void OpponentMove();

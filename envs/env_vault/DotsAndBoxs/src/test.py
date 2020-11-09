@@ -2,22 +2,25 @@
 import dotsandboxes as dab
 from gym import spaces
 #%%
-action_space = spaces.MultiDiscrete([12, 13])
-print(action_space.n)
-print(action_space.sample())
-#%%
-action_space = spaces.MultiBinary([12, 13])
-print(action_space.n)
-print(action_space.sample())
+# action_space = spaces.MultiDiscrete([12, 13])
+# print(action_space.n)
+# print(action_space.sample())
+# #%%
+# action_space = spaces.MultiBinary([12, 13])
+# print(action_space.n)
+# print(action_space.sample())
 #%%
 
 dab.print()
 dab.reset()
 print(dab.state())
 dab.print()
-print(dab.step(0,3))
+print(dab.step(3))
 dab.print()
 print(dab.state(), len(dab.state()))
+dab.reset()
+dab.reset()
+dab.reset()
 
 
 # %%
