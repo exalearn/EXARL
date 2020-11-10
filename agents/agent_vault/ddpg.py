@@ -66,9 +66,11 @@ class DDPG(erl.ExaAgent):
         self.memory = self.state_buffer # BAD
 
         # Required by the learner
-        if self.is_learner:
-            self.actor_model = self.get_actor()
-            self.critic_model = self.get_critic()
+        self.actor_model = None
+        self.critic_model = None
+        #if self.is_learner:
+        self.actor_model = self.get_actor()
+        self.critic_model = self.get_critic()
 
         # Every agent needs this
         self.target_critic = self.get_critic()
