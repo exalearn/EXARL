@@ -47,6 +47,9 @@ std::vector<int> state() {
 }
 
 bool done() {
+    if(!board)
+        return true;
+        
     if(board->terminal()) {
         delete board;
         board = NULL;
@@ -65,6 +68,30 @@ void print() {
     }
 }
 
+std::vector<int> score() {
+    std::vector<int> ret;
+    if(board) {
+        int player1, player2;
+        board->getScores(player1, player2);
+        ret.push_back(player1);
+        ret.push_back(player2);
+    }
+    return ret;
+}
+
+bool player1Turn() {
+    if(board) {
+        return board->player1();
+    }
+    return false;
+}
+
+void opponent(bool random) {
+    if(board) {
+        board->OpponentMove(random);
+    }
+}
+
 namespace py = pybind11;
 
 PYBIND11_MODULE(dotsandboxes, m) {
@@ -76,6 +103,8 @@ PYBIND11_MODULE(dotsandboxes, m) {
     m.def("state", &state, "State");
     m.def("print", &print, "Print");
     m.def("done", &done, "Done");
-    
+    m.def("score", &score, "Score");
+    m.def("player1Turn", &player1Turn, "Returns true if it is player1's turn");
+    m.def("oppenent", &opponent, "Runs player2.  Set true for random legal move(s).");
     m.attr("__version__") = "dev";
 }

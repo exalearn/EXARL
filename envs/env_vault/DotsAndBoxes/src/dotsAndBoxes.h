@@ -34,7 +34,8 @@ class DotsAndBoxes {
         int getNextMove(int &score, bool MPI=false);
         int getNextMoveMPI(int numNodes, int &value);
         int getNextMoveOMP(int start, int end,int &value);
-        void OpponentMove();
+        int getRandomNextMove();
+        void OpponentMove(bool random=true);
 
         int scoreMove(int move, bool &flip);
         void getScores(int &cur, int &opp);

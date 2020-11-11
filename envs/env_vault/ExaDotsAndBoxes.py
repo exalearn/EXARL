@@ -1,8 +1,8 @@
 import time
 import sys
 import gym
-import exarl as erl
 import dotsandboxes as dab
+import exarl as erl
 import numpy as np
 from gym import spaces
 
@@ -16,6 +16,10 @@ class ExaDotsAndBoxes(gym.Env):
         # 2 * Dimension * (Dimension - 1) + 2 (Dimension - 1)^2
         self.numLines = 2 * self.dim * (self.dim - 1)
         self.spaceLen = self.numLines + 2 * (self.dim - 1) * (self.dim - 1) + 2
+        
+        self.numBoxes = (self.dim - 1) * (self.dim - 1)
+        self.minScore = -1 * self.numBoxes
+        self.maxScore = self.numBoxes
 
         assert(self.dim > 1)
         assert(self.initMoves < self.numLines)
@@ -26,10 +30,21 @@ class ExaDotsAndBoxes(gym.Env):
         self.action_space = spaces.Discrete(self.numLines)
 
     def step(self, action):
+        
         assert(action < self.numLines)
-        # print("Action:", action)
+        
         reward = dab.step(action)
-        done = dab.done()
+        if reward < self.minScore:
+            reward = self.minScore - 1
+            done = True
+        else:
+            if not dab.done() and not dab.player1Turn():
+                dab.oppenent(True)
+            done = dab.done()
+            if not done:
+                assert(dab.player1Turn())
+            reward = dab.score()[0]   
+
         next_state = dab.state()
         return next_state, reward, done, {}
 

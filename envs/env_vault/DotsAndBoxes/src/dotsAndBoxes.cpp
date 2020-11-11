@@ -20,7 +20,6 @@ DotsAndBoxes::DotsAndBoxes(unsigned int dim):
     availableMoves(2 * dim * (dim-1)),
     player1Score(0),
     player2Score(0),
-    nextIndex(0),
     player(1),
     perspective(1) {
         auto numBoxes = (dim-1) * (dim-1);
@@ -49,7 +48,6 @@ DotsAndBoxes::DotsAndBoxes(const DotsAndBoxes &DotsAndBoxes):
     availableMoves(DotsAndBoxes.availableMoves),
     player1Score(DotsAndBoxes.player1Score),
     player2Score(DotsAndBoxes.player2Score),
-    nextIndex(DotsAndBoxes.nextIndex),
     player(DotsAndBoxes.player), 
     perspective(DotsAndBoxes.perspective) {
         auto numBoxes = (dimension-1) * (dimension-1);
@@ -83,7 +81,6 @@ void DotsAndBoxes::initEmptyBoard() {
     player = 1;
     perspective = 1;
     availableMoves = 2 * dimension * (dimension-1);
-    nextIndex = 0;
 
     auto numBoxes = (dimension-1) * (dimension-1);
     auto boxArraySize = numBoxes/64 + numBoxes%64;
@@ -490,7 +487,13 @@ int DotsAndBoxes::getNextMove(int &score, bool MPI) {
     return getNextMoveOMP(0, availableMoves, score);
 }
 
-void DotsAndBoxes::OpponentMove() {
+int DotsAndBoxes::getRandomNextMove() {
+    int index = rand() % availableMoves;
+    // printf("Rand index: %d out of %d\n", index, availableMoves);
+    return findNextAvailableMoveFromIndex(index);
+}
+
+void DotsAndBoxes::OpponentMove(bool random) {
     if(player == 1)
         flipPlayer();
     if(perspective == 1)
@@ -499,10 +502,17 @@ void DotsAndBoxes::OpponentMove() {
     if(!terminal()) {
         bool valid;
         int value;
-        auto move = getNextMove(value);
-        while(makeMove(move, valid) && !terminal()) {
-            move = getNextMove(value);
+        if(random) {
+            auto move = getRandomNextMove();
+            while(makeMove(move, valid) && !terminal())
+                move = getNextMove(value);
         }
+        else {
+            auto move = getNextMove(value);
+            while(makeMove(move, valid) && !terminal())
+                move = getNextMove(value);
+        }
+
         //Give it back to player1
         flipPlayer();
         flipPerspective();

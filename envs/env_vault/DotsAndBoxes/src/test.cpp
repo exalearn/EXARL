@@ -38,17 +38,17 @@ int main(int argc, char* argv[]) {
     bool endTurn = false;
     auto scoreStart = globalTimeStamp();
     // int action = rand() % 2 * boardSize * (boardSize-1);
-    for(int i=0; i<2 * boardSize * (boardSize-1); i++) {
-        if(board->scoreMove(i, endTurn) > -1)
-            break;
-    }
+    // for(int i=0; i<2 * boardSize * (boardSize-1); i++) {
+    //     if(board->scoreMove(i, endTurn) > -1)
+    //         break;
+    // }
     auto scoreEnd = globalTimeStamp();
     
     RANK0(printf("Player 1-------------------------\n"));
     RANK0(board->printBoard());
 
     auto stateUpdateStart = globalTimeStamp();
-    board->OpponentMove();
+    board->OpponentMove(true);
     auto stateUpdateEnd = globalTimeStamp();
 
     RANK0(printf("Player 2-------------------------\n"));
