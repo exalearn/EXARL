@@ -1,14 +1,15 @@
 import time
 import csv
 from mpi4py import MPI
+import sys
 
 import logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.INFO)
 
-def run_seed(self, comm):
-
+def run_seed(self):
+        comm = MPI.COMM_WORLD
         sys.exit('TBD')
         
         filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' % ( str(self.nepisodes), str(self.nsteps), str(comm.rank))

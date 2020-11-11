@@ -9,38 +9,47 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.DEBUG)
 
+import exarl.mpi_settings as mpi_settings
 
-def run_async_learner(self, comm):
-    # Set target model the sample for all
+def run_async_learner(self):
+    # MPI communicators
+    agent_comm = mpi_settings.agent_comm
+    env_comm = mpi_settings.env_comm
+
+    # Set target model
     target_weights = None
-    if comm.rank == 0:
+    if mpi_settings.is_learner():
         self.agent.set_learner()
         target_weights = self.agent.get_weights()
 
-    # Send and set to all other agents
-    current_weights = comm.bcast(target_weights, root=0)
-    self.agent.set_weights(current_weights)
+    # Only agent_comm processes will run this try block
+    try:
+         # Send and set weights to all other agents
+        current_weights = agent_comm.bcast(target_weights, root=0)
+        self.agent.set_weights(current_weights)
+    except:
+        logger.debug('Does not contain an agent')
 
     # Variables for all
     episode = 0
     episode_done = 0
+    episode_interim = 0
 
     # Round-Robin Scheduler
-    if comm.rank == 0:
-
+    if mpi_settings.is_learner():
         start = MPI.Wtime()
-        worker_episodes = np.linspace(0, comm.Get_size() - 2, comm.Get_size() - 1)
+        #worker_episodes = np.linspace(0, agent_comm.size - 2, agent_comm.size - 1)
+        worker_episodes = np.arange(1, agent_comm.size)
         logger.debug('worker_episodes:{}'.format(worker_episodes))
 
         logger.info("Initializing ...\n")
-        for s in range(1, comm.Get_size()):
+        for s in range(1, agent_comm.size):
             # Send target weights
             rank0_epsilon = self.agent.epsilon
             target_weights = self.agent.get_weights()
             episode = worker_episodes[s - 1]
-            comm.send([episode, rank0_epsilon, target_weights], dest=s)
-            # Increment episode when starting
-            # episode+=1
+            print('send inside the initialize')
+            agent_comm.send([episode, rank0_epsilon, target_weights], dest=s)
 
         init_nepisodes = episode
         logger.debug('init_nepisodes:{}'.format(init_nepisodes))
@@ -50,7 +59,8 @@ def run_async_learner(self, comm):
             # print("Running scheduler/learner episode: {}".format(episode))
 
             # Receive the rank of the worker ready for more work
-            recv_data = comm.recv(source=MPI.ANY_SOURCE)
+            recv_data = agent_comm.recv(source=MPI.ANY_SOURCE)
+            
             whofrom = recv_data[0]
             step = recv_data[1]
             batch = recv_data[2]
@@ -59,6 +69,7 @@ def run_async_learner(self, comm):
             logger.debug('done:{}'.format(done))
             # Train
             self.agent.train(batch)
+            # TODO: Double check if this is already in the DQN code
             self.agent.target_train()
 
             # Send target weights
@@ -79,85 +90,106 @@ def run_async_learner(self, comm):
                 worker_episodes[whofrom - 1] = latest_episode + 1
                 logger.debug('episode_done:{}'.format(episode_done))
 
-            comm.send([worker_episodes[whofrom - 1], rank0_epsilon, target_weights], dest=whofrom)
+            agent_comm.send([worker_episodes[whofrom - 1], rank0_epsilon, target_weights], dest=whofrom)
 
         logger.info("Finishing up ...\n")
         episode = -1
-        for s in range(1, comm.Get_size()):
-            comm.send([episode, 0, 0], dest=s)
+        for s in range(1, agent_comm.size):
+            agent_comm.send([episode, 0, 0], dest=s)
 
         logger.info('Learner time: {}'.format(MPI.Wtime() - start))
 
     else:
-        # Setup logger
-        filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
-                          % (str(self.nepisodes), str(self.nsteps), str(comm.rank))
-        train_file = open(self.results_dir + '/' + filename_prefix + ".log", 'w')
-        train_writer = csv.writer(train_file, delimiter=" ")
+        if mpi_settings.is_actor():
+            # Setup logger
+            filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
+                            % (str(self.nepisodes), str(self.nsteps), str(agent_comm.rank))
+            train_file = open(self.results_dir + '/' + filename_prefix + ".log", 'w')
+            train_writer = csv.writer(train_file, delimiter=" ")
 
         start = MPI.Wtime()
         while episode != -1:
             # Add start jitter to stagger the jobs [ 1-50 milliseconds]
-            time.sleep(randint(0, 50) / 1000)
+            # time.sleep(randint(0, 50) / 1000)
             # Reset variables each episode
             self.env.seed(0)
+            # TODO: optimize some of these variables out for env processes
             current_state = self.env.reset()
             total_reward = 0
             steps = 0
+            action = 0
 
             # Steps in an episode
             while steps < self.nsteps:
-                # Receive target weights
-                recv_data = comm.recv(source=0)
-                ##
-                if steps == 0:
-                    episode = recv_data[0]
+                if mpi_settings.is_actor():
+                    # Receive target weights
+                    print('receiving stuff from learner')
+                    recv_data = agent_comm.recv(source=0)
+                    # Update episode while beginning a new one i.e. step = 0
+                    if steps == 0:
+                        episode = recv_data[0]
+                    # This variable is used for kill check
+                    episode_interim = recv_data[0]
+                
+                # Broadcast episode within env_comm
+                episode_interim = env_comm.bcast(episode_interim, root=0)
 
-                if recv_data[0] == -1:
+                if episode_interim == -1:
                     episode = -1
-                    logger.info('Rank[%s] - Episode/Step:%s/%s' % (str(comm.rank), str(episode), str(steps)))
+                    if mpi_settings.is_actor():
+                        logger.info('Rank[%s] - Episode/Step:%s/%s' % (str(agent_comm.rank), str(episode), str(steps)))
                     break
+                
+                if mpi_settings.is_actor():
+                    self.agent.epsilon = recv_data[1]
+                    self.agent.set_weights(recv_data[2])
 
-                self.agent.epsilon = recv_data[1]
-                self.agent.set_weights(recv_data[2])
+                    if self.action_type == 'fixed':
+                        action, policy_type = 0, -11
+                    else:
+                        action, policy_type = self.agent.action(current_state)
 
-                if self.action_type == 'fixed':
-                    action, policy_type = 0, -11
-                else:
-                    action, policy_type = self.agent.action(current_state)
                 next_state, reward, done, _ = self.env.step(action)
-                total_reward += reward
-                memory = (current_state, action, reward, next_state, done, total_reward)
+                
+                if mpi_settings.is_actor():
+                    total_reward += reward
+                    memory = (current_state, action, reward, next_state, done, total_reward)
 
-                # batch_data = []
-                self.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
+                    # batch_data = []
+                    self.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
 
-                batch_data = next(self.agent.generate_data())
-                logger.info('Rank[{}] - Generated data: {}'.format(comm.rank, len(batch_data[0])))
-                logger.info('Rank[{}] - Memories: {}'.format(comm.rank, len(self.agent.memory)))
+                    batch_data = next(self.agent.generate_data())
+                    logger.info('Rank[{}] - Generated data: {}'.format(agent_comm.rank, len(batch_data[0])))
+                    logger.info('Rank[{}] - Memories: {}'.format(agent_comm.rank, len(self.agent.memory)))
 
                 if steps >= self.nsteps - 1:
                     done = True
 
-                # Send batched memories
-                comm.send([comm.rank, steps, batch_data, done], dest=0)
+                if mpi_settings.is_actor():
+                    # Send batched memories
+                    agent_comm.send([agent_comm.rank, steps, batch_data, done], dest=0)
 
-                logger.info('Rank[%s] - Total Reward:%s' % (str(comm.rank), str(total_reward)))
-                logger.info(
-                    'Rank[%s] - Episode/Step/Status:%s/%s/%s' % (str(comm.rank), str(episode), str(steps), str(done)))
+                    logger.info('Rank[%s] - Total Reward:%s' % (str(agent_comm.rank), str(total_reward)))
+                    logger.info(
+                        'Rank[%s] - Episode/Step/Status:%s/%s/%s' % (str(agent_comm.rank), str(episode), str(steps), str(done)))
 
-                train_writer.writerow([time.time(), current_state, action, reward, next_state, total_reward,
-                                       done, episode, steps, policy_type, self.agent.epsilon])
-                train_file.flush()
-
+                    train_writer.writerow([time.time(), current_state, action, reward, next_state, total_reward,
+                                        done, episode, steps, policy_type, self.agent.epsilon])
+                    train_file.flush()
+                
                 # Update state and step
                 current_state = next_state
                 steps += 1
 
+                # Broadcast done
+                done = env_comm.bcast(done, root=0)
                 # Break for loop if done
                 if done:
                     break
-
-        train_file.close()
         logger.info('Worker time = {}'.format(MPI.Wtime() - start))
-
+        if mpi_settings.is_actor():
+            train_file.close()
+        
+    if mpi_settings.is_actor():
+        logger.info(f'Agent[{agent_comm.rank}] timing info:\n')
+        self.agent.print_timers()

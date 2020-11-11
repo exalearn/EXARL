@@ -41,6 +41,12 @@ class DQN(erl.ExaAgent):
         logger.info('Using device: {}'.format(self.device))
         #tf.config.experimental.set_memory_growth(self.device, True)
 
+        # Timers
+        self.training_time = 0
+        self.ntraining_time = 0
+        self.dataprep_time = 0
+        self.ndataprep_time = 0
+
         # Default settings
         num_cores = os.cpu_count()
         num_CPU = os.cpu_count()
@@ -69,13 +75,14 @@ class DQN(erl.ExaAgent):
             tf.compat.v1.keras.backend.set_session(sess)
 
         # Optimization using XLA (1.1x speedup)
-        tf.config.optimizer.set_jit(True)
+        #tf.config.optimizer.set_jit(True)
 
         # Optimization using mixed precision (1.5x speedup)
         # Layers use float16 computations and float32 variables
-        from tensorflow.keras.mixed_precision import experimental as mixed_precision
-        policy = mixed_precision.Policy('mixed_float16')
-        mixed_precision.set_policy(policy)
+        #from tensorflow.keras.mixed_precision import experimental as mixed_precision
+        #policy = mixed_precision.Policy('mixed_float16')
+        #git diff
+        # mixed_precision.set_policy(policy)
 
         # Declare hyper-parameters, initialized for determining datatype
         super().__init__()
@@ -156,8 +163,14 @@ class DQN(erl.ExaAgent):
         with tf.device(self.device):
             if self.is_learner:
                 self.model = self._build_model()
+                self.model.compile(loss=self.loss, optimizer=self.optimizer)
+                self.model.summary()
         #with tf.device('/CPU:0'):
+            #self.target_model = self._build_model()
+        with tf.device('/CPU:0'):
             self.target_model = self._build_model()
+            self.target_model.compile(loss=self.loss, optimizer=self.optimizer)
+            self.target_model.summary()
             self.target_weights = self.target_model.get_weights()
 
     def _build_model(self):
@@ -174,7 +187,9 @@ class DQN(erl.ExaAgent):
         # logger.debug('Agent[{}] - Creating active model for the learner'.format(self.rank))
         self.is_learner = True
         self.model = self._build_model()
-
+        self.model.compile(loss=self.loss, optimizer=self.optimizer)
+        self.model.summary()
+                
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
@@ -222,13 +237,16 @@ class DQN(erl.ExaAgent):
         # Return empty batch
         if len(self.memory)<self.batch_size:
             yield batch_states, batch_target
-        start_time_episode = time.time()
+        start_time = time.time()
         minibatch = random.sample(self.memory, self.batch_size)
-        # logger.debug('Agent - Minibatch time: %s ' % (str(time.time() - start_time_episode)))
         batch_target = list(map(self.calc_target_f, minibatch))
         batch_states = [np.array(exp[0]).reshape(1,1,len(exp[0]))[0] for exp in minibatch]
         batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
         batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
+        end_time = time.time()
+        self.dataprep_time += (end_time - start_time)
+        self.ndataprep_time += 1
+        logger.debug('Agent[{}] - Minibatch time: {} '.format(self.rank,(end_time - start_time)))
         yield batch_states, batch_target
 
     def train(self, batch):
@@ -237,10 +255,13 @@ class DQN(erl.ExaAgent):
             # if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
             if len(batch[0])>=(self.batch_size):
                 # batch_states, batch_target = batch
-                start_time_episode = time.time()
+                start_time = time.time()
                 with tf.device(self.device):
                     history = self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
-                logger.info('Agent[%s]- Training: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
+                end_time = time.time()
+                self.training_time += (end_time-start_time)
+                self.ntraining_time += 1
+                logger.info('Agent[{}]- Training: {} '.format(self.rank, (end_time-start_time)))
                 start_time_episode = time.time()
                 logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
         else:
@@ -305,3 +326,16 @@ class DQN(erl.ExaAgent):
                 time.sleep(0.01)
                 print(sample)
         tf.print("Execution time:", time.perf_counter() - start_time)
+
+    def print_timers(self):
+        if self.ntraining_time>0:
+            logger.info("Agent[{}] - Average training time: {}".format(self.rank,
+                                                                       self.training_time/self.ntraining_time))
+        else:
+            logger.info("Agent[{}] - Average training time: {}".format(self.rank, 0))
+
+        if self.ndataprep_time > 0:
+            logger.info("Agent[{}] - Average data prep time: {}".format(self.rank,
+                                                                       self.dataprep_time/self.ndataprep_time))
+        else:
+            logger.info("Agent[{}] - Average data prep time: {}".format(self.rank, 0))

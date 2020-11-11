@@ -35,7 +35,6 @@ class ExaLearner():
     def __init__(self, run_params):
         # World communicator
         self.world_comm = MPI.COMM_WORLD
-        world_rank = self.world_comm.rank
         self.world_size = self.world_comm.size
         
         # Default training
@@ -51,18 +50,14 @@ class ExaLearner():
         ## Sanity check before we actually allocate resources ##
         if self.world_size < self.process_per_env:
             sys.exit('EXARL::ERROR Not enough processes.')
-        if self.world_size % self.process_per_env != 0:
+        if (self.world_size - 1) % self.process_per_env != 0:
             sys.exit('EXARL::ERROR Uneven number of processes.')
         if self.world_size < 2 and self.learner_type == 'async':
             print('\n################\nNot enough processes, running synchronous single learner ...\n################\n')
 
-        #self.nepisodes = int(run_params['n_episodes'])
-        #self.nsteps    = int(run_params['n_steps'])
-        #if self.world_size-1 > self.nepisodes:
-        #    sys.exit('There is more resources allocated for the number of episodes.\n nprocs should be less than nepisodes.')
-
         ## Setup MPI
         mpi_settings.init(self.process_per_env)
+
         # Setup agent and environments
         agent_id = 'agents:'+run_params['agent']
         env_id   = 'envs:'+run_params['env']
@@ -82,8 +77,13 @@ class ExaLearner():
     def make(self,run_params):
         # Create environment object
         env = gym.make(self.env_id).unwrapped
-        env = ExaEnv(env,run_params)
-        agent = agents.make(self.agent_id, env=env)
+        env = ExaEnv(env, run_params)
+        agent = None
+        # Only agent_comm processes will create agents
+        try:
+            agent = agents.make(self.agent_id, env=env)
+        except:
+            logger.debug('Does not contain an agent')         
  
         return agent, env
 
@@ -102,7 +102,8 @@ class ExaLearner():
     def set_config(self, params):
         self.set_training(int(params['n_episodes']), int(params['n_steps']))
         # set the agent up
-        self.agent.set_config(params)
+        if self.agent != None:
+            self.agent.set_config(params)
         self.env.set_config(params)
         self.results_dir = params['output_dir']
         if not os.path.exists(self.results_dir):
@@ -113,7 +114,7 @@ class ExaLearner():
         self.do_render=True
  
     def run(self, run_type):
-        if self.agent!=None:
+        if self.agent != None:
             self.agent.set_agent()
 
         if self.env!=None:
@@ -124,12 +125,12 @@ class ExaLearner():
         #os.environ['OMP_NUM_THREADS']='{:d}'.format(self.omp_num_threads)
         if self.learner_type == 'seed':
             from exarl.seed import run_seed
-            run_seed(self, mpi_settings.agent_comm)
+            run_seed(self)
 
         if self.learner_type == 'async' and self.world_size >= 2:
             from exarl.async_learner import run_async_learner
-            run_async_learner(self, mpi_settings.agent_comm)
+            run_async_learner(self)
         
         else:
             from exarl.single_learner import run_single_learner
-            run_single_learner(self, mpi_settings.agent_comm)
+            run_single_learner(self)
