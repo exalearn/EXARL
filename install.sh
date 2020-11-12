@@ -39,25 +39,10 @@ then
     chmod +x miniconda.sh && ./miniconda.sh -b -f
     conda update --yes conda
     echo "Creating environment to run tests in."
-    conda create -n testenv --yes python="$PYTHON_VERSION"
+    conda env create -n testenv -f /path/to/environment.yml
 fi
 cd ..
 popd
 
 # Activate the python environment we created.
 source activate testenv
-
-# Install requirements via pip in our conda environment
-pip install -r requirements.txt
-
-# Install the following only if running tests
-if [[ "$SKIP_TESTS" != "true" ]]; then
-    conda install --yes pytorch torchvision -c pytorch
-    conda install --yes tensorflow                                                                                                                                                     
-    conda install --yes pandas                                                                                 
-    conda install --yes numba
-    conda install --yes mpi4py
-    conda install --yes plotly
-    # Installation
-    # python setup.py install
-fi

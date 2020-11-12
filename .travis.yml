@@ -16,7 +16,6 @@ git:
  
 before_install:
   - source install.sh
-  - pip install -e .
 
 script:
   - python driver/driver_example.py
