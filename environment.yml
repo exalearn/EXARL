@@ -17,4 +17,4 @@ dependencies:
 - pandas
 - pip
 - pip:                # everything under this, installed by pip
-  - -e . --user
+  - -e .
