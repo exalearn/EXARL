@@ -7,5 +7,6 @@
     "output_dir": "./results_dir/",
     "process_per_env": 1,
     "model_type": "LSTM",
-    "action_type": "variable"
+    "action_type": "variable",
+    "log_level": 3
 }

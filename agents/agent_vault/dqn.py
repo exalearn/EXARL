@@ -15,10 +15,14 @@ import tensorflow as tf
 tf_version = int((tf.__version__)[0])
 from tensorflow.compat.v1.keras.backend import set_session
 
-import logging
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('RL-Logger')
-logger.setLevel(logging.INFO)
+import utils.log as log
+from utils.candleDriver import initialize_parameters
+run_params = initialize_parameters()
+logger = log.setup_logger('RL-Logger', run_params['log_level'])
+# import logging
+# logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
+# logger = logging.getLogger('RL-Logger')
+# logger.setLevel(logging.INFO)
 
 # The Deep Q-Network (DQN)
 class DQN(erl.ExaAgent):
