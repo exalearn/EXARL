@@ -1,9 +1,9 @@
 from gym.envs import registration
 from gym.envs.registration import register
-import driver.candleDriver as cd
+from utils.candleDriver import initialize_parameters
 
 
-run_params = cd.initialize_parameters()
+run_params = initialize_parameters()
 env = run_params['env']
 
 

@@ -1,6 +1,6 @@
 import mpi4py.rc; mpi4py.rc.threads = False; mpi4py.rc.recv_mprobe = False
 import exarl as erl
-import driver.candleDriver as cd
+from utils.candleDriver import initialize_parameters
 import time
 import utils.analyze_reward as ar
 from mpi4py import MPI
@@ -11,7 +11,7 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 ## Get run parameters using CANDLE
-run_params = cd.initialize_parameters()
+run_params = initialize_parameters()
 
 ## Create learner object and run
 exa_learner = erl.ExaLearner(run_params)
