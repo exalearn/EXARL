@@ -20,7 +20,7 @@ learner_type = run_params['learner_type']
 # Run the learner, measure time
 start = time.time()
 exa_learner.run(learner_type)
-elapse = time.time() -start
+elapse = time.time() - start
 
 # Compute and print average time
 max_elapse = comm.reduce(elapse, op=MPI.MAX, root=0)

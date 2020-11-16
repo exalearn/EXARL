@@ -8,7 +8,7 @@ def setup_logger(name, level):
     handler.setFormatter(formatter)
 
     logger = logging.getLogger(name)
-
+   
     if level == 0:
         # Set TF logging level to debug
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
