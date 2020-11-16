@@ -1,0 +1,20 @@
+name: exarlEnvCpu
+channels:
+- conda-forge
+- defaults
+dependencies:
+- python=3.7
+- mpi4py
+- tensorflow>=2.0.0
+- keras
+- seaborn
+- gym
+- scikit-learn
+- numba
+- pybind11
+- ase
+- lmfit
+- pandas
+- pip
+- pip:                # everything under this, installed by pip
+  - -e .

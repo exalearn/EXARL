@@ -39,7 +39,7 @@ then
     chmod +x miniconda.sh && ./miniconda.sh -b -f
     conda update --yes conda
     echo "Creating environment to run tests in."
-    conda env create -n testenv -f /path/to/environment.yml
+    conda env create -n testenv -f ./conda/environment.yml
 fi
 cd ..
 popd

@@ -1,0 +1,57 @@
+{% set name = "exarl" %}
+{% set version = "0.0.1" %}
+
+package:
+  name: "{{ name|lower }}"
+  version: "{{ version }}"
+
+source:
+  path: ..
+
+build:
+  number: 0
+  script: "{{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv "
+
+requirements:
+  build:
+    - pip
+    - python=3.7
+
+  host:
+    - python=3.7
+    - mpi4py
+    - tensorflow-gpu>=2.0.0
+    - keras
+    - seaborn
+    - gym
+    - scikit-learn
+    - numba
+    - pybind11
+    - ase
+    - lmfit
+    - pandas
+
+  run:
+    - python=3.7
+    - mpi4py
+    - tensorflow-gpu>=2.0.0
+    - keras
+    - seaborn
+    - gym
+    - scikit-learn
+    - numba
+    - pybind11
+    - ase
+    - lmfit
+    - pandas
+
+  test:
+    imports:
+      - exarl
+
+about:
+  home: https://github.com/exalearn/ExaRL
+  license: BSD-3
+  license_family: BSD
+  license_file: ../LICENSE.txt
+  summary: A scalable software framework for reinforcement learning environments and agents/policies used for the Design and Control applications
