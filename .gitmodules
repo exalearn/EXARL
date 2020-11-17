@@ -14,3 +14,6 @@
 	path = envs/env_vault/pydemic
 	url = https://github.com/uiuc-covid19-modeling/pydemic
 	branch = master
+[submodule "envs/env_vault/DotsAndBoxes/pybind11"]
+	path = envs/env_vault/DotsAndBoxes/pybind11
+	url = https://github.com/pybind/pybind11.git
