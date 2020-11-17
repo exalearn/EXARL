@@ -50,6 +50,12 @@ elif env == 'ExaBooster-v1':
         entry_point='envs.env_vault:ExaBooster'
     )
 
+elif env == 'ExaBoosterContinuous-v1':
+    register(
+        id=env,
+        entry_point='envs.env_vault:ExaBoosterContinuous'
+    )
+
 elif env == 'ExaLAMMPS-v0':
     register(
         id=env,
