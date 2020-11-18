@@ -15,11 +15,10 @@ run_params = initialize_parameters()
 
 ## Create learner object and run
 exa_learner = erl.ExaLearner(run_params)
-learner_type = run_params['learner_type']
 
 # Run the learner, measure time
 start = time.time()
-exa_learner.run(learner_type)
+exa_learner.run()
 elapse = time.time() - start
 
 # Compute and print average time
