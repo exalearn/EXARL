@@ -1,0 +1,117 @@
+# This Dockerfile builds all of the dependencies needed to run ExaRL on the
+# Cori GPU cluster at NERSC. It is based on the TensorFlow Docker image
+# provided by NVIDIA via the NVIDIA GPU Cloud
+# ([NGC](https://ngc.nvidia.com/catalog/collections)), which is in turn based
+# on Ubuntu. The TensorFlow image on NGC gets updated every few weeks, so we
+# may want to update this Dockerfile accordingly to use the newest image.
+#
+# The resulting image built from this Dockerfile does not contain the ExaRL
+# code itself; ExaRL will be built outside of the image, but will rely on the
+# dependencies provided by the image. This approach allows the user to update
+# ExaRL without being required to rebuild the entire image.
+
+# We use a multi-stage build because MPICH takes a long time to compile, so we
+# store it as a separate stage and just copy the results so we don't have to
+# rebuild it every time we change the Dockerfile.
+
+# Stage 1: Build MPICH with libfabric on top of the NGC TensorFlow image.
+
+FROM nvcr.io/nvidia/tensorflow:20.10-tf2-py3 AS cgpu-mpi-gcc
+ENV TERM=xterm
+ENV DEBIAN_FRONTEND=noninteractive
+WORKDIR /tmp
+
+RUN apt-get update
+RUN apt-get upgrade --yes
+RUN apt-get install --yes \
+      gcc \
+      g++ \
+      gfortran \
+      gzip \
+      libfabric-dev \
+      libibverbs-dev \
+      make \
+      libslurm-dev \
+      tar \
+      wget
+
+RUN wget https://www.mpich.org/static/downloads/3.3.2/mpich-3.3.2.tar.gz
+RUN \
+    tar xzf mpich-3.3.2.tar.gz   && \
+    cd mpich-3.3.2               && \
+    ./configure                     \
+      --prefix=/usr/local/mpich     \
+      --enable-fortran              \
+      --with-libfabric=/usr         \
+      --with-slurm=/usr             \
+      --with-device=ch4:ofi      && \
+    make -j4 V=1                 && \
+    make install                 && \
+    rm -rf /tmp/mpich*
+
+# Stage 2: Build the remaining ExaRL dependencies.
+
+FROM nvcr.io/nvidia/tensorflow:20.10-tf2-py3
+
+ENV TERM=xterm
+ENV DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /tmp
+
+COPY --from=cgpu-mpi-gcc /usr/local/mpich /usr/local/mpich
+ENV PATH="/usr/local/mpich/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/mpich/lib:${LD_LIBRARY_PATH}"
+
+RUN apt-get update
+RUN apt-get upgrade --yes
+RUN apt-get install --yes \
+      gcc \
+      g++ \
+      gfortran
+RUN apt-get install --yes \
+      libfabric-dev \
+      libibverbs-dev
+RUN apt-get install --yes \
+      cmake \
+      gzip \
+      make \
+      patch \
+      libslurm-dev \
+      tar \
+      wget
+RUN apt-get install --yes \
+      binutils-dev \
+      bzip2 \
+      curl \
+      git \
+      less \
+      vim \
+      xz-utils
+RUN apt-get install --yes \
+      hwloc \
+      libhwloc-dev \
+      libdwarf-dev \
+      libpapi-dev \
+      papi-tools
+
+RUN pip install --no-cache-dir --upgrade pip setuptools
+RUN pip install --no-cache-dir --use-feature=2020-resolver \
+      wheel
+RUN MPICC=$(which mpicc) pip install -v --no-binary mpi4py mpi4py
+RUN pip install --no-cache-dir --use-feature=2020-resolver \
+      ase \
+      asteval \
+      cycler \
+      gym \
+      keras \
+      kiwisolver \
+      Lmfit \
+      matplotlib \
+      numba \
+      pandas \
+      pillow \
+      plotly \
+      seaborn \
+      sklearn \
+      tensorflow \
+      uncertainties
