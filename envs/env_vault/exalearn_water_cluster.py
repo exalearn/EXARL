@@ -36,8 +36,7 @@ class WaterCluster(gym.Env):
         #############################################################
         ## Setup water molecule application (show be configurable) ##
         #############################################################
-        #self.app_dir = '/people/schr476/exalearn/design_app/pot_ttm'
-        self.app_dir = './envs/env_vault/WaterCluster/pot_ttm'
+        self.app_dir = '/gpfs/alpine/ast153/proj-shared/pot_ttm'
         self.app_name='main.x'
         self.app=os.path.join(self.app_dir,self.app_name)
         self.env_input_name='W10_geoms_lowest.xyz' #'input.xyz'

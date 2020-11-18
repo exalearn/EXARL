@@ -1,6 +1,6 @@
 {
     "agent": "DQN-v0",
-    "env": "WaterCluster-v0",
+    "env": "CartPole-v0",
     "n_episodes": 10,
     "n_steps": 10,
     "learner_type": "async",
