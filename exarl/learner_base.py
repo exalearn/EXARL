@@ -14,6 +14,7 @@ import time
 import gym
 import envs
 import agents
+import workflows
 
 from exarl.env_base import ExaEnv
 
@@ -43,27 +44,26 @@ class ExaLearner():
         self.results_dir = './results' # Default dir, will be overridden by candle 
         self.do_render = False
 
-        self.learner_type = run_params['learner_type']
         self.process_per_env = int(run_params['process_per_env'])
         self.action_type = run_params['action_type']
+
+        # Setup agent and environments
+        self.agent_id = 'agents:' + run_params['agent']
+        self.env_id   = 'envs:' + run_params['env']
+        self.workflow_id = 'workflows:' + run_params['workflow']
 
         ## Sanity check before we actually allocate resources ##
         if self.world_size < self.process_per_env:
             sys.exit('EXARL::ERROR Not enough processes.')
         if (self.world_size - 1) % self.process_per_env != 0:
             sys.exit('EXARL::ERROR Uneven number of processes.')
-        if self.world_size < 2 and self.learner_type == 'async':
+        if self.world_size < 2 and self.workflow_id == 'workflows:async':
             print('\n################\nNot enough processes, running synchronous single learner ...\n################\n')
-
+            self.workflow_id = 'workflows:' + 'sync'
+        
         ## Setup MPI
         mpi_settings.init(self.process_per_env)
-
-        # Setup agent and environments
-        agent_id = 'agents:'+run_params['agent']
-        env_id   = 'envs:'+run_params['env']
-        self.agent_id = agent_id
-        self.env_id   = env_id
-        self.agent, self.env = self.make(run_params)
+        self.agent, self.env, self.workflow = self.make()
         self.env.unwrapped.spec.max_episode_steps  = self.nsteps
         self.env.unwrapped._max_episode_steps = self.nsteps
         
@@ -71,21 +71,23 @@ class ExaLearner():
         self.env._max_episode_steps = self.nsteps
         ##
         self.set_config(run_params)
-        self.env.set_env()
+        #self.env.set_env()
         self.env.reset()
         
-    def make(self,run_params):
+    def make(self):
         # Create environment object
         env = gym.make(self.env_id).unwrapped
-        env = ExaEnv(env, run_params)
+        env = ExaEnv(env)
+        # Create agent object
         agent = None
         # Only agent_comm processes will create agents
         try:
             agent = agents.make(self.agent_id, env=env)
         except:
-            logger.debug('Does not contain an agent')         
- 
-        return agent, env
+            logger.debug('Does not contain an agent')
+        # Create workflow object
+        workflow = workflows.make(self.workflow_id)
+        return agent, env, workflow
 
 
     def set_training(self,nepisodes,nsteps):
@@ -101,10 +103,6 @@ class ExaLearner():
     # Use with CANDLE
     def set_config(self, params):
         self.set_training(int(params['n_episodes']), int(params['n_steps']))
-        # set the agent up
-        if self.agent != None:
-            self.agent.set_config(params)
-        self.env.set_config(params)
         self.results_dir = params['output_dir']
         if not os.path.exists(self.results_dir):
             if (self.world_comm.rank == 0):
@@ -113,24 +111,5 @@ class ExaLearner():
     def render_env(self):
         self.do_render=True
  
-    def run(self, run_type):
-        if self.agent != None:
-            self.agent.set_agent()
-
-        if self.env!=None:
-            self.env.set_env()
-
-        # TODO add self.omp_num_threads as a param, override
-        # with OMP_NUM_THREADS
-        #os.environ['OMP_NUM_THREADS']='{:d}'.format(self.omp_num_threads)
-        if self.learner_type == 'seed':
-            from exarl.seed import run_seed
-            run_seed(self)
-
-        if self.learner_type == 'async' and self.world_size >= 2:
-            from exarl.async_learner import run_async_learner
-            run_async_learner(self)
-        
-        else:
-            from exarl.single_learner import run_single_learner
-            run_single_learner(self)
+    def run(self):
+        self.workflow.run(self)
