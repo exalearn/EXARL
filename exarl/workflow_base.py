@@ -10,48 +10,14 @@
 # to permit others to do so.
 
 
-import json
-import os
 from abc import ABC, abstractmethod
 
-import sys
-file_path = os.path.dirname(os.path.realpath(__file__))
-lib_path = os.path.abspath(os.path.join(file_path, '..', 'candlelib'))
-sys.path.append(lib_path)
-
-class ExaAgent(ABC):
+class ExaWorkflow(ABC):
 
     def __init__(self, **kwargs):
         pass
 
     @abstractmethod
-    def get_weights(self):
+    def run(self):
         pass
 
-    @abstractmethod
-    def set_weights(self):
-        pass
-
-    @abstractmethod
-    def train(self):
-        pass
-
-    @abstractmethod
-    def update(self):
-        pass
-
-    @abstractmethod
-    def action(self):
-        pass
-
-    @abstractmethod
-    def load(self):
-        pass
-
-    @abstractmethod
-    def save(self):
-        pass
-
-    @abstractmethod
-    def monitor(self):
-        pass
