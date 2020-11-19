@@ -17,25 +17,40 @@ A scalable software framework for reinforcement learning environments and agents
 ├── learner_cfg.json                  : Learner configuration file
 ├── scripts                           : folder containing RL steering scripts
 ├── driver                            : folder containing RL MPI steering scripts
-    └── driver_example.py             : Example run scipt
-    └── candleDriver.py               : Supporting CANDLE script
+    └── driver.py                     : Run scipt 
 ├── candlelib                         : folder containing library for CANDLE functionality
 ├── exarl                	          : folder containing base classes
     └── __init__.py                   : make base classes visible
     └── agent_base.py                 : agent base class
     └── env_base.py                   : environment base class
+    └── workflow_base.py              : workflow base class
     └── learner_base.py               : learner base class
+    └── mpi_settings.py               : MPI settings
 ├── agents         	                  : folder containing ExaRL agents and registration scripts
     └── __init__.py                   : agent registry
+    └── registration.py               : script to handle registration
     ├── agent_vault                   : folder containing agents
         └── __init__.py               : script to make agents visible
-        ├── agent_cfg                 : folder containing default agent configurations   
+        ├── agent_cfg                 : folder containing default agent configurations
+        └── <RLagent>.py              : RL agents (such as DQN, DDPG, etc.)
 ├── envs         	                  : folder containing ExaRL environments
     └── __init__.py                   : environment registry
     ├── env_vault                     : folder containing environments
     └── __init__.py                   : script to make environments visible
-        ├── env_cfg                   : folder containing default environment configurations    
-├── utils                             : folder containing utilities       
+        ├── env_cfg                   : folder containing default environment configurations
+        └── <RLenv>.py                : RL environments (physics simulations, interfaces to experiments, etc.)
+├── workflows      	                  : folder containing ExaRL agents and registration scripts
+    └── __init__.py                   : workflow registry
+    └── registration.py               : script to handle registration
+    ├── workflow_vault                : folder containing agents
+        └── __init__.py               : script to make agents visible
+        ├── workflow_cfg              : folder containing default workflow configurations
+        └── <RLworkflow>.py           : RL workflows (such as SEED, IMPALA, etc.)
+├── utils                             : folder containing utilities
+    └── __init__.py                   : make classes and functions visible
+    └── candleDriver.py               : Supporting CANDLE script
+    └── analyze_reward.py             : script for plotting results
+    └── log.py                        : central place to set logging levels
 ```
 
 ## Installing 
@@ -56,9 +71,9 @@ E.g.:-
 {
     "agent": "DQN-v0",
     "env": "ExaLearnCartpole-v1",
+    "workflow": "async",
     "n_episodes": 1,
     "n_steps": 10,
-    "learner_type": "single_learner",
     "output_dir": "./exa_results_dir"
 }
 ```
@@ -90,29 +105,49 @@ E.g.:-
 }
 ```
 * Please note the agent and environment configuration file (json file) name must match the agent and environment ID specified in ```ExaRL/learner_cfg.json```. \
-E.g.:- ```ExaRL/agents/agent_vault/agent_cfg/DQN-v0.json``` and ```ExaRL/envs/env_vault/env_cfg/ExaLearnCartpole-v1.json```
+E.g.:- ```ExaRL/agents/agent_vault/agent_cfg/DQN-v0_LSTM.json``` and ```ExaRL/envs/env_vault/env_cfg/ExaLearnCartpole-v1.json```
 
 ## Running EXARL using MPI
 * Existing environment can be paired with an available agent
-* The following script is provided for convenience: ```ExaRL/driver/driver_example.py```
+* The following script is provided for convenience: ```ExaRL/driver/driver.py```
 ```
 import exarl as erl
-import driver.candleDriver as cd
+from utils.candleDriver import initialize_parameters
+import time
+import utils.analyze_reward as ar
+from mpi4py import MPI
 
-## Get run parameters using CANDLE
-run_params = cd.initialize_parameters()
+# MPI communicator
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
 
-## Create learner object and run
+# Get run parameters using CANDLE
+run_params = initialize_parameters()
+
+# Create learner object and run
 exa_learner = erl.ExaLearner(run_params)
-learner_type = run_params['learner_type'] # can be either 'static' or 'dynamic'
-exa_learner.run(learner_type)
+
+# Run the learner, measure time
+start = time.time()
+exa_learner.run()
+elapse = time.time() - start
+
+# Compute and print average time
+max_elapse = comm.reduce(elapse, op=MPI.MAX, root=0)
+elapse = comm.reduce(elapse, op=MPI.SUM, root=0)
+
+if rank == 0:
+    print("Average elapsed time = ", elapse/size)
+    print("Maximum elapsed time = ", max_elapse)
+    # Save rewards vs. episodes plot
+    ar.save_reward_plot(run_params['output_dir']+'/')
 ```
 * Write your own script or modify the above as needed
 * Run the following command:
 ```
-mpiexec -np <num_parent_processes> python driver/driver_example.py --<run_params>=<param_value>
+mpiexec -np <num_parent_processes> python driver/driver.py --<run_params>=<param_value>
 ```
-* The ```get_config()``` method is available in the base classes ```ExaRL/exarl/agent_base.py``` and ```ExaRL/exarl/env_base.py``` to obtain the parameters from CANDLE.
 * If running a multi-process environment or agent, the communicators are available in ```exarl/mpi_settings.py```. 
 E.g.:-
 ```
@@ -122,35 +157,26 @@ self.agent_comm = mpi_settings.agent_comm
 ```
 
 ### Using parameters set in CANDLE configuration/get parameters from terminal
+* To obtain the parameters from JSON file using CANDLE, use the following lines:
+```
+from utils.candleDriver import initialize_parameters
+run_params = initialize_parameters()
+```
 * Declare the parameters in the constructor of your agent/environment class
-* Initialize the parameters to have proper datatypes
-For example: 
-```
-self.search_method = '' # string type
-self.gamma = 0.0 # float type
-```
-* The parameters can be fetched from CANDLE as: ```config = super().get_config()```
 * Individual parameters are accessed using the corresponding key
 ```
-self.search_method =  (agent_data['search_method'])
-self.gamma =  (agent_data['gamma'])
+self.search_method =  (run_params['search_method'])
+self.gamma =  (run_params['gamma'])
 
 ```
-
 ## Creating custom environments
 * ExaRL uses OpenAI gym environments
+* The ExaEnv class in ```ExaRL/exarl/env_base.py``` inherits from OpenAI GYM Wrapper class for including added functionality.
 * Environments inherit from gym.Env
 ```
 Example:-
     class envName(gym.Env):
         ...
-```
-* Environments must include the following variables and functions:
-```
-self.learner_type = <`async` or 'single_learner'>
-step()      # returns new state after an action
-reset()     # reset the environment to initial state; marks end of an episode
-set_env()   # set environment hyperparameters
 ```
 * Register the environment in ```ExaRl/envs/__init__.py```
     
@@ -288,7 +314,6 @@ action()        # Next action based on current state
 load()          # load weights from memory
 save()          # save weights to memory
 monitor()       # monitor progress of learning
-set_agent()     # set agent hyperparameters
 ```
 * Register the agent in ```ExaRL/agents/__init__.py```
     
@@ -308,9 +333,39 @@ from agents.agent_vault.foo_agent import FooAgent
 ```
 where ExaRL/agents/agent_vault/foo_agent.py is the file containing your agent
 
+## Creating custom workflows
+* EXARL also extends OpenAI gym's environment registration to workflows
+* Workflows inherit from exarl.ExaWorkflow
+```
+Example:-
+    class workflowName(exarl.ExaWorkflow):
+        ...
+```
+* Workflows must include the following functions:
+```
+run()   # run the workflow
+```
+* Register the agent in ```ExaRL/workflows/__init__.py```
+    
+```
+from .registration import register, make
+
+register(
+    id='fooWorkflow-v0',
+    entry_point='workflows.workflow_vault:FooWorkflow',
+)
+```
+* The id variable will be passed to exarl.make() to call the agent
+
+* The file ```ExaRL/workflows/workflow_vault/__init__.py``` should include
+```
+from workflows.workflow_vault.foo_workflow import FooWorkflow
+```
+where ExaRL/workflows/workflow_vault/foo_workflow.py is the file containing your workflow
+
 ## Base classes
-* Base classes are provided for agents, environments, and learner in the directory ```ExaRL/exarl/```
-* Users can inherit from the correspoding agent and environment base classes
+* Base classes are provided for agents, environments, workflows, and learner in the directory ```ExaRL/exarl/```
+* Users can inherit from the correspoding agent, environment, and workflow base classes
 
 ## Cite this software
 ```
