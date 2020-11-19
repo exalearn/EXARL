@@ -362,8 +362,8 @@ def finalize_parameters(bmk):
     gParameters = args_overwrite_config(args, fileParameters)
     # Check that required set of parameters has been defined
     bmk.check_required_exists(gParameters)
-    print ('Finalized parameters:')
-    pprint(gParameters)
+    # print ('Finalized parameters:')
+    # pprint(gParameters)
     print('', flush=True)
 
     return gParameters
