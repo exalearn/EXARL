@@ -10,10 +10,10 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-## Get run parameters using CANDLE
+# Get run parameters using CANDLE
 run_params = initialize_parameters()
 
-## Create learner object and run
+# Create learner object and run
 exa_learner = erl.ExaLearner(run_params)
 
 # Run the learner, measure time
