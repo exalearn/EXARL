@@ -1,7 +1,6 @@
 import gym
 import os
 import errno
-import math
 from gym import spaces
 from gym.utils import seeding
 import pandas as pd
@@ -54,7 +53,7 @@ def get_dataset(df, variable='B:VIMIN'):
     return scaler, X_train, Y_train
 
 
-class Surrogate_Accelerator_v1(gym.Env):
+class Surrogate_Accelerator_v2(gym.Env):
     def __init__(self):
 
         # Environment is based on the "BOOSTR: A Dataset for Accelerator Reinforcement Learning Control"
@@ -111,8 +110,6 @@ class Surrogate_Accelerator_v1(gym.Env):
         self.max_steps = 100
         self.total_reward = 0
         self.data_total_reward = 0
-        self.total_iminer = 0
-        self.data_total_iminer = 0
         self.diff = 0
 
         # Define boundary
@@ -147,13 +144,12 @@ class Surrogate_Accelerator_v1(gym.Env):
             dtype=np.float64
         )
 
-        # Dynamically allocate
-        data['B:VIMIN_DIFF'] = data['B:VIMIN'] - data['B:VIMIN'].shift(-1)
-        self.nactions = 15
-        self.action_space = spaces.Discrete(self.nactions)
-        self.actionMap_VIMIN = []
-        for i in range(1, self.nactions+1):
-            self.actionMap_VIMIN.append(data['B:VIMIN_DIFF'].quantile(i / (self.nactions+1)))
+        self.action_space = spaces.Box(
+            low=-0.01,
+            high=+0.01,
+            shape = (1,),
+            dtype = np.float32
+        )
 
         self.VIMIN = 0
         ##
@@ -168,6 +164,7 @@ class Surrogate_Accelerator_v1(gym.Env):
 
     def step(self, action):
         self.steps += 1
+        # logger.info('Episode/State: {}/{}'.format(self.episodes, self.steps))
         done = False
 
         # Steps:
@@ -178,16 +175,16 @@ class Surrogate_Accelerator_v1(gym.Env):
 
         # Step 1: Calculate the new B:VINMIN based on policy action
         logger.info('Step() before action VIMIN:{}'.format(self.VIMIN))
-        delta_VIMIN = self.actionMap_VIMIN[action]
+        delta_VIMIN = action
         DENORN_BVIMIN = self.scalers[0].inverse_transform(np.array([self.VIMIN]).reshape(1, -1))
         DENORN_BVIMIN += delta_VIMIN
-        logger.debug('Step() descaled VIMIN:{}'.format(DENORN_BVIMIN))
+        logger.info('Step() descaled VIMIN:{}'.format(DENORN_BVIMIN))
         if DENORN_BVIMIN < self.min_BIMIN or DENORN_BVIMIN > self.max_BIMIN:
             logger.info('Step() descaled VIMIN:{} is out of bounds.'.format(DENORN_BVIMIN))
             done = True
 
         self.VIMIN = self.scalers[0].transform(DENORN_BVIMIN)
-        logger.debug('Step() updated VIMIN:{}'.format(self.VIMIN))
+        logger.info('Step() updated VIMIN:{}'.format(self.VIMIN))
         self.state[0][0][self.nsamples - 1] = self.VIMIN
 
         # Step 2: Predict using booster model
@@ -204,8 +201,7 @@ class Surrogate_Accelerator_v1(gym.Env):
         # Update data state for rendering
         self.data_state = np.copy(self.X_train[self.batch_id + self.steps].reshape(1, self.nvariables, self.nsamples))
         data_iminer = self.scalers[1].inverse_transform(self.data_state[0][1][self.nsamples - 1].reshape(1, -1))
-        # data_reward = -abs(data_iminer)
-        data_reward = np.array(1. * math.exp(-5 * abs(np.asscalar(data_iminer))))
+        data_reward = -abs(data_iminer)
 
         # Use data for everything but the B:IMINER prediction
         self.state[0, 2:self.nvariables, :] = self.data_state[0, 2:self.nvariables, :]
@@ -216,20 +212,16 @@ class Surrogate_Accelerator_v1(gym.Env):
         logger.debug('iminer:{}'.format(iminer))
 
         # Reward
-        # reward = -abs(iminer)
-        # reward = np.array(-1 + 1. * math.exp(-5 * abs(np.asscalar(iminer))))
-        reward = np.array(1. * math.exp(-5 * abs(np.asscalar(iminer))))
+        reward = -abs(iminer)
 
         if abs(iminer) >= 2:
             logger.info('iminer:{} is out of bounds'.format(iminer))
             done = True
-            penalty = 5 * (self.max_steps - self.steps)
-            reward -= penalty
 
-        # if done:
-        #     penalty = 5 * (self.max_steps - self.steps)
-        #     logger.info('penalty:{} is out of bounds'.format(penalty))
-        #     reward -= penalty
+        if done:
+            penalty = 5 * (self.max_steps - self.steps)
+            logger.info('penalty:{} is out of bounds'.format(penalty))
+            reward -= penalty
 
         if self.steps >= int(self.max_steps):
             done = True
@@ -237,8 +229,6 @@ class Surrogate_Accelerator_v1(gym.Env):
         self.diff += np.asscalar(abs(data_iminer - iminer))
         self.data_total_reward += np.asscalar(data_reward)
         self.total_reward += np.asscalar(reward)
-        self.total_iminer  += np.asscalar(abs(iminer))
-        self.data_total_iminer += np.asscalar(abs(data_iminer))
 
         if self.do_render:
             self.render()
@@ -250,8 +240,6 @@ class Surrogate_Accelerator_v1(gym.Env):
         self.steps = 0
         self.data_total_reward = 0
         self.total_reward = 0
-        self.total_iminer = 0
-        self.data_total_iminer = 0
         self.diff = 0
         self.data_state = None
 
@@ -265,11 +253,6 @@ class Surrogate_Accelerator_v1(gym.Env):
         self.state = np.copy(self.X_train[self.batch_id].reshape(1, self.nvariables, self.nsamples))
         logger.debug('self.state:{}'.format(self.state))
         logger.debug('reset_data.shape:{}'.format(self.state.shape))
-        self.min_BIMIN = self.scalers[0].inverse_transform(self.state[:, 0, :]).min()
-        self.max_BIMIN = self.scalers[0].inverse_transform(self.state[:, 0, :]).max()
-        logger.info('Lower and upper B:VIMIN: [{},{}]'.format(self.min_BIMIN, self.max_BIMIN))
-        # self.min_BIMIN = self.min_BIMIN * 0.9999
-        # self.max_BIMIN = self.max_BIMIN * 1.0001
         self.VIMIN = self.state[0, 0, -1:]
         logger.debug('Normed VIMIN:{}'.format(self.VIMIN))
         logger.debug('B:VIMIN:{}'.format(self.scalers[0].inverse_transform(np.array([self.VIMIN]).reshape(1, -1))))
@@ -303,11 +286,8 @@ class Surrogate_Accelerator_v1(gym.Env):
             utrace = self.state[0, v, :]
             trace = self.scalers[v].inverse_transform(utrace.reshape(-1, 1))
             if v == 0:
-                iminer_imp = 0
-                if self.total_iminer>0:
-                    iminer_imp = self.data_total_iminer/self.total_iminer
-                axs[v].set_title('Raw data reward: {:.2f} - RL agent reward: {:.2f} - Improvement: {:.2f} '.format(self.data_total_reward,
-                                                                                             self.total_reward,iminer_imp))
+                axs[v].set_title('Raw data reward: {:.2f} - RL agent reward: {:.2f} '.format(self.data_total_reward,
+                                                                                             self.total_reward))
             axs[v].plot(trace, label='Digital twin', color='black')
 
             # if v==1:
