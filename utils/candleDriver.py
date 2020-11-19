@@ -75,12 +75,13 @@ def parser_from_json(json_file):
     return new_defs
 
 def get_driver_params():
-    lrn_cfg = 'learner_cfg.json'
-    lrn_defs = parser_from_json(lrn_cfg)
-    print('Learner parameters from ', lrn_cfg)
-    pprint(lrn_defs)
-    params = json.load(open(lrn_cfg))
+    learner_cfg = 'learner_cfg.json'
+    learner_defs = parser_from_json(learner_cfg)
+    print('Learner parameters from ', learner_cfg)
+    pprint(learner_defs)
+    params = json.load(open(learner_cfg))
     params = base_parser(params)
+
     agent_cfg = 'agents/agent_vault/agent_cfg/'+params['agent']+'_'+params['model_type']+'.json'
     if os.path.exists(agent_cfg):
         print('Agent parameters from ', agent_cfg)
@@ -99,4 +100,13 @@ def get_driver_params():
     env_defs = parser_from_json(env_cfg)
     pprint(env_defs)
 
-    return lrn_defs+agent_defs+env_defs
+    workflow_cfg = 'workflows/workflow_vault/workflow_cfg/'+params['workflow']+'.json'
+    if os.path.exists(workflow_cfg):
+        print('Workflow parameters from ', workflow_cfg)
+    else:
+        workflow_cfg = 'workflows/workflow_vault/workflow_cfg/default_workflow_cfg.json'
+        print('Workflow configuration does not exist, using default configuration')
+    workflow_defs = parser_from_json(workflow_cfg)
+    pprint(workflow_defs)
+
+    return learner_defs+agent_defs+env_defs+workflow_defs
