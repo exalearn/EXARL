@@ -13,10 +13,9 @@ python:
 git:
     submodules: false
 
- 
 before_install:
   - source install.sh
   - pip install -e .
 
 script:
-  - python driver/driver_example.py
+  - python driver/driver.py

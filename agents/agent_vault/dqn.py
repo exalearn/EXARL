@@ -15,10 +15,10 @@ import tensorflow as tf
 tf_version = int((tf.__version__)[0])
 from tensorflow.compat.v1.keras.backend import set_session
 
-import logging
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('RL-Logger')
-logger.setLevel(logging.INFO)
+import utils.log as log
+from utils.candleDriver import initialize_parameters
+run_params = initialize_parameters()
+logger = log.setup_logger('RL-Logger', run_params['log_level'])
 
 # The Deep Q-Network (DQN)
 class DQN(erl.ExaAgent):
@@ -83,80 +83,33 @@ class DQN(erl.ExaAgent):
         #policy = mixed_precision.Policy('mixed_float16')
         #git diff
         # mixed_precision.set_policy(policy)
-
-        # Declare hyper-parameters, initialized for determining datatype
-        super().__init__()
-        self.results_dir = ''
-        self.search_method = ''
-        self.gamma = 0.0
-        self.epsilon = 0.0
-        self.epsilon_min = 0.0
-        self.epsilon_decay = 0.0
-        self.learning_rate = 0.0
-        self.batch_size = 0
-        self.tau = 0.0
-        self.model_type = ''
-
-        # for mlp
-        self.dense = [0, 0]
-
-        # for lstm
-        self.lstm_layers = [0, 0]
-        self.gauss_noise = [0.0, 0.0]
-        self.regularizer = [0.0, 0.0]
-
-        # for both
-        self.activation = 'relu'
-        self.out_activation = 'relu'
-        self.optimizer = 'adam'
-        self.loss = 'mse'
-        self.clipnorm = 1.0
-        self.clipvalue = 0.5
-
-        # TODO: make configurable
-        self.memory = deque(maxlen=1000)
-
-    def _get_device(self):
-        #cpus = tf.config.experimental.list_physical_devices('CPU')
-        gpus = tf.config.experimental.list_physical_devices('GPU')
-        ngpus = len(gpus)
-        logging.info('Number of available GPUs: {}'.format(ngpus))
-        if ngpus > 0:
-            gpu_id = self.rank % ngpus
-            self.device = '/GPU:{}'.format(gpu_id)
-            #tf.config.experimental.set_memory_growth(gpus[gpu_id], True)
-        else:
-            self.device = '/CPU:0'
-
-    def set_agent(self):
-        # Get hyper-parameters
-        agent_data = super().get_config()
-
+        
         # dqn intrinsic variables
-        self.results_dir = agent_data['output_dir']
-        self.gamma = agent_data['gamma']
-        self.epsilon = agent_data['epsilon']
-        self.epsilon_min = agent_data['epsilon_min']
-        self.epsilon_decay = agent_data['epsilon_decay']
-        self.learning_rate = agent_data['learning_rate']
-        self.batch_size = agent_data['batch_size']
-        self.tau = agent_data['tau']
-        self.model_type = agent_data['model_type']
+        self.results_dir = run_params['output_dir']
+        self.gamma = run_params['gamma']
+        self.epsilon = run_params['epsilon']
+        self.epsilon_min = run_params['epsilon_min']
+        self.epsilon_decay = run_params['epsilon_decay']
+        self.learning_rate = run_params['learning_rate']
+        self.batch_size = run_params['batch_size']
+        self.tau = run_params['tau']
+        self.model_type = run_params['model_type']
 
         # for mlp
-        self.dense = agent_data['dense']
+        self.dense = run_params['dense']
 
         # for lstm
-        self.lstm_layers = agent_data['lstm_layers']
-        self.gauss_noise = agent_data['gauss_noise']
-        self.regularizer = agent_data['regularizer']
+        self.lstm_layers = run_params['lstm_layers']
+        self.gauss_noise = run_params['gauss_noise']
+        self.regularizer = run_params['regularizer']
 
         # for both
-        self.activation = agent_data['activation']
-        self.out_activation = agent_data['out_activation']
-        self.optimizer = agent_data['optimizer']
-        self.clipnorm = agent_data['clipnorm']
-        self.clipvalue = agent_data['clipvalue']
+        self.activation = run_params['activation']
+        self.out_activation = run_params['out_activation']
+        self.optimizer = run_params['optimizer']
+        self.loss = run_params['loss']
+        self.clipnorm = run_params['clipnorm']
+        self.clipvalue = run_params['clipvalue']
 
         # Build network model
         with tf.device(self.device):
@@ -171,6 +124,21 @@ class DQN(erl.ExaAgent):
             self.target_model.compile(loss=self.loss, optimizer=self.optimizer)
             self.target_model.summary()
             self.target_weights = self.target_model.get_weights()
+
+        # TODO: make configurable
+        self.memory = deque(maxlen=1000)
+
+    def _get_device(self):
+        #cpus = tf.config.experimental.list_physical_devices('CPU')
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        ngpus = len(gpus)
+        logger.info('Number of available GPUs: {}'.format(ngpus))
+        if ngpus > 0:
+            gpu_id = self.rank % ngpus
+            self.device = '/GPU:{}'.format(gpu_id)
+            #tf.config.experimental.set_memory_growth(gpus[gpu_id], True)
+        else:
+            self.device = '/CPU:0'
 
     def _build_model(self):
         if self.model_type == 'MLP':

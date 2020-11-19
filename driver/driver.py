@@ -10,17 +10,16 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-## Get run parameters using CANDLE
+# Get run parameters using CANDLE
 run_params = initialize_parameters()
 
-## Create learner object and run
+# Create learner object and run
 exa_learner = erl.ExaLearner(run_params)
-learner_type = run_params['learner_type']
 
 # Run the learner, measure time
 start = time.time()
-exa_learner.run(learner_type)
-elapse = time.time() -start
+exa_learner.run()
+elapse = time.time() - start
 
 # Compute and print average time
 max_elapse = comm.reduce(elapse, op=MPI.MAX, root=0)

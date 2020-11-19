@@ -2,27 +2,32 @@ import time
 import csv
 from mpi4py import MPI
 import sys
+import exarl as erl
 
-import logging
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('RL-Logger')
-logger.setLevel(logging.INFO)
+import utils.log as log
+from utils.candleDriver import initialize_parameters
+run_params = initialize_parameters()
+logger = log.setup_logger('RL-Logger', run_params['log_level'])
 
-def run_seed(self):
+class SEED(erl.ExaWorkflow):
+    def __init__(self):
+        print('Class SEED')
+
+    def run(self, learner):
         comm = MPI.COMM_WORLD
         sys.exit('TBD')
         
-        filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' % ( str(self.nepisodes), str(self.nsteps), str(comm.rank))
-        train_file = open(self.results_dir+'/'+filename_prefix + ".log", 'w')
+        filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' % ( str(learner.nepisodes), str(learner.nsteps), str(comm.rank))
+        train_file = open(learner.results_dir+'/'+filename_prefix + ".log", 'w')
         train_writer = csv.writer(train_file, delimiter = " ")
-        #print('self.world_comm.rank:',self.world_comm.rank)
+        #print('learner.world_comm.rank:',learner.world_comm.rank)
 
-        for e in range(self.nepisodes):
+        for e in range(learner.nepisodes):
 
             rank0_memories = 0
             rank0_epsilon = 0
             target_weights = None
-            current_state = self.env.reset()
+            current_state = learner.env.reset()
             total_reward = 0
             done = False
             all_done = False
@@ -32,27 +37,27 @@ def run_seed(self):
             while all_done != True:
                 ## All workers ##
                 if done != True:
-                    action, policy_type = self.agent.action(current_state)
-                    next_state, reward, done, _ = self.env.step(action)
+                    action, policy_type = learner.agent.action(current_state)
+                    next_state, reward, done, _ = learner.env.step(action)
                     total_reward += reward
                     memory = (current_state, action, reward, next_state, done, total_reward)
 
                 new_data = comm.gather(memory, root=0)
-                logger.info('Rank[%s] - Memory length: %s ' % (str(comm.rank),len(self.agent.memory)))
+                logger.info('Rank[%s] - Memory length: %s ' % (str(comm.rank),len(learner.agent.memory)))
 
                 ## Learner ##
                 if comm.rank == 0:
                     ## Push memories to learner ##
                     for data in new_data:
                         #print(data)
-                        self.agent.remember(data[0],data[1],data[2],data[3],data[4])
+                        learner.agent.remember(data[0],data[1],data[2],data[3],data[4])
                         ## Train learner ##
-                        #self.agent.train()
-                        rank0_epsilon = self.agent.epsilon
-                        rank0_memories = len(self.agent.memory)
-                        target_weights = self.agent.get_weights()
+                        #learner.agent.train()
+                        rank0_epsilon = learner.agent.epsilon
+                        rank0_memories = len(learner.agent.memory)
+                        target_weights = learner.agent.get_weights()
                         if rank0_memories%(comm.size) == 0:
-                            self.agent.save(self.results_dir+'/'+filename_prefix+'.h5')
+                            learner.agent.save(learner.results_dir+'/'+filename_prefix+'.h5')
 
                 ## Broadcast the memory size and the model weights to the workers  ##
                 rank0_epsilon = comm.bcast(rank0_epsilon, root=0)
@@ -64,8 +69,8 @@ def run_seed(self):
                 ## Set the model weight for all the workers
                 if comm.rank > 0:# and rank0_memories > 30:# and rank0_memories%(size)==0:
                     logger.info('## Rank[%s] - Updating weights ##' % str(comm.rank))
-                    self.agent.set_weights(current_weights)
-                    self.agent.epsilon = rank0_epsilon
+                    learner.agent.set_weights(current_weights)
+                    learner.agent.epsilon = rank0_epsilon
 
                 ## Save memory for offline analysis
                 train_writer.writerow([current_state,action,reward,next_state,total_reward, done, e, steps, policy_type, rank0_epsilon])
@@ -77,10 +82,10 @@ def run_seed(self):
                 
                 ## Save Learning target model
                 if comm.rank == 0:
-                    self.agent.save(self.results_dir+'/'+filename_prefix+'.h5')
+                    learner.agent.save(learner.results_dir+'/'+filename_prefix+'.h5')
 
                 steps += 1
-                if steps >= self.nsteps:
+                if steps >= learner.nsteps:
                     done = True
 
                 all_done = comm.allreduce(done, op=MPI.LAND)
