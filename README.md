@@ -100,12 +100,19 @@ Currently, DQN agent takes either MLP or LSTM as model_type.
 E.g.:-
 ```
 {
-        "process_per_env": "1",
         "worker_app": "./envs/env_vault/cpi.py"
 }
 ```
-* Please note the agent and environment configuration file (json file) name must match the agent and environment ID specified in ```ExaRL/learner_cfg.json```. \
-E.g.:- ```ExaRL/agents/agent_vault/agent_cfg/DQN-v0_LSTM.json``` and ```ExaRL/envs/env_vault/env_cfg/ExaLearnCartpole-v1.json```
+* Add/modify the workflow parameters in ```ExaRL/workflows/workflow_vault/workflow_cfg/<WorkflowName>.json```\
+E.g.:-
+```
+{
+        "process_per_env": "1"
+}
+```
+* Please note the agent, environment, and workflow configuration file (json file) name must match the agent, environment, and workflow ID specified in ```ExaRL/learner_cfg.json```. \
+E.g.:- ```ExaRL/agents/agent_vault/agent_cfg/DQN-v0_LSTM.json```, ```ExaRL/envs/env_vault/env_cfg/ExaCartPole-v1.json```, and ```ExaRL/workflows/workflow_vault/workflow_cfg/async.json```
+
 
 ## Running EXARL using MPI
 * Existing environment can be paired with an available agent
@@ -157,16 +164,16 @@ self.agent_comm = mpi_settings.agent_comm
 ```
 
 ### Using parameters set in CANDLE configuration/get parameters from terminal
-* To obtain the parameters from JSON file using CANDLE, use the following lines:
+* To obtain the parameters from JSON file/set in terminal using CANDLE, use the following lines:
 ```
 from utils.candleDriver import initialize_parameters
 run_params = initialize_parameters()
 ```
-* Declare the parameters in the constructor of your agent/environment class
-* Individual parameters are accessed using the corresponding key
+* Individual parameters are accessed using the corresponding key \
+E.g.-
 ```
-self.search_method =  (run_params['search_method'])
-self.gamma =  (run_params['gamma'])
+self.search_method =  run_params['search_method']
+self.gamma =  run_params['gamma']
 
 ```
 ## Creating custom environments
