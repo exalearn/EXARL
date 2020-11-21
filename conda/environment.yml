@@ -17,3 +17,5 @@ dependencies:
 - lmfit
 - pandas
 - pip
+- pip:
+  - -e ..
