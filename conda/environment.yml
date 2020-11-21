@@ -1,11 +1,12 @@
-name: exarlEnv
+name: exarlEnvTest
 channels:
 - conda-forge
+- anaconda
 - defaults
 dependencies:
 - python=3.7
 - mpi4py
-- tensorflow-gpu>=2.0.0
+- tensorflow-gpu >=2.0.0
 - keras
 - seaborn
 - gym
@@ -16,5 +17,3 @@ dependencies:
 - lmfit
 - pandas
 - pip
-- pip:                # everything under this, installed by pip
-  - -e ..
