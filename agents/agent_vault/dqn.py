@@ -1,65 +1,66 @@
-import random,sys,os
+import mpi4py.rc; mpi4py.rc.threads = False
+from mpi4py import MPI
+import random,sys,os, time
 import numpy as np
+from datetime import datetime
 from collections import deque
-import tensorflow as tf
-import csv
-import json
-import math
-import logging
+from tensorflow.python.client import device_lib
+from keras import backend as K
+import csv,json,math
 import exarl as erl
 import pickle
-from keras.backend.tensorflow_backend import set_session
+import exarl.mpi_settings as mpi_settings
+import sys
+import tensorflow as tf
 tf_version = int((tf.__version__)[0])
+from tensorflow.compat.v1.keras.backend import set_session
 
-#if tf_version < 2:
-#    from tensorflow.keras.models import Sequential,Model
-#    from tensorflow.keras.layers import Dense,Dropout,Input,BatchNormalization
-#    from tensorflow.keras.optimizers import Adam
-#    from tensorflow.keras import backend as K
-from tensorflow.python.client import device_lib
-#elif tf_version >=2:
-from keras.models import Sequential,Model
-from keras.layers import Dense,Dropout,Input,BatchNormalization
-from keras.optimizers import Adam
-from keras import backend as K
+import utils.log as log
+from utils.candleDriver import initialize_parameters
+run_params = initialize_parameters()
+logger = log.setup_logger('RL-Logger', run_params['log_level'])
 
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('RL-Logger')
-logger.setLevel(logging.INFO)
-#logger.setLevel(logging.NOTSET)
-
-#The Deep Q-Network (DQN)
+# The Deep Q-Network (DQN)
 class DQN(erl.ExaAgent):
-    def __init__(self, env, agent_comm):
+    def __init__(self, env):
+        #
+        self.is_learner = False
+        self.model = None
+        self.target_model = None
+        self.target_weights = None
 
         self.env = env
-        self.agent_comm = agent_comm
-
-        ## Implement the UCB approach
-        self.sigma = 2 # confidence level
-        self.total_actions_taken = 1
-        self.individual_action_taken = np.ones(self.env.action_space.n)
+        self.agent_comm = mpi_settings.agent_comm
 
         # MPI
         self.rank = self.agent_comm.rank
         self.size = self.agent_comm.size
-        #logger.info("Rank: %s" % self.rank)
-        #logger.info("Size: %s" % self.size)
 
-        ## Default settings 
+        self._get_device()
+        #self.device = '/CPU:0'
+        logger.info('Using device: {}'.format(self.device))
+        #tf.config.experimental.set_memory_growth(self.device, True)
+
+        # Timers
+        self.training_time = 0
+        self.ntraining_time = 0
+        self.dataprep_time = 0
+        self.ndataprep_time = 0
+
+        # Default settings
         num_cores = os.cpu_count()
-        num_CPU   = os.cpu_count()
-        num_GPU   = 0
+        num_CPU = os.cpu_count()
+        num_GPU = 0
 
-        ## Setup GPU cfg
+        # Setup GPU cfg
         if tf_version < 2:
             gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
             if self.rank==0 and len(gpu_names)>0:
                     num_cores = 1
-                    num_CPU   = 1
-                    num_GPU   = len(gpu_names)
+                    num_CPU = 1
+                    num_GPU = len(gpu_names)
             config = tf.ConfigProto(intra_op_parallelism_threads=num_cores,
-                        inter_op_parallelism_threads=num_cores, 
+                        inter_op_parallelism_threads=num_cores,
                         allow_soft_placement=True,
                         device_count = {'CPU' : num_CPU,
                                         'GPU' : num_GPU})
@@ -67,211 +68,199 @@ class DQN(erl.ExaAgent):
             sess = tf.Session(config=config)
             set_session(sess)
         elif tf_version >= 2:
-            '''
+
             config = tf.compat.v1.ConfigProto()
             config.gpu_options.allow_growth = True
             sess = tf.compat.v1.Session(config=config)
             tf.compat.v1.keras.backend.set_session(sess)
-            '''
-            tf.debugging.set_log_device_placement(True)
-            gpus = tf.config.experimental.list_physical_devices('GPU')
-            if gpus:
-                # Currently, memory growth needs to be the same across GPUs
-                try:
-                    for gpu in gpus:
-                        tf.config.experimental.set_memory_growth(gpu, True)
-                    '''
-                    # Restrict TensorFlow to only allocate MEM_LIMIT amount of memory
-                    MEM_LIMIT = 16000 / self.size
-                    for devIdx in np.arange(len(gpus)):
-                        tf.config.experimental.set_virtual_device_configuration(
-                            gpus[devIdx],
-                            [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=MEM_LIMIT)])
-                    '''
-                    logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-                    print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-                except RuntimeError as e:
-                    # Memory growth / Virtual devices must be set before GPUs have been initialized
-                    print(e)
 
-        ## Declare hyper-parameters, initialized for determining datatype
-        super().__init__()
-        self.results_dir = ''
-        self.search_method = ''
-        self.gamma = 0.0
-        self.epsilon = 0.0
-        self.epsilon_min = 0.0
-        self.epsilon_decay = 0.0
-        self.learning_rate = 0.0
-        self.batch_size = 0
-        self.tau = 0.0
-        self.dense = [0, 0]
-        self.activation = 'relu'
-        self.optimizer = 'adam'
-        self.loss = 'mse'
+        # Optimization using XLA (1.1x speedup)
+        #tf.config.optimizer.set_jit(True)
 
-        ## TODO: Assuming rank==0 is the only learner
-        self.memory = deque(maxlen = 0)
-        if self.rank==0:
-            deque(maxlen = 2000) ## TODO: make configurable
+        # Optimization using mixed precision (1.5x speedup)
+        # Layers use float16 computations and float32 variables
+        #from tensorflow.keras.mixed_precision import experimental as mixed_precision
+        #policy = mixed_precision.Policy('mixed_float16')
+        #git diff
+        # mixed_precision.set_policy(policy)
+        
+        # dqn intrinsic variables
+        self.results_dir = run_params['output_dir']
+        self.gamma = run_params['gamma']
+        self.epsilon = run_params['epsilon']
+        self.epsilon_min = run_params['epsilon_min']
+        self.epsilon_decay = run_params['epsilon_decay']
+        self.learning_rate = run_params['learning_rate']
+        self.batch_size = run_params['batch_size']
+        self.tau = run_params['tau']
+        self.model_type = run_params['model_type']
 
-    def set_agent(self):
-        # Get hyper-parameters
-        agent_data = super().get_config()
+        # for mlp
+        self.dense = run_params['dense']
 
-        self.results_dir = agent_data['output_dir']
-        self.search_method =  agent_data['search_method']
-        self.gamma =  agent_data['gamma']
-        self.epsilon = agent_data['epsilon']
-        self.epsilon_min = agent_data['epsilon_min']
-        self.epsilon_decay = agent_data['epsilon_decay']
-        self.learning_rate = agent_data['learning_rate']
-        self.batch_size = agent_data['batch_size']
-        self.tau = agent_data['tau']
-        self.dense = agent_data['dense']
-        self.activation = agent_data['activation']
-        self.optimizer = agent_data['optimizer']
+        # for lstm
+        self.lstm_layers = run_params['lstm_layers']
+        self.gauss_noise = run_params['gauss_noise']
+        self.regularizer = run_params['regularizer']
+
+        # for both
+        self.activation = run_params['activation']
+        self.out_activation = run_params['out_activation']
+        self.optimizer = run_params['optimizer']
+        self.loss = run_params['loss']
+        self.clipnorm = run_params['clipnorm']
+        self.clipvalue = run_params['clipvalue']
 
         # Build network model
-        print("Model: ")
-        self.model = self._build_model()
-        print("Target model: ")
-        self.target_model = self._build_model()
-        self.target_weights = self.target_model.get_weights()
+        with tf.device(self.device):
+            if self.is_learner:
+                self.model = self._build_model()
+                self.model.compile(loss=self.loss, optimizer=self.optimizer)
+                self.model.summary()
+        #with tf.device('/CPU:0'):
+            #self.target_model = self._build_model()
+        with tf.device('/CPU:0'):
+            self.target_model = self._build_model()
+            self.target_model.compile(loss=self.loss, optimizer=self.optimizer)
+            self.target_model.summary()
+            self.target_weights = self.target_model.get_weights()
 
-        train_file_name = "dqn_exacartpole_%s_lr%s_tau%s_v1.log" % (self.search_method, str(self.learning_rate) ,str(self.tau) )
-        self.train_file = open(self.results_dir + '/' + train_file_name, 'w')
-        self.train_writer = csv.writer(self.train_file, delimiter = " ")
+        # TODO: make configurable
+        self.memory = deque(maxlen=1000)
 
-    def _huber_loss(self, target, prediction):
-        error = prediction - target
-        return K.mean(K.sqrt(1+K.square(error))-1,axis=-1)
+    def _get_device(self):
+        #cpus = tf.config.experimental.list_physical_devices('CPU')
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        ngpus = len(gpus)
+        logger.info('Number of available GPUs: {}'.format(ngpus))
+        if ngpus > 0:
+            gpu_id = self.rank % ngpus
+            self.device = '/GPU:{}'.format(gpu_id)
+            #tf.config.experimental.set_memory_growth(gpus[gpu_id], True)
+        else:
+            self.device = '/CPU:0'
 
     def _build_model(self):
-        ## Input: state ##       
-        '''
-        state_input = Input(self.env.observation_space.shape)
-        #s1 = BatchNormalization()(state_input)
-        h1 = Dense(64, activation='relu')(state_input)
-        #b1 = BatchNormalization()(h1)
-        h2 = Dense(128, activation='relu')(h1)
-        #b2 = BatchNormalization()(h2)
-        #h3 = Dense(24, activation='relu')(h2)
-        ## Output: action ##   
-        output = Dense(self.env.action_space.n,activation='relu')(h2)
-        model = Model(inputs=state_input, outputs=output)
-        adam = Adam(lr=self.learning_rate)
-        model.compile(loss='mse', optimizer=adam)
-        #model.compile(loss='mean_squared_logarithmic_error', optimizer=adam)
-        '''
+        if self.model_type == 'MLP':
+            from agents.agent_vault._build_mlp import build_model
+            return build_model(self)
+        elif self.model_type == 'LSTM':
+            from agents.agent_vault._build_lstm import build_model
+            return build_model(self)
+        else:
+            sys.exit("Oops! That was not a valid model type. Try again...")
 
-        layers= []
-        state_input = Input(shape=self.env.observation_space.shape)
-        layers.append(state_input)
-        #model = Sequential()
-        #print('Dense layers: ', self.dense)
-        #print('Length: ', len(self.dense))
-        length = len(self.dense)
-        #for i, layer_width in enumerate(self.dense):
-        for i in range(length):
-            layer_width = self.dense[i]
-            #if i == 0:
-                #layers.append(Dense(layer_width, activation=self.activation, input_shape=self.env.observation_space.shape))
-                #pass
-            #else:
-            layers.append(Dense(layer_width, activation=self.activation)(layers[-1]))
-        # output layer
-        layers.append(Dense(self.env.action_space.n, activation=self.activation)(layers[-1]))
-
-        model = Model(inputs=layers[0], outputs=layers[-1])
-        model.summary()
-        print('', flush=True)
-
-        optimizer = self.candle.build_optimizer(self.optimizer, self.learning_rate, self.candle.keras_default_config())
-        model.compile(loss=self._huber_loss, optimizer=optimizer)
-        return model
-
+    def set_learner(self):
+        logger.debug('Agent[{}] - Creating active model for the learner'.format(self.rank))
+        self.is_learner = True
+        self.model = self._build_model()
+        self.model.compile(loss=self.loss, optimizer=self.optimizer)
+        self.model.summary()
+                
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
     def action(self, state):
-        action = -1
-        ## TODO: Update greed-epsilon to something like UBC
-        if np.random.rand() <= self.epsilon and self.search_method=="epsilon":
-            logger.info('Random action')
+        random.seed(datetime.now())
+        random_data = os.urandom(4)
+        np.random.seed(int.from_bytes(random_data, byteorder="big"))
+        rdm = np.random.rand()
+        if rdm <= self.epsilon:
             action = random.randrange(self.env.action_space.n)
-            ## Update randomness
-            #if len(self.memory)>(self.batch_size):
-            self.epsilon_adj()
-
+            return action, 0
         else:
-            logger.info('Policy action')
-            np_state = np.array(state).reshape(1,len(state))
-            act_values = self.target_model.predict(np_state)
+            np_state = np.array(state).reshape(1,1,len(state))
+            with tf.device(self.device):
+                act_values = self.target_model.predict(np_state)
             action = np.argmax(act_values[0])
-            mask = [i for i in range(len(act_values[0])) if act_values[0][i] == act_values[0][action]]
-            ncands=len(mask)
-            # print( 'Number of cands: %s' % str(ncands))
-            if ncands>1:
-                action = mask[random.randint(0,ncands-1)]
-        ## Capture the action statistics for the UBC methods
-        #print('total_actions_taken: %s' % self.total_actions_taken)
-        #print('individual_action_taken[%s]: %s' % (action,self.individual_action_taken[action]))
-        self.total_actions_taken += 1
-        self.individual_action_taken[action]+=1
+            return action, 1
 
-        return action
-
-    def play(self,state):
-        act_values = self.target_model.predict(state)
+    def play(self, state):
+        with tf.device(self.device):
+            act_values = self.target_model.predict(state)
         return np.argmax(act_values[0])
 
-    def train(self):
-        if len(self.memory)<(self.batch_size):
-            return
-        logger.info('### TRAINING ###')
-        losses = []
+    def calc_target_f(self, exp):
+        state, action, reward, next_state, done = exp
+        np_state = np.array(state).reshape(1, 1, len(state))
+        np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
+        expectedQ = 0
+        if not done:
+            with tf.device(self.device):
+                expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
+        target = reward + expectedQ
+        with tf.device(self.device):
+            target_f = self.target_model.predict(np_state)
+        target_f[0][action] = target
+        return target_f[0]
+
+    def generate_data(self):
+        # Worker method to create samples for training
+        # TODO: This method is the most expensive and takes 90% of the agent compute time
+        # TODO: Reduce computational time
+        batch_states = []
+        batch_target = []
+        # Return empty batch
+        if len(self.memory)<self.batch_size:
+            yield batch_states, batch_target
+        start_time = time.time()
         minibatch = random.sample(self.memory, self.batch_size)
-        for state, action, reward, next_state, done in minibatch:
-            np_state = np.array(state).reshape(1,len(state))
-            np_next_state = np.array(next_state).reshape(1,len(next_state))
-            expectedQ =0
-            if not done:
-                expectedQ = self.gamma*np.amax(self.target_model.predict(np_next_state)[0])
-            target = reward + expectedQ
-            target_f = self.model.predict(np_state)
-            target_f[0][action] = target
-            history = self.model.fit(np_state, target_f, epochs = 1, verbose = 0)
-            losses.append(history.history['loss'])
-        self.target_train()
-        self.train_writer.writerow([np.mean(losses)])
-        self.train_file.flush()
+        batch_target = list(map(self.calc_target_f, minibatch))
+        batch_states = [np.array(exp[0]).reshape(1,1,len(exp[0]))[0] for exp in minibatch]
+        batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
+        batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
+        end_time = time.time()
+        self.dataprep_time += (end_time - start_time)
+        self.ndataprep_time += 1
+        logger.debug('Agent[{}] - Minibatch time: {} '.format(self.rank,(end_time - start_time)))
+        yield batch_states, batch_target
+
+    def train(self, batch):
+        self.epsilon_adj()
+        if self.is_learner:
+            # if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
+            if len(batch[0])>=(self.batch_size):
+                # batch_states, batch_target = batch
+                start_time = time.time()
+                with tf.device(self.device):
+                    history = self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
+                end_time = time.time()
+                self.training_time += (end_time-start_time)
+                self.ntraining_time += 1
+                logger.info('Agent[{}]- Training: {} '.format(self.rank, (end_time-start_time)))
+                start_time_episode = time.time()
+                logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
+        else:
+            logger.warning('Training will not be done because this instance is not set to learn.')
+
+    def get_weights(self):
+        logger.debug('Agent[%s] - get target weight.' % str(self.rank))
+        return self.target_model.get_weights()
+
+    def set_weights(self, weights):
+        logger.info('Agent[%s] - set target weight.' % str(self.rank))
+        logger.debug('Agent[%s] - set target weight: %s' % (str(self.rank),weights))
+        with tf.device(self.device):
+            self.target_model.set_weights(weights)
 
     def target_train(self):
-        if len(self.memory)%(self.batch_size)!=0:
-            return
-        logger.info('### TARGET UPDATE ###')
-        model_weights  = self.model.get_weights()
-        target_weights = self.target_model.get_weights()
-        for i in range(len(target_weights)):
-            target_weights[i] = self.tau*model_weights[i] + (1-self.tau)*target_weights[i]
-        self.target_model.set_weights(target_weights)
-        self.target_weights = target_weights
+        if self.is_learner:
+            logger.info('Agent[%s] - update target weights.' % str(self.rank))
+            with tf.device(self.device):
+                model_weights = self.model.get_weights()
+                target_weights = self.target_model.get_weights()
+            for i in range(len(target_weights)):
+                target_weights[i] = self.tau*model_weights[i] + (1-self.tau)*target_weights[i]
+            self.set_weights(target_weights)
+        else:
+            logger.warning('Weights will not be updated because this instance is not set to learn.')
 
     def epsilon_adj(self):
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
-            logger.info('New epsilon: %s ' % self.epsilon)
-
-    def get_weights(self):
-        return self.target_model.get_weights()
-
-    def set_weights(self, weights):
-        self.target_model.set_weights(weights)
 
     def load(self, filename):
-        #self.model.load_weights(filename)
-        layers = self.model.layers
+        layers = self.target_model.layers
         with open(filename, 'rb') as f:
             pickle_list = pickle.load(f)
 
@@ -280,8 +269,7 @@ class DQN(erl.ExaAgent):
             layers[layerId].set_weights(pickle_list[layerId][1])
 
     def save(self, filename):
-        #self.model.save_weights(filename)
-        layers = self.model.layers
+        layers = self.target_model.layers
         pickle_list = []
         for layerId in range(len(layers)):
             weigths = layers[layerId].get_weights()
@@ -291,7 +279,29 @@ class DQN(erl.ExaAgent):
             pickle.dump(pickle_list, f, -1)
 
     def update(self):
-        print("Implement update method in dqn.py")
+        logger.info("Implement update method in dqn.py")
 
     def monitor(self):
-        print("Implement monitor method in dqn.py")
+        logger.info("Implement monitor method in dqn.py")
+
+    def benchmark(dataset, num_epochs=1):
+        start_time = time.perf_counter()
+        for epoch_num in range(num_epochs):
+            for sample in dataset:
+                # Performing a training step
+                time.sleep(0.01)
+                print(sample)
+        tf.print("Execution time:", time.perf_counter() - start_time)
+
+    def print_timers(self):
+        if self.ntraining_time>0:
+            logger.info("Agent[{}] - Average training time: {}".format(self.rank,
+                                                                       self.training_time/self.ntraining_time))
+        else:
+            logger.info("Agent[{}] - Average training time: {}".format(self.rank, 0))
+
+        if self.ndataprep_time > 0:
+            logger.info("Agent[{}] - Average data prep time: {}".format(self.rank,
+                                                                       self.dataprep_time/self.ndataprep_time))
+        else:
+            logger.info("Agent[{}] - Average data prep time: {}".format(self.rank, 0))

@@ -22,6 +22,7 @@ import image_structure
 import shutil
 import datetime as dt
 
+import exarl.mpi_settings as mpi_settings
 
 def print_status(msg, *args, comm_rank=None, showtime=True, barrier=True, allranks=False, flush=True):
     if comm_rank == None:
@@ -45,12 +46,12 @@ def print_status(msg, *args, comm_rank=None, showtime=True, barrier=True, allran
 
 ############################# Environment class #############################
 
-class CahnHilliardEnv(gym.Env, erl.ExaEnv):
+class CahnHilliardEnv(gym.Env):
 
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, env_comm=None):
+    def __init__(self):
         
         # Declare hyper-parameters, initialized for determining datatype
         super().__init__()
@@ -71,7 +72,7 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         self.episodes        = 0
 
         #self.args = args
-        self.comm = env_comm
+        self.comm = mpi_settings.env_comm
         self.comm_rank = self.comm.Get_rank() if self.comm else 0
 
         # These are problem dependent and must be available during environment object creation time: cannot be set by CANDLE
@@ -105,7 +106,8 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         self.time_step            = -1
         self.isTest               = True if self.notTrain else False
         self.isTarget = False
-
+        
+    '''
     def set_env(self):
         # Obtain hyperparameteres
         env_data = super().get_config()
@@ -127,6 +129,8 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         self.episodes        = env_data['n_episodes']
 
         self.setTargetState()
+        self.setInitSimParams() 
+    '''
 
     ##################### get state space (mean, sd) #####################
     def getStateSize(self):  # state size is # of structured vector components and the current temperature
@@ -148,7 +152,8 @@ class CahnHilliardEnv(gym.Env, erl.ExaEnv):
         self.time_step  = -1
         # print('episode', self.episode)
         if self.episode == self.episodes: self.isTest=True
-
+        
+        self.setTargetState()
         self.setInitSimParams()  # TODO: I do not have to initialze all parameter at each episode
 
         if self.randInitial: self.T = self.setRandInitT()
