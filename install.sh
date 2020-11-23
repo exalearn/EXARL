@@ -23,6 +23,7 @@ deactivate
 # Add the miniconda bin directory to $PATH
 export PATH=/home/travis/miniconda3/bin:$PATH
 echo $PATH
+export PYTHON_VERSION=3.7
 
 # Use the miniconda installer for setup of conda itself
 pushd .
@@ -39,7 +40,7 @@ then
     chmod +x miniconda.sh && ./miniconda.sh -b -f
     conda update --yes conda
     echo "Creating environment to run tests in."
-    conda create -n testenv --yes python="$PYTHON_VERSION"
+    conda create -n testenv --yes python=$PYTHON_VERSION
 fi
 cd ..
 popd
