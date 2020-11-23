@@ -6,10 +6,10 @@ import sys
 import json
 import exarl as erl
 
-class ExaCartpoleDynamic(gym.Env, erl.ExaEnv):
+class ExaCartpoleDynamic(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, env_comm, cfg='envs/env_vault/env_cfg/env_setup.json'):
+    def __init__(self, cfg='envs/env_vault/env_cfg/env_setup.json'):
         super().__init__(env_cfg=cfg)
         self._max_episode_steps = 0
         self.env = gym.make('CartPole-v0')
@@ -29,7 +29,7 @@ class ExaCartpoleDynamic(gym.Env, erl.ExaEnv):
         #parent_comm = MPI.Comm.Get_parent()
         spawn_comm = MPI.COMM_SELF.Spawn(sys.executable,
                                    args=[self.worker],
-                                   maxprocs=self.mpi_children_per_parent)#.Merge()
+                                         maxprocs=self.process_per_env)#.Merge()
 
         N = np.array(100, 'i')
         spawn_comm.Bcast([N, MPI.INT], root=MPI.ROOT)

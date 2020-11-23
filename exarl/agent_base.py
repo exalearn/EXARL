@@ -19,22 +19,10 @@ file_path = os.path.dirname(os.path.realpath(__file__))
 lib_path = os.path.abspath(os.path.join(file_path, '..', 'candlelib'))
 sys.path.append(lib_path)
 
-import keras
-import candle
-
 class ExaAgent(ABC):
 
     def __init__(self, **kwargs):
-        self.candle = candle  # make CANDLE functions accessible to all agents.
-        self.agent_data = {}
-
-    # Default method to set arguments
-    def set_config(self, agent_data):
-        self.agent_data = agent_data
-
-    # Default method to get arguments   
-    def get_config(self):
-        return self.agent_data
+        pass
 
     @abstractmethod
     def get_weights(self):
@@ -66,8 +54,4 @@ class ExaAgent(ABC):
 
     @abstractmethod
     def monitor(self):
-        pass
-
-    @abstractmethod
-    def set_agent(self):
         pass

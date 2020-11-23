@@ -10,3 +10,7 @@
 	path = envs/env_vault/LibTDLG
 	url = https://github.com/exalearn/LibTDLG
 	branch = master
+[submodule "envs/env_vault/pydemic"]
+	path = envs/env_vault/pydemic
+	url = https://github.com/uiuc-covid19-modeling/pydemic
+	branch = master
