@@ -15,10 +15,12 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.INFO)
 
+
 @tf.function
 def update_target(target_weights, weights, tau):
     for (a, b) in zip(target_weights, weights):
         a.assign(b * tau + a * (1 - tau))
+
 
 class DDPG(erl.ExaAgent):
     is_learner: bool
@@ -175,7 +177,7 @@ class DDPG(erl.ExaAgent):
         yield state_batch, action_batch, reward_batch, next_state_batch
 
     def train(self, batch):
-        #self.epsilon_adj()
+        # self.epsilon_adj()
         # if len(batch[0]) >= self.batch_size:
         #     logger.info('Training...')
         self.update_grad(batch[0], batch[1], batch[2], batch[3])
@@ -183,8 +185,8 @@ class DDPG(erl.ExaAgent):
     def target_train(self):
         # Update the target model
         # if self.buffer_counter >= self.batch_size:
-        #update_target(self.target_actor.variables, self.actor_model.variables, self.tau)
-        #update_target(self.target_critic.variables, self.critic_model.variables, self.tau)
+        # update_target(self.target_actor.variables, self.actor_model.variables, self.tau)
+        # update_target(self.target_critic.variables, self.critic_model.variables, self.tau)
         model_weights = self.actor_model.get_weights()
         target_weights = self.target_actor.get_weights()
         for i in range(len(target_weights)):
@@ -208,16 +210,16 @@ class DDPG(erl.ExaAgent):
         #     logger.info('rdm action:{}'.format(action))
         #     return action, 0
         # else:
-            # random.seed(datetime.now())
-            # random_data = os.urandom(4)
-            # np.random.seed(int.from_bytes(random_data, byteorder="big"))
-            # if self.buffer_counter <= self.batch_size:
-            #     action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(1,))
-            #     return action, 0
-            # else:
+        # random.seed(datetime.now())
+        # random_data = os.urandom(4)
+        # np.random.seed(int.from_bytes(random_data, byteorder="big"))
+        # if self.buffer_counter <= self.batch_size:
+        #     action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(1,))
+        #     return action, 0
+        # else:
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
         sampled_actions = tf.squeeze(self.target_actor(tf_state))
-        #sampled_actions = tf.squeeze(self.actor_model(tf_state))
+        # sampled_actions = tf.squeeze(self.actor_model(tf_state))
         noise = self.ou_noise()
         # Adding noise to action
         sampled_actions_wn = sampled_actions.numpy() + noise
