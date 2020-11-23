@@ -36,8 +36,8 @@ class DDPG(erl.ExaAgent):
         self.env = env
         self.num_states = env.observation_space.shape[0]
         self.num_actions = env.action_space.shape[0]
-        self.upper_bound = env.action_space.high[0]
-        self.lower_bound = env.action_space.low[0]
+        self.upper_bound = env.action_space.high
+        self.lower_bound = env.action_space.low
 
         logger.info("Size of State Space:  {}".format(self.num_states))
         logger.info("Size of Action Space:  {}".format(self.num_actions))
