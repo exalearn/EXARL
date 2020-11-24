@@ -1,4 +1,6 @@
 import gym
+import time
+from mpi4py import MPI
 import numpy as np
 from gym import error, spaces, utils
 from gym.utils import seeding
@@ -61,6 +63,7 @@ class WaterCluster(gym.Env):
         
         ## Actions per cluster: cluster id, rotation angle, translation  ##
         self.action_space = spaces.Box(low=np.array([0,75,0.3]), high=np.array([self.nclusters,105,0.7]),dtype=np.float32)      
+        print('****** WATER_CLUSTER ******',self.action_space)
 
     def _load_structure(self,env_input):
         ## Read initial XYZ file
@@ -83,9 +86,9 @@ class WaterCluster(gym.Env):
         isValid=self.action_space.contains(action)
         if isValid==False:
             logger.debug('Invalid action...')
-            max_value = np.max(abs(action))
+            #max_value = np.max(abs(action))
             logger.debug(action)
-            logger.debug("Reward: %s " % str(-max_value) )
+            #logger.debug("Reward: %s " % str(-max_value) )
             done=True
             #return np.array([0]), np.array(-max_value), done, {}
             return np.array([0]), np.array(reward), done, {}
