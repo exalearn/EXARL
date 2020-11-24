@@ -8,7 +8,8 @@ rank = comm.Get_rank()
 
 N = numpy.array(0, dtype='i')
 comm.Bcast([N, MPI.INT], root=0)
-h = 1.0 / N; s = 0.0
+h = 1.0 / N
+s = 0.0
 for i in range(rank, N, size):
     x = h * (i + 0.5)
     s += 4.0 / (1.0 + x**2)
