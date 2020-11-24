@@ -29,11 +29,14 @@
 # F5:
 # - F523: unused arguments in a function
 #
+# F6:
+# - F632: use ==/!= to compare constant literals
+#
 # F8: Variable names
 # - F821: undefined name name
 # - F841: local vaiable name is assigned to but never used
 
 [flake8]
-ignore = E129,E221,E241,E272,E731,W503,W504,F999,N801,N813,N814,E712,E722,F401,F841,E741,F523,F821
+ignore = E129,E221,E241,E272,E731,W503,W504,F999,N801,N813,N814,E712,E722,F401,F841,E741,F523,F821,F632
 exclude = envs/env_vault/CahnHilliard2D, envs/env_vault/ImageStructure, envs/env_vault/pydemic, envs/env_vault/LibTDLG
 max-line-length = 160
