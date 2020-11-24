@@ -23,7 +23,7 @@ def get_from_module(identifier, module_params, module_name,
             return res(**kwargs)
         else:
             return res
-    elif type(identifier) is dict:
+    elif isinstance(identifier, dict):
         name = identifier.pop('name')
         res = module_params.get(name)
         if res:
@@ -131,7 +131,7 @@ class Progbar(object):
             prog = float(current) / self.target
             prog_width = int(self.width * prog)
             if prog_width > 0:
-                bar += ('=' * (prog_width-1))
+                bar += ('=' * (prog_width - 1))
                 if current < self.target:
                     bar += '>'
                 else:
@@ -153,7 +153,7 @@ class Progbar(object):
                 info += ' - %ds' % (now - self.start)
             for k in self.unique_values:
                 info += ' - %s:' % k
-                if type(self.sum_values[k]) is list:
+                if isinstance(self.sum_values[k], list):
                     avg = self.sum_values[k][0] / max(1, self.sum_values[k][1])
                     if abs(avg) > 1e-3:
                         info += ' %.4f' % avg
