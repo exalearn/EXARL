@@ -3,6 +3,7 @@ import numpy as np
 import random
 from datetime import datetime
 
+
 class OUActionNoise2:
     def __init__(self, mean=0, start_std=0.15, stop_std=0.05, damping=0.005):
         self.mean = mean
@@ -18,10 +19,11 @@ class OUActionNoise2:
         dx = self.damping * (self.mean - self.x_prev)
         x = (self.x_prev + dx)
         self.x_prev = x
-        return np.random.normal(0,x,1) + np.random.normal(0,self.stop_std,1)
+        return np.random.normal(0, x, 1) + np.random.normal(0, self.stop_std, 1)
 
     def reset(self):
-            self.x_prev = self.start_std
+        self.x_prev = self.start_std
+
 
 class OUActionNoise:
     def __init__(self, mean, std_deviation, theta=0.15, dt=1e-2, x_initial=None):
