@@ -7,7 +7,7 @@
 # - E241: multiple spaces after ','
 # - E272: multiple spaces before keyword
 #
-# E4:
+# E4: Module imports
 # - E402: module level import not at top of file
 #
 # E7: Statement
@@ -29,10 +29,10 @@
 # - N813: camelcase imported as lowercase
 # - N814: camelcase imported as constant
 #
-# F5:
+# F5: Arguments
 # - F523: unused arguments in a function
 #
-# F6:
+# F6: Logical comparison operators
 # - F632: use ==/!= to compare constant literals
 #
 # F8: Variable names
