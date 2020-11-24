@@ -1,5 +1,7 @@
-import mpi4py.rc; mpi4py.rc.threads = False
 from mpi4py import MPI
+import mpi4py.rc
+mpi4py.rc.threads = False
+
 
 def init(procs_per_env):
     # World communicator
@@ -23,6 +25,8 @@ def init(procs_per_env):
     env_comm = world_comm.Split(env_color, world_rank)
 
 # Function to test if a process is a learner
+
+
 def is_learner():
     try:
         if agent_comm.rank == 0:
@@ -31,6 +35,8 @@ def is_learner():
         return False
 
 # Function to test if a process is an actor
+
+
 def is_actor():
     try:
         if agent_comm.rank > 0:
