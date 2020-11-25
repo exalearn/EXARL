@@ -25,6 +25,7 @@ export PATH=/home/travis/miniconda3/bin:$PATH
 echo $PATH
 
 # Use the miniconda installer for setup of conda itself
+cwd_var=$(pwd)
 pushd .
 cd
 mkdir -p download
@@ -39,10 +40,10 @@ then
     chmod +x miniconda.sh && ./miniconda.sh -b -f
     conda update --yes conda
     echo "Creating environment to run tests in."
-    conda env create -n testenv -f /path/to/environment.yml
+    conda env create -f ${cwd_var}/conda/environment.yml
 fi
 cd ..
 popd
 
 # Activate the python environment we created.
-source activate testenv
+source activate exarlEnv

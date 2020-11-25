@@ -1,0 +1,21 @@
+name: exarlEnvTest
+channels:
+- conda-forge
+- anaconda
+- defaults
+dependencies:
+- python=3.7
+- mpi4py
+- tensorflow-gpu >=2.0.0
+- keras
+- seaborn
+- gym
+- scikit-learn
+- numba
+- pybind11
+- ase
+- lmfit
+- pandas
+- pip
+- pip:
+  - -e ..

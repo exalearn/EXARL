@@ -144,14 +144,20 @@ class Surrogate_Accelerator_v1(gym.Env):
             dtype=np.float64
         )
 
-        self.actionMap_VIMIN = [0, 0.0001, 0.005, 0.001, -0.0001, -0.005, -0.001]
-        self.action_space = spaces.Discrete(7)
+        # Dynamically allocate
+        data['B:VIMIN_DIFF'] = data['B:VIMIN'] - data['B:VIMIN'].shift(-1)
+        self.nactions = 15
+        self.action_space = spaces.Discrete(self.nactions)
+        self.actionMap_VIMIN = []
+        for i in range(1, self.nactions+1):
+            self.actionMap_VIMIN.append(data['B:VIMIN_DIFF'].quantile(i / (self.nactions+1)))
+
         self.VIMIN = 0
         ##
         self.state = np.zeros(shape=(1, self.nvariables, self.nsamples))
         self.predicted_state = np.zeros(shape=(1, self.nvariables, 1))
         logger.debug('Init pred shape:{}'.format(self.predicted_state.shape))
-        self.do_render = False
+        self.do_render = True
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
