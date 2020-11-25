@@ -92,7 +92,9 @@ class DDPG(erl.ExaAgent):
         # If the counter exceeds the capacity then
         index = self.buffer_counter % self.buffer_capacity
         self.state_buffer[index] = state
-        self.action_buffer[index] = action
+        # self.action_buffer[index] = action
+        # action is an array of size 3 and so get the first value
+        self.action_buffer[index] = action[0]
         self.reward_buffer[index] = reward
         self.next_state_buffer[index] = next_state
         self.done_buffer[index] = int(done)
