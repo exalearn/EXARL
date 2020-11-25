@@ -7,3 +7,4 @@ setup(name='exarl',
       license='BSD-3',
       packages=['exarl', 'agents', 'envs'],
       zip_safe=False)
+      

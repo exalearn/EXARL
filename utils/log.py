@@ -1,6 +1,7 @@
 import os
 import logging
 
+
 def setup_logger(name, level):
     formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
 
@@ -13,7 +14,7 @@ def setup_logger(name, level):
         # Set TF logging level to debug
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
         # Set Python logging level to debug
-        logger.setLevel(logging.DEBUG)   
+        logger.setLevel(logging.DEBUG)
     elif level == 1:
         # Set TF logging level to info
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'

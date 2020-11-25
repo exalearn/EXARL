@@ -23,6 +23,7 @@ deactivate
 # Add the miniconda bin directory to $PATH
 export PATH=/home/travis/miniconda3/bin:$PATH
 echo $PATH
+export PYTHON_VERSION=3.7
 
 # Use the miniconda installer for setup of conda itself
 cwd_var=$(pwd)

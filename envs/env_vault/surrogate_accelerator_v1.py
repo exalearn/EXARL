@@ -1,6 +1,7 @@
 import gym
 import os
 import errno
+import math
 from gym import spaces
 from gym.utils import seeding
 import pandas as pd
@@ -19,11 +20,13 @@ logger.setLevel(logging.INFO)
 
 np.seterr(divide='ignore', invalid='ignore')
 
-def load_reformated_cvs(filename,nrows=100000):
-    df = pd.read_csv(filename,nrows=nrows)
-    df=df.replace([np.inf, -np.inf], np.nan)
-    df=df.dropna(axis=0)
+
+def load_reformated_cvs(filename, nrows=100000):
+    df = pd.read_csv(filename, nrows=nrows)
+    df = df.replace([np.inf, -np.inf], np.nan)
+    df = df.dropna(axis=0)
     return df
+
 
 def create_dataset(dataset, look_back=10 * 15, look_forward=1):
     X, Y = [], []
@@ -60,7 +63,7 @@ class Surrogate_Accelerator_v1(gym.Env):
         # https://zenodo.org/record/4088982#.X4836kJKhTY
 
         self.file_dir = os.path.dirname(__file__)
-        booster_dir = os.path.join(self.file_dir,'booster')
+        booster_dir = os.path.join(self.file_dir, 'booster')
         logger.info('booster related directory: '.format(booster_dir))
         try:
             os.mkdir(booster_dir)
@@ -78,13 +81,13 @@ class Surrogate_Accelerator_v1(gym.Env):
         tf.compat.v1.keras.backend.set_session(sess)
 
         booster_model_file = 'fullbooster_noshift_e250_bs99_nsteps250k_invar5_outvar3_axis1_mmscaler_t0_D10122020-T175237_kfold2__e16_vl0.00038.h5'
-        booster_model_pfn = os.path.join(booster_dir,booster_model_file)
+        booster_model_pfn = os.path.join(booster_dir, booster_model_file)
         with tf.device('/cpu:0'):
             self.booster_model = keras.models.load_model(booster_model_pfn)
 
         # Check if data is available
         booster_data_file = 'BOOSTR.cvs'
-        booster_file_pfn = os.path.join(booster_dir,booster_data_file)
+        booster_file_pfn = os.path.join(booster_dir, booster_data_file)
         logger.info('Booster data file pfn:{}'.format(booster_file_pfn))
         if not os.path.exists(booster_file_pfn):
             logger.info('No cached file. Downloading...')
@@ -110,6 +113,8 @@ class Surrogate_Accelerator_v1(gym.Env):
         self.max_steps = 100
         self.total_reward = 0
         self.data_total_reward = 0
+        self.total_iminer = 0
+        self.data_total_iminer = 0
         self.diff = 0
 
         # Define boundary
@@ -149,8 +154,8 @@ class Surrogate_Accelerator_v1(gym.Env):
         self.nactions = 15
         self.action_space = spaces.Discrete(self.nactions)
         self.actionMap_VIMIN = []
-        for i in range(1, self.nactions+1):
-            self.actionMap_VIMIN.append(data['B:VIMIN_DIFF'].quantile(i / (self.nactions+1)))
+        for i in range(1, self.nactions + 1):
+            self.actionMap_VIMIN.append(data['B:VIMIN_DIFF'].quantile(i / (self.nactions + 1)))
 
         self.VIMIN = 0
         ##
@@ -165,7 +170,6 @@ class Surrogate_Accelerator_v1(gym.Env):
 
     def step(self, action):
         self.steps += 1
-        # logger.info('Episode/State: {}/{}'.format(self.episodes, self.steps))
         done = False
 
         # Steps:
@@ -202,7 +206,8 @@ class Surrogate_Accelerator_v1(gym.Env):
         # Update data state for rendering
         self.data_state = np.copy(self.X_train[self.batch_id + self.steps].reshape(1, self.nvariables, self.nsamples))
         data_iminer = self.scalers[1].inverse_transform(self.data_state[0][1][self.nsamples - 1].reshape(1, -1))
-        data_reward = -abs(data_iminer)
+        # data_reward = -abs(data_iminer)
+        data_reward = np.array(1. * math.exp(-5 * abs(np.asscalar(data_iminer))))
 
         # Use data for everything but the B:IMINER prediction
         self.state[0, 2:self.nvariables, :] = self.data_state[0, 2:self.nvariables, :]
@@ -213,16 +218,20 @@ class Surrogate_Accelerator_v1(gym.Env):
         logger.debug('iminer:{}'.format(iminer))
 
         # Reward
-        reward = -abs(iminer)
+        # reward = -abs(iminer)
+        # reward = np.array(-1 + 1. * math.exp(-5 * abs(np.asscalar(iminer))))
+        reward = np.array(1. * math.exp(-5 * abs(np.asscalar(iminer))))
 
         if abs(iminer) >= 2:
             logger.info('iminer:{} is out of bounds'.format(iminer))
             done = True
-
-        if done:
             penalty = 5 * (self.max_steps - self.steps)
-            logger.info('penalty:{} is out of bounds'.format(penalty))
             reward -= penalty
+
+        # if done:
+        #     penalty = 5 * (self.max_steps - self.steps)
+        #     logger.info('penalty:{} is out of bounds'.format(penalty))
+        #     reward -= penalty
 
         if self.steps >= int(self.max_steps):
             done = True
@@ -230,6 +239,8 @@ class Surrogate_Accelerator_v1(gym.Env):
         self.diff += np.asscalar(abs(data_iminer - iminer))
         self.data_total_reward += np.asscalar(data_reward)
         self.total_reward += np.asscalar(reward)
+        self.total_iminer  += np.asscalar(abs(iminer))
+        self.data_total_iminer += np.asscalar(abs(data_iminer))
 
         if self.do_render:
             self.render()
@@ -241,6 +252,8 @@ class Surrogate_Accelerator_v1(gym.Env):
         self.steps = 0
         self.data_total_reward = 0
         self.total_reward = 0
+        self.total_iminer = 0
+        self.data_total_iminer = 0
         self.diff = 0
         self.data_state = None
 
@@ -254,6 +267,11 @@ class Surrogate_Accelerator_v1(gym.Env):
         self.state = np.copy(self.X_train[self.batch_id].reshape(1, self.nvariables, self.nsamples))
         logger.debug('self.state:{}'.format(self.state))
         logger.debug('reset_data.shape:{}'.format(self.state.shape))
+        self.min_BIMIN = self.scalers[0].inverse_transform(self.state[:, 0, :]).min()
+        self.max_BIMIN = self.scalers[0].inverse_transform(self.state[:, 0, :]).max()
+        logger.info('Lower and upper B:VIMIN: [{},{}]'.format(self.min_BIMIN, self.max_BIMIN))
+        # self.min_BIMIN = self.min_BIMIN * 0.9999
+        # self.max_BIMIN = self.max_BIMIN * 1.0001
         self.VIMIN = self.state[0, 0, -1:]
         logger.debug('Normed VIMIN:{}'.format(self.VIMIN))
         logger.debug('B:VIMIN:{}'.format(self.scalers[0].inverse_transform(np.array([self.VIMIN]).reshape(1, -1))))
@@ -287,8 +305,11 @@ class Surrogate_Accelerator_v1(gym.Env):
             utrace = self.state[0, v, :]
             trace = self.scalers[v].inverse_transform(utrace.reshape(-1, 1))
             if v == 0:
-                axs[v].set_title('Raw data reward: {:.2f} - RL agent reward: {:.2f} '.format(self.data_total_reward,
-                                                                                             self.total_reward))
+                iminer_imp = 0
+                if self.total_iminer > 0:
+                    iminer_imp = self.data_total_iminer / self.total_iminer
+                axs[v].set_title('Raw data reward: {:.2f} - RL agent reward: {:.2f} - Improvement: {:.2f} '.format(self.data_total_reward,
+                                                                                                                   self.total_reward, iminer_imp))
             axs[v].plot(trace, label='Digital twin', color='black')
 
             # if v==1:

@@ -13,9 +13,10 @@ python:
 git:
     submodules: false
 
- 
 before_install:
   - source install.sh
 
 script:
-  - python driver/driver_example.py
+  - pip install -r test-requirements.txt
+  - flake8 .
+  - python driver/driver.py

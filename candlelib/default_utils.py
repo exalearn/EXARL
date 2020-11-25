@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from file_utils import get_file
 
 import numpy as np
 import random
@@ -23,15 +24,14 @@ sys.path.append(lib_path)
 
 work_path = os.path.dirname(os.path.realpath(__file__))
 
-from file_utils import get_file
 
 # Seed for random generation -- default value
 DEFAULT_SEED = 7102
-DEFAULT_TIMEOUT = -1 # no timeout
+DEFAULT_TIMEOUT = -1  # no timeout
 DEFAULT_DATATYPE = np.float32
 
 
-#### IO UTILS
+# IO UTILS
 
 def fetch_file(link, subdir, untar=False, md5_hash=None):
     """ Convert URL to file path and download the file
@@ -59,6 +59,7 @@ def fetch_file(link, subdir, untar=False, md5_hash=None):
 
     fname = os.path.basename(link)
     return get_file(fname, origin=link, untar=untar, md5_hash=md5_hash, cache_subdir=subdir)
+
 
 def verify_path(path):
     """ Verify if a directory path exists locally. If the path
@@ -92,7 +93,7 @@ def set_up_logger(logfile, logger, verbose):
         logger : logger object
             Python object for the logging interface
         verbose : boolean
-            Flag to increase the logging level from INFO to DEBUG. It 
+            Flag to increase the logging level from INFO to DEBUG. It
             only applies to the stream handler.
     """
     verify_path(logfile)
@@ -109,7 +110,7 @@ def set_up_logger(logfile, logger, verbose):
     logger.addHandler(sh)
 
 
-#### REFORMATING UTILS
+# REFORMATING UTILS
 
 
 def eval_string_as_list(str_read, separator, dtype):
@@ -142,10 +143,9 @@ def eval_string_as_list(str_read, separator, dtype):
 
     # Convert to desired type
     for el in out_list:
-        decoded_list.append( ldtype( el ) )
+        decoded_list.append(ldtype(el))
 
     return decoded_list
-
 
 
 def eval_string_as_list_of_lists(str_read, separator_out, separator_in, dtype):
@@ -182,8 +182,8 @@ def eval_string_as_list_of_lists(str_read, separator_out, separator_in, dtype):
         elem = l.split(separator_in)
         # Convert to desired type
         for el in elem:
-            in_list.append( ldtype( el ) )
-        decoded_list.append( in_list )
+            in_list.append(ldtype(el))
+        decoded_list.append(in_list)
 
     return decoded_list
 
@@ -203,9 +203,9 @@ def str2bool(v):
         ----------
         Boolean value. It raises and exception if the provided string cannot \
         be interpreted as a boolean type.
-        Strings recognized as boolean True : 
+        Strings recognized as boolean True :
             'yes', 'true', 't', 'y', '1' and uppercase versions (where applicable).
-        Strings recognized as boolean False : 
+        Strings recognized as boolean False :
             'no', 'false', 'f', 'n', '0' and uppercase versions (where applicable).
     """
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -215,7 +215,8 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
-#### CLASS DEFINITIONS
+# CLASS DEFINITIONS
+
 
 class ArgumentStruct:
     """Class that converts a python dictionary into an object with
@@ -225,9 +226,9 @@ class ArgumentStruct:
        After the object instantiation both modes of access (dictionary
        or object entries) can be used.
     """
+
     def __init__(self, **entries):
         self.__dict__.update(entries)
-
 
 
 class ListOfListsAction(argparse.Action):
@@ -235,6 +236,7 @@ class ListOfListsAction(argparse.Action):
         an argparser that constructs a list-of-lists from an input
         (command-line option or argument) given as a string.
     """
+
     def __init__(self, option_strings, dest, type, **kwargs):
         """Initialize a ListOfListsAction object. If no type is specified,
            an integer is assumed by default as the type for the elements
@@ -258,8 +260,6 @@ class ListOfListsAction(argparse.Action):
         self.dtype = type
         if self.dtype is None:
             self.dtype = np.int32
-
-
 
     def __call__(self, parser, namespace, values, option_string=None):
         """This function overrides the __call__ method of the base
@@ -297,12 +297,12 @@ class ListOfListsAction(argparse.Action):
             in_list = []
             elem = l.split(',')
             for el in elem:
-                in_list.append( self.dtype( el ) )
-            decoded_list.append( in_list )
+                in_list.append(self.dtype(el))
+            decoded_list.append(in_list)
 
         setattr(namespace, self.dest, decoded_list)
 
-#### INITIALIZATION UTILS
+# INITIALIZATION UTILS
 
 
 def set_seed(seed):
@@ -340,37 +340,37 @@ def finalize_parameters(bmk):
     # Parse parameters that are applicable just to benchmark
     bmk.parse_from_benchmark()
 
-    #print('Args:', args)
+    # print('Args:', args)
     # Get parameters from configuration file
     # Reads parameter subset, just checking if a config_file has been set
     # by comand line (the parse_known_args() function allows a partial
     # parsing)
     aux = bmk.parser.parse_known_args()
-    try : # Try to get the 'config_file' option
+    try:  # Try to get the 'config_file' option
         conffile_txt = aux[0].config_file
-    except AttributeError: # The 'config_file' option was not set by command-line
-        conffile = bmk.conffile # use default file
-    else: # a 'config_file' has been set --> use this file
+    except AttributeError:  # The 'config_file' option was not set by command-line
+        conffile = bmk.conffile  # use default file
+    else:  # a 'config_file' has been set --> use this file
         conffile = os.path.join(bmk.file_path, conffile_txt)
 
     print("Configuration file: ", conffile)
-    fileParameters = bmk.read_config_file(conffile)#aux.config_file)#args.config_file)
+    fileParameters = bmk.read_config_file(conffile)  # aux.config_file)#args.config_file)
     # Get command-line parameters
     args = bmk.parser.parse_args()
-    #print ('Params:', fileParameters)
+    # print ('Params:', fileParameters)
     # Consolidate parameter set. Command-line parameters overwrite file configuration
     gParameters = args_overwrite_config(args, fileParameters)
     # Check that required set of parameters has been defined
     bmk.check_required_exists(gParameters)
-    print ('Finalized parameters:')
-    pprint(gParameters)
+    # print ('Finalized parameters:')
+    # pprint(gParameters)
     print('', flush=True)
 
     return gParameters
 
 
 def get_default_neon_parser(parser):
-    """Parse command-line arguments that are default in neon parser (and are common to all frameworks). 
+    """Parse command-line arguments that are default in neon parser (and are common to all frameworks).
         Ignore if not present.
 
         Parameters
@@ -406,7 +406,7 @@ def get_default_neon_parser(parser):
                         help="number of units in fully connected layers in an integer array")
 
     # Data preprocessing
-    #parser.add_argument("--shuffle", type=str2bool,
+    # parser.add_argument("--shuffle", type=str2bool,
     #                    default=True,
     #                    help="randomly shuffle data set (produces different training and testing partitions each run depending on the seed)")
 
@@ -435,7 +435,7 @@ def get_common_parser(parser):
 
     # Configuration file
     parser.add_argument("--config_file", dest='config_file', default=argparse.SUPPRESS,
-        help="specify model configuration file")
+                        help="specify model configuration file")
 
     # General behavior
     parser.add_argument("--train_bool", dest='train_bool', type=str2bool,
@@ -446,9 +446,8 @@ def get_common_parser(parser):
                         help="evaluate model (use it for inference)")
 
     parser.add_argument("--timeout", dest='timeout', type=int, action="store",
-                    default=argparse.SUPPRESS,
-                    help="seconds allowed to train model (default: no timeout)")
-
+                        default=argparse.SUPPRESS,
+                        help="seconds allowed to train model (default: no timeout)")
 
     # Logging utilities
     parser.add_argument("--home_dir", dest='home_dir',
@@ -475,13 +474,14 @@ def get_common_parser(parser):
 
     parser.add_argument("--run_id", default="RUN000", type=str, help="set the run unique identifier")
 
-
-
     # Model definition
     # Model Architecture
-    parser.add_argument("--conv", nargs='+', type=int,
-                        default=argparse.SUPPRESS,
-                        help="integer array describing convolution layers: conv1_filters, conv1_filter_len, conv1_stride, conv2_filters, conv2_filter_len, conv2_stride ...")
+    parser.add_argument(
+        "--conv",
+        nargs='+',
+        type=int,
+        default=argparse.SUPPRESS,
+        help="integer array describing convolution layers: conv1_filters, conv1_filter_len, conv1_stride, conv2_filters, conv2_filter_len, conv2_stride ...")
     parser.add_argument("--locally_connected", type=str2bool,
                         default=argparse.SUPPRESS,
                         help="use locally connected layers instead of convolution layers")
@@ -492,14 +492,12 @@ def get_common_parser(parser):
                         default=argparse.SUPPRESS,
                         help="keras activation function to use in out layer: softmax, linear, ...")
 
-
     parser.add_argument("--lstm_size", nargs='+', type=int,
-                        default= argparse.SUPPRESS,
+                        default=argparse.SUPPRESS,
                         help="integer array describing size of LSTM internal state per layer")
     parser.add_argument("--recurrent_dropout", action="store",
                         default=argparse.SUPPRESS, type=float,
                         help="ratio of recurrent dropout")
-
 
     # Processing between layers
     parser.add_argument("--drop", type=float,
@@ -534,19 +532,30 @@ def get_common_parser(parser):
                         help="randomly shuffle data set (produces different training and testing partitions each run depending on the seed)")
 
     # Feature selection
-    parser.add_argument("--feature_subsample", type=int,
-                        default=argparse.SUPPRESS,
-                        help="number of features to randomly sample from each category (cellline expression, drug descriptors, etc), 0 means using all features")
+    parser.add_argument(
+        "--feature_subsample",
+        type=int,
+        default=argparse.SUPPRESS,
+        help="number of features to randomly sample from each category (cellline expression, drug descriptors, etc), 0 means using all features")
 
     # Training configuration
     parser.add_argument("--learning_rate",
-                        default= argparse.SUPPRESS, type=float,
+                        default=argparse.SUPPRESS, type=float,
                         help="overrides the learning rate for training")
 
-    parser.add_argument("--initialization",
-                        default=argparse.SUPPRESS,
-                        choices=['constant', 'uniform', 'normal', 'glorot_uniform', 'lecun_uniform', 'he_normal'],
-                        help="type of weight initialization; 'constant': to 0; 'uniform': to [-0.05,0.05], 'normal': mean 0, stddev 0.05; 'glorot_uniform': [-lim,lim] with lim = sqrt(6/(fan_in+fan_out)); 'lecun_uniform' : [-lim,lim] with lim = sqrt(3/fan_in); 'he_normal' : mean 0, stddev sqrt(2/fan_in)")
+    parser.add_argument(
+        "--initialization",
+        default=argparse.SUPPRESS,
+        choices=[
+            'constant',
+            'uniform',
+            'normal',
+            'glorot_uniform',
+            'lecun_uniform',
+            'he_normal'],
+        help="type of weight initialization; 'constant': to 0; 'uniform': to [-0.05,0.05], \
+            'normal': mean 0, stddev 0.05; 'glorot_uniform': [-lim,lim] with lim = sqrt(6/(fan_in+fan_out)); \
+            'lecun_uniform' : [-lim,lim] with lim = sqrt(3/fan_in); 'he_normal' : mean 0, stddev sqrt(2/fan_in)")
     parser.add_argument("--val_split", type=float,
                         default=argparse.SUPPRESS,
                         help="fraction of data to use in validation")
@@ -566,7 +575,6 @@ def get_common_parser(parser):
                         default=argparse.SUPPRESS, type=int,
                         help="overrides the number of validation samples if set to nonzero")
 
-
     # Backend configuration
     parser.add_argument("--gpus", action="store", nargs='*',
                         default=[], type=int,
@@ -574,15 +582,14 @@ def get_common_parser(parser):
 
     # profiling flags
     parser.add_argument("-p", "--profiling", type=str2bool,
-                        default = 'false',
+                        default='false',
                         help="Turn profiling on or off")
 
     return parser
 
 
-
 def args_overwrite_config(args, config):
-    """Overwrite configuration parameters with 
+    """Overwrite configuration parameters with
         parameters specified via command-line.
 
         Parameters
@@ -599,7 +606,6 @@ def args_overwrite_config(args, config):
 
     for key in args_dict.keys():
         params[key] = args_dict[key]
-
 
     if 'datatype' not in params:
         params['datatype'] = DEFAULT_DATATYPE
@@ -618,9 +624,7 @@ def args_overwrite_config(args, config):
     if 'timeout' not in params:
         params['timeout'] = DEFAULT_TIMEOUT
 
-
     return params
-
 
 
 def get_choice(name):
@@ -655,9 +659,9 @@ def directory_from_parameters(params, commonroot='Output'):
     world_comm = MPI.COMM_WORLD
     myrank = world_comm.rank
 
-    if commonroot in set(['.', './']): # Same directory --> convert to absolute path
+    if commonroot in set(['.', './']):  # Same directory --> convert to absolute path
         outdir = os.path.abspath('.')
-    else: # Create path specified
+    else:  # Create path specified
         outdir = os.path.abspath(os.path.join('.', commonroot))
         if not os.path.exists(outdir):
             if (myrank == 0):
@@ -673,9 +677,7 @@ def directory_from_parameters(params, commonroot='Output'):
             if (myrank == 0):
                 os.makedirs(outdir)
 
-
     return outdir
-
 
 
 class Benchmark:
@@ -721,8 +723,6 @@ class Benchmark:
         self.additional_definitions = []
         self.set_locals()
 
-
-
     def parse_from_common(self):
         """Functionality to parse options common
            for all benchmarks.
@@ -730,7 +730,6 @@ class Benchmark:
            'get_common_parser' which are defined previously(above). If the order changes
            or they are moved, the calling has to be updated.
         """
-
 
         # Parse has been split between arguments that are common with the default neon parser
         # and all the other options
@@ -744,7 +743,6 @@ class Benchmark:
         # Set default configuration file
         self.conffile = os.path.join(self.file_path, self.default_model)
 
-
     def parse_from_benchmark(self):
         """Functionality to parse options specific
            specific for each benchmark.
@@ -757,26 +755,24 @@ class Benchmark:
                 d['default'] = argparse.SUPPRESS
             if 'help' not in d:
                 d['help'] = ''
-            if 'action' in d: # Actions
-                if d['action'] == 'list-of-lists': # Non standard. Specific functionallity has been added
+            if 'action' in d:  # Actions
+                if d['action'] == 'list-of-lists':  # Non standard. Specific functionallity has been added
                     d['action'] = ListOfListsAction
                     self.parser.add_argument('--' + d['name'], dest=d['name'], action=d['action'], type=d['type'], default=d['default'], help=d['help'])
                 elif (d['action'] == 'store_true') or (d['action'] == 'store_false'):
-                    raise Exception ('The usage of store_true or store_false cannot be undone in the command line. Use type=str2bool instead.')
+                    raise Exception('The usage of store_true or store_false cannot be undone in the command line. Use type=str2bool instead.')
                 else:
                     self.parser.add_argument('--' + d['name'], action=d['action'], default=d['default'], help=d['help'])
-            else: # Non actions
-                if 'nargs' in d: # variable parameters
-                    if 'choices' in d: # choices with variable parameters
+            else:  # Non actions
+                if 'nargs' in d:  # variable parameters
+                    if 'choices' in d:  # choices with variable parameters
                         self.parser.add_argument('--' + d['name'], nargs=d['nargs'], choices=d['choices'], default=d['default'], help=d['help'])
-                    else: # Variable parameters (free, no limited choices)
+                    else:  # Variable parameters (free, no limited choices)
                         self.parser.add_argument('--' + d['name'], nargs=d['nargs'], type=d['type'], default=d['default'], help=d['help'])
-                elif 'choices' in d: # Select from choice (fixed number of parameters)
+                elif 'choices' in d:  # Select from choice (fixed number of parameters)
                     self.parser.add_argument('--' + d['name'], choices=d['choices'], default=d['default'], help=d['help'])
-                else: # Non an action, one parameter, no choices
+                else:  # Non an action, one parameter, no choices
                     self.parser.add_argument('--' + d['name'], type=d['type'], default=d['default'], help=d['help'])
-
-
 
     def format_benchmark_config_arguments(self, dictfileparam):
         """ Functionality to format the particular parameters of
@@ -813,24 +809,22 @@ class Benchmark:
 
         return configOut
 
-
-
     def read_config_file(self, file):
         """Functionality to read the configue file
            specific for each benchmark.
         """
 
-        config=configparser.ConfigParser()
+        config = configparser.ConfigParser()
         config.read(file)
-        section=config.sections()
-        fileParams={}
+        section = config.sections()
+        fileParams = {}
 
         # parse specified arguments (minimal validation: if arguments
         # are written several times in the file, just the first time
         # will be used)
         for sec in section:
-            for k,v in config.items(sec):
-                if not k in fileParams:
+            for k, v in config.items(sec):
+                if k not in fileParams:
                     fileParams[k] = eval(v)
 
         fileParams = self.format_benchmark_config_arguments(fileParams)
@@ -838,59 +832,53 @@ class Benchmark:
 
         return fileParams
 
-
-
     def set_locals(self):
         """ Functionality to set variables specific for the benchmark
             - required: set of required parameters for the benchmark.
             - additional_definitions: list of dictionaries describing \
                 the additional parameters for the benchmark.
         """
-    
+
         pass
 
-
-        
     def check_required_exists(self, gparam):
-        """Functionality to verify that the required 
+        """Functionality to verify that the required
            model parameters have been specified.
         """
 
         key_set = set(gparam.keys())
         intersect_set = key_set.intersection(self.required)
         diff_set = self.required.difference(intersect_set)
-        
-        if ( len(diff_set) > 0 ):
-            raise Exception('ERROR ! Required parameters are not specified. ' \
-            'These required parameters have not been initialized: ' + str(sorted(diff_set)) + \
-            '... Exiting')
 
+        if (len(diff_set) > 0):
+            raise Exception('ERROR ! Required parameters are not specified. '
+                            'These required parameters have not been initialized: ' + str(sorted(diff_set)) +
+                            '... Exiting')
 
 
 def keras_default_config():
     """Defines parameters that intervine in different functions using the keras defaults.
         This helps to keep consistency in parameters between frameworks.
     """
-    
+
     kerasDefaults = {}
-    
+
     # Optimizers
-    #kerasDefaults['clipnorm']=?            # Maximum norm to clip all parameter gradients
-    #kerasDefaults['clipvalue']=?          # Maximum (minimum=-max) value to clip all parameter gradients
-    kerasDefaults['decay_lr']=0.            # Learning rate decay over each update
-    kerasDefaults['epsilon']=1e-8           # Factor to avoid divide by zero (fuzz factor)
-    kerasDefaults['rho']=0.9                # Decay parameter in some optmizer updates (rmsprop, adadelta)
-    kerasDefaults['momentum_sgd']=0.        # Momentum for parameter update in sgd optimizer
-    kerasDefaults['nesterov_sgd']=False     # Whether to apply Nesterov momentum in sgd optimizer
-    kerasDefaults['beta_1']=0.9             # Parameter in some optmizer updates (adam, adamax, nadam)
-    kerasDefaults['beta_2']=0.999           # Parameter in some optmizer updates (adam, adamax, nadam)
-    kerasDefaults['decay_schedule_lr']=0.004# Parameter for nadam optmizer
+    # kerasDefaults['clipnorm']=?            # Maximum norm to clip all parameter gradients
+    # kerasDefaults['clipvalue']=?          # Maximum (minimum=-max) value to clip all parameter gradients
+    kerasDefaults['decay_lr'] = 0.            # Learning rate decay over each update
+    kerasDefaults['epsilon'] = 1e-8           # Factor to avoid divide by zero (fuzz factor)
+    kerasDefaults['rho'] = 0.9                # Decay parameter in some optmizer updates (rmsprop, adadelta)
+    kerasDefaults['momentum_sgd'] = 0.        # Momentum for parameter update in sgd optimizer
+    kerasDefaults['nesterov_sgd'] = False     # Whether to apply Nesterov momentum in sgd optimizer
+    kerasDefaults['beta_1'] = 0.9             # Parameter in some optmizer updates (adam, adamax, nadam)
+    kerasDefaults['beta_2'] = 0.999           # Parameter in some optmizer updates (adam, adamax, nadam)
+    kerasDefaults['decay_schedule_lr'] = 0.004  # Parameter for nadam optmizer
 
     # Initializers
-    kerasDefaults['minval_uniform']=-0.05   #  Lower bound of the range of random values to generate
-    kerasDefaults['maxval_uniform']=0.05    #  Upper bound of the range of random values to generate
-    kerasDefaults['mean_normal']=0.         #  Mean of the random values to generate
-    kerasDefaults['stddev_normal']=0.05     #  Standard deviation of the random values to generate
-
+    kerasDefaults['minval_uniform'] = -0.05  # Lower bound of the range of random values to generate
+    kerasDefaults['maxval_uniform'] = 0.05  # Upper bound of the range of random values to generate
+    kerasDefaults['mean_normal'] = 0.  # Mean of the random values to generate
+    kerasDefaults['stddev_normal'] = 0.05  # Standard deviation of the random values to generate
 
     return kerasDefaults
