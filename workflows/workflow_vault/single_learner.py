@@ -122,9 +122,12 @@ class SYNC(erl.ExaWorkflow):
                             (str(comm.rank), str(total_reward)))
 
                 # Save Learning target model
-                if comm.rank == 0:
-                    learner.agent.save(learner.results_dir +
-                                       '/' + filename_prefix + '.h5')
+                # Following statement needs a fix and so commented for now
+                #     Error copied below the commented statements
+                #if comm.rank == 0:
+                #    learner.agent.save(learner.results_dir +
+                #                       '/' + filename_prefix + '.h5')
+                # TypeError: save() takes 1 positional argument but 2 were given
 
                 steps += 1
                 if steps >= learner.nsteps:
