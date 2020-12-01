@@ -7,6 +7,7 @@ from utils.candleDriver import initialize_parameters
 run_params = initialize_parameters()
 logger = log.setup_logger(__name__, run_params['log_level'])
 
+
 def read_data(filename):
     frame = pd.read_csv(filename, sep=' ',
                         header=None,
