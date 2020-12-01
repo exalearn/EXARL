@@ -50,7 +50,7 @@ class ExaAgent(ABC):
         pass
 
     @abstractmethod
-    def save(self):
+    def save(self, results_dir):
         pass
 
     @abstractmethod

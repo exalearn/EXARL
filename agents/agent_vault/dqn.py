@@ -23,7 +23,7 @@ mpi4py.rc.threads = False
 tf_version = int((tf.__version__)[0])
 
 run_params = initialize_parameters()
-logger = log.setup_logger('RL-Logger', run_params['log_level'])
+logger = log.setup_logger(__name__, run_params['log_level'])
 
 # The Deep Q-Network (DQN)
 
