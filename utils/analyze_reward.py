@@ -2,7 +2,10 @@ import pandas as pd
 import os
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+import utils.log as log
+from utils.candleDriver import initialize_parameters
+run_params = initialize_parameters()
+logger = log.setup_logger(__name__, run_params['log_level'])
 
 def read_data(filename):
     frame = pd.read_csv(filename, sep=' ',
@@ -26,10 +29,10 @@ def save_reward_plot(results_dir):
     results_dir = results_dir
     for filename in os.listdir(results_dir):
         if filename.endswith(".log"):
-            print('filename:{}'.format(filename))
+            logger.info('filename:{}'.format(filename))
             df = read_data(results_dir + filename)
             df_ranks.append(df)
-            print(df.head())
+            logger.info(df.head())
 
     df_merged = pd.concat(df_ranks)
     df_merged.set_index('episode', inplace=True)
