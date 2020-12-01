@@ -8,7 +8,7 @@ import exarl as erl
 import utils.log as log
 from utils.candleDriver import initialize_parameters
 run_params = initialize_parameters()
-logger = log.setup_logger('RL-Logger', run_params['log_level'])
+logger = log.setup_logger(__name__, run_params['log_level'])
 
 
 class ASYNC(erl.ExaWorkflow):
@@ -53,7 +53,7 @@ class ASYNC(erl.ExaWorkflow):
                 rank0_epsilon = learner.agent.epsilon
                 target_weights = learner.agent.get_weights()
                 episode = worker_episodes[s - 1]
-                print('send inside the initialize')
+
                 agent_comm.send(
                     [episode, rank0_epsilon, target_weights], dest=s)
 
