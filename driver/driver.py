@@ -16,7 +16,7 @@ size = comm.Get_size()
 run_params = initialize_parameters()
 
 # Create learner object and run
-exa_learner = erl.ExaLearner(run_params)
+exa_learner = erl.ExaLearner(comm, run_params)
 
 # Run the learner, measure time
 start = time.time()
