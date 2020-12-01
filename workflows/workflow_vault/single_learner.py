@@ -123,8 +123,7 @@ class SYNC(erl.ExaWorkflow):
 
                 # Save Learning target model
                 if comm.rank == 0:
-                    learner.agent.save(learner.results_dir +
-                                       '/' + filename_prefix + '.h5')
+                    learner.agent.save(learner.results_dir + '/' + filename_prefix + '.h5')
 
                 steps += 1
                 if steps >= learner.nsteps:
