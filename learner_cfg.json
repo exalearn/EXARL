@@ -1,8 +1,8 @@
 {
     "agent": "DQN-v0",
-    "env": "ExaDotsAndBoxes-v0",
+    "env": "CartPole-v0",
     "workflow": "async",
-    "n_episodes": 10,
+    "n_episodes": 32,
     "n_steps": 10,
     "output_dir": "./results_dir/",
     "process_per_env": 1,

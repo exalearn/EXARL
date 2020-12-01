@@ -1,12 +1,11 @@
-name: exarlEnvTest
+name: dab_intro_mpi
 channels:
 - conda-forge
 - anaconda
 - defaults
 dependencies:
 - python=3.7
-- mpi4py
-- tensorflow-gpu >=2.0.0
+- tensorflow >=2.0.0
 - keras
 - seaborn
 - gym
@@ -17,5 +16,4 @@ dependencies:
 - lmfit
 - pandas
 - pip
-- pip:
-  - -e ..
+

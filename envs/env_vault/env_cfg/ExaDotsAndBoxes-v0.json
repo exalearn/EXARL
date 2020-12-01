@@ -1,4 +1,4 @@
 {
-    "boardSize" : 3,
-    "initialMoves" : 11 
+    "boardSize" : 100,
+    "initialMoves" : 0
 }

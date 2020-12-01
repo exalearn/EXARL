@@ -4,6 +4,7 @@ import csv
 from mpi4py import MPI
 import numpy as np
 import exarl as erl
+import introbind as ib
 
 import utils.log as log
 from utils.candleDriver import initialize_parameters
@@ -16,7 +17,7 @@ class ASYNC(erl.ExaWorkflow):
         print('Class ASYNC learner')
 
     def run(self, learner):
-
+        # ib.start()
         # MPI communicators
         agent_comm = mpi_settings.agent_comm
         env_comm = mpi_settings.env_comm
@@ -75,8 +76,10 @@ class ASYNC(erl.ExaWorkflow):
                 logger.debug('done:{}'.format(done))
                 # Train
                 learner.agent.train(batch)
+                ib.update("Learner_Train", 1)
                 # TODO: Double check if this is already in the DQN code
                 learner.agent.target_train()
+                ib.update("Learner_Target_Train", 1)
 
                 # Send target weights
                 rank0_epsilon = learner.agent.epsilon
@@ -105,7 +108,7 @@ class ASYNC(erl.ExaWorkflow):
                 agent_comm.send([episode, 0, 0], dest=s)
 
             logger.info('Learner time: {}'.format(MPI.Wtime() - start))
-
+            ib.update("Learner_Episode", 1)
         else:
             if mpi_settings.is_actor():
                 # Setup logger
@@ -157,9 +160,11 @@ class ASYNC(erl.ExaWorkflow):
                         else:
                             action, policy_type = learner.agent.action(
                                 current_state)
+                            ib.update("Env_Inference", 1)
 
                     next_state, reward, done, _ = learner.env.step(action)
-
+                    ib.update("Env_Step", 1)
+                    
                     if mpi_settings.is_actor():
                         total_reward += reward
                         memory = (current_state, action, reward,
@@ -201,6 +206,7 @@ class ASYNC(erl.ExaWorkflow):
                     # Break for loop if done
                     if done:
                         break
+                ib.update("Env_Episode", 1)
             logger.info('Worker time = {}'.format(MPI.Wtime() - start))
             if mpi_settings.is_actor():
                 train_file.close()
@@ -208,3 +214,5 @@ class ASYNC(erl.ExaWorkflow):
         if mpi_settings.is_actor():
             logger.info(f'Agent[{agent_comm.rank}] timing info:\n')
             learner.agent.print_timers()
+
+        # ib.stop()

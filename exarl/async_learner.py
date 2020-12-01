@@ -15,7 +15,7 @@ def run_async_learner(self):
     # MPI communicators
     agent_comm = mpi_settings.agent_comm
     env_comm = mpi_settings.env_comm
-
+    logger.debug("HHHHHEEEEERRRRREEEEE")
     # Set target model
     target_weights = None
     if mpi_settings.is_learner():
@@ -71,6 +71,7 @@ def run_async_learner(self):
             self.agent.train(batch)
             # TODO: Double check if this is already in the DQN code
             self.agent.target_train()
+            
 
             # Send target weights
             rank0_epsilon = self.agent.epsilon
@@ -159,7 +160,7 @@ def run_async_learner(self):
                     self.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
 
                     batch_data = next(self.agent.generate_data())
-                    logger.info('Rank[{}] - Generated data: {}'.format(agent_comm.rank, len(batch_data[0])))
+                    logger.info('Rank[{}] - Generated data---------: {}'.format(agent_comm.rank, len(batch_data[0])))
                     logger.info('Rank[{}] - Memories: {}'.format(agent_comm.rank, len(self.agent.memory)))
 
                 if steps >= self.nsteps - 1:
@@ -193,3 +194,4 @@ def run_async_learner(self):
     if mpi_settings.is_actor():
         logger.info(f'Agent[{agent_comm.rank}] timing info:\n')
         self.agent.print_timers()
+        
