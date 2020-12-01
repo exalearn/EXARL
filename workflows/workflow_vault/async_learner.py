@@ -102,6 +102,17 @@ class ASYNC(erl.ExaWorkflow):
             logger.info("Finishing up ...\n")
             episode = -1
             for s in range(1, agent_comm.size):
+                recv_data = agent_comm.recv(source=MPI.ANY_SOURCE)
+                whofrom = recv_data[0]
+                step = recv_data[1]
+                batch = recv_data[2]
+                done = recv_data[3]
+                logger.debug('step:{}'.format(step))
+                logger.debug('done:{}'.format(done))
+                # Train
+                learner.agent.train(batch)
+                # TODO: Double check if this is already in the DQN code
+                learner.agent.target_train()
                 agent_comm.send([episode, 0, 0], dest=s)
 
             logger.info('Learner time: {}'.format(MPI.Wtime() - start))
