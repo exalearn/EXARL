@@ -245,7 +245,7 @@ class DDPG(erl.ExaAgent):
     def load(self):
         print("Implement load method in ddpg.py")
 
-    def save(self):
+    def save(self, results_dir):
         print("Implement load method in ddpg.py")
 
     def monitor(self):
