@@ -9,11 +9,10 @@ from utils.OUActionNoise import OUActionNoise2
 
 import exarl as erl
 
-import logging
-
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('RL-Logger')
-logger.setLevel(logging.INFO)
+import utils.log as log
+from utils.candleDriver import initialize_parameters
+run_params = initialize_parameters()
+logger = log.setup_logger(__name__, run_params['log_level'])
 
 
 @tf.function
@@ -92,9 +91,7 @@ class DDPG(erl.ExaAgent):
         # If the counter exceeds the capacity then
         index = self.buffer_counter % self.buffer_capacity
         self.state_buffer[index] = state
-        # self.action_buffer[index] = action
-        # action is an array of size 3 and so get the first value
-        self.action_buffer[index] = action[0]
+        self.action_buffer[index] = action
         self.reward_buffer[index] = reward
         self.next_state_buffer[index] = next_state
         self.done_buffer[index] = int(done)
@@ -248,7 +245,7 @@ class DDPG(erl.ExaAgent):
     def load(self):
         print("Implement load method in ddpg.py")
 
-    def save(self):
+    def save(self, results_dir):
         print("Implement load method in ddpg.py")
 
     def monitor(self):
