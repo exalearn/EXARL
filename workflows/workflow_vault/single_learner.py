@@ -6,7 +6,7 @@ import exarl as erl
 import utils.log as log
 from utils.candleDriver import initialize_parameters
 run_params = initialize_parameters()
-logger = log.setup_logger('RL-Logger', run_params['log_level'])
+logger = log.setup_logger(__name__, run_params['log_level'])
 
 
 class SYNC(erl.ExaWorkflow):
