@@ -53,6 +53,7 @@ def base_parser(params):
     parser = argparse.ArgumentParser(description="Base parser")
     parser.add_argument("--agent")
     parser.add_argument("--env")
+    parser.add_argument("--workflow")
     args, leftovers = parser.parse_known_args()
 
     if args.agent is not None:
@@ -62,6 +63,10 @@ def base_parser(params):
     if args.env is not None:
         params['env'] = args.env
         print("Environment overwitten from command line: ", args.env)
+
+    if args.workflow is not None:
+        params['workflow'] = args.workflow
+        print("Workflow overwitten from command line: ", args.workflow)
 
     return params
 
