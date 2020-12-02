@@ -61,3 +61,8 @@ elif env == 'ExaLAMMPS-v0':
         id=env,
         entry_point='envs.env_vault:ExaLAMMPS'
     )
+elif env == 'ExaWaterCluster-v0':
+    register(
+        id=env,
+        entry_point='envs.env_vault:WaterCluster'
+    )
