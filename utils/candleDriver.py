@@ -35,7 +35,6 @@ class BenchmarkDriver(candle.Benchmark):
 
 
 def initialize_parameters():
-
     # Build agent object
     driver = BenchmarkDriver(file_path, '', 'keras',
                              prog='CANDLE_example', desc='CANDLE example driver script')
@@ -48,6 +47,23 @@ def initialize_parameters():
 
     return gParameters
 
+
+def base_parser(params):
+    # checks for env or agent command line override before reasing json files
+    parser = argparse.ArgumentParser(description = "Base parser")
+    parser.add_argument("--agent")
+    parser.add_argument("--env")
+    args, leftovers = parser.parse_known_args()
+
+    if args.agent is not None:
+        params['agent'] = args.agent
+        print("Agent overwitten from command line: ", args.agent)
+
+    if args.env is not None:
+        params['env'] = args.env
+        print("Environment overwitten from command line: ", args.env)
+
+    return params
 
 def parser_from_json(json_file):
     file = open(json_file,)
@@ -62,13 +78,12 @@ def parser_from_json(json_file):
 
     return new_defs
 
-
 def get_driver_params():
     learner_cfg = 'learner_cfg.json'
     learner_defs = parser_from_json(learner_cfg)
     print('Learner parameters from ', learner_cfg)
     params = json.load(open(learner_cfg))
-
+    params = base_parser(params)
     agent_cfg = 'agents/agent_vault/agent_cfg/' + params['agent'] + '_' + params['model_type'] + '.json'
     if os.path.exists(agent_cfg):
         print('Agent parameters from ', agent_cfg)
