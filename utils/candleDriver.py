@@ -43,7 +43,7 @@ def initialize_parameters():
     # Initialize parameters
     gParameters = candle.finalize_parameters(driver)
     # benchmark.logger.info('Params: {}'.format(gParameters))
-    logger = log.setup_logger('RL-Logger', gParameters['log_level'])
+    logger = log.setup_logger(__name__, gParameters['log_level'])
     logger.info("Finalized parameters:\n" + pformat(gParameters))
 
     return gParameters
