@@ -50,7 +50,7 @@ def initialize_parameters():
 
 def base_parser(params):
     # checks for env or agent command line override before reasing json files
-    parser = argparse.ArgumentParser(description = "Base parser")
+    parser = argparse.ArgumentParser(description="Base parser")
     parser.add_argument("--agent")
     parser.add_argument("--env")
     args, leftovers = parser.parse_known_args()
@@ -65,6 +65,7 @@ def base_parser(params):
 
     return params
 
+
 def parser_from_json(json_file):
     file = open(json_file,)
     params = json.load(file)
@@ -77,6 +78,7 @@ def parser_from_json(json_file):
         new_defs.append(new_def)
 
     return new_defs
+
 
 def get_driver_params():
     learner_cfg = 'learner_cfg.json'
