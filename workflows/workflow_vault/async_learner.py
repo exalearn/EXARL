@@ -9,12 +9,12 @@ import introbind as ib
 import utils.log as log
 from utils.candleDriver import initialize_parameters
 run_params = initialize_parameters()
-logger = log.setup_logger('RL-Logger', run_params['log_level'])
+logger = log.setup_logger(__name__, run_params['log_level'])
 
 
 class ASYNC(erl.ExaWorkflow):
     def __init__(self):
-        print('Class ASYNC learner')
+        print('Creating ASYNC learner workflow...')
 
     def run(self, learner):
         # ib.start()
@@ -54,7 +54,6 @@ class ASYNC(erl.ExaWorkflow):
                 rank0_epsilon = learner.agent.epsilon
                 target_weights = learner.agent.get_weights()
                 episode = worker_episodes[s - 1]
-                print('send inside the initialize')
                 agent_comm.send(
                     [episode, rank0_epsilon, target_weights], dest=s)
 
@@ -105,6 +104,17 @@ class ASYNC(erl.ExaWorkflow):
             logger.info("Finishing up ...\n")
             episode = -1
             for s in range(1, agent_comm.size):
+                recv_data = agent_comm.recv(source=MPI.ANY_SOURCE)
+                whofrom = recv_data[0]
+                step = recv_data[1]
+                batch = recv_data[2]
+                done = recv_data[3]
+                logger.debug('step:{}'.format(step))
+                logger.debug('done:{}'.format(done))
+                # Train
+                learner.agent.train(batch)
+                # TODO: Double check if this is already in the DQN code
+                learner.agent.target_train()
                 agent_comm.send([episode, 0, 0], dest=s)
 
             logger.info('Learner time: {}'.format(MPI.Wtime() - start))

@@ -9,7 +9,6 @@ A scalable software framework for reinforcement learning environments and agents
 * The EXARL framework is built on [OpenAI Gym](https://gym.openai.com) 
 * Additional python packages are defined in the setup.py 
 * This document assumes you are running at the top directory 
-* EXARL works best with mpich (You may get errors using OpenMPI
 
 ## Directory Organization
 ```
@@ -352,7 +351,7 @@ Example:-
 ```
 run()   # run the workflow
 ```
-* Register the agent in ```ExaRL/workflows/__init__.py```
+* Register the workflow in ```ExaRL/workflows/__init__.py```
     
 ```
 from .registration import register, make

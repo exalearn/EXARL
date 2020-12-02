@@ -61,7 +61,11 @@ elif env == 'ExaLAMMPS-v0':
         id=env,
         entry_point='envs.env_vault:ExaLAMMPS'
     )
-
+elif env == 'ExaWaterCluster-v0':
+    register(
+        id=env,
+        entry_point='envs.env_vault:WaterCluster'
+    )
 elif env == 'ExaDotsAndBoxes-v0':
     register(
         id=env,
@@ -71,7 +75,6 @@ elif env == 'ExaDotsAndBoxes-v0':
             "initialMoves":run_params["initialMoves"]
             },
     )
-
 elif env == 'GymSpaceTest-v0':
     register(
         id=env,

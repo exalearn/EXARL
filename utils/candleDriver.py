@@ -35,7 +35,6 @@ class BenchmarkDriver(candle.Benchmark):
 
 
 def initialize_parameters():
-
     # Build agent object
     driver = BenchmarkDriver(file_path, '', 'keras',
                              prog='CANDLE_example', desc='CANDLE example driver script')
@@ -43,10 +42,33 @@ def initialize_parameters():
     # Initialize parameters
     gParameters = candle.finalize_parameters(driver)
     # benchmark.logger.info('Params: {}'.format(gParameters))
-    logger = log.setup_logger('RL-Logger', gParameters['log_level'])
+    logger = log.setup_logger(__name__, gParameters['log_level'])
     logger.info("Finalized parameters:\n" + pformat(gParameters))
 
     return gParameters
+
+
+def base_parser(params):
+    # checks for env or agent command line override before reasing json files
+    parser = argparse.ArgumentParser(description="Base parser")
+    parser.add_argument("--agent")
+    parser.add_argument("--env")
+    parser.add_argument("--workflow")
+    args, leftovers = parser.parse_known_args()
+
+    if args.agent is not None:
+        params['agent'] = args.agent
+        print("Agent overwitten from command line: ", args.agent)
+
+    if args.env is not None:
+        params['env'] = args.env
+        print("Environment overwitten from command line: ", args.env)
+
+    if args.workflow is not None:
+        params['workflow'] = args.workflow
+        print("Workflow overwitten from command line: ", args.workflow)
+
+    return params
 
 
 def parser_from_json(json_file):
@@ -68,7 +90,7 @@ def get_driver_params():
     learner_defs = parser_from_json(learner_cfg)
     print('Learner parameters from ', learner_cfg)
     params = json.load(open(learner_cfg))
-
+    params = base_parser(params)
     agent_cfg = 'agents/agent_vault/agent_cfg/' + params['agent'] + '_' + params['model_type'] + '.json'
     if os.path.exists(agent_cfg):
         print('Agent parameters from ', agent_cfg)
