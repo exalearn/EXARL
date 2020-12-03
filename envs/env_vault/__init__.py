@@ -1,6 +1,5 @@
-from utils.candleDriver import initialize_parameters
+import utils.candleDriver as cd
 
-run_params = initialize_parameters()
 env = run_params['env']
 
 if env == 'ExaTDLG-v0':
