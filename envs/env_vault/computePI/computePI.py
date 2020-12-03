@@ -12,9 +12,9 @@ _lib = ctypes.CDLL(os.path.join(_libdir, "libcomputePI.so"))
 _lib.compute_pi.restype = ctypes.c_double
 _lib.compute_pi.argtypes = [ctypes.c_int, MPI_Comm]
 
+
 def compute_pi(N, comm):
     comm_ptr = MPI._addressof(comm)
     comm_val = MPI_Comm.from_address(comm_ptr)
     myPI = _lib.compute_pi(ctypes.c_int(N), comm_val)
     return myPI
-
