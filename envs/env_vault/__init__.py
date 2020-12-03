@@ -1,6 +1,6 @@
 import utils.candleDriver as cd
 
-env = run_params['env']
+env = cd.run_params['env']
 
 if env == 'ExaTDLG-v0':
     from envs.env_vault.exalearn_bcp_tdlg import BlockCoPolymerTDLG
