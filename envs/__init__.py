@@ -26,9 +26,10 @@ elif env == 'ExaTDLG-v3':
         kwargs={"app_dir":'./envs/env_vault/LibTDLG'},
     )
     
-elif env == 'ExaCartPole-v0':
+elif env.lower() == 'exacartpole-v0':
+#elif env == 'ExaCartPole-v0':
     register(
-        id=env,
+        id=env.lower(),
         entry_point='envs.env_vault:ExaCartpoleDynamic'
     )
 
