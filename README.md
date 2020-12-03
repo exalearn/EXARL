@@ -117,11 +117,13 @@ E.g.:- ```ExaRL/agents/agent_vault/agent_cfg/DQN-v0_LSTM.json```, ```ExaRL/envs/
 * Existing environment can be paired with an available agent
 * The following script is provided for convenience: ```ExaRL/driver/driver.py```
 ```
-import exarl as erl
-from utils.candleDriver import initialize_parameters
-import time
-import utils.analyze_reward as ar
 from mpi4py import MPI
+import utils.analyze_reward as ar
+import time
+import exarl as erl
+import mpi4py.rc
+mpi4py.rc.threads = False
+mpi4py.rc.recv_mprobe = False
 
 # MPI communicator
 comm = MPI.COMM_WORLD
@@ -129,10 +131,10 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 # Get run parameters using CANDLE
-run_params = initialize_parameters()
+# run_params = initialize_parameters()
 
 # Create learner object and run
-exa_learner = erl.ExaLearner(run_params)
+exa_learner = erl.ExaLearner(comm)
 
 # Run the learner, measure time
 start = time.time()
@@ -144,10 +146,10 @@ max_elapse = comm.reduce(elapse, op=MPI.MAX, root=0)
 elapse = comm.reduce(elapse, op=MPI.SUM, root=0)
 
 if rank == 0:
-    print("Average elapsed time = ", elapse/size)
+    print("Average elapsed time = ", elapse / size)
     print("Maximum elapsed time = ", max_elapse)
     # Save rewards vs. episodes plot
-    ar.save_reward_plot(run_params['output_dir']+'/')
+    ar.save_reward_plot()
 ```
 * Write your own script or modify the above as needed
 * Run the following command:
@@ -165,14 +167,14 @@ self.agent_comm = mpi_settings.agent_comm
 ### Using parameters set in CANDLE configuration/get parameters from terminal
 * To obtain the parameters from JSON file/set in terminal using CANDLE, use the following lines:
 ```
-from utils.candleDriver import initialize_parameters
-run_params = initialize_parameters()
+import utils.candleDriver as cd
+cd.run_params # dictionary containing all parameters
 ```
 * Individual parameters are accessed using the corresponding key \
 E.g.-
 ```
-self.search_method =  run_params['search_method']
-self.gamma =  run_params['gamma']
+self.search_method =  cd.run_params['search_method']
+self.gamma =  cd.run_params['gamma']
 
 ```
 ## Creating custom environments

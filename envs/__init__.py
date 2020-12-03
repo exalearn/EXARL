@@ -1,11 +1,9 @@
 from gym.envs import registration
 from gym.envs.registration import register
-from utils.candleDriver import initialize_parameters
+import utils.candleDriver as cd
 
 
-run_params = initialize_parameters()
-env = run_params['env']
-
+env = cd.run_params['env']
 
 if env == 'ExaCH-v0':
     register(

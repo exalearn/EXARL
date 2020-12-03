@@ -3,9 +3,8 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 import utils.log as log
-from utils.candleDriver import initialize_parameters
-run_params = initialize_parameters()
-logger = log.setup_logger(__name__, run_params['log_level'])
+import utils.candleDriver as cd
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 
 def read_data(filename):
@@ -24,7 +23,8 @@ def read_data(filename):
 
 
 # Can all log files
-def save_reward_plot(results_dir):
+def save_reward_plot():
+    results_dir = cd.run_params['output_dir'] + '/'
     df_ranks = []
     # Candle directory stucture
     results_dir = results_dir
