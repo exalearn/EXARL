@@ -10,9 +10,8 @@ from utils.OUActionNoise import OUActionNoise2
 import exarl as erl
 
 import utils.log as log
-from utils.candleDriver import initialize_parameters
-run_params = initialize_parameters()
-logger = log.setup_logger(__name__, run_params['log_level'])
+import utils.candleDriver as cd
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 
 @tf.function
