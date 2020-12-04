@@ -30,6 +30,9 @@ import utils.candleDriver as cd
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 
+from line_profiler import LineProfiler
+
+
 class ExaLearner():
 
     def __init__(self, comm):
