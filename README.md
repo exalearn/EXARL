@@ -398,6 +398,7 @@ def my_func(*args, **kwargs):
 def my_func(*args, **kwargs):
     ...
 ```
+* Profiling results are written to: ```results_dir + '/Profile/<line/memory>_profile.txt```.
 
 ## Cite this software
 ```
