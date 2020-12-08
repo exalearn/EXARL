@@ -26,14 +26,13 @@ from mpi4py import MPI
 import json
 
 import utils.log as log
-from utils.candleDriver import initialize_parameters
-run_params = initialize_parameters()
-logger = log.setup_logger(__name__, run_params['log_level'])
+import utils.candleDriver as cd
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 
 class ExaLearner():
 
-    def __init__(self, comm, run_params):
+    def __init__(self, comm):
         # Global communicator
         self.global_comm = comm
         self.global_size = self.global_comm.size
@@ -44,13 +43,13 @@ class ExaLearner():
         self.results_dir = './results'  # Default dir, will be overridden by candle
         self.do_render = False
 
-        self.process_per_env = int(run_params['process_per_env'])
-        self.action_type = run_params['action_type']
+        self.process_per_env = int(cd.run_params['process_per_env'])
+        self.action_type = cd.run_params['action_type']
 
         # Setup agent and environments
-        self.agent_id = 'agents:' + run_params['agent']
-        self.env_id   = 'envs:' + run_params['env']
-        self.workflow_id = 'workflows:' + run_params['workflow']
+        self.agent_id = 'agents:' + cd.run_params['agent']
+        self.env_id   = 'envs:' + cd.run_params['env']
+        self.workflow_id = 'workflows:' + cd.run_params['workflow']
 
         # Sanity check before we actually allocate resources
         if self.global_size < self.process_per_env:
@@ -69,7 +68,7 @@ class ExaLearner():
 
         self.env.spec.max_episode_steps  = self.nsteps
         self.env._max_episode_steps = self.nsteps
-        self.set_config(run_params)
+        self.set_config()
         # self.env.set_env()
         self.env.reset()
 
@@ -100,7 +99,8 @@ class ExaLearner():
         self.env._max_episode_steps = self.nsteps
 
     # Use with CANDLE
-    def set_config(self, params):
+    def set_config(self):
+        params = cd.run_params
         self.set_training(int(params['n_episodes']), int(params['n_steps']))
         self.results_dir = params['output_dir']
         if not os.path.exists(self.results_dir):
