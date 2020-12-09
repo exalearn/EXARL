@@ -243,14 +243,14 @@ void DotsAndBoxes::printBoard() {
         for(int j=0; j<dimension-1; j++) {
             printf(".");
             if(checkLine(i * (dimension-1) + j, true))
-                printf("_", i * (dimension-1) + j);
+                printf("_");
             else
                 printf(" ");
         }
         printf(".\n");
         for(int j=0; j<dimension; j++) {
             if(checkLine(i * (dimension) + j, false))
-                printf("|", j);
+                printf("|");
             else
                 printf(" ");
 
