@@ -16,6 +16,7 @@ from datetime import datetime
 import numpy as np
 from mpi4py import MPI
 from utils.candleDriver import initialize_parameters
+from utils.introspect import introspectTrace
 import utils.log as log
 from tensorflow.compat.v1.keras.backend import set_session
 import mpi4py.rc
@@ -167,6 +168,7 @@ class DQN(erl.ExaAgent):
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
+    @introspectTrace()
     def action(self, state):
         random.seed(datetime.now())
         random_data = os.urandom(4)
@@ -187,6 +189,7 @@ class DQN(erl.ExaAgent):
             act_values = self.target_model.predict(state)
         return np.argmax(act_values[0])
 
+    @introspectTrace()
     def calc_target_f(self, exp):
         state, action, reward, next_state, done = exp
         np_state = np.array(state).reshape(1, 1, len(state))
@@ -202,6 +205,7 @@ class DQN(erl.ExaAgent):
         target_f[0][action] = target
         return target_f[0]
 
+    @introspectTrace()
     def generate_data(self):
         # Worker method to create samples for training
         # TODO: This method is the most expensive and takes 90% of the agent compute time
@@ -223,6 +227,7 @@ class DQN(erl.ExaAgent):
         logger.debug('Agent[{}] - Minibatch time: {} '.format(self.rank, (end_time - start_time)))
         yield batch_states, batch_target
 
+    @introspectTrace()
     def train(self, batch):
         self.epsilon_adj()
         if self.is_learner:
@@ -241,16 +246,19 @@ class DQN(erl.ExaAgent):
         else:
             logger.warning('Training will not be done because this instance is not set to learn.')
 
+    # @introspectTrace()
     def get_weights(self):
         # logger.debug('Agent[%s] - get target weight.' % str(self.rank))
         return self.target_model.get_weights()
 
+    # @introspectTrace()
     def set_weights(self, weights):
         logger.info('Agent[%s] - set target weight.' % str(self.rank))
         logger.debug('Agent[%s] - set target weight: %s' % (str(self.rank), weights))
         with tf.device(self.device):
             self.target_model.set_weights(weights)
 
+    @introspectTrace()
     def target_train(self):
         if self.is_learner:
             logger.info('Agent[%s] - update target weights.' % str(self.rank))
@@ -267,6 +275,7 @@ class DQN(erl.ExaAgent):
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
+    @introspectTrace()
     def load(self, filename):
         layers = self.target_model.layers
         with open(filename, 'rb') as f:
@@ -276,6 +285,7 @@ class DQN(erl.ExaAgent):
             assert(layers[layerId].name == pickle_list[layerId][0])
             layers[layerId].set_weights(pickle_list[layerId][1])
 
+    @introspectTrace()
     def save(self, filename):
         layers = self.target_model.layers
         pickle_list = []

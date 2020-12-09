@@ -1,3 +1,4 @@
+import introbind as ib
 from mpi4py import MPI
 import utils.analyze_reward as ar
 import time
@@ -19,9 +20,11 @@ run_params = initialize_parameters()
 exa_learner = erl.ExaLearner(comm, run_params)
 
 # Run the learner, measure time
+ib.start()
 start = time.time()
 exa_learner.run()
 elapse = time.time() - start
+ib.stop()
 
 # Compute and print average time
 max_elapse = comm.reduce(elapse, op=MPI.MAX, root=0)
