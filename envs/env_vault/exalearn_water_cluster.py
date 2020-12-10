@@ -322,7 +322,7 @@ class WaterCluster(gym.Env):
         # ## Start a new random starting point ## 
         print('====== WATER_CLUSTER ======',self.action_space)
         random_action = self.action_space.sample()
-        self.step2(random_action)
+        self.step_dep(random_action)
         self.init_structure=self.current_structure
         self.inital_state=self.current_state
         logger.info("Resetting the environemnts.")
