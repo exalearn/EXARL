@@ -5,9 +5,8 @@ import sys
 import exarl as erl
 
 import utils.log as log
-from utils.candleDriver import initialize_parameters
-run_params = initialize_parameters()
-logger = log.setup_logger('RL-Logger', run_params['log_level'])
+import utils.candleDriver as cd
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 
 class SEED(erl.ExaWorkflow):
