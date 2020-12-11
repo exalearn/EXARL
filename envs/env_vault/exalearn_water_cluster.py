@@ -5,6 +5,9 @@ from mpi4py import MPI
 import numpy as np
 from gym import error, spaces, utils
 from gym.utils import seeding
+import utils.log as log
+import utils.candleDriver as cd
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 #
 from ase.io import read, write
@@ -14,21 +17,12 @@ from math import log10
 import subprocess, os, math
 import tempfile
 
-import logging
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('WaterClusterEnv-Logger')
-logger.setLevel(logging.INFO)
 
 class WaterCluster(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    #def __init__(self,cfg_file='input.xyz'):
     def __init__(self, cfg='envs/env_vault/env_cfg/env_setup.json'):
         super().__init__()
-        self.env = gym.make('CartPole-v0')
-        self._max_episode_steps = 0
-        self.env._max_episode_steps = self._max_episode_steps
-        self.observation_space = self.env.observation_space
         """ 
         Description:
         Toy environment used to test new agents 
@@ -72,127 +66,21 @@ class WaterCluster(gym.Env):
         
         ## Actions per cluster: cluster id, rotation angle, translation  ##
         self.action_space = spaces.Box(low=np.array([0,75,0.3]), high=np.array([self.nclusters,105,0.7]),dtype=np.float32)      
-        print('****** WATER_CLUSTER ******',self.action_space)
 
     def _load_structure(self,env_input):
         ## Read initial XYZ file
-        structure = read(env_input)
+        logger.debug('Env Input: {}'.format(env_input) )
+        structure = read(env_input,parallel=False)
+        logger.debug('Structure: {}'.format(structure) )
         nclusters = (''.join(structure.get_chemical_symbols()).count("OHH"))-1
         logger.debug('Number of atoms: %s' %len(structure))
         logger.debug('Number of water clusters: %s ' % (nclusters+1))
         return (structure,nclusters)
-        
-    def step_dep(self, action):
-        logger.debug('Env::step()')
-        
-        ## Initialize outut
-        done=False
-        energy = 0.0                         ## Default energy
-        reward = np.random.normal(-100.0,0.01) ## Default penalty
-        target_scale = 200.0                 ## Scale for calculations
-
-        ## Make sure the action is within the defined space ##
-        isValid=self.action_space.contains(action)
-        if isValid==False:
-            logger.debug('Invalid action...')
-            #max_value = np.max(abs(action))
-            logger.debug(action)
-            #logger.debug("Reward: %s " % str(-max_value) )
-            #done=True
-            print('exalearn_water_cluster.py; line 102: Invalid action ... !!!')
-            #return np.array([0]), np.array(-max_value), done, {}
-            return np.array([0]), np.array(reward), done, {}
-
-        ## Extract actions
-        cluster_id = math.floor(action[0])
-        rotation_z = float(action[1])
-        translation = float(action[2]) #(x,y,z)
-
-        # Create water cluster from action
-        natoms=3
-        atom_idx = cluster_id * natoms
-        atoms = Atoms()
-        for i in range(0,natoms):
-            atoms.append(self.current_structure[atom_idx+i])
-
-        # Apply rotate_z action
-        # Get coordinates for each atom
-        H_coords=[]
-        for i, atomic_number in enumerate(atoms.get_atomic_numbers()):
-            if atomic_number == 8:
-                O_coords = atoms.get_positions()[i]
-            elif atomic_number == 1:
-                H_coords.append(atoms.get_positions()[i])
-            else:
-                print('Atom type not in water...')
-        # Calculate bisector vector along two O--H bonds.
-        u = np.array(H_coords[0]) - np.array(O_coords)
-        v = np.array(H_coords[1]) - np.array(O_coords)
-        bisector_vector = (np.linalg.norm(v)*u) + (np.linalg.norm(u)*v)
-        # Apply rotation through the z-axis of the water molecule.
-        # TODO: Double check output
-        atoms.rotate(rotation_z, v=bisector_vector, center=O_coords)
-
-        # Apply translation
-        atoms.translate(translation)
-
-        # Update structure
-        for i in range(0,natoms):
-            self.current_structure[atom_idx+i].position=atoms[i].position
-
-        # Save structure in xyz format
-        # TODO: need to create random name
-        # write('rotationz_test.xyz',self.current_structure,'xyz')
-        tmp_input='rotationz_test.xyz'
-        prefix='rotationz_rank{}_episode{}_steps{}.xyz'.format(
-            mpi_settings.agent_comm.rank, self.episode, self.steps)
-        print(prefix)
-        new_file = open(prefix, 'w')
-        # write(new_file, self.current_structure, 'xyz')
-
-        ## Run the process ##        
-        env_out = subprocess.Popen([self.app, tmp_input], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        stdout,stderr = env_out.communicate()
-        logger.debug(stdout)
-        logger.debug(stderr)
-        stdout = stdout.decode('utf-8').splitlines()
-        
-        # Check for clear problems
-        if any("Error in the det" in s for s in stdout):
-            logger.debug("\t!!! Error in the det !!!")
-            print('exalearn_water_cluster.py: !!! Error in the det !!!')
-            done=True
-            return np.array([0]), np.array(reward), done, {}
-        
-        # Reward is currently based on the potential energy
-        energy = float(stdout[-1].split()[-1])
-        energy = round(energy,6)
-        
-        # Check if the structure is the same
-        if round(self.current_state[0],6) == energy:
-            logger.debug('Same state ... terminating')
-            print('exalearn_water_cluster.py: Same state ... terminating !!!')
-            # done=True
-            return np.array([0]), np.array(reward), done, {}
-
-        # If valid action and simulation 
-        #reward= (energy/target_scale - 1.0)**2
-        # Current reward is based on the energy difference between the current state and the new state
-        #delta = energy-self.current_state[0]
-        #delta = energy-self.inital_state[0]
-        #reward = np.exp(-delta/5.0)
-        reward= (energy-self.current_state[0])
-        reward= np.array([round(reward,6)])
-        #logger.info('Current state: %s' % self.current_state)
-        #logger.info('Next State: %s' % np.array([energy]))
-        #logger.info('Reward: %s' % reward)
-        ## Update current state
-        self.current_state=np.array([energy])
-        return self.current_state, reward, done, {}
 
     def step(self, action):
         logger.debug('Env::step()')
         self.steps += 1
+        logger.debug('Env::step(); steps[{0:3d}]'.format(self.steps))
         
         ## Initialize outut
         done=False
@@ -203,12 +91,11 @@ class WaterCluster(gym.Env):
         ## Make sure the action is within the defined space ##
         isValid=self.action_space.contains(action)
         if isValid==False:
-            logger.debug('Invalid action...')
+            logger.debug('Env::step(); Invalid action...')
             #max_value = np.max(abs(action))
             logger.debug(action)
             #logger.debug("Reward: %s " % str(-max_value) )
-            print('exalearn_water_cluster.py; line 209: Invalid action ... !!!')
-            done=True
+            # done=True
             #return np.array([0]), np.array(-max_value), done, {}
             return np.array([0]), np.array(reward), done, {}
 
@@ -246,13 +133,12 @@ class WaterCluster(gym.Env):
         atoms.translate(translation)
 
         # Update structure
-        print('natoms: {}'.format(natoms))
         for i in range(0,natoms):
             self.current_structure[atom_idx+i].position=atoms[i].position
 
         # Save structure in xyz format
         # TODO: need to create random name
-        write('rotationz_test.xyz',self.current_structure,'xyz')
+        write('rotationz_test.xyz',self.current_structure,'xyz',parallel=False)
         tmp_input='rotationz_test.xyz'
 
         ## Run the process ##        
@@ -264,8 +150,7 @@ class WaterCluster(gym.Env):
         
         # Check for clear problems
         if any("Error in the det" in s for s in stdout):
-            logger.debug("\t!!! Error in the det !!!")
-            print('exalearn_water_cluster.py: !!! Error in the det !!!')
+            logger.debug("\tEnv::step(); !!! Error in the det !!!")
             done=True
             return np.array([0]), np.array(reward), done, {}
         
@@ -275,8 +160,7 @@ class WaterCluster(gym.Env):
         
         # Check if the structure is the same
         if round(self.current_state[0],6) == energy:
-            logger.debug('Same state ... terminating')
-            print('exalearn_water_cluster.py line276: Same state ... terminating !!!')
+            logger.debug('Env::step(); Same state ... terminating')
             done=True
             return np.array([0]), np.array(reward), done, {}
 
@@ -296,12 +180,13 @@ class WaterCluster(gym.Env):
         return self.current_state, reward, done, {}
 
     def reset(self):
-        print('exalearn_water_cluster.py; reset1')
+        self.episode += 1
+        self.steps = 0
+        logger.debug('Env::reset(); episode[{0:4d}]'.format(self.episode, self.steps))
         (self.init_structure, self.nclusters) =  self._load_structure(self.env_input)
         self.current_structure=self.init_structure
         self.current_state=self.inital_state
         ## Start a new random starting point ## 
-        print('++++++ WATER_CLUSTER ++++++',self.action_space)
         random_action = self.action_space.sample()
         self.step(random_action)
         self.init_structure=self.current_structure
@@ -309,26 +194,7 @@ class WaterCluster(gym.Env):
         logger.info("Resetting the environemnts.")
         logger.info("New initial state: %s" % str(self.inital_state))
         return self.current_state 
-    
-    def reset_dep(self):
-        self.env._max_episode_steps = self._max_episode_steps
-        self.episode += 1
-        self.steps = 0
-        print('exalearn_water_cluster.py; reset2')
-        print('exalearn_water_cluster.py; self.env_input', self.env_input)
-        # (self.init_structure, self.nclusters) =  self._load_structure(self.env_input)
-        # self.current_structure=self.init_structure
-        self.current_state=self.inital_state
-        # ## Start a new random starting point ## 
-        print('====== WATER_CLUSTER ======',self.action_space)
-        random_action = self.action_space.sample()
-        self.step_dep(random_action)
-        self.init_structure=self.current_structure
-        self.inital_state=self.current_state
-        logger.info("Resetting the environemnts.")
-        logger.info("New initial state: %s" % str(self.inital_state))
-        return self.current_state 
-    
+
     def render(self, mode='human'):
         return 0
 
