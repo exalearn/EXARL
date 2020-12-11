@@ -40,7 +40,7 @@ class ExaCartpoleStatic(gym.Env):
         else:
             N = None
 
-        N = self.env_comm.bcast(N, root=0)
+        N = mpi_settings.env_bcast(N, root=0)
         myPI = computePI(N, self.env_comm)  # Calls python function
         # myPI = cp.compute_pi(N, self.env_comm) # Calls C++ function
         PI = self.env_comm.reduce(myPI, op=MPI.SUM, root=0)
