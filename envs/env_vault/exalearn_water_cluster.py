@@ -138,8 +138,13 @@ class WaterCluster(gym.Env):
 
         # Save structure in xyz format
         # TODO: need to create random name
-        write('rotationz_test.xyz',self.current_structure,'xyz',parallel=False)
-        tmp_input='rotationz_test.xyz'
+        #       Now created using the index of rank, episode, and steps
+        # write('rotationz_test.xyz',self.current_structure,'xyz',parallel=False)
+        # tmp_input='rotationz_test.xyz'
+        prefix='rotationz_rank{}_episode{}_steps{}.xyz'.format(
+            mpi_settings.agent_comm.rank, self.episode, self.steps)
+        write(prefix, self.current_structure,'xyz',parallel=False)
+        tmp_input=prefix
 
         ## Run the process ##        
         env_out = subprocess.Popen([self.app, tmp_input], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -155,7 +160,9 @@ class WaterCluster(gym.Env):
             return np.array([0]), np.array(reward), done, {}
         
         # Reward is currently based on the potential energy
+        logger.debug("\tEnv::step(); stdout[{}]".format(stdout))
         energy = float(stdout[-1].split()[-1])
+        logger.debug("\tEnv::step(); energy[{}]".format(energy))
         energy = round(energy,6)
         
         # Check if the structure is the same
