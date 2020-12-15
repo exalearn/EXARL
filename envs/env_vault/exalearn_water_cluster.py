@@ -13,9 +13,10 @@ logger = log.setup_logger(__name__, cd.run_params['log_level'])
 from ase.io import read, write
 from ase import Atom, Atoms
 #
-from math 
-import log10
-import subprocess, os, math
+from math import log10
+import subprocess
+import os
+import math
 import tempfile
 
 
@@ -44,13 +45,13 @@ class WaterCluster(gym.Env):
         #############################################################
         self.app_dir = '/gpfs/alpine/ast153/proj-shared/pot_ttm'
         self.app_name = 'main.x'
-        self.app=os.path.join(self.app_dir, self.app_name)
+        self.app = os.path.join(self.app_dir, self.app_name)
         self.env_input_name = 'W10_geoms_lowest.xyz'  # 'input.xyz'
         self.env_input = os.path.join(self.app_dir, self.env_input_name)
 
         # Inital state
-        env_out = subprocess.Popen([self.app, self.env_input], 
-                    stdout = subprocess.PIPE, stderr=subprocess.STDOUT)
+        env_out = subprocess.Popen([self.app, self.env_input],
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = env_out.communicate()
         logger.debug(stdout)
         logger.debug(stderr)
@@ -65,14 +66,14 @@ class WaterCluster(gym.Env):
         self.current_structure = self.init_structure
 
         # Env state output: potential energy
-        self.observation_space = spaces.Box(low=np.array([-500]), 
-                    high=np.array([0]), dtype=np.float32)
+        self.observation_space = spaces.Box(low=np.array([-500]),
+                            high=np.array([0]), dtype=np.float32)
 
         # Actions per cluster: cluster id, rotation angle, translation
-        self.action_space = spaces.Box(low=np.array([0, 75, 0.3]), 
-                    high=np.array([self.nclusters, 105, 0.7]), dtype=np.float32)
+        self.action_space = spaces.Box(low=np.array([0, 75, 0.3]),
+                            high=np.array([self.nclusters, 105, 0.7]), dtype=np.float32)
 
-    def _load_structure(self,env_input):
+    def _load_structure(self, env_input):
         # Read initial XYZ file
         logger.debug('Env Input: {}'.format(env_input))
         structure = read(env_input, parallel=False)
@@ -139,7 +140,7 @@ class WaterCluster(gym.Env):
 
         # Update structure
         for i in range(0, natoms):
-            self.current_structure[atom_idx + i].position=atoms[i].position
+            self.current_structure[atom_idx + i].position = atoms[i].position
 
         # Save structure in xyz format
         # TODO: need to create random name
@@ -147,7 +148,7 @@ class WaterCluster(gym.Env):
         # write('rotationz_test.xyz',self.current_structure,'xyz',parallel=False)
         # tmp_input='rotationz_test.xyz'
         prefix = 'rotationz_rank{}_episode{}_steps{}.xyz'.format(
-                    mpi_settings.agent_comm.rank, self.episode, self.steps)
+                            mpi_settings.agent_comm.rank, self.episode, self.steps)
         write(prefix, self.current_structure, 'xyz', parallel=False)
         tmp_input = prefix
 
@@ -178,7 +179,7 @@ class WaterCluster(gym.Env):
 
         # If valid action and simulation
         # reward= (energy/target_scale - 1.0)**2
-        # Current reward is based on the energy difference between 
+        # Current reward is based on the energy difference between
         #     the current state and the new state
         # delta = energy-self.current_state[0]
         # delta = energy-self.inital_state[0]
