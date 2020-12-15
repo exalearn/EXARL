@@ -3,12 +3,14 @@ import utils.candleDriver as cd
 import os
 import functools
 import time
-import exarl.mpi_settings as mpi_settings
+from mpi4py import MPI
+
+global_comm = MPI.COMM_WORLD
 
 prof = cd.run_params['profile']
 results_dir = cd.run_params['output_dir'] + '/'
 if not os.path.exists(results_dir + '/Profile'):
-    if (mpi_settings.global_comm.rank == 0):
+    if (global_comm.rank == 0):
         os.makedirs(results_dir + '/Profile')
 
 
