@@ -12,11 +12,14 @@ import numpy as np
 import requests
 import tensorflow as tf
 
-import logging
+# import logging
 
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('RL-Logger')
-logger.setLevel(logging.INFO)
+# logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
+# logger = logging.getLogger('RL-Logger')
+# logger.setLevel(logging.INFO)
+import utils.log as log
+import utils.candleDriver as cd
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 np.seterr(divide='ignore', invalid='ignore')
 
@@ -107,7 +110,7 @@ class Surrogate_Accelerator_v1(gym.Env):
         data = data.dropna()
         data = data.drop_duplicates()
 
-        self.save_dir = './'
+        self.save_dir = cd.run_params['output_dir']
         self.episodes = 0
         self.steps = 0
         self.max_steps = 100
