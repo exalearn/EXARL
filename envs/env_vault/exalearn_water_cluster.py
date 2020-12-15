@@ -51,7 +51,11 @@ class WaterCluster(gym.Env):
 
         # Inital state
         env_out = subprocess.Popen([self.app, self.env_input],
+<<<<<<< HEAD
                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+=======
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+>>>>>>> more fixes for style checks as seen in Travis CI logs
         stdout, stderr = env_out.communicate()
         logger.debug(stdout)
         logger.debug(stderr)
@@ -67,11 +71,19 @@ class WaterCluster(gym.Env):
 
         # Env state output: potential energy
         self.observation_space = spaces.Box(low=np.array([-500]),
+<<<<<<< HEAD
                                             high=np.array([0]), dtype=np.float32)
 
         # Actions per cluster: cluster id, rotation angle, translation
         self.action_space = spaces.Box(low=np.array([0, 75, 0.3]),
                                        high=np.array([self.nclusters, 105, 0.7]), dtype=np.float32)
+=======
+                                        high=np.array([0]), dtype=np.float32)
+
+        # Actions per cluster: cluster id, rotation angle, translation
+        self.action_space = spaces.Box(low=np.array([0, 75, 0.3]),
+                                    high=np.array([self.nclusters, 105, 0.7]), dtype=np.float32)
+>>>>>>> more fixes for style checks as seen in Travis CI logs
 
     def _load_structure(self, env_input):
         # Read initial XYZ file
@@ -148,8 +160,12 @@ class WaterCluster(gym.Env):
         # write('rotationz_test.xyz',self.current_structure,'xyz',parallel=False)
         # tmp_input='rotationz_test.xyz'
         prefix = 'rotationz_rank{}_episode{}_steps{}.xyz'.format(
+<<<<<<< HEAD
             mpi_settings.agent_comm.rank, self.episode, self.steps)
         prefix = cd.run_params['output_dir'] + prefix
+=======
+                mpi_settings.agent_comm.rank, self.episode, self.steps)
+>>>>>>> more fixes for style checks as seen in Travis CI logs
         write(prefix, self.current_structure, 'xyz', parallel=False)
         tmp_input = prefix
 
