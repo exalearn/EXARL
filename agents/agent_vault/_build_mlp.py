@@ -1,12 +1,12 @@
 from keras.models import Sequential, Model
-from keras.layers import Dense, Dropout, Input, GaussianNoise, BatchNormalization, LSTM
+from keras.layers import Dense, Dropout, Input, GaussianNoise, BatchNormalization, Flatten
 from keras.optimizers import Adam
 
 
 def build_model(self):
     # Input: state
     layers = []
-    state_input = Input(shape=self.env.observation_space.shape)
+    state_input = Input(shape=(1, self.env.observation_space.shape[0]))
     layers.append(state_input)
     length = len(self.dense)
     # for i, layer_width in enumerate(self.dense):
@@ -15,6 +15,7 @@ def build_model(self):
         layers.append(Dense(layer_width, activation=self.activation)(layers[-1]))
     # output layer
     layers.append(Dense(self.env.action_space.n, activation=self.activation)(layers[-1]))
+    layers.append(Flatten()(layers[-1]))   
 
     model = Model(inputs=layers[0], outputs=layers[-1])
     model.summary()
