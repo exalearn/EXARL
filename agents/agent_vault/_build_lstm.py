@@ -35,5 +35,4 @@ def build_model(self):
 
     # model.compile(loss=self.loss, optimizer=opt)
     # model.summary()
-
     return model
