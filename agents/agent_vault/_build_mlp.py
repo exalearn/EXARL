@@ -15,7 +15,7 @@ def build_model(self):
         layers.append(Dense(layer_width, activation=self.activation)(layers[-1]))
     # output layer
     layers.append(Dense(self.env.action_space.n, activation=self.activation)(layers[-1]))
-    layers.append(Flatten()(layers[-1]))   
+    layers.append(Flatten()(layers[-1]))
 
     model = Model(inputs=layers[0], outputs=layers[-1])
     model.summary()
