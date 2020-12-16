@@ -43,7 +43,7 @@ class WaterCluster(gym.Env):
         #############################################################
         # Setup water molecule application (show be configurable)
         #############################################################
-        self.app_dir = '/gpfs/alpine/ast153/proj-shared/pot_ttm'
+        self.app_dir = '/gpfs/alpine/ast153/scratch/vinayr/pot_ttm'
         self.app_name = 'main.x'
         self.app = os.path.join(self.app_dir, self.app_name)
         self.env_input_name = 'W10_geoms_lowest.xyz'  # 'input.xyz'
@@ -149,6 +149,7 @@ class WaterCluster(gym.Env):
         # tmp_input='rotationz_test.xyz'
         prefix = 'rotationz_rank{}_episode{}_steps{}.xyz'.format(
             mpi_settings.agent_comm.rank, self.episode, self.steps)
+        prefix = cd.run_params['output_dir']+prefix
         write(prefix, self.current_structure, 'xyz', parallel=False)
         tmp_input = prefix
 
