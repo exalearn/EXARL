@@ -21,7 +21,4 @@ elif env == 'ExaBoosterContinuous-v1':
     from envs.env_vault.surrogate_accelerator_v2 import Surrogate_Accelerator_v2 as ExaBoosterContinuous
 elif env == 'ExaLAMMPS-v0':
     from envs.env_vault.exalearn_lammps_ex1 import ExaLammpsEx1 as ExaLAMMPS
-if env == 'ExaDotsAndBoxes-v0':
-    from envs.env_vault.ExaDotsAndBoxes import ExaDotsAndBoxes
-if env == 'GymSpaceTest-v0':
-    from envs.env_vault.GymSpaceTest import GymSpaceTest
+
