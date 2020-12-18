@@ -22,7 +22,6 @@ class ASYNC(erl.ExaWorkflow):
         env_comm = ExaComm.env_comm
 
         # # Set target model
-        print(learner.agent)
         shape = learner.agent.get_data_shape()
         hasShape = (shape != None)
         target_weights = learner.agent.get_weights()

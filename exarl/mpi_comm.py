@@ -19,12 +19,13 @@ logger = log.setup_logger('RL-Logger', run_params['log_level'])
 
 class ExaMPI(erl.ExaComm):
 
-    def __init__(self, comm=MPI.COMM_WORLD, procs_per_env=1):
+    def __init__(self, comm=MPI.COMM_WORLD, procs_per_env=1, run_length=False):
         if comm == None:
             comm = MPI.COMM_WORLD
         self.comm = comm
         self.size = comm.Get_size()
         self.rank = comm.Get_rank()
+        self.run_length = run_length
         self.buffers = {}
         super().__init__(self, procs_per_env)
 
@@ -215,43 +216,46 @@ class ExaMPI(erl.ExaComm):
     # This is an implementation of run length encoding for integers only
     @introspectTrace()
     def run_length_encode(self, data):
+        if self.run_length:
+            if not self.list_like(data, prep=False):
+                return data, 1
+            # Lists from here on out!
+            # The encoding is number first then the count
+            prev_num = data[0]
+            encoding = [prev_num]
+            count = 1
+            for x in data[1:]:
+                if x != prev_num:
+                    encoding.append(count)
+                    encoding.append(x)
+                    count = 1
+                    prev_num = x
+                else:
+                    count += 1
+            encoding.append(count)
+            if len(encoding) < len(data):
+                data[:len(encoding)] = encoding
         return data
-        # if not self.list_like(data, prep=False):
-        #     return data, 1
-        # # Lists from here on out!
-        # # The encoding is number first then the count
-        # prev_num = data[0]
-        # encoding = [prev_num]
-        # count = 1
-        # for x in data[1:]:
-        #     if x != prev_num:
-        #         encoding.append(count)
-        #         encoding.append(x)
-        #         count = 1
-        #         prev_num = x
-        #     else:
-        #         count += 1
-        # encoding.append(count)
-        # return encoding, len(encoding)
 
     # This decodes run_length_encode
     # This only supports ints so the data must be cast if coming from float buffer
     @introspectTrace()
     def run_length_decode(self, data):
-        return data
-        # if not self.list_like(data, prep=False):
-        #     return data
+        if self.run_length:
+            if not self.list_like(data, prep=False):
+                return data
 
-        # decode = []
-        # num = None
-        # for i, x in enumerate(data):
-        #     if i & 1:
-        #         # Odd
-        #         decode.extend([num]*int(x))
-        #     else:
-        #         # Even
-        #         num = x
-        # return decode
+            decode = []
+            num = None
+            for i, x in enumerate(data):
+                if i & 1:
+                    # Odd
+                    decode.extend([num]*int(x))
+                else:
+                    # Even
+                    num = x
+            return decode
+        return data
 
     # This allocates a buffer from a pool of buffers
     @introspectTrace(position=2)
@@ -405,7 +409,8 @@ class ExaMPI(erl.ExaComm):
         buff = self.buffer(data_type, compress_size)
         second = [buff, compress_size, self.mpi_type_converter(data_type)]
         self.comm.Recv(second, source=source)
-        buff = self.run_length_decode(buff)
+        if compress_size < data_total:
+            buff = self.run_length_decode(buff)
 
         # These are the three elements of the message
         buff_np_arrays = [int(x) for x in buff[:np_arrays_shape_size]]
@@ -441,10 +446,18 @@ class ExaMPI(erl.ExaComm):
     def barrier(self):
         return self.comm.Barrier()
 
-    # TODO: Change this to np.array version
+    # TODO: This is only supporting single values
     def reduce(self, arg, op, root):
+        ret_type = type(arg)
+        np_type = self.np_type_converter(ret_type)
+        mpi_type = self.mpi_type_converter(np_type)
+        send_buff = np.array(arg, dtype=np_type)
+        recv_buff = np.array(arg, dtype=np_type)
+        toSend = [send_buff, 1, mpi_type]
+        toRecv = [recv_buff, 1, mpi_type]
         converter = { sum:MPI.SUM, max:MPI.MAX, min:MPI.MIN }
-        return self.comm.reduce(arg, op=converter[op], root=root)
+        self.comm.Reduce(toSend, toRecv, op=converter[op], root=root)
+        return ret_type(toRecv[0])
 
     def time(self):
         return MPI.Wtime()
