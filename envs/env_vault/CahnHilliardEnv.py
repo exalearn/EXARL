@@ -1,4 +1,3 @@
-import exarl.mpi_settings as mpi_settings
 import datetime as dt
 import shutil
 import image_structure
@@ -22,6 +21,7 @@ import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
 import exarl as erl
+from exarl.comm_base import ExaComm
 
 # TODO: the path has been changed
 # sys.path.append('./cahnhilliard_2d/cpp/python')
@@ -87,7 +87,7 @@ class CahnHilliardEnv(gym.Env):
         self.randInitial     = data['randInitial']     if 'randInitial' in data.keys() else False
 
         # self.args = args
-        self.comm = mpi_settings.env_comm
+        self.comm = ExaComm.env_comm
 
         self.action_space = spaces.Discrete(self.getActionSize())
         self.observation_space = spaces.Box(

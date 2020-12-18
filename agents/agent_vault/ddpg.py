@@ -88,6 +88,12 @@ class DDPG(erl.ExaAgent):
         self.critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
         self.actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
+        batch_indices = np.arange(self.batch_size)
+        self.state_batch_shape = self.state_buffer[batch_indices]
+        self.action_batch_shape = self.action_buffer[batch_indices]
+        self.reward_batch_shape = self.reward_buffer[batch_indices]
+        self.next_state_batch_shape = self.next_state_buffer[batch_indices]
+
     def remember(self, state, action, reward, next_state, done):
         # If the counter exceeds the capacity then
         index = self.buffer_counter % self.buffer_capacity
@@ -169,20 +175,33 @@ class DDPG(erl.ExaAgent):
         # Randomly sample indices
         batch_indices = np.random.choice(record_range, self.batch_size)
         logger.info('batch_indices:{}'.format(batch_indices))
-        state_batch = tf.convert_to_tensor(self.state_buffer[batch_indices])
-        action_batch = tf.convert_to_tensor(self.action_buffer[batch_indices])
-        reward_batch = tf.convert_to_tensor(self.reward_buffer[batch_indices])
-        reward_batch = tf.cast(reward_batch, dtype=tf.float32)
-        next_state_batch = tf.convert_to_tensor(self.next_state_buffer[batch_indices])
-
+        # Moved to the front of update_grad
+        # state_batch = tf.convert_to_tensor(self.state_buffer[batch_indices])
+        # action_batch = tf.convert_to_tensor(self.action_buffer[batch_indices])
+        # reward_batch = tf.convert_to_tensor(self.reward_buffer[batch_indices])
+        # reward_batch = tf.cast(reward_batch, dtype=tf.float32)
+        # next_state_batch = tf.convert_to_tensor(self.next_state_buffer[batch_indices])
+        state_batch = self.state_buffer[batch_indices]
+        action_batch = self.action_buffer[batch_indices]
+        reward_batch = self.reward_buffer[batch_indices]
+        next_state_batch = self.next_state_buffer[batch_indices]
         yield state_batch, action_batch, reward_batch, next_state_batch
+
+    def get_data_shape(self):
+        return self.state_batch_shape, self.action_batch_shape, self.reward_batch_shape, self.next_state_batch_shape
 
     @introspectTrace()
     def train(self, batch):
+        state_batch = tf.convert_to_tensor(batch[0])
+        action_batch = tf.convert_to_tensor(batch[1])
+        reward_batch = tf.convert_to_tensor(batch[2])
+        reward_batch = tf.cast(reward_batch, dtype=tf.float32)
+        next_state_batch = tf.convert_to_tensor(batch[3])
         # self.epsilon_adj()
         # if len(batch[0]) >= self.batch_size:
         #     logger.info('Training...')
-        self.update_grad(batch[0], batch[1], batch[2], batch[3])
+        # self.update_grad(batch[0], batch[1], batch[2], batch[3])
+        self.update_grad(state_batch, action_batch, reward_batch, next_state_batch)
 
     @introspectTrace()
     def target_train(self):

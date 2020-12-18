@@ -9,54 +9,59 @@
 # derivative works, distribute copies to the public, perform publicly and display publicly, and
 # to permit others to do so.
 
-
-import json
+import sys
 import os
 from abc import ABC, abstractmethod
 
-import sys
-file_path = os.path.dirname(os.path.realpath(__file__))
-lib_path = os.path.abspath(os.path.join(file_path, '..', 'candlelib'))
-sys.path.append(lib_path)
+class ExaComm(ABC):
+    global_comm = None
+    agent_comm = None
+    env_comm = None
 
+    def __init__(self, comm, procs_per_env):
+        if ExaComm.global_comm == None:
+            ExaComm.global_comm = comm
+            ExaComm.agent_comm, ExaComm.env_comm = comm.split(procs_per_env)
 
-class ExaAgent(ABC):
-
-    def __init__(self, **kwargs):
+    @abstractmethod
+    def send(self, data, dest, pack=False):
         pass
 
     @abstractmethod
-    def get_weights(self):
+    def recv(self, data_type, data_count, source):
         pass
 
     @abstractmethod
-    def set_weights(self):
+    def bcast(self, data, root):
         pass
 
     @abstractmethod
-    def train(self):
+    def barrier(self):
         pass
 
     @abstractmethod
-    def update(self):
+    def reduce(self, arg, op, root):
         pass
 
     @abstractmethod
-    def action(self):
+    def time(self):
         pass
 
     @abstractmethod
-    def load(self):
+    def split(self, procs_per_env):
         pass
 
-    @abstractmethod
-    def save(self, results_dir):
-        pass
+    def is_learner():
+        if ExaComm.agent_comm != None:
+            if ExaComm.agent_comm.rank == 0:
+                return True
+        return False
 
-    @abstractmethod
-    def monitor(self):
-        pass
+    def is_actor():
+        if ExaComm.agent_comm != None:
+            if ExaComm.agent_comm.rank > 0:
+                return True
+        return False
 
-    @abstractmethod
-    def get_data_shape(self):
-        pass
+    def is_agent():
+        return ExaComm.agent_comm != None

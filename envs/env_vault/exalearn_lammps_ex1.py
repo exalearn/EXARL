@@ -1,6 +1,6 @@
 import gym
 from lammps import lammps
-import exarl.mpi_settings as mpi_settings
+from exarl.comm_base import ExaComm
 
 
 class ExaLammpsEx1(gym.Env):
@@ -18,12 +18,12 @@ class ExaLammpsEx1(gym.Env):
     def step(self, action):
         # GET VALUES FROM CARTPOLE
         next_state, reward, done, info = 0, -9999, False, 'WrongRank'
-        if mpi_settings.env_comm.rank == 0:
+        if ExaComm.env_comm.rank == 0:
             next_state, reward, done, info = self.env.step(action)
-        mpi_settings.env_comm.barrier()
+        ExaComm.env_comm.barrier()
 
         # RUN LAMMPS AS MPI TEST
-        lmp = lammps(comm=mpi_settings.env_comm)
+        lmp = lammps(comm=ExaComm.env_comm)
         infile = '/people/schr476/ccsdi/usecase3/cdi-thermalconductivityml/in.addtorque'
         lines = open(infile, 'r').readlines()
         for line in lines:

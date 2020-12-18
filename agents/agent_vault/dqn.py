@@ -6,21 +6,18 @@ import csv
 import random
 import tensorflow as tf
 import sys
-import exarl.mpi_settings as mpi_settings
 import pickle
 import exarl as erl
+from exarl.comm_base import ExaComm
 from keras import backend as K
 from tensorflow.python.client import device_lib
 from collections import deque
 from datetime import datetime
 import numpy as np
-from mpi4py import MPI
 from utils.candleDriver import initialize_parameters
 from utils.introspect import introspectTrace
 import utils.log as log
 from tensorflow.compat.v1.keras.backend import set_session
-import mpi4py.rc
-mpi4py.rc.threads = False
 tf_version = int((tf.__version__)[0])
 
 run_params = initialize_parameters()
@@ -38,7 +35,7 @@ class DQN(erl.ExaAgent):
         self.target_weights = None
 
         self.env = env
-        self.agent_comm = mpi_settings.agent_comm
+        self.agent_comm = ExaComm.agent_comm
 
         # MPI
         self.rank = self.agent_comm.rank
@@ -218,7 +215,7 @@ class DQN(erl.ExaAgent):
         start_time = time.time()
         minibatch = random.sample(self.memory, self.batch_size)
         batch_target = list(map(self.calc_target_f, minibatch))
-        batch_states = [np.array(exp[0]).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
+        batch_states = [np.array(exp[0], dtype=np.float32).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
         batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
         batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
         end_time = time.time()

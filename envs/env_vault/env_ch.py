@@ -1,4 +1,3 @@
-import exarl.mpi_settings as mpi_settings
 import datetime as dt
 import shutil
 import image_structure
@@ -19,6 +18,7 @@ from collections import namedtuple
 import matplotlib.pyplot as plt
 
 import exarl as erl
+from exarl.comm_base import ExaComm
 
 import gym
 from gym import error, spaces, utils
@@ -76,7 +76,7 @@ class CahnHilliardEnv(gym.Env):
         self.episodes        = 0
 
         # self.args = args
-        self.comm = mpi_settings.env_comm
+        self.comm = ExaComm.env_comm
         self.comm_rank = self.comm.Get_rank() if self.comm else 0
 
         # These are problem dependent and must be available during environment object creation time: cannot be set by CANDLE

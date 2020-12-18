@@ -10,7 +10,6 @@ import random
 import numpy as np
 import pandas as pd
 # import plotly.graph_objects as go
-# from mpi4py import MPI
 from gym import spaces
 from shutil import copyfile, rmtree
 from collections import defaultdict
@@ -23,7 +22,6 @@ import ast
 import exarl as erl
 # from utils.tdlg_plot import *
 from importlib import reload
-from mpi4py import MPI
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('BlockCoPolymerTDLG-Logger')
@@ -157,7 +155,7 @@ class BlockCoPolymerTDLGv3(gym.Env):
         return paramStruct
 
     def set_results_dir(self, results_dir):
-        self.worker_dir = results_dir + 'multiworker/worker' + str(MPI.COMM_WORLD.rank)
+        self.worker_dir = results_dir + 'multiworker/worker' + str(erl.ExaComm.global_comm.rank)
         if os.path.exists(self.worker_dir):
             rmtree(self.worker_dir)
         os.makedirs(self.worker_dir)

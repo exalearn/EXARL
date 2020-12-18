@@ -10,9 +10,10 @@ def introspectTrace(position=None, keyword=None, default=0):
                 size = args[position]
             elif keyword:
                 size = kwargs.get(keyword, default)
-            ib.startTrace(func.__name__, size)
+            flag = ib.startTrace(func.__name__, size)
             result = func(*args, **kwargs)
-            ib.stopTrace()
+            if flag:
+                ib.stopTrace()
             return result
         return wrapper
     return decorator
