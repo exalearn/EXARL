@@ -44,8 +44,8 @@ def initialize_parameters():
     # benchmark.logger.info('Params: {}'.format(gParameters))
     logger = log.setup_logger(__name__, gParameters['log_level'])
     logger.info("Finalized parameters:\n" + pformat(gParameters))
-
-    return gParameters
+    global run_params
+    run_params = gParameters
 
 
 def base_parser(params):

@@ -7,6 +7,9 @@
 # - E241: multiple spaces after ','
 # - E272: multiple spaces before keyword
 #
+# E3: Number of blank spaces
+# - E302: expected 2 blank lines, found 1
+#
 # E4: Module imports
 # - E402: module level import not at top of file
 #
@@ -22,6 +25,8 @@
 #
 # These are required to get the package.py files to test clean:
 # - F401: module imported but unused
+# - F403: ‘from module import *’ used; unable to detect undefined names
+# - F405: name may be undefined, or defined from star imports: module
 # - F999: syntax error in doctest
 #
 # N8: PEP8-naming
@@ -40,6 +45,6 @@
 # - F841: local vaiable name is assigned to but never used
 
 [flake8]
-ignore = E129,E221,E241,E272,E731,W503,W504,F999,N801,N813,N814,E712,E722,F401,F841,E741,F523,F821,F632,E402
+ignore = E129,E221,E241,E272,E302,E731,W503,W504,F999,N801,N813,N814,E712,E722,F401,F841,E741,F523,F821,F632,E402,F403,F405
 exclude = envs/env_vault/CahnHilliard2D, envs/env_vault/ImageStructure, envs/env_vault/pydemic, envs/env_vault/LibTDLG, docs
 max-line-length = 160

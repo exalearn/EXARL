@@ -1,13 +1,12 @@
 import time
 import csv
-from mpi4py import MPI
 import sys
 import exarl as erl
+from exarl import ExaComm
 
 import utils.log as log
-from utils.candleDriver import initialize_parameters
-run_params = initialize_parameters()
-logger = log.setup_logger(__name__, run_params['log_level'])
+import utils.candleDriver as cd
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 
 class SEED(erl.ExaWorkflow):
@@ -15,7 +14,7 @@ class SEED(erl.ExaWorkflow):
         print('Class SEED')
 
     def run(self, learner):
-        comm = MPI.COMM_WORLD
+        comm = ExaComm.global_comm
         sys.exit('TBD')
 
         filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' % (
@@ -101,7 +100,7 @@ class SEED(erl.ExaWorkflow):
                 if steps >= learner.nsteps:
                     done = True
 
-                all_done = comm.allreduce(done, op=MPI.LAND)
+                all_done = comm.allreduce(done)
 
             end_time_episode = time.time()
             logger.info('Rank[%s] run-time for episode %s: %s ' %

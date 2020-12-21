@@ -32,7 +32,7 @@ def print_status(msg, *args, comm_rank=None, showtime=True, barrier=True, allran
     if comm_rank is None:
         comm_rank = 0
     # if not comm:
-    #    comm = MPI.COMM_WORLD
+    #    comm = ExaComm.global_rank
     # if barrier:
     #    comm.Barrier()
     if showtime:

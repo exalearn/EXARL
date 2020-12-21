@@ -1,4 +1,4 @@
-import introbind as ib
+from utils.introspect import ib
 from utils.introspect import introspectTrace
 import numpy as np
 import exarl as erl
@@ -7,11 +7,6 @@ import mpi4py.rc
 mpi4py.rc.threads = False
 mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
-
-import utils.log as log
-from utils.candleDriver import initialize_parameters
-run_params = initialize_parameters()
-logger = log.setup_logger('RL-Logger', run_params['log_level'])
 
 class ExaSimple(erl.ExaComm):
 
@@ -112,6 +107,9 @@ class ExaSimple(erl.ExaComm):
     def reduce(self, arg, op, root):
         converter = { sum:MPI.SUM, max:MPI.MAX, min:MPI.MIN }
         return self.comm.reduce(arg, op=converter[op], root=root)
+
+    def allreduce(self, arg, op=MPI.LAND):
+        return self.comm.allreduce(arg, op)
 
     def time(self):
         return MPI.Wtime()

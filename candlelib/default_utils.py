@@ -5,7 +5,7 @@ import numpy as np
 import random
 from pprint import pprint
 import inspect
-from mpi4py import MPI
+from exarl import ExaComm
 
 import logging
 
@@ -656,26 +656,20 @@ def directory_from_parameters(params, commonroot='Output'):
 
     """
 
-    world_comm = MPI.COMM_WORLD
-    myrank = world_comm.rank
-
     if commonroot in set(['.', './']):  # Same directory --> convert to absolute path
         outdir = os.path.abspath('.')
     else:  # Create path specified
         outdir = os.path.abspath(os.path.join('.', commonroot))
         if not os.path.exists(outdir):
-            if (myrank == 0):
-                os.makedirs(outdir)
+            os.makedirs(outdir)
 
         outdir = os.path.abspath(os.path.join(outdir, params['experiment_id']))
         if not os.path.exists(outdir):
-            if (myrank == 0):
-                os.makedirs(outdir)
+            os.makedirs(outdir)
 
         outdir = os.path.abspath(os.path.join(outdir, params['run_id']))
         if not os.path.exists(outdir):
-            if (myrank == 0):
-                os.makedirs(outdir)
+            os.makedirs(outdir)
 
     return outdir
 

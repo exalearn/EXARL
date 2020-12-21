@@ -3,12 +3,11 @@ import csv
 import numpy as np
 from random import randint
 import exarl as erl
-import introbind as ib
-
+from utils.introspect import ib
+from utils.profile import *
 import utils.log as log
-from utils.candleDriver import initialize_parameters
-run_params = initialize_parameters()
-logger = log.setup_logger('RL-Logger', run_params['log_level'])
+import utils.candleDriver as cd
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 from exarl.comm_base import ExaComm
 
@@ -16,6 +15,7 @@ class ASYNC(erl.ExaWorkflow):
     def __init__(self):
         print('Class ASYNC learner')
 
+    @PROFILE
     def run(self, learner):
         # MPI communicators
         agent_comm = ExaComm.agent_comm

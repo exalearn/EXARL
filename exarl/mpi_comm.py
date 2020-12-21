@@ -1,23 +1,15 @@
-import introbind as ib
 from utils.introspect import introspectTrace
-import traceback
 import gc
-import functools
 import numpy as np
 import exarl as erl
-import math
 
 import mpi4py.rc
 mpi4py.rc.threads = False
 mpi4py.rc.recv_mprobe = False
-from mpi4py import MPI
-
-import utils.log as log
-from utils.candleDriver import initialize_parameters
-run_params = initialize_parameters()
-logger = log.setup_logger('RL-Logger', run_params['log_level'])
+from  mpi4py import MPI
 
 class ExaMPI(erl.ExaComm):
+    mpi = MPI
 
     def __init__(self, comm=MPI.COMM_WORLD, procs_per_env=1, run_length=False):
         if comm == None:
@@ -295,7 +287,6 @@ class ExaMPI(erl.ExaComm):
                 index = self.marshall(data[i], buff, data_type, index=index, first=False)
             else:
                 buff[index] = data_type(data[i])
-                assert not math.isnan(buff[index])
                 index = index + 1
         if first:
             return buff
@@ -457,6 +448,19 @@ class ExaMPI(erl.ExaComm):
         toRecv = [recv_buff, 1, mpi_type]
         converter = { sum:MPI.SUM, max:MPI.MAX, min:MPI.MIN }
         self.comm.Reduce(toSend, toRecv, op=converter[op], root=root)
+        return ret_type(toRecv[0])
+
+    # TODO: This is only supporting single values
+    def allreduce(self, arg, op=MPI.LAND):
+        ret_type = type(arg)
+        np_type = self.np_type_converter(ret_type)
+        mpi_type = self.mpi_type_converter(np_type)
+        send_buff = np.array(arg, dtype=np_type)
+        recv_buff = np.array(arg, dtype=np_type)
+        toSend = [send_buff, 1, mpi_type]
+        toRecv = [recv_buff, 1, mpi_type]
+        converter = { sum:MPI.SUM, max:MPI.MAX, min:MPI.MIN }
+        self.comm.Allreduce(toSend, toRecv, op=converter[op], root=root)
         return ret_type(toRecv[0])
 
     def time(self):

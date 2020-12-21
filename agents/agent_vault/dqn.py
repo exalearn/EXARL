@@ -14,14 +14,14 @@ from tensorflow.python.client import device_lib
 from collections import deque
 from datetime import datetime
 import numpy as np
-from utils.candleDriver import initialize_parameters
-from utils.introspect import introspectTrace
+import utils.candleDriver as cd
 import utils.log as log
+from utils.introspect import introspectTrace
 from tensorflow.compat.v1.keras.backend import set_session
 tf_version = int((tf.__version__)[0])
 
-run_params = initialize_parameters()
-logger = log.setup_logger(__name__, run_params['log_level'])
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
+
 
 # The Deep Q-Network (DQN)
 
@@ -90,31 +90,31 @@ class DQN(erl.ExaAgent):
         # mixed_precision.set_policy(policy)
 
         # dqn intrinsic variables
-        self.results_dir = run_params['output_dir']
-        self.gamma = run_params['gamma']
-        self.epsilon = run_params['epsilon']
-        self.epsilon_min = run_params['epsilon_min']
-        self.epsilon_decay = run_params['epsilon_decay']
-        self.learning_rate = run_params['learning_rate']
-        self.batch_size = run_params['batch_size']
-        self.tau = run_params['tau']
-        self.model_type = run_params['model_type']
+        self.results_dir = cd.run_params['output_dir']
+        self.gamma = cd.run_params['gamma']
+        self.epsilon = cd.run_params['epsilon']
+        self.epsilon_min = cd.run_params['epsilon_min']
+        self.epsilon_decay = cd.run_params['epsilon_decay']
+        self.learning_rate = cd.run_params['learning_rate']
+        self.batch_size = cd.run_params['batch_size']
+        self.tau = cd.run_params['tau']
+        self.model_type = cd.run_params['model_type']
 
         # for mlp
-        self.dense = run_params['dense']
+        self.dense = cd.run_params['dense']
 
         # for lstm
-        self.lstm_layers = run_params['lstm_layers']
-        self.gauss_noise = run_params['gauss_noise']
-        self.regularizer = run_params['regularizer']
+        self.lstm_layers = cd.run_params['lstm_layers']
+        self.gauss_noise = cd.run_params['gauss_noise']
+        self.regularizer = cd.run_params['regularizer']
 
         # for both
-        self.activation = run_params['activation']
-        self.out_activation = run_params['out_activation']
-        self.optimizer = run_params['optimizer']
-        self.loss = run_params['loss']
-        self.clipnorm = run_params['clipnorm']
-        self.clipvalue = run_params['clipvalue']
+        self.activation = cd.run_params['activation']
+        self.out_activation = cd.run_params['out_activation']
+        self.optimizer = cd.run_params['optimizer']
+        self.loss = cd.run_params['loss']
+        self.clipnorm = cd.run_params['clipnorm']
+        self.clipvalue = cd.run_params['clipvalue']
 
         # Build network model
         with tf.device(self.device):
@@ -223,6 +223,9 @@ class DQN(erl.ExaAgent):
         self.ndataprep_time += 1
         logger.debug('Agent[{}] - Minibatch time: {} '.format(self.rank, (end_time - start_time)))
         yield batch_states, batch_target
+
+    def get_data_shape(self):
+        return None
 
     @introspectTrace()
     def train(self, batch):

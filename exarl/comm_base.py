@@ -44,6 +44,10 @@ class ExaComm(ABC):
         pass
 
     @abstractmethod
+    def allreduce(self, arg, op):
+        pass
+
+    @abstractmethod
     def time(self):
         pass
 

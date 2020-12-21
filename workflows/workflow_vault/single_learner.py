@@ -1,13 +1,12 @@
 import time
 import csv
-from mpi4py import MPI
 import exarl as erl
-import introbind as ib
+from exarl import ExaComm
+from utils.introspect import ib
 
 import utils.log as log
-from utils.candleDriver import initialize_parameters
-run_params = initialize_parameters()
-logger = log.setup_logger(__name__, run_params['log_level'])
+import utils.candleDriver as cd
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 
 class SYNC(erl.ExaWorkflow):
@@ -15,7 +14,7 @@ class SYNC(erl.ExaWorkflow):
         print('Class SYNC learner')
 
     def run(self, learner):
-        comm = MPI.COMM_WORLD
+        comm = ExaComm.global_com
 
         filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' % (
             str(learner.nepisodes), str(learner.nsteps), str(comm.rank))
@@ -143,7 +142,7 @@ class SYNC(erl.ExaWorkflow):
                                            next_state, total_reward, done, e, steps, policy_type, rank0_epsilon])
                     train_file.flush()
 
-                all_done = comm.allreduce(done, op=MPI.LAND)
+                all_done = comm.allreduce(done)
                 ib.update("Sync_Learner_Episode", 1)
 
             end_time_episode = time.time()
