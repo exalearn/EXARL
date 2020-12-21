@@ -1,7 +1,7 @@
 import functools
 # Try to import introbind and replace if fail
 try:
-    import introbind.ib as ib
+    import introbind as ib
 except:
     class ib():
         def update(name, toAdd):
