@@ -4,7 +4,7 @@ import csv
 from mpi4py import MPI
 import numpy as np
 import exarl as erl
-
+from utils.profile import *
 import utils.log as log
 import utils.candleDriver as cd
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
@@ -14,6 +14,7 @@ class ASYNC(erl.ExaWorkflow):
     def __init__(self):
         print('Creating ASYNC learner workflow...')
 
+    @PROFILE
     def run(self, learner):
 
         # MPI communicators
@@ -138,6 +139,8 @@ class ASYNC(erl.ExaWorkflow):
 
                 # Steps in an episode
                 while steps < learner.nsteps:
+                    logger.debug('ASYNC::run() agent_comm.rank{}; step({} of {})'
+                                 .format(agent_comm.rank, steps, (learner.nsteps - 1)))
                     if mpi_settings.is_actor():
                         # Receive target weights
                         recv_data = agent_comm.recv(source=0)
