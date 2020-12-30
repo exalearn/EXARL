@@ -1,18 +1,15 @@
+import mpi4py
+mpi4py.rc.threads = False
+mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
 import utils.analyze_reward as ar
 import time
 import exarl as erl
-import mpi4py.rc
-mpi4py.rc.threads = False
-mpi4py.rc.recv_mprobe = False
 
 # MPI communicator
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
-
-# Get run parameters using CANDLE
-# run_params = initialize_parameters()
 
 # Create learner object and run
 exa_learner = erl.ExaLearner(comm)
