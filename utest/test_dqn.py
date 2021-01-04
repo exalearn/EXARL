@@ -22,7 +22,7 @@ class TestClass:
             pytest.fail('Abstract class methods not handled correctly',pytrace=True)
         except:
             pytest.fail('Bad Agent Implementation',pytrace=True)
-            
+
         return test_agent
 
     #1: test initialize_parameters
@@ -43,19 +43,27 @@ class TestClass:
 
             assert test_agent.results_dir == run_params['output_dir']
             assert test_agent.gamma == run_params['gamma'] and \
-                0 < test_agent.gamma < 1
+                0 < test_agent.gamma < 1 and \
+                type(test_agent.gamma) is float
             assert test_agent.epsilon == run_params['epsilon'] and \
-                test_agent.epsilon > test_agent.epsilon_min
+                0 < test_agent.epsilon > test_agent.epsilon_min and \
+                type(test_agent.epsilon) is float
             assert test_agent.epsilon_min == run_params['epsilon_min'] and \
-                test_agent.epsilon_min > 0
+                test_agent.epsilon_min > 0 and \
+                type(test_agent.epsilon_min) is float
             assert test_agent.epsilon_decay == run_params['epsilon_decay'] and \
-                0 < test_agent.epsilon_decay < 1
+                0 < test_agent.epsilon_decay < 1 and \
+                type(test_agent.epsilon_decay) is float
             assert test_agent.learning_rate == run_params['learning_rate'] and \
-                test_agent.learning_rate > 0
+                test_agent.learning_rate > 0 and \
+                type(test_agent.learning_rate) is float
             assert test_agent.batch_size == run_params['batch_size'] and \
-                test_agent.batch_size > 0
+                test_agent.batch_size > 0 and \
+                test_agent.memory.maxlen % test_agent.batch_size == 0 and \
+                type(test_agent.batch_size) is int
             assert test_agent.tau == run_params['tau'] and \
-                0 < test_agent.tau < 1
+                0 < test_agent.tau < 1 and \
+                type(test_agent.tau) is float
             assert test_agent.model_type == run_params['model_type'] and \
                 test_agent.model_type.upper() in ("LSTM", "MLP")
 
@@ -64,23 +72,23 @@ class TestClass:
                 assert test_agent.dense == run_params['dense'] and \
                     type(test_agent.dense) is list and \
                     len(test_agent.dense) > 0 and \
-                    all([l > 0 for l in test_agent.dense])
+                    all([(l > 0 and type(l) is int) for l in test_agent.dense])
 
             # for lstm
             if test_agent.model_type.upper() == "LSTM":
                 assert test_agent.lstm_layers == run_params['lstm_layers'] and \
                     type(test_agent.lstm_layers) is list and \
                     len(test_agent.lstm_layers) > 0 and \
-                    all([ l > 0 for l in test_agent.lstm_layers])
+                    all([ (l > 0 and type(l) is int) for l in test_agent.lstm_layers])
                 assert test_agent.gauss_noise == run_params['gauss_noise'] and \
                     type(test_agent.gauss_noise) is list and \
                     len(test_agent.gauss_noise) == len(test_agent.lstm_layers) and \
                     len(test_agent.gauss_noise) > 0 and \
-                    all([l > 0 for l in test_agent.gauss_noise])
+                    all([ (l > 0 and type(l) is float) for l in test_agent.gauss_noise])
                 assert test_agent.regularizer == run_params['regularizer'] and \
                     type(test_agent.regularizer) is list and \
                     len(test_agent.regularizer) > 0 and \
-                    all([l > 0 for l in test_agent.regularizer])
+                    all([ (0 < l < 1 and type(l) is float) for l in test_agent.regularizer])
 
             # for both
             assert test_agent.activation == run_params['activation'] and \
@@ -111,8 +119,10 @@ class TestClass:
             except ValueError:
                 pytest.fail('Bad loss function for TensorFlow Keras', pytrace=True)
 
-            assert test_agent.clipnorm == run_params['clipnorm']
-            assert test_agent.clipvalue == run_params['clipvalue']
+            assert test_agent.clipnorm == run_params['clipnorm'] and \
+                type(test_agent.clipnorm) is float
+            assert test_agent.clipvalue == run_params['clipvalue'] and \
+                type(test_agent.clipvalue) is float
 
             assert test_agent.memory.maxlen == 1000
 
