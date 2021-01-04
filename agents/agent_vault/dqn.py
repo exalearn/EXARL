@@ -83,7 +83,7 @@ class DQN(erl.ExaAgent):
         #policy = mixed_precision.Policy('mixed_float16')
         #git diff
         # mixed_precision.set_policy(policy)
-        
+
         # dqn intrinsic variables
         self.results_dir = run_params['output_dir']
         self.gamma = run_params['gamma']
@@ -156,7 +156,7 @@ class DQN(erl.ExaAgent):
         self.model = self._build_model()
         self.model.compile(loss=self.loss, optimizer=self.optimizer)
         self.model.summary()
-                
+
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
