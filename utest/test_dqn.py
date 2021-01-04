@@ -16,7 +16,13 @@ class TestClass:
     #initialize a test_agent
     def __init_test_agent(self):
         global test_agent
-        test_agent = DQN(erl.ExaLearner(run_params).env)
+        try:
+            test_agent = DQN(erl.ExaLearner(run_params).env)
+        except TypeError:
+            pytest.fail('Abstract class methods not handled correctly',pytrace=True)
+        except:
+            pytest.fail('Bad Agent Implementation',pytrace=True)
+            
         return test_agent
 
     #1: test initialize_parameters
@@ -31,13 +37,9 @@ class TestClass:
     #2: test agent __init__ for DQN agent
     def test_init(self):
 
-        #exa_learner = erl.ExaLearner(run_params)
-        #assert 'envs:' + run_params['env'] == exa_learner.env_id
         try:
-            try:
-                test_agent = self.__init_test_agent()
-            except:
-                pytest.fail('Bad DQN agent',pytrace=True)
+            test_agent = self.__init_test_agent()
+
 
             assert test_agent.results_dir == run_params['output_dir']
             assert test_agent.gamma == run_params['gamma'] and \
@@ -121,8 +123,6 @@ class TestClass:
 
     #3: test set_learner() for agent
     def test_set_learner(self):
-        print("test set_learner") #run_params['env'])
-
 
         try:
             test_agent.set_learner()
@@ -132,8 +132,6 @@ class TestClass:
 
     #4: test remember() for agent
     def test_remember(self):
-        print ("test remember")
-
 
         current_state = test_agent.env.reset()
         total_reward = 0
