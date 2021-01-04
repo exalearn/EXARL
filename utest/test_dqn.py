@@ -9,9 +9,17 @@ from tensorflow.keras import optimizers, activations, losses
 from agents.agent_vault.dqn import DQN
 from utils.candleDriver import initialize_parameters
 
-run_params = None
-current_state_testcases=[]
+
+
 class TestClass:
+
+    #initialize a test_agent
+    def __init_test_agent(self):
+        global test_agent
+        test_agent = DQN(erl.ExaLearner(run_params).env)
+        return test_agent
+
+    #1: test initialize_parameters
     def test_initialize_parameters(self):
         global run_params
         try:
@@ -20,16 +28,16 @@ class TestClass:
         except:
             pytest.fail('Bad initialize_parameters()',pytrace=True)
 
-    def __init(self):
-
-        return DQN(erl.ExaLearner(run_params).env)
-
+    #2: test agent __init__ for DQN agent
     def test_init(self):
-        print('test __init__')
+
         #exa_learner = erl.ExaLearner(run_params)
         #assert 'envs:' + run_params['env'] == exa_learner.env_id
         try:
-            test_agent = self.__init()
+            try:
+                test_agent = self.__init_test_agent()
+            except:
+                pytest.fail('Bad DQN agent',pytrace=True)
 
             assert test_agent.results_dir == run_params['output_dir']
             assert test_agent.gamma == run_params['gamma'] and \
@@ -110,21 +118,23 @@ class TestClass:
             pytest.fail('Invalid Arguments in model.compile() for optimizer, loss, or metrics', pytrace=True)
         except:
             pytest.fail("Bad DQN()", pytrace=True)
-        #print('')
 
+    #3: test set_learner() for agent
     def test_set_learner(self):
         print("test set_learner") #run_params['env'])
 
-        test_agent = self.__init()
-        test_agent.set_learner()
-        assert test_agent.is_learner == True
 
+        try:
+            test_agent.set_learner()
+            assert test_agent.is_learner == True
+        except ValueError:
+            pytest.fail('Invalid argumensts for optimizer, loss, or metrics in compile()', pytrace=True)
 
-
+    #4: test remember() for agent
     def test_remember(self):
         print ("test remember")
 
-        test_agent = self.__init()
+
         current_state = test_agent.env.reset()
         total_reward = 0
         next_state = 0
@@ -143,27 +153,24 @@ class TestClass:
         except:
             pytest.fail("Bad remember()", pytrace=True)
 
-
+    #5: test get_weights() for agent
     def test_get_weights(self):
-        test_agent = self.__init()
-
         assert test_agent.get_weights() is not None
 
+    #6: test set_weight() for agent
     def test_set_weights(self):
-        test_agent = self.__init()
 
         test_agent_comm = mpi_settings.agent_comm
-
         test_target_weights = test_agent.get_weights()
-
         test_current_weights = test_agent_comm.bcast(test_target_weights, root=0)
+
         try:
             test_agent.set_weights(test_current_weights)
         except:
             pytest.fail("Bad set_weights()", pytrace=True)
 
+    #7: test action() for agent
     def test_action(self):
-        test_agent = self.__init()
 
         try:
             action, policy = test_agent.action(test_agent.env.reset())
@@ -172,12 +179,70 @@ class TestClass:
         except:
             pytest.fail("Bad action()", pytrace=True)
 
+    #8: test generate_data() for agent
     def test_generate_data(self):
-        test_agent = self.__init()
 
+        global test_batch_state, test_batch_target
         try:
             test_batch_state, test_batch_target = next(test_agent.generate_data())
             #assert len(test_batch_state) == 0 #test_agent.batch_size
             #assert len(test_batch_target) == test_agent.batch_size
         except:
             pytest.fail("Bad generate_data()", pytrace=True)
+
+    #9: test train() for agent
+    def test_train(self):
+
+        try:
+            test_agent.train([test_batch_state, test_batch_target])
+            assert test_agent.epsilon > test_agent.epsilon_min
+        except RuntimeError:
+            pytest.fail('Model fit() failed. Model never compiled, or model.fit is wrapped in tf.function',pytrace=True)
+        except ValueError:
+            pytest.fail('Mismatch between input data and expected data',pytrace=True)
+
+    #10: test target_train() for agent
+    def test_target_train(self):
+
+        try:
+            test_agent.target_train()
+        except:
+            pytest.fail('Incorrect target weights update')
+
+    #11: test load() for agents
+    def test_load(self):
+
+        #checking if abstractmethod load() is in agent (DQN) class
+        try:
+            method = getattr(test_agent, 'load')
+            assert callable(method)
+        except AttributeError:
+            pytest.fail('Must implement abstractmethod load()',pytrace=True)
+
+
+    #12: test save() for agents
+    def test_save(self):
+        #checking if abstractmethod save() is in agent (DQN) class
+        try:
+            method = getattr(test_agent, 'save')
+            assert callable(method)
+        except AttributeError:
+            pytest.fail('Must implement abstractmethod save()',pytrace=True)
+
+    #13 test update() for agents
+    def test_update(self):
+        #checking if abstractmethod update() is in agent (DQN) class
+        try:
+            method = getattr(test_agent, 'update')
+            assert callable(method)
+        except AttributeError:
+            pytest.fail('Must implement abstractmethod update()',pytrace=True)
+
+    #14 test monitor() for agents
+    def test_monitor(self):
+        #checking if abstractmethod monitor() is in agent (DQN) class
+        try:
+            method = getattr(test_agent, 'monitor')
+            assert callable(method)
+        except AttributeError:
+            pytest.fail('Must implement abstractmethod monitor()',pytrace=True)
