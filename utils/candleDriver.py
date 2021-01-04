@@ -16,7 +16,7 @@ import argparse
 
 # required = ['agent', 'env', 'n_episodes', 'n_steps']
 required = ['agent', 'env']
-dir = '../../'
+dir = '../'
 class BenchmarkDriver(candle.Benchmark):
 
     def set_locals(self):
