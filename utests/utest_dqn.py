@@ -14,32 +14,32 @@ from mpi4py import MPI
 
 class TestClass:
 
-    #initialize a test_agent
+    # initialize a test_agent
     def __init_test_agent(self):
         global test_agent
         try:
             test_agent = DQN(erl.ExaLearner(comm).env) #run_params).env)
         except TypeError:
-            pytest.fail('Abstract class methods not handled correctly',pytrace=True)
+            pytest.fail('Abstract class methods not handled correctly', pytrace=True)
         except:
-            pytest.fail('Bad Agent Implementation',pytrace=True)
+            pytest.fail('Bad Agent Implementation', pytrace=True)
 
         return test_agent
 
-    #1: test initialize_parameters
+    # 1: test initialize_parameters
     def test_initialize_parameters(self):
-        global comm #run_params
+        global comm # run_params
         try:
             comm = MPI.COMM_WORLD
             rank = comm.Get_rank()
             size = comm.Get_size()
-            #run_params = initialize_parameters()
-            #assert type(run_params) is dict
+            # run_params = initialize_parameters()
+            # assert type(run_params) is dict
         except:
-            pytest.fail('Bad MPI comm',pytrace=True)
-            #pytest.fail('Bad initialize_parameters()',pytrace=True)
+            pytest.fail('Bad MPI comm', pytrace=True)
+            # pytest.fail('Bad initialize_parameters()',pytrace=True)
 
-    #2: test agent __init__ for DQN agent
+    # 2: test agent __init__ for DQN agent
     def test_init(self):
 
         try:
@@ -84,7 +84,7 @@ class TestClass:
                 assert test_agent.lstm_layers == cd.run_params['lstm_layers'] and \
                     type(test_agent.lstm_layers) is list and \
                     len(test_agent.lstm_layers) > 0 and \
-                    all([ (l > 0 and type(l) is int) for l in test_agent.lstm_layers])
+                    all([(l > 0 and type(l) is int) for l in test_agent.lstm_layers])
                 assert test_agent.gauss_noise == cd.run_params['gauss_noise'] and \
                     type(test_agent.gauss_noise) is list and \
                     len(test_agent.gauss_noise) == len(test_agent.lstm_layers) and \
@@ -136,7 +136,7 @@ class TestClass:
         except:
             pytest.fail("Bad DQN()", pytrace=True)
 
-    #3: test set_learner() for agent
+    # 3: test set_learner() for agent
     def test_set_learner(self):
 
         try:
@@ -145,7 +145,7 @@ class TestClass:
         except ValueError:
             pytest.fail('Invalid argumensts for optimizer, loss, or metrics in compile()', pytrace=True)
 
-    #4: test remember() for agent
+    # 4: test remember() for agent
     def test_remember(self):
 
         current_state = test_agent.env.reset()
@@ -166,7 +166,7 @@ class TestClass:
         except:
             pytest.fail("Bad remember()", pytrace=True)
 
-    #5: test set_weight() for agent
+    # 5: test set_weight() for agent
     def test_set_weights(self):
 
         test_agent_comm = mpi_settings.agent_comm
@@ -178,11 +178,11 @@ class TestClass:
         except:
             pytest.fail("Bad set_weights()", pytrace=True)
 
-    #6: test get_weights() for agent
+    # 6: test get_weights() for agent
     def test_get_weights(self):
         assert test_agent.get_weights() is not None
 
-    #7: test action() for agent
+    # 7: test action() for agent
     def test_action(self):
 
         try:
@@ -192,7 +192,7 @@ class TestClass:
         except:
             pytest.fail("Bad action()", pytrace=True)
 
-    #8: test generate_data() for agent
+    # 8: test generate_data() for agent
     def test_generate_data(self):
 
         global test_batch_state, test_batch_target
@@ -203,7 +203,7 @@ class TestClass:
         except:
             pytest.fail("Bad generate_data()", pytrace=True)
 
-    #9: test train() for agent
+    # 9: test train() for agent
     def test_train(self):
 
         try:
@@ -212,50 +212,50 @@ class TestClass:
         except RuntimeError:
             pytest.fail('Model fit() failed. Model never compiled, or model.fit is wrapped in tf.function',pytrace=True)
         except ValueError:
-            pytest.fail('Mismatch between input data and expected data',pytrace=True)
+            pytest.fail('Mismatch between input data and expected data', pytrace=True)
 
-    #10: test target_train() for agent
+    # 10: test target_train() for agent
     def test_target_train(self):
 
         try:
             test_agent.target_train()
         except:
-            pytest.fail('Incorrect target weights update')
+            pytest.fail('Incorrect target weights update', pytrace=True)
 
-    #11: test load() for agents
+    # 11: test load() for agents
     def test_load(self):
 
-        #checking if abstractmethod load() is in agent (DQN) class
+        # checking if abstractmethod load() is in agent (DQN) class
         try:
             method = getattr(test_agent, 'load')
             assert callable(method)
         except AttributeError:
-            pytest.fail('Must implement abstractmethod load()',pytrace=True)
+            pytest.fail('Must implement abstractmethod load()', pytrace=True)
 
 
-    #12: test save() for agents
+    # 12: test save() for agents
     def test_save(self):
-        #checking if abstractmethod save() is in agent (DQN) class
+        # checking if abstractmethod save() is in agent (DQN) class
         try:
             method = getattr(test_agent, 'save')
             assert callable(method)
         except AttributeError:
-            pytest.fail('Must implement abstractmethod save()',pytrace=True)
+            pytest.fail('Must implement abstractmethod save()', pytrace=True)
 
-    #13 test update() for agents
+    # 13 test update() for agents
     def test_update(self):
-        #checking if abstractmethod update() is in agent (DQN) class
+        # checking if abstractmethod update() is in agent (DQN) class
         try:
             method = getattr(test_agent, 'update')
             assert callable(method)
         except AttributeError:
-            pytest.fail('Must implement abstractmethod update()',pytrace=True)
+            pytest.fail('Must implement abstractmethod update()', pytrace=True)
 
-    #14 test monitor() for agents
+    # 14 test monitor() for agents
     def test_monitor(self):
-        #checking if abstractmethod monitor() is in agent (DQN) class
+        # checking if abstractmethod monitor() is in agent (DQN) class
         try:
             method = getattr(test_agent, 'monitor')
             assert callable(method)
         except AttributeError:
-            pytest.fail('Must implement abstractmethod monitor()',pytrace=True)
+            pytest.fail('Must implement abstractmethod monitor()', pytrace=True)
