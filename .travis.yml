@@ -19,3 +19,4 @@ before_install:
 
 script:
   - python driver/driver.py
+  - pytest
