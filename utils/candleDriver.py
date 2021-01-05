@@ -14,12 +14,8 @@ import candle
 
 # required = ['agent', 'env', 'n_episodes', 'n_steps']
 required = ['agent', 'env']
-<<<<<<< HEAD
 
 
-=======
-dir = '../../'
->>>>>>> unit tests for dqn.py
 class BenchmarkDriver(candle.Benchmark):
 
     def set_locals(self):
@@ -102,7 +98,7 @@ def get_driver_params():
 
     agent_cfg = dir+'agents/agent_vault/agent_cfg/'+params['agent']+'_'+params['model_type']+'.json'
     print(agent_cfg)
->>>>>>> unit tests for dqn.py
+>>>>>>> 9b0e94576bf561492748c5de8bafacaeb71193da
     if os.path.exists(agent_cfg):
         print('Agent parameters from ', agent_cfg)
     else:
@@ -115,7 +111,7 @@ def get_driver_params():
 =======
     env_cfg = dir+'envs/env_vault/env_cfg/'+params['env']+'.json'
     print(env_cfg)
->>>>>>> unit tests for dqn.py
+>>>>>>> 9b0e94576bf561492748c5de8bafacaeb71193da
     if os.path.exists(env_cfg):
         print('Environment parameters from ', env_cfg)
     else:
@@ -127,7 +123,7 @@ def get_driver_params():
     workflow_cfg = 'workflows/workflow_vault/workflow_cfg/' + params['workflow'] + '.json'
 =======
     workflow_cfg = dir+'workflows/workflow_vault/workflow_cfg/'+params['workflow']+'.json'
->>>>>>> unit tests for dqn.py
+>>>>>>> 9b0e94576bf561492748c5de8bafacaeb71193da
     if os.path.exists(workflow_cfg):
         print('Workflow parameters from ', workflow_cfg)
     else:
@@ -139,4 +135,4 @@ def get_driver_params():
     return learner_defs + agent_defs + env_defs + workflow_defs
 =======
     return learner_defs+agent_defs+env_defs+workflow_defs
->>>>>>> unit tests for dqn.py
+>>>>>>> 9b0e94576bf561492748c5de8bafacaeb71193da
