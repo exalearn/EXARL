@@ -161,11 +161,7 @@ class TestClass:
         except:
             pytest.fail("Bad remember()", pytrace=True)
 
-    #5: test get_weights() for agent
-    def test_get_weights(self):
-        assert test_agent.get_weights() is not None
-
-    #6: test set_weight() for agent
+    #5: test set_weight() for agent
     def test_set_weights(self):
 
         test_agent_comm = mpi_settings.agent_comm
@@ -176,6 +172,10 @@ class TestClass:
             test_agent.set_weights(test_current_weights)
         except:
             pytest.fail("Bad set_weights()", pytrace=True)
+
+    #6: test get_weights() for agent
+    def test_get_weights(self):
+        assert test_agent.get_weights() is not None
 
     #7: test action() for agent
     def test_action(self):
