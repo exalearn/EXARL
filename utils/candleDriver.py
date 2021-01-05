@@ -91,14 +91,10 @@ def get_driver_params():
     learner_defs = parser_from_json(learner_cfg)
     print('Learner parameters from ', learner_cfg)
     params = json.load(open(learner_cfg))
-<<<<<<< HEAD
+
     params = base_parser(params)
     agent_cfg = 'agents/agent_vault/agent_cfg/' + params['agent'] + '_' + params['model_type'] + '.json'
-=======
 
-    agent_cfg = dir+'agents/agent_vault/agent_cfg/'+params['agent']+'_'+params['model_type']+'.json'
-    print(agent_cfg)
->>>>>>> 9b0e94576bf561492748c5de8bafacaeb71193da
     if os.path.exists(agent_cfg):
         print('Agent parameters from ', agent_cfg)
     else:
@@ -106,12 +102,9 @@ def get_driver_params():
         print('Agent configuration does not exist, using default configuration')
     agent_defs = parser_from_json(agent_cfg)
 
-<<<<<<< HEAD
+
     env_cfg = 'envs/env_vault/env_cfg/' + params['env'] + '.json'
-=======
-    env_cfg = dir+'envs/env_vault/env_cfg/'+params['env']+'.json'
-    print(env_cfg)
->>>>>>> 9b0e94576bf561492748c5de8bafacaeb71193da
+
     if os.path.exists(env_cfg):
         print('Environment parameters from ', env_cfg)
     else:
@@ -119,11 +112,9 @@ def get_driver_params():
         print('Environment configuration does not exist, using default configuration')
     env_defs = parser_from_json(env_cfg)
 
-<<<<<<< HEAD
+
     workflow_cfg = 'workflows/workflow_vault/workflow_cfg/' + params['workflow'] + '.json'
-=======
-    workflow_cfg = dir+'workflows/workflow_vault/workflow_cfg/'+params['workflow']+'.json'
->>>>>>> 9b0e94576bf561492748c5de8bafacaeb71193da
+
     if os.path.exists(workflow_cfg):
         print('Workflow parameters from ', workflow_cfg)
     else:
@@ -131,8 +122,5 @@ def get_driver_params():
         print('Workflow configuration does not exist, using default configuration')
     workflow_defs = parser_from_json(workflow_cfg)
 
-<<<<<<< HEAD
+
     return learner_defs + agent_defs + env_defs + workflow_defs
-=======
-    return learner_defs+agent_defs+env_defs+workflow_defs
->>>>>>> 9b0e94576bf561492748c5de8bafacaeb71193da
