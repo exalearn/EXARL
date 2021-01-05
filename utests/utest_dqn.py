@@ -18,7 +18,7 @@ class TestClass:
     def __init_test_agent(self):
         global test_agent
         try:
-            test_agent = DQN(erl.ExaLearner(comm).env) #run_params).env)
+            test_agent = DQN(erl.ExaLearner(comm).env)  # run_params).env)
         except TypeError:
             pytest.fail('Abstract class methods not handled correctly', pytrace=True)
         except:
@@ -28,7 +28,7 @@ class TestClass:
 
     # 1: test initialize_parameters
     def test_initialize_parameters(self):
-        global comm # run_params
+        global comm  # run_params
         try:
             comm = MPI.COMM_WORLD
             rank = comm.Get_rank()
@@ -44,7 +44,6 @@ class TestClass:
 
         try:
             test_agent = self.__init_test_agent()
-
 
             assert test_agent.results_dir == cd.run_params['output_dir']
             assert test_agent.gamma == cd.run_params['gamma'] and \
@@ -89,11 +88,11 @@ class TestClass:
                     type(test_agent.gauss_noise) is list and \
                     len(test_agent.gauss_noise) == len(test_agent.lstm_layers) and \
                     len(test_agent.gauss_noise) > 0 and \
-                    all([ (l > 0 and type(l) is float) for l in test_agent.gauss_noise])
+                    all([(l > 0 and type(l) is float) for l in test_agent.gauss_noise])
                 assert test_agent.regularizer == cd.run_params['regularizer'] and \
                     type(test_agent.regularizer) is list and \
                     len(test_agent.regularizer) > 0 and \
-                    all([ (0 < l < 1 and type(l) is float) for l in test_agent.regularizer])
+                    all([(0 < l < 1 and type(l) is float) for l in test_agent.regularizer])
 
             # for both
             assert test_agent.activation == cd.run_params['activation'] and \
@@ -162,7 +161,7 @@ class TestClass:
             assert test_agent.memory[-1][2] == reward
             assert test_agent.memory[-1][3] == next_state
             assert test_agent.memory[-1][4] == done
-            assert all([a == b for a,b in zip(test_agent.memory[-1][0],current_state)])
+            assert all([a == b for a, b in zip(test_agent.memory[-1][0], current_state)])
         except:
             pytest.fail("Bad remember()", pytrace=True)
 
@@ -188,7 +187,7 @@ class TestClass:
         try:
             action, policy = test_agent.action(test_agent.env.reset())
             assert action >= 0
-            assert policy in [0,1]
+            assert policy in [0, 1]
         except:
             pytest.fail("Bad action()", pytrace=True)
 
@@ -198,8 +197,6 @@ class TestClass:
         global test_batch_state, test_batch_target
         try:
             test_batch_state, test_batch_target = next(test_agent.generate_data())
-            #assert len(test_batch_state) == 0 #test_agent.batch_size
-            #assert len(test_batch_target) == test_agent.batch_size
         except:
             pytest.fail("Bad generate_data()", pytrace=True)
 
@@ -210,7 +207,7 @@ class TestClass:
             test_agent.train([test_batch_state, test_batch_target])
             assert test_agent.epsilon > test_agent.epsilon_min
         except RuntimeError:
-            pytest.fail('Model fit() failed. Model never compiled, or model.fit is wrapped in tf.function',pytrace=True)
+            pytest.fail('Model fit() failed. Model never compiled, or model.fit is wrapped in tf.function', pytrace=True)
         except ValueError:
             pytest.fail('Mismatch between input data and expected data', pytrace=True)
 
@@ -232,9 +229,9 @@ class TestClass:
         except AttributeError:
             pytest.fail('Must implement abstractmethod load()', pytrace=True)
 
-
     # 12: test save() for agents
     def test_save(self):
+        
         # checking if abstractmethod save() is in agent (DQN) class
         try:
             method = getattr(test_agent, 'save')
