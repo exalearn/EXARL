@@ -18,5 +18,5 @@ before_install:
   - pip install -e .
 
 script:
-  - python driver/driver.py
   - pytest
+  - python driver/driver.py
