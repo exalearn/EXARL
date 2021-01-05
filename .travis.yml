@@ -20,5 +20,5 @@ before_install:
 script:
   - pip install -r test-requirements.txt
   - flake8 .
-  - python driver/driver.py
   - pytest
+  - python driver/driver.py
