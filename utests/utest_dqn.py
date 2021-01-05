@@ -231,7 +231,7 @@ class TestClass:
 
     # 12: test save() for agents
     def test_save(self):
-        
+
         # checking if abstractmethod save() is in agent (DQN) class
         try:
             method = getattr(test_agent, 'save')
