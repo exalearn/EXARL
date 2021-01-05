@@ -98,7 +98,7 @@ def get_driver_params():
     if os.path.exists(agent_cfg):
         print('Agent parameters from ', agent_cfg)
     else:
-        agent_cfg = dir+'agents/agent_vault/agent_cfg/default_agent_cfg.json'
+        agent_cfg = 'agents/agent_vault/agent_cfg/default_agent_cfg.json'
         print('Agent configuration does not exist, using default configuration')
     agent_defs = parser_from_json(agent_cfg)
 
@@ -108,7 +108,7 @@ def get_driver_params():
     if os.path.exists(env_cfg):
         print('Environment parameters from ', env_cfg)
     else:
-        env_cfg = dir+'envs/env_vault/env_cfg/default_env_cfg.json'
+        env_cfg = 'envs/env_vault/env_cfg/default_env_cfg.json'
         print('Environment configuration does not exist, using default configuration')
     env_defs = parser_from_json(env_cfg)
 
@@ -118,7 +118,7 @@ def get_driver_params():
     if os.path.exists(workflow_cfg):
         print('Workflow parameters from ', workflow_cfg)
     else:
-        workflow_cfg = dir+'workflows/workflow_vault/workflow_cfg/default_workflow_cfg.json'
+        workflow_cfg = 'workflows/workflow_vault/workflow_cfg/default_workflow_cfg.json'
         print('Workflow configuration does not exist, using default configuration')
     workflow_defs = parser_from_json(workflow_cfg)
 

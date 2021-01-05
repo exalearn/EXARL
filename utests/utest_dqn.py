@@ -3,12 +3,13 @@ import sys
 
 import exarl as erl
 import pytest
+import utils.candleDriver as cd
 import exarl.mpi_settings as mpi_settings
 
 from tensorflow.keras import optimizers, activations, losses
 from agents.agent_vault.dqn import DQN
 from utils.candleDriver import initialize_parameters
-
+from mpi4py import MPI
 
 
 class TestClass:
@@ -17,7 +18,7 @@ class TestClass:
     def __init_test_agent(self):
         global test_agent
         try:
-            test_agent = DQN(erl.ExaLearner(run_params).env)
+            test_agent = DQN(erl.ExaLearner(comm).env) #run_params).env)
         except TypeError:
             pytest.fail('Abstract class methods not handled correctly',pytrace=True)
         except:
@@ -27,12 +28,16 @@ class TestClass:
 
     #1: test initialize_parameters
     def test_initialize_parameters(self):
-        global run_params
+        global comm #run_params
         try:
-            run_params = initialize_parameters()
-            assert type(run_params) is dict
+            comm = MPI.COMM_WORLD
+            rank = comm.Get_rank()
+            size = comm.Get_size()
+            #run_params = initialize_parameters()
+            #assert type(run_params) is dict
         except:
-            pytest.fail('Bad initialize_parameters()',pytrace=True)
+            pytest.fail('Bad MPI comm',pytrace=True)
+            #pytest.fail('Bad initialize_parameters()',pytrace=True)
 
     #2: test agent __init__ for DQN agent
     def test_init(self):
@@ -41,87 +46,87 @@ class TestClass:
             test_agent = self.__init_test_agent()
 
 
-            assert test_agent.results_dir == run_params['output_dir']
-            assert test_agent.gamma == run_params['gamma'] and \
+            assert test_agent.results_dir == cd.run_params['output_dir']
+            assert test_agent.gamma == cd.run_params['gamma'] and \
                 0 < test_agent.gamma < 1 and \
                 type(test_agent.gamma) is float
-            assert test_agent.epsilon == run_params['epsilon'] and \
+            assert test_agent.epsilon == cd.run_params['epsilon'] and \
                 0 < test_agent.epsilon > test_agent.epsilon_min and \
                 type(test_agent.epsilon) is float
-            assert test_agent.epsilon_min == run_params['epsilon_min'] and \
+            assert test_agent.epsilon_min == cd.run_params['epsilon_min'] and \
                 test_agent.epsilon_min > 0 and \
                 type(test_agent.epsilon_min) is float
-            assert test_agent.epsilon_decay == run_params['epsilon_decay'] and \
+            assert test_agent.epsilon_decay == cd.run_params['epsilon_decay'] and \
                 0 < test_agent.epsilon_decay < 1 and \
                 type(test_agent.epsilon_decay) is float
-            assert test_agent.learning_rate == run_params['learning_rate'] and \
+            assert test_agent.learning_rate == cd.run_params['learning_rate'] and \
                 test_agent.learning_rate > 0 and \
                 type(test_agent.learning_rate) is float
-            assert test_agent.batch_size == run_params['batch_size'] and \
+            assert test_agent.batch_size == cd.run_params['batch_size'] and \
                 test_agent.batch_size > 0 and \
                 test_agent.memory.maxlen % test_agent.batch_size == 0 and \
                 type(test_agent.batch_size) is int
-            assert test_agent.tau == run_params['tau'] and \
+            assert test_agent.tau == cd.run_params['tau'] and \
                 0 < test_agent.tau < 1 and \
                 type(test_agent.tau) is float
-            assert test_agent.model_type == run_params['model_type'] and \
+            assert test_agent.model_type == cd.run_params['model_type'] and \
                 test_agent.model_type.upper() in ("LSTM", "MLP")
 
             # for mlp
             if test_agent.model_type.upper() == "MLP":
-                assert test_agent.dense == run_params['dense'] and \
+                assert test_agent.dense == cd.run_params['dense'] and \
                     type(test_agent.dense) is list and \
                     len(test_agent.dense) > 0 and \
                     all([(l > 0 and type(l) is int) for l in test_agent.dense])
 
             # for lstm
             if test_agent.model_type.upper() == "LSTM":
-                assert test_agent.lstm_layers == run_params['lstm_layers'] and \
+                assert test_agent.lstm_layers == cd.run_params['lstm_layers'] and \
                     type(test_agent.lstm_layers) is list and \
                     len(test_agent.lstm_layers) > 0 and \
                     all([ (l > 0 and type(l) is int) for l in test_agent.lstm_layers])
-                assert test_agent.gauss_noise == run_params['gauss_noise'] and \
+                assert test_agent.gauss_noise == cd.run_params['gauss_noise'] and \
                     type(test_agent.gauss_noise) is list and \
                     len(test_agent.gauss_noise) == len(test_agent.lstm_layers) and \
                     len(test_agent.gauss_noise) > 0 and \
                     all([ (l > 0 and type(l) is float) for l in test_agent.gauss_noise])
-                assert test_agent.regularizer == run_params['regularizer'] and \
+                assert test_agent.regularizer == cd.run_params['regularizer'] and \
                     type(test_agent.regularizer) is list and \
                     len(test_agent.regularizer) > 0 and \
                     all([ (0 < l < 1 and type(l) is float) for l in test_agent.regularizer])
 
             # for both
-            assert test_agent.activation == run_params['activation'] and \
+            assert test_agent.activation == cd.run_params['activation'] and \
                 type(test_agent.activation) is str
             try:
                 activations.get(test_agent.activation)
             except ValueError:
                 pytest.fail('Bad activation function for TensorFlow Keras', pytrace=True)
 
-            assert test_agent.out_activation == run_params['out_activation'] and \
+            assert test_agent.out_activation == cd.run_params['out_activation'] and \
                 type(test_agent.out_activation) is str
             try:
                 activations.get(test_agent.out_activation)
             except ValueError:
                 pytest.fail('Bad activation function for TensorFlow Keras', pytrace=True)
 
-            assert test_agent.optimizer == run_params['optimizer'] and \
+            assert test_agent.optimizer == cd.run_params['optimizer'] and \
                 type(test_agent.optimizer) is str
             try:
                 optimizers.get(test_agent.optimizer)
             except ValueError:
                 pytest.fail('Bad optimizer for TensorFlow Keras', pytrace=True)
 
-            assert test_agent.loss == run_params['loss'] and \
+            assert test_agent.loss == cd.run_params['loss'] and \
                 type(test_agent.loss) is str
             try:
                 losses.get(test_agent.loss)
             except ValueError:
                 pytest.fail('Bad loss function for TensorFlow Keras', pytrace=True)
 
-            assert test_agent.clipnorm == run_params['clipnorm'] and \
+            assert test_agent.clipnorm == cd.run_params['clipnorm'] and \
                 type(test_agent.clipnorm) is float
-            assert test_agent.clipvalue == run_params['clipvalue'] and \
+            assert test_agent.clipvalue == cd.run_params['clipvalue'] and \
                 type(test_agent.clipvalue) is float
 
             assert test_agent.memory.maxlen == 1000
