@@ -38,11 +38,11 @@ A scalable software framework for reinforcement learning environments and agents
     └── __init__.py                   : script to make environments visible
         ├── env_cfg                   : folder containing default environment configurations
         └── <RLenv>.py                : RL environments (physics simulations, interfaces to experiments, etc.)
-├── workflows      	                  : folder containing ExaRL agents and registration scripts
+├── workflows      	                  : folder containing ExaRL workflows and registration scripts
     └── __init__.py                   : workflow registry
     └── registration.py               : script to handle registration
-    ├── workflow_vault                : folder containing agents
-        └── __init__.py               : script to make agents visible
+    ├── workflow_vault                : folder containing workflows
+        └── __init__.py               : script to make workflows visible
         ├── workflow_cfg              : folder containing default workflow configurations
         └── <RLworkflow>.py           : RL workflows (such as SEED, IMPALA, etc.)
 ├── utils                             : folder containing utilities
@@ -50,6 +50,7 @@ A scalable software framework for reinforcement learning environments and agents
     └── candleDriver.py               : Supporting CANDLE script
     └── analyze_reward.py             : script for plotting results
     └── log.py                        : central place to set logging levels
+    └── profile.py                    : provides function decorators for profiling, timing, and debugging
 ```
 
 ## Installing 
