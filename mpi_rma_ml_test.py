@@ -20,7 +20,7 @@ model = keras.Sequential(
 )
 x = tf.ones((3, 3))
 y = model(x)
-model.build()
+model.build((3,3))
 weights = model.get_weights()
 print("Rank[%d] Initial data %s" % (rank, weights[0]))
 serial = MPI.pickle.dumps(weights)

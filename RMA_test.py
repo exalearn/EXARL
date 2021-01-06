@@ -28,6 +28,7 @@ import sys
 comm = MPI.COMM_WORLD
 rank = comm.rank
 
+'''
 size = 10
 disp = MPI.DOUBLE.Get_size()
 if comm.rank == 0:
@@ -59,3 +60,20 @@ comm.Barrier()
 
 if rank == 0:
     print('buffer = ', buff)
+'''
+
+size = 200
+win  = MPI.Win.Allocate(size, 1, comm=comm)
+buff = win.tomemory()
+buff[:] = 0
+if rank > 0:
+    holder = np.zeros(5)
+    holder[:5] = np.arange(5)
+    serial = MPI.pickle.dumps(holder)
+    win.Lock(0)
+    win.Put(serial, 0, target=0)
+    win.Unlock(0)
+comm.Barrier()
+if rank == 0:
+    print('buff = ', MPI.pickle.loads(buff[:195]))
+win.Free()
