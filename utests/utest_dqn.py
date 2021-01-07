@@ -1,6 +1,6 @@
 import tensorflow as tf
 import sys
-
+import numpy as np
 import exarl as erl
 import pytest
 import utils.candleDriver as cd
@@ -9,6 +9,7 @@ import exarl.mpi_settings as mpi_settings
 from tensorflow.keras import optimizers, activations, losses
 from agents.agent_vault.dqn import DQN
 from utils.candleDriver import initialize_parameters
+
 from mpi4py import MPI
 
 
@@ -17,8 +18,10 @@ class TestClass:
     # initialize a test_agent
     def __init_test_agent(self):
         global test_agent
+        global test_learner
         try:
-            test_agent = DQN(erl.ExaLearner(comm).env)  # run_params).env)
+            test_learner = erl.ExaLearner(comm)
+            test_agent = DQN(test_learner.env)  # run_params).env)
         except TypeError:
             pytest.fail('Abstract class methods not handled correctly', pytrace=True)
         except:
@@ -26,7 +29,7 @@ class TestClass:
 
         return test_agent
 
-    # 1: test initialize_parameters
+    # 1: test MPI init
     def test_initialize_parameters(self):
         global comm  # run_params
         try:
@@ -43,7 +46,8 @@ class TestClass:
     def test_init(self):
 
         try:
-            test_agent = self.__init_test_agent()
+            self.__init_test_agent()
+            # test_agent = self.__init_test_agent()
 
             assert test_agent.results_dir == cd.run_params['output_dir']
             assert test_agent.gamma == cd.run_params['gamma'] and \
@@ -134,6 +138,7 @@ class TestClass:
             pytest.fail('Invalid Arguments in model.compile() for optimizer, loss, or metrics', pytrace=True)
         except:
             pytest.fail("Bad DQN()", pytrace=True)
+            sys.exit()
 
     # 3: test set_learner() for agent
     def test_set_learner(self):
@@ -149,7 +154,7 @@ class TestClass:
 
         current_state = test_agent.env.reset()
         total_reward = 0
-        next_state = 0
+        next_state = test_agent.env.reset()
         action = 0
         done = 0
         reward = 0
@@ -159,9 +164,9 @@ class TestClass:
             test_agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
             assert test_agent.memory[-1][1] == action
             assert test_agent.memory[-1][2] == reward
-            assert test_agent.memory[-1][3] == next_state
             assert test_agent.memory[-1][4] == done
             assert all([a == b for a, b in zip(test_agent.memory[-1][0], current_state)])
+            assert all([a == b for a, b in zip(test_agent.memory[-1][3], next_state)])
         except:
             pytest.fail("Bad remember()", pytrace=True)
 
@@ -194,28 +199,60 @@ class TestClass:
     # 8: test generate_data() for agent
     def test_generate_data(self):
 
-        global test_batch_state, test_batch_target
+        # global batch  # test_batch_state, test_batch_target
         try:
-            test_batch_state, test_batch_target = next(test_agent.generate_data())
+            [test_agent.remember(test_agent.env.reset(), 0, 0, test_agent.env.reset(), 0) for _ in range(test_agent.memory.maxlen)]
+            batch1 =next(test_agent.generate_data())
+            assert isinstance(batch1, tuple) is True
+            batch2 =next(test_agent.generate_data())
+            assert isinstance(batch2, tuple) is True
+            if type(batch1[0]).__module__ == np.__name__ and type(batch2[0]).__module__ == np.__name__:
+                assert np.array_equal(batch1[0], batch2[0]) is False
         except:
             pytest.fail("Bad generate_data()", pytrace=True)
 
-    # 9: test train() for agent
+    # 9: test model.fit() in train() for agent
     def test_train(self):
 
         try:
-            test_agent.train([test_batch_state, test_batch_target])
-            assert test_agent.epsilon > test_agent.epsilon_min
+
+            with tf.device(test_agent.device):
+                history1 = test_agent.train(next(test_agent.generate_data()))
+                epsilon1 = test_agent.epsilon
+                history2 = test_agent.train(next(test_agent.generate_data()))
+                epsilon2 = test_agent.epsilon
+
+            assert epsilon1 > test_agent.epsilon_min and \
+                epsilon2 > test_agent.epsilon_min and \
+                epsilon2 < epsilon1
+
+            for h1, h2 in zip(history1.history.values(), history2.history.values()):
+                if isinstance(h1, list) and isinstance(h2, list):
+                    assert all([a != b for a, b in zip(h1, h2)])
+                else:
+                    assert h1 != h2
+
         except RuntimeError:
             pytest.fail('Model fit() failed. Model never compiled, or model.fit is wrapped in tf.function', pytrace=True)
         except ValueError:
             pytest.fail('Mismatch between input data and expected data', pytrace=True)
+        except:
+            pytest.fail('Bad train()', pytrace=True)
 
     # 10: test target_train() for agent
     def test_target_train(self):
 
         try:
+            initial_weights = test_agent.get_weights()
             test_agent.target_train()
+            changed_weights = test_agent.get_weights()
+            for w1, w2 in zip(initial_weights, changed_weights):
+                if type(w1).__module__ == np.__name__ and type(w2).__module__ == np.__name__:
+                    assert np.array_equal(w1, w2) is False
+                elif isinstance(w1, list) and isinstance(w2, list):
+                    assert any(a != b for a, b in zip(w1, w2))
+                else:
+                    assert w1 != w2
         except:
             pytest.fail('Incorrect target weights update', pytrace=True)
 
