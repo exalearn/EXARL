@@ -202,9 +202,9 @@ class TestClass:
         # global batch  # test_batch_state, test_batch_target
         try:
             [test_agent.remember(test_agent.env.reset(), 0, 0, test_agent.env.reset(), 0) for _ in range(test_agent.memory.maxlen)]
-            batch1 =next(test_agent.generate_data())
+            batch1 = next(test_agent.generate_data())
             assert isinstance(batch1, tuple) is True
-            batch2 =next(test_agent.generate_data())
+            batch2 = next(test_agent.generate_data())
             assert isinstance(batch2, tuple) is True
             if type(batch1[0]).__module__ == np.__name__ and type(batch2[0]).__module__ == np.__name__:
                 assert np.array_equal(batch1[0], batch2[0]) is False
