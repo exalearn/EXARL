@@ -198,7 +198,8 @@ class TestClass:
 
         try:
             test_agent.set_learner()
-            assert test_agent.is_learner == True
+            assert test_agent.is_learner is True
+
         except ValueError:
             pytest.fail('Invalid argumensts for optimizer, loss, or metrics in compile()', pytrace=True)
 
@@ -223,7 +224,11 @@ class TestClass:
         except:
             pytest.fail("Bad remember()", pytrace=True)
 
-    # 5: test set_weight() for agent
+    # 5: test get_weights() for agent
+    def test_get_weights(self):
+        assert test_agent.get_weights() is not None
+
+    # 6: test set_weight() for agent
     def test_set_weights(self):
 
         test_agent_comm = mpi_settings.agent_comm
@@ -232,12 +237,9 @@ class TestClass:
 
         try:
             test_agent.set_weights(test_current_weights)
+            assert np.array_equal(test_current_weights[0], test_agent.get_weights()[0]) is True
         except:
             pytest.fail("Bad set_weights()", pytrace=True)
-
-    # 6: test get_weights() for agent
-    def test_get_weights(self):
-        assert test_agent.get_weights() is not None
 
     # 7: test action() for agent
     def test_action(self):
