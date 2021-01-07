@@ -241,7 +241,6 @@ class DQN(erl.ExaAgent):
         else:
             logger.warning('Training will not be done because this instance is not set to learn.')
 
-
     def get_weights(self):
         logger.debug('Agent[%s] - get target weight.' % str(self.rank))
         return self.target_model.get_weights()
