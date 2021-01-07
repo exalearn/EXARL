@@ -6,6 +6,8 @@ import pytest
 import utils.candleDriver as cd
 import exarl.mpi_settings as mpi_settings
 
+from keras.layers import Dense, GaussianNoise, BatchNormalization, LSTM
+from tensorflow.python.client import device_lib
 from tensorflow.keras import optimizers, activations, losses
 from agents.agent_vault.dqn import DQN
 from utils.candleDriver import initialize_parameters
@@ -29,6 +31,41 @@ class TestClass:
 
         return test_agent
 
+    # look into model layers Attribute
+    def _peek_layers_attribute(self):
+        types = (LSTM, GaussianNoise, BatchNormalization, Dense)
+
+        if self.device == 'CPU':
+
+            lstms = len(test_agent.lstm_layers)
+            gauss_noise = len(test_agent.gauss_noise)
+
+            for layer in test_agent.target_model.layers:
+                if isinstance(layer, types) is False:
+                    return False
+
+                if isinstance(layer, types[0]):
+                    lstms -= 1
+                elif isinstance(layer, types[1]):
+                    gauss_noise -= 1
+
+            return lstms == 0 and gauss_noise == 0
+
+        elif self.device == 'GPU':
+
+            dense = len(test_agent.dense)
+
+            for layer in test_agent.model.layers:
+                if isinstance(layer, types) is False:
+                    return False
+                if isinstance(layer, types[3]):
+                    dense -= 1
+
+            return dense == 0
+
+        else:
+            return False
+
     # 1: test MPI init
     def test_initialize_parameters(self):
         global comm  # run_params
@@ -47,92 +84,108 @@ class TestClass:
 
         try:
             self.__init_test_agent()
-            # test_agent = self.__init_test_agent()
 
             assert test_agent.results_dir == cd.run_params['output_dir']
             assert test_agent.gamma == cd.run_params['gamma'] and \
                 0 < test_agent.gamma < 1 and \
-                type(test_agent.gamma) is float
+                isinstance(test_agent.gamma, float) is True
             assert test_agent.epsilon == cd.run_params['epsilon'] and \
                 0 < test_agent.epsilon > test_agent.epsilon_min and \
-                type(test_agent.epsilon) is float
+                isinstance(test_agent.epsilon, float) is True
             assert test_agent.epsilon_min == cd.run_params['epsilon_min'] and \
                 test_agent.epsilon_min > 0 and \
-                type(test_agent.epsilon_min) is float
+                isinstance(test_agent.epsilon_min, float) is True
             assert test_agent.epsilon_decay == cd.run_params['epsilon_decay'] and \
                 0 < test_agent.epsilon_decay < 1 and \
-                type(test_agent.epsilon_decay) is float
+                isinstance(test_agent.epsilon_decay, float) is True
             assert test_agent.learning_rate == cd.run_params['learning_rate'] and \
                 test_agent.learning_rate > 0 and \
-                type(test_agent.learning_rate) is float
+                isinstance(test_agent.learning_rate, float) is True
             assert test_agent.batch_size == cd.run_params['batch_size'] and \
                 test_agent.batch_size > 0 and \
                 test_agent.memory.maxlen % test_agent.batch_size == 0 and \
-                type(test_agent.batch_size) is int
+                isinstance(test_agent.batch_size, int) is True
             assert test_agent.tau == cd.run_params['tau'] and \
                 0 < test_agent.tau < 1 and \
-                type(test_agent.tau) is float
+                isinstance(test_agent.tau, float) is True
             assert test_agent.model_type == cd.run_params['model_type'] and \
                 test_agent.model_type.upper() in ("LSTM", "MLP")
 
             # for mlp
             if test_agent.model_type.upper() == "MLP":
                 assert test_agent.dense == cd.run_params['dense'] and \
-                    type(test_agent.dense) is list and \
+                    isinstance(test_agent.dense, list) is True and \
                     len(test_agent.dense) > 0 and \
-                    all([(l > 0 and type(l) is int) for l in test_agent.dense])
+                    all([(l > 0 and isinstance(l, int)) for l in test_agent.dense])
 
             # for lstm
             if test_agent.model_type.upper() == "LSTM":
                 assert test_agent.lstm_layers == cd.run_params['lstm_layers'] and \
-                    type(test_agent.lstm_layers) is list and \
+                    isinstance(test_agent.lstm_layers, list) is True and \
                     len(test_agent.lstm_layers) > 0 and \
-                    all([(l > 0 and type(l) is int) for l in test_agent.lstm_layers])
+                    all([(l > 0 and isinstance(l, int)) for l in test_agent.lstm_layers])
+
                 assert test_agent.gauss_noise == cd.run_params['gauss_noise'] and \
-                    type(test_agent.gauss_noise) is list and \
+                    isinstance(test_agent.gauss_noise, list) is True and \
                     len(test_agent.gauss_noise) == len(test_agent.lstm_layers) and \
                     len(test_agent.gauss_noise) > 0 and \
-                    all([(l > 0 and type(l) is float) for l in test_agent.gauss_noise])
+                    all([(l > 0 and isinstance(l, float)) for l in test_agent.gauss_noise])
+
                 assert test_agent.regularizer == cd.run_params['regularizer'] and \
-                    type(test_agent.regularizer) is list and \
+                    isinstance(test_agent.regularizer, list) is True and \
                     len(test_agent.regularizer) > 0 and \
-                    all([(0 < l < 1 and type(l) is float) for l in test_agent.regularizer])
+                    all([(0 < l < 1 and isinstance(l, float)) for l in test_agent.regularizer])
 
             # for both
             assert test_agent.activation == cd.run_params['activation'] and \
-                type(test_agent.activation) is str
+                isinstance(test_agent.activation, str) is True
             try:
+                # check if it is a valid activation
                 activations.get(test_agent.activation)
             except ValueError:
                 pytest.fail('Bad activation function for TensorFlow Keras', pytrace=True)
 
             assert test_agent.out_activation == cd.run_params['out_activation'] and \
-                type(test_agent.out_activation) is str
+                isinstance(test_agent.out_activation, str) is True
             try:
+                # check if it is a valid activation
                 activations.get(test_agent.out_activation)
             except ValueError:
                 pytest.fail('Bad activation function for TensorFlow Keras', pytrace=True)
 
             assert test_agent.optimizer == cd.run_params['optimizer'] and \
-                type(test_agent.optimizer) is str
+                isinstance(test_agent.optimizer, str) is True
             try:
+                # check if it is a valid optimizer
                 optimizers.get(test_agent.optimizer)
             except ValueError:
                 pytest.fail('Bad optimizer for TensorFlow Keras', pytrace=True)
 
             assert test_agent.loss == cd.run_params['loss'] and \
-                type(test_agent.loss) is str
+                isinstance(test_agent.loss, str) is True
             try:
+                # check if it is a valid loss
                 losses.get(test_agent.loss)
             except ValueError:
                 pytest.fail('Bad loss function for TensorFlow Keras', pytrace=True)
 
             assert test_agent.clipnorm == cd.run_params['clipnorm'] and \
-                type(test_agent.clipnorm) is float
+                isinstance(test_agent.clipnorm, float) is True
             assert test_agent.clipvalue == cd.run_params['clipvalue'] and \
-                type(test_agent.clipvalue) is float
+                isinstance(test_agent.clipvalue, float) is True
 
             assert test_agent.memory.maxlen == 1000
+
+            # test model.compile()
+            gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
+            if len(gpu_names) > 0:
+                self.device = 'GPU'
+                assert self._peek_layers_attribute() is True
+
+            # on device /CPU:0
+            self.device = 'CPU'
+            assert isinstance(test_agent.target_model.layers, list) is True and \
+                self._peek_layers_attribute() is True
 
         except ValueError:
             pytest.fail('Invalid Arguments in model.compile() for optimizer, loss, or metrics', pytrace=True)
