@@ -47,21 +47,21 @@ class ASYNC(erl.ExaWorkflow):
         if mpi_settings.is_learner():
             nserial = len(serial_target_weights) ## sizeof(int) +
         model_win = MPI.Win.Allocate(nserial, 1, comm=agent_comm)
+        #serial_weights = model_win.tomemory()
         agent_comm.Barrier()
 
         # Get data window -- WILL NOT WORK --
         agent_batch =  next(learner.agent.generate_data())
         nserial_agent_batch = len(MPI.pickle.dumps(agent_batch)) * (agent_comm.size - 1)
-        data_win = MPI.Win.Create(nserial_agent_batch,comm=agent_comm)
+        data_win = MPI.Win.Create(nserial_agent_batch, len(MPI.pickle.dumps(agent_batch)), comm=agent_comm)
 
         # Exit boolean for the leaner
         #
         # worker_episodes = 0#np.arange(1, agent_comm.size)
-        episode_done = 0
-        nepisode_done = 0
+        episode_count = 0
         if mpi_settings.is_learner():
-            nepisode_done = len(episode_done)
-        episode_win = MPI.Win.Allocate(nepisode_done, 1, comm=agent_comm)
+            nepisode_done = sys.getsizeof(episode_count)
+        episode_win = MPI.Win.Allocate(nepisode_count, 1, comm=agent_comm)
 
         # Round-Robin Scheduler
         if mpi_settings.is_learner():
@@ -72,19 +72,59 @@ class ASYNC(erl.ExaWorkflow):
             # 3) Share new model weights
 
         else:
-            while episode_done < learner.nepisodes:
+            while episode_count < learner.nepisodes:
+                learner.env.seed(0)
+                current_state = learner.env.reset()
+                total_rewards = 0
+                steps = 0
+                action = 0
+
                 # TODO: Not done yet
+                # 1) Update model weight
+                serial_weights = np.zeros(nserial)
+                model_win.Lock(0)
+                model_win.Get(serial_weights, 0)
+                model_win.Unlock(0)
+                target_weights = MPI.pickle.loads(serial_weights)
+                learner.agent.set_weights(target_weights)
+
+                # 2) Inference action
+                if mpi_settings.is_actor():                                                                                                     
+                    if learner.action_type == 'fixed':
+                        action, policy_type = 0, -11
+                    else:
+                        action, policy_type = learner.agent.action(current_state)
+ 
+                # 3) Env step
+                next_state, reward, done, _ = learner.env.step(action)
+                
+                steps += 1
+                if steps >= learner.nsteps:
+                    done = True
+
+                # 4) If done then update the episode counter and exit boolean 
+                # TODO: Verify this with a toy example
                 if done:
-                    episode_win.Lock(0)
-                    episode_win.Get(episode_done)
-                    episode_done +=1
-                    episode_win.Put(episode_done, 0)
-                    episode_win.Unlock(0)
-            # 1) Update model weight
-            # 2) Inference action
-            # 3) Env step
-            # 4) If done then update the episode counter and exit boolean
-            # 4) Generate new training data
+                    episode_win.Get_accumulate(episode_count, 1, 0, target=None)
+
+                # 4) Generate new training data
+                if mpi_settings.is_actor():
+                    total_reward += reward
+                    memory = (current_state, action, reward,
+                          next_state, done, total_reward)
+
+                    # batch_data = []
+                    learner.agent.remember(
+                        memory[0], memory[1], memory[2], memory[3], memory[4])
+
+                    batch_data = next(learner.agent.generate_data())
+                
+                    serial_batch_data = MPI.pickle.dumps(batch_data)
+                    # TODO: Consider MPI_Accumulate with replace
+                    data_win.Lock(0)
+                    data_win.Put(serial_batch_data, 0, target = (agent_comm.rank-1))
+                    data_win.Unlock(0)
+
 
         #     start = MPI.Wtime()
         #     # worker_episodes = np.linspace(0, agent_comm.size - 2, agent_comm.size - 1)
