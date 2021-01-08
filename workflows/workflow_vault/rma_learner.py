@@ -8,6 +8,7 @@ import exarl as erl
 from utils.profile import *
 import utils.log as log
 import utils.candleDriver as cd
+
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 
@@ -19,7 +20,10 @@ class RMA_ASYNC(erl.ExaWorkflow):
         # MPI communicators
         agent_comm = mpi_settings.agent_comm
         env_comm = mpi_settings.env_comm
- 
+
+        # Workflow level variables
+        episode_count = np.zeros(1)
+
         if mpi_settings.is_learner():
             workflow.agent.set_learner()
 
@@ -31,50 +35,53 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 target_weights_size = len(serial_target_weights)
             model_win = MPI.Win.Allocate(target_weights_size, 1, comm=agent_comm)
 
+        if mpi_settings.is_learner():
+            for s in range(1, agent_comm.size):
+                model_win.Lock(s)
+                model_win.Put(serial_target_weights, target_rank=s)
+                model_win.Unlock(s)
+
+        agent_comm.Barrier()
+        #sys.exit()
             # Get data window -- WILL NOT WORK --
-            agent_batch =  next(workflow.agent.generate_data())
-            single_agent_batch = (MPI.pickle.dumps(agent_batch))
-            nserial_agent_batch = len(single_agent_batch) * (agent_comm.size - 1)
-            ###### Dummy size for testing #######
-            nserial_agent_batch = 200
-            #####################################
-            data_win = MPI.Win.Allocate(nserial_agent_batch,len(single_agent_batch),comm=agent_comm)
-
-            # Exit boolean for the leaner
-            episode_count = np.zeros(1)
-            episode_count_size = 0
-            if mpi_settings.is_learner():
-                episode_count_size = MPI.INT64_T.Get_size()
-            episode_win = MPI.Win.Allocate(episode_count_size, 1, comm=agent_comm)     
-
-        print("Am i reaching line 50?")
+            # agent_batch =  next(workflow.agent.generate_data())
+            # single_agent_batch = (MPI.pickle.dumps(agent_batch))
+            # nserial_agent_batch = len(single_agent_batch) * (agent_comm.size - 1)
+            # ###### Dummy size for testing #######
+            # nserial_agent_batch = 200
+            # #####################################
+            # data_win = MPI.Win.Allocate(nserial_agent_batch,len(single_agent_batch),comm=agent_comm)
+            #
+            # # Exit boolean for the leaner
+            # episode_count = np.zeros(1)
+            # episode_count_size = 0
+            # if mpi_settings.is_learner():
+            #     episode_count_size = MPI.INT64_T.Get_size()
+            # episode_win = MPI.Win.Allocate(episode_count_size, 1, comm=agent_comm)
 
         # Round-robin scheduler
         if mpi_settings.is_learner():
             # Distribute weights to all actors
-            for s in range(1, agent_comm.size):
-                model_win.Lock(s)
-                model_win.Put(serial_target_weights, s)
-                model_win.Unlock(s)
+            print('Hello')
+            # for s in range(1, agent_comm.size):
+            #     model_win.Lock(s)
+            #     model_win.Put(serial_target_weights, s)
+            #     model_win.Unlock(s)
 
-            episode_win.Lock(0)
-            episode_win.Get(episode_count, 0, target=None)
-            episode_win.Unlock(0)
-            while episode_count < workflow.nepisodes:
-                print(episode_count)
-                # Make data window
-                # 0) Check if exit boolean
-                # 1) Get data
-                # 2) Train & Target train
-                # 3) Share new model weights
-                target_weights = workflow.agent.get_weights()
-                model_win.Lock(0)
-                model_win.Put(target_weights)
-                model_win.UnLock(0)
-
-
-
-
+            # episode_win.Lock(0)
+            # episode_win.Get(episode_count, 0, target=None)
+            # episode_win.Unlock(0)
+            # while episode_count < workflow.nepisodes:
+            #     print(episode_count)
+            #     # Make data window
+            #     # 0) Check if exit boolean
+            #     # 1) Get data
+            #     # 2) Train & Target train
+            #     # 3) Share new model weights
+            #     target_weights = workflow.agent.get_weights()
+            #     model_win.Lock(0)
+            #     model_win.Put(target_weights)
+            #     model_win.UnLock(0)
         else:
             while episode_count < workflow.nepisodes:
                 workflow.env.seed(0)
@@ -82,53 +89,54 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 total_rewards = 0
                 steps = 0
                 action = 0
-
                 # TODO: Not done yet
                 # 1) Update model weight
-                serial_weights = np.zeros(target_weights_size)
-                model_win.Lock(0)
-                model_win.Get(serial_weights, 0)
-                model_win.Unlock(0)
-                target_weights = MPI.pickle.loads(serial_weights)
+                buff = bytearray(target_weights_size)
+                model_win.Lock(agent_comm.rank)
+                model_win.Get(buff,target=0, target_rank=agent_comm.rank)
+                model_win.Unlock(agent_comm.rank)
+                target_weights = MPI.pickle.loads(buff)
                 workflow.agent.set_weights(target_weights)
-
-                # 2) Inference action
-                if mpi_settings.is_actor():                                                                                                     
-                    if workflow.action_type == 'fixed':
-                        action, policy_type = 0, -11
-                    else:
-                        action, policy_type = workflow.agent.action(current_state)
- 
-                # 3) Env step
-                next_state, reward, done, _ = workflow.env.step(action)
-                
-                steps += 1
-                if steps >= workflow.nsteps:
-                    done = True
-
-                # 4) If done then update the episode counter and exit boolean 
-                # TODO: Verify this with a toy example
-                if done:
-                    episode_win.Get_accumulate(episode_count, 1, 0, target=None)
-
-                # 4) Generate new training data
-                if mpi_settings.is_actor():
-                    total_reward += reward
-                    memory = (current_state, action, reward,
-                          next_state, done, total_reward)
-
-                    # batch_data = []
-                    workflow.agent.remember(
-                        memory[0], memory[1], memory[2], memory[3], memory[4])
-
-                    batch_data = next(workflow.agent.generate_data())
-                
-                    serial_batch_data = MPI.pickle.dumps(batch_data)
-                    # TODO: Consider MPI_Accumulate with replace
-                    data_win.Lock(0)
-                    data_win.Put(serial_batch_data, 0, target = (agent_comm.rank-1))
-                    data_win.Unlock(0)
-
+                #print('target_weights[0]:',target_weights[0])
+                break
+        sys.exit(10)
+                #
+                # # 2) Inference action
+                # if mpi_settings.is_actor():
+                #     if workflow.action_type == 'fixed':
+                #         action, policy_type = 0, -11
+                #     else:
+                #         action, policy_type = workflow.agent.action(current_state)
+                #
+                # # 3) Env step
+                # next_state, reward, done, _ = workflow.env.step(action)
+                #
+                # steps += 1
+                # if steps >= workflow.nsteps:
+                #     done = True
+                #
+                # # 4) If done then update the episode counter and exit boolean
+                # # TODO: Verify this with a toy example
+                # if done:
+                #     episode_win.Get_accumulate(episode_count, 1, 0, target=None)
+                #
+                # # 4) Generate new training data
+                # if mpi_settings.is_actor():
+                #     total_reward += reward
+                #     memory = (current_state, action, reward,
+                #           next_state, done, total_reward)
+                #
+                #     # batch_data = []
+                #     workflow.agent.remember(
+                #         memory[0], memory[1], memory[2], memory[3], memory[4])
+                #
+                #     batch_data = next(workflow.agent.generate_data())
+                #
+                #     serial_batch_data = MPI.pickle.dumps(batch_data)
+                #     # TODO: Consider MPI_Accumulate with replace
+                #     data_win.Lock(0)
+                #     data_win.Put(serial_batch_data, 0, target = (agent_comm.rank-1))
+                #     data_win.Unlock(0)
 
         #     start = MPI.Wtime()
         #     # worker_episodes = np.linspace(0, agent_comm.size - 2, agent_comm.size - 1)
