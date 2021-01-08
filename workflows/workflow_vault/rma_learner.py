@@ -13,72 +13,60 @@ logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class RMA_ASYNC(erl.ExaWorkflow):
     def __init__(self):
-        print('Creating RAM ASYNC workflow...')
+        print('Creating RMA async workflow...')
 
-    @PROFILE
     def run(self, workflow):
-
         # MPI communicators
         agent_comm = mpi_settings.agent_comm
         env_comm = mpi_settings.env_comm
-
-        # Set target model
-        target_weights = None
-        print('Do I get to line 27?')
-        target_weights = workflow.agent.get_weights()
-        serial_target_weights = MPI.pickle.dumps(target_weights)
-        nserial = len(serial_target_weights)
-        if mpi_settings.is_agent():
-            model_win = MPI.Win.Allocate(nserial, 1, comm=agent_comm)
-
+ 
         if mpi_settings.is_learner():
             workflow.agent.set_learner()
+
+        if mpi_settings.is_agent():
             target_weights = workflow.agent.get_weights()
             serial_target_weights = MPI.pickle.dumps(target_weights)
+            target_weights_size = 0
+            if mpi_settings.is_actor():
+                target_weights_size = len(serial_target_weights)
+            model_win = MPI.Win.Allocate(target_weights_size, 1, comm=agent_comm)
+
+            # Get data window -- WILL NOT WORK --
+            agent_batch =  next(workflow.agent.generate_data())
+            single_agent_batch = (MPI.pickle.dumps(agent_batch))
+            nserial_agent_batch = len(single_agent_batch) * (agent_comm.size - 1)
+            ###### Dummy size for testing #######
+            nserial_agent_batch = 200
+            #####################################
+            data_win = MPI.Win.Allocate(nserial_agent_batch,len(single_agent_batch),comm=agent_comm)
+
+            # Exit boolean for the leaner
+            episode_count = np.zeros(1)
+            episode_count_size = 0
+            if mpi_settings.is_learner():
+                episode_count_size = MPI.INT64_T.Get_size()
+            episode_win = MPI.Win.Allocate(episode_count_size, 1, comm=agent_comm)     
+
+        print("Am i reaching line 50?")
+
+        # Round-robin scheduler
+        if mpi_settings.is_learner():
+            # Distribute weights to all actors
             for s in range(1, agent_comm.size):
-                model_win.Lock(0)
+                model_win.Lock(s)
                 model_win.Put(serial_target_weights, s)
-                model_win.Unlock(0)
+                model_win.Unlock(s)
 
-        # Make sure that the weights are available to all actors
-        agent_comm.Barrier()
-        print('Do I get to line 40?')
-        # if mpi_settings.is_actor():
-        #     tmp_serial_target_weights = None
-        #     model_win.Lock(0)
-        #     model_win.Get(tmp_serial_target_weights)
-        #     model_win.Unlock(0)
-        #     current_weights = MPI.pickle.loads(tmp_serial_target_weights)
-        #     workflow.agent.set_weights(current_weights)
-
-        # Define the memory window for each process
-        # TODO: Add other variables later
-        #agent_comm.Barrier()
-
-        # Get data window -- WILL NOT WORK --
-        agent_batch =  next(workflow.agent.generate_data())
-        single_agent_batch = (MPI.pickle.dumps(agent_batch))
-        nserial_agent_batch = len(single_agent_batch) * (agent_comm.size - 1)
-        data_win = MPI.Win.Allocate(nserial_agent_batch,len(single_agent_batch),comm=agent_comm)
-
-        # Exit boolean for the leaner
-        #
-        episode_count = 0
-        episode_count_size = 0
-        if mpi_settings.is_learner():
-            episode_count_size = MPI.INT64_T.Get_size()
-        episode_win = MPI.Win.Allocate(episode_count_size, 1, comm=agent_comm)
-
-        # Round-Robin Scheduler
-        if mpi_settings.is_learner():
+            episode_win.Lock(0)
             episode_win.Get(episode_count, 0, target=None)
+            episode_win.Unlock(0)
             while episode_count < workflow.nepisodes:
                 print(episode_count)
-            # Make data window
-            # 0) Check if exit boolean
-            # 1) Get data
-            # 2) Train & Target train
-            # 3) Share new model weights
+                # Make data window
+                # 0) Check if exit boolean
+                # 1) Get data
+                # 2) Train & Target train
+                # 3) Share new model weights
                 target_weights = workflow.agent.get_weights()
                 model_win.Lock(0)
                 model_win.Put(target_weights)
@@ -97,7 +85,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
                 # TODO: Not done yet
                 # 1) Update model weight
-                serial_weights = np.zeros(nserial)
+                serial_weights = np.zeros(target_weights_size)
                 model_win.Lock(0)
                 model_win.Get(serial_weights, 0)
                 model_win.Unlock(0)
