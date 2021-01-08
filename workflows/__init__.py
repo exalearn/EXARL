@@ -11,6 +11,11 @@ register(
 )
 
 register(
+    id='rma',
+    entry_point='workflows.workflow_vault:RMA_ASYNC'
+)
+
+register(
     id='seed',
     entry_point='workflows.workflow_vault:SEED'
 )
