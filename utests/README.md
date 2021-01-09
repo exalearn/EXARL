@@ -96,5 +96,6 @@ The live status logging for each test case is enabled. This shows whether a test
 The following console output shows the failed test and a trace of the error occurred:
 ![](trainfail1.png)
 ![](trainfail2.png)
+
 This error occurred because two values (such as loss, accuracy, etc) in the history metrics are exactly the same. This is not possible if the model.fit() is setup and run correctly.
 The final pytest results for this run shows that 1 test failed, and 13 tests passed.
