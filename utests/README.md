@@ -90,10 +90,10 @@ The pytest framework for unit testing has been integrated with build test framew
 
 ## Example Runs
 The live status logging for each test case is enabled. This shows whether a test case has PASSED or FAILED.
-* When all test cases are PASSED the output will look like:
+* When all test cases are PASSED the console output will look like:
 ![](allpass.png)
 * To show a scenario when a test case fails, test_train() is used to check if the train() method in the DQN agent correctly executes model.fit(). This is done by comparing history objects from two different model.fit() runs. The history contains metrics returned by model.fit().
-The following shows the failed test and a trace of the error occurred:
+The following console output shows the failed test and a trace of the error occurred:
 ![](trainfail1.png)
 ![](trainfail2.png)
 This error occurred because two values (such as loss, accuracy, etc) in the history metrics are exactly the same. This is not possible if the model.fit() is setup and run correctly.
