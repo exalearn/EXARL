@@ -32,6 +32,7 @@ class TestClass:
         return test_agent
 
     # look into model layers Attribute
+    # TODO: add functionality to check for any type of layers attribute
     def _peek_layers_attribute(self):
         types = (LSTM, GaussianNoise, BatchNormalization, Dense)
 
@@ -242,6 +243,7 @@ class TestClass:
             pytest.fail("Bad set_weights()", pytrace=True)
 
     # 7: test action() for agent
+    # TODO: Add testcase to verify difference between before and after an action
     def test_action(self):
 
         try:
@@ -252,6 +254,7 @@ class TestClass:
             pytest.fail("Bad action()", pytrace=True)
 
     # 8: test generate_data() for agent
+    # TODO: Need to generalize for a custom agent?
     def test_generate_data(self):
 
         # global batch  # test_batch_state, test_batch_target
