@@ -46,7 +46,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
         # Get data window -- WILL NOT WORK --
         # Save on each actor?
-        agent_batch =  next(workflow.agent.generate_data())
+        agent_batch = next(workflow.agent.generate_data())
         serial_agent_batch = (MPI.pickle.dumps(agent_batch))
         nserial_agent_batch = len(serial_agent_batch)
         data_win = MPI.Win.Allocate(nserial_agent_batch, 1, comm=agent_comm)
@@ -125,6 +125,16 @@ class RMA_ASYNC(erl.ExaWorkflow):
                     steps += 1
                     if steps >= workflow.nsteps:
                         done = True
+
+                    # Save memory and pushed to RMA
+                    total_rewards += reward
+                    memory = (current_state, action, reward, next_state, done, total_rewards)
+                    workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
+                    batch_data = next(workflow.agent.generate_data())
+                    serial_agent_batch = (MPI.pickle.dumps(batch_data))
+                    # data_win.Lock(agent_comm.rank)
+                    # data_win.Put(serial_target_weights, target_rank=agent_comm.rank)
+                    # data_win.Unlock(agent_comm.rank)
 
                     # 4) If done then update the episode counter and exit boolean
                     # TODO: Verify this with a toy example
