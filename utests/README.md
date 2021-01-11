@@ -47,10 +47,10 @@ def test_target_train(self)
 ```
 * Test case 11 to Test 14 are implemented to check if abstract methods are implemented in DQN agent.
 ```
-#11 def test_load(self)
-#12 def test_save(self)
-#13 def test_update(self)
-#14 def test_monitor(self)
+def test_load(self)  # 11
+def test_save(self)  # 12
+def test_update(self)  # 13
+def test_monitor(self)  # 14
 ```
 
 ## Run
