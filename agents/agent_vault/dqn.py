@@ -172,6 +172,7 @@ class DQN(erl.ExaAgent):
         np.random.seed(int.from_bytes(random_data, byteorder="big"))
         rdm = np.random.rand()
         if rdm <= self.epsilon:
+            self.epsilon_adj()
             action = random.randrange(self.env.action_space.n)
             return action, 0
         else:
@@ -222,7 +223,6 @@ class DQN(erl.ExaAgent):
         yield batch_states, batch_target
 
     def train(self, batch):
-        self.epsilon_adj()
         if self.is_learner:
             # if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
             if len(batch[0]) >= (self.batch_size):
