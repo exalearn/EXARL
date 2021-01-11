@@ -30,47 +30,55 @@ class RMA_ASYNC(erl.ExaWorkflow):
             serial_target_weights = MPI.pickle.dumps(target_weights)
             episode_size = 0
             target_weights_size = 0
-            if mpi_settings.is_actor():
+            if mpi_settings.is_learner():
                 target_weights_size = len(serial_target_weights)
+            if mpi_settings.is_actor():
                 episode_size = MPI.INT64_T.Get_size()
             model_win = MPI.Win.Allocate(target_weights_size, 1, comm=agent_comm)
             episode_win = MPI.Win.Allocate(episode_size, 1, comm=agent_comm)
 
         if mpi_settings.is_learner():
             # Send all target weight
-            for s in range(1, agent_comm.size):
-                model_win.Lock(s)
-                model_win.Put(serial_target_weights, target_rank=s)
-                model_win.Unlock(s)
+            model_win.Lock(0)
+            model_win.Put(serial_target_weights, target_rank=0)
+            model_win.Unlock(0)
+            # for s in range(1, agent_comm.size):
+            #     model_win.Lock(s)
+            #     model_win.Put(serial_target_weights, target_rank=s)
+            #     model_win.Unlock(s)
             # Define the episode counter window
 
         # Get data window -- WILL NOT WORK --
         # Save on each actor?
-        agent_batch = next(workflow.agent.generate_data())
-        serial_agent_batch = (MPI.pickle.dumps(agent_batch))
-        nserial_agent_batch = len(serial_agent_batch)
-        data_win = MPI.Win.Allocate(nserial_agent_batch, 1, comm=agent_comm)
+        nserial_agent_batch = 0
+        if mpi_settings.is_agent():
+            agent_batch = next(workflow.agent.generate_data())
+            # print('Rank [{}] - data shape: {}/{}'.format(agent_comm.rank, agent_batch[0].shape,agent_batch[1].shape))
+            serial_agent_batch = (MPI.pickle.dumps(agent_batch))
+            nserial_agent_batch = len(serial_agent_batch)
+            data_win = MPI.Win.Allocate(nserial_agent_batch, 1, comm=agent_comm)
 
-        print('Init done ...')
+        # print('Init done ...')
         agent_comm.Barrier()
 
         # Learner
         if mpi_settings.is_learner():
+            buff_data = bytearray(nserial_agent_batch)
             while 1:
                 # 0) Check if exit boolean
                 episode_win.Lock(0)
                 episode_win.Get(episode_count, target_rank=0, target=None)
-                # print('Rank[{}] - working on episode: {}'.format(agent_comm.rank,episode_count))
+                # print('Learner [{}] - total done episode: {}'.format(agent_comm.rank, episode_count))
                 episode_win.Unlock(0)
-                if episode_count < workflow.nepisodes:
-                    print('Learner exit on episode: {}'.format(agent_comm.rank, episode_count))
+                if episode_count >= workflow.nepisodes:
+                    # print('Learner [{}] exit on episode: {}'.format(agent_comm.rank, episode_count))
                     break
 
                 # Loop over all actor data, train, and update model
                 for s in range(1, agent_comm.size):
                     # 1) Get data
                     data_win.Lock(s)
-                    data_win.Get(serial_agent_batch, target_rank=s, target=None)
+                    data_win.Get(buff_data, target_rank=s, target=None)
                     data_win.Unlock(s)
                     agent_data = MPI.pickle.loads(serial_agent_batch)
                     # 2) Train & Target train
@@ -81,13 +89,16 @@ class RMA_ASYNC(erl.ExaWorkflow):
                     target_weights = workflow.agent.get_weights()
                     serial_target_weights = MPI.pickle.dumps(target_weights)
                     # TODO: loop over all actors (?)
-                    model_win.Lock(s)
-                    model_win.Put(serial_target_weights, target_rank=s)
-                    model_win.Unlock(s)
+                    model_win.Lock(0)
+                    model_win.Put(serial_target_weights, target_rank=0)
+                    model_win.Unlock(0)
 
             print('Learner exit on episode: {}'.format(agent_comm.rank, episode_count))
         else:
 
+            target_weights = workflow.agent.get_weights()
+            serial_target_weights = MPI.pickle.dumps(target_weights)
+            actor_serial_target_weights_size = len(serial_target_weights)
             while episode_count < workflow.nepisodes:
                 workflow.env.seed(0)
                 current_state = workflow.env.reset()
@@ -105,10 +116,10 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
                     # 1) Update model weight
                     # TODO: weights are updated each step -- REVIEW --
-                    buff = bytearray(target_weights_size)
-                    model_win.Lock(agent_comm.rank)
-                    model_win.Get(buff,target=0, target_rank=agent_comm.rank)
-                    model_win.Unlock(agent_comm.rank)
+                    buff = bytearray(actor_serial_target_weights_size)
+                    model_win.Lock(0)
+                    model_win.Get(buff, target=0, target_rank=0)
+                    model_win.Unlock(0)
                     target_weights = MPI.pickle.loads(buff)
                     workflow.agent.set_weights(target_weights)
 
@@ -131,10 +142,13 @@ class RMA_ASYNC(erl.ExaWorkflow):
                     memory = (current_state, action, reward, next_state, done, total_rewards)
                     workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
                     batch_data = next(workflow.agent.generate_data())
+                    # print('Rank [{}] - actor data shape: {}/{}'.format(agent_comm.rank,
+                    #                                              batch_data[0].shape, batch_data[1].shape))
+
                     serial_agent_batch = (MPI.pickle.dumps(batch_data))
-                    # data_win.Lock(agent_comm.rank)
-                    # data_win.Put(serial_target_weights, target_rank=agent_comm.rank)
-                    # data_win.Unlock(agent_comm.rank)
+                    data_win.Lock(agent_comm.rank)
+                    data_win.Put(serial_agent_batch, target_rank=agent_comm.rank)
+                    data_win.Unlock(agent_comm.rank)
 
                     # 4) If done then update the episode counter and exit boolean
                     # TODO: Verify this with a toy example
@@ -142,7 +156,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         episode_win.Lock(0)
                         episode_win.Get(episode_count, target_rank=0, target=None)
                         episode_count += 1
-                        print('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count))
+                        # print('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count))
                         episode_win.Put(episode_count, target_rank=0)
                         episode_win.Unlock(0)
                 #
