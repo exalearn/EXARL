@@ -30,18 +30,24 @@ class RMA_ASYNC(erl.ExaWorkflow):
         if mpi_settings.is_agent():
             target_weights = workflow.agent.get_weights()
             serial_target_weights = MPI.pickle.dumps(target_weights)
+            episode_size = 0
             target_weights_size = 0
             if mpi_settings.is_actor():
                 target_weights_size = len(serial_target_weights)
+                episode_size = MPI.INT64_T.Get_size()
             model_win = MPI.Win.Allocate(target_weights_size, 1, comm=agent_comm)
+            episode_win = MPI.Win.Allocate(episode_size, 1, comm=agent_comm)
 
         if mpi_settings.is_learner():
+            # Send all target weight
             for s in range(1, agent_comm.size):
                 model_win.Lock(s)
                 model_win.Put(serial_target_weights, target_rank=s)
                 model_win.Unlock(s)
+            # Define the episode counter window
 
         agent_comm.Barrier()
+        print('Init done ...')
         #sys.exit()
             # Get data window -- WILL NOT WORK --
             # agent_batch =  next(workflow.agent.generate_data())
@@ -71,7 +77,12 @@ class RMA_ASYNC(erl.ExaWorkflow):
             # episode_win.Lock(0)
             # episode_win.Get(episode_count, 0, target=None)
             # episode_win.Unlock(0)
-            # while episode_count < workflow.nepisodes:
+            while episode_count < workflow.nepisodes:
+                # Check the episode counter
+                episode_win.Lock(0)
+                episode_win.Get(episode_count, target_rank=0, target=None)
+                #print('Rank[{}] - working on episode: {}'.format(agent_comm.rank,episode_count))
+                episode_win.Unlock(0)
             #     print(episode_count)
             #     # Make data window
             #     # 0) Check if exit boolean
@@ -82,43 +93,50 @@ class RMA_ASYNC(erl.ExaWorkflow):
             #     model_win.Lock(0)
             #     model_win.Put(target_weights)
             #     model_win.UnLock(0)
+            print('Learner exit on episode: {}'.format(agent_comm.rank, episode_count))
         else:
+
             while episode_count < workflow.nepisodes:
                 workflow.env.seed(0)
                 current_state = workflow.env.reset()
                 total_rewards = 0
                 steps = 0
                 action = 0
-                # TODO: Not done yet
-                # 1) Update model weight
-                buff = bytearray(target_weights_size)
-                model_win.Lock(agent_comm.rank)
-                model_win.Get(buff,target=0, target_rank=agent_comm.rank)
-                model_win.Unlock(agent_comm.rank)
-                target_weights = MPI.pickle.loads(buff)
-                workflow.agent.set_weights(target_weights)
-                #print('target_weights[0]:',target_weights[0])
-                break
-        sys.exit(10)
-                #
-                # # 2) Inference action
-                # if mpi_settings.is_actor():
-                #     if workflow.action_type == 'fixed':
-                #         action, policy_type = 0, -11
-                #     else:
-                #         action, policy_type = workflow.agent.action(current_state)
-                #
-                # # 3) Env step
-                # next_state, reward, done, _ = workflow.env.step(action)
-                #
-                # steps += 1
-                # if steps >= workflow.nsteps:
-                #     done = True
-                #
-                # # 4) If done then update the episode counter and exit boolean
-                # # TODO: Verify this with a toy example
-                # if done:
-                #     episode_win.Get_accumulate(episode_count, 1, 0, target=None)
+
+                while steps < workflow.nsteps:
+                    # 1) Update model weight
+                    # TODO: weights are updated each step -- REVIEW --
+                    buff = bytearray(target_weights_size)
+                    model_win.Lock(agent_comm.rank)
+                    model_win.Get(buff,target=0, target_rank=agent_comm.rank)
+                    model_win.Unlock(agent_comm.rank)
+                    target_weights = MPI.pickle.loads(buff)
+                    workflow.agent.set_weights(target_weights)
+
+                    # 2) Inference action
+                    if mpi_settings.is_actor():
+                        if workflow.action_type == 'fixed':
+                            action, policy_type = 0, -11
+                        else:
+                            action, policy_type = workflow.agent.action(current_state)
+
+                    # 3) Env step
+                    next_state, reward, done, _ = workflow.env.step(action)
+
+                    steps += 1
+                    if steps >= workflow.nsteps:
+                        done = True
+
+                    # 4) If done then update the episode counter and exit boolean
+                    # TODO: Verify this with a toy example
+                    if done:
+                        # episode_win.Get_accumulate(episode_count, 1, 0, target=None)
+                        episode_win.Lock(0)
+                        episode_win.Get(episode_count, target_rank=0, target=None)
+                        episode_count += 1
+                        print('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count))
+                        episode_win.Put(episode_count, target_rank=0)
+                        episode_win.Unlock(0)
                 #
                 # # 4) Generate new training data
                 # if mpi_settings.is_actor():
