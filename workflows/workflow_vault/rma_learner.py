@@ -43,15 +43,17 @@ class RMA_ASYNC(erl.ExaWorkflow):
             model_win = MPI.Win.Allocate(target_weights_size, 1, comm=agent_comm)
 
             # Get serialized batch data size
+            agent_batch = next(workflow.agent.generate_data())
+            serial_agent_batch = (MPI.pickle.dumps(agent_batch))
+            serial_agent_batch_size = len(serial_agent_batch)
             nserial_agent_batch = 0
             if mpi_settings.is_actor():
-                agent_batch = next(workflow.agent.generate_data())
-                serial_agent_batch = (MPI.pickle.dumps(agent_batch))
-                nserial_agent_batch = len(serial_agent_batch)
+                nserial_agent_batch = serial_agent_batch_size
             # Allocate data window
             data_win = MPI.Win.Allocate(nserial_agent_batch, 1, comm=agent_comm)
             
         if mpi_settings.is_learner():
+
             # Write target weight to model window of learner
             model_win.Lock(0)
             model_win.Put(serial_target_weights, target_rank=0)
@@ -63,25 +65,27 @@ class RMA_ASYNC(erl.ExaWorkflow):
         # Learner
         if mpi_settings.is_learner():
             # Initialize batch data buffer
-            buff_data = bytearray(nserial_agent_batch)
+            data_buffer = bytearray(serial_agent_batch_size)
 
             while 1:
                 # Check episode counter
                 episode_win.Lock(0)
                 episode_win.Get(episode_count, target_rank=0, target=None)
                 # print('Learner [{}] - total done episode: {}'.format(agent_comm.rank, episode_count))
-                if episode_count >= workflow.nepisodes:
+                # Duplicating inside the lock to avoid inadvertent changes
+                episode_count_learner = episode_count              
+                episode_win.Unlock(0)
+                if episode_count_learner >= workflow.nepisodes:
                     # print('Learner [{}] exit on episode: {}'.format(agent_comm.rank, episode_count))
                     break
-                episode_win.Unlock(0)
 
                 # Loop over all actor data, train, and update model
                 for s in range(1, agent_comm.size):
                     # 1) Get data
                     data_win.Lock(s)
-                    data_win.Get(buff_data, target_rank=s, target=None)
+                    data_win.Get(data_buffer, target_rank=s, target=None)
                     data_win.Unlock(s)
-                    agent_data = MPI.pickle.loads(serial_agent_batch)
+                    agent_data = MPI.pickle.loads(data_buffer)
                     # 2) Train & Target train
                     workflow.agent.train(agent_data)
                     # TODO: Double check if this is already in the DQN code
@@ -110,13 +114,6 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 action = 0
 
                 while steps < workflow.nsteps:
-                    # Check if the next 5 lines are necessary
-                    episode_win.Lock(0)
-                    episode_win.Get(episode_count_actor, target_rank=0, target=None)
-                    if episode_count_actor >= workflow.nepisodes:
-                        break
-                    episode_win.Unlock(0)
-
                     # Update model weight
                     # TODO: weights are updated each step -- REVIEW --
                     buff = bytearray(serial_target_weights_size)
@@ -159,6 +156,11 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         episode_win.Lock(0)
                         episode_win.Get(episode_count_actor, target_rank=0, target=None)
                         episode_count_actor += 1
-                        # print('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count))
-                        episode_win.Put(episode_count_actor, target_rank=0)
-                        episode_win.Unlock(0)
+                        if episode_count_actor < workflow.nepisodes:
+                            # print('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count))
+                            episode_win.Put(episode_count_actor, target_rank=0)
+                            episode_win.Unlock(0)
+                        else:
+                            episode_win.Unlock(0)
+                            break
+                            
