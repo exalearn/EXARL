@@ -1,7 +1,6 @@
 import exarl.mpi_settings as mpi_settings
-import sys
-import time
-import csv
+# import time
+# import csv
 from mpi4py import MPI
 import numpy as np
 import exarl as erl
@@ -10,7 +9,6 @@ import utils.log as log
 import utils.candleDriver as cd
 
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
-
 
 class RMA_ASYNC(erl.ExaWorkflow):
     def __init__(self):
@@ -46,53 +44,47 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 model_win.Unlock(s)
             # Define the episode counter window
 
-        agent_comm.Barrier()
+        # Get data window -- WILL NOT WORK --
+        # Save on each actor?
+        agent_batch =  next(workflow.agent.generate_data())
+        serial_agent_batch = (MPI.pickle.dumps(agent_batch))
+        nserial_agent_batch = len(serial_agent_batch)
+        data_win = MPI.Win.Allocate(nserial_agent_batch, 1, comm=agent_comm)
+
         print('Init done ...')
-        #sys.exit()
-            # Get data window -- WILL NOT WORK --
-            # agent_batch =  next(workflow.agent.generate_data())
-            # single_agent_batch = (MPI.pickle.dumps(agent_batch))
-            # nserial_agent_batch = len(single_agent_batch) * (agent_comm.size - 1)
-            # ###### Dummy size for testing #######
-            # nserial_agent_batch = 200
-            # #####################################
-            # data_win = MPI.Win.Allocate(nserial_agent_batch,len(single_agent_batch),comm=agent_comm)
-            #
-            # # Exit boolean for the leaner
-            # episode_count = np.zeros(1)
-            # episode_count_size = 0
-            # if mpi_settings.is_learner():
-            #     episode_count_size = MPI.INT64_T.Get_size()
-            # episode_win = MPI.Win.Allocate(episode_count_size, 1, comm=agent_comm)
+        agent_comm.Barrier()
 
-        # Round-robin scheduler
+        # Learner
         if mpi_settings.is_learner():
-            # Distribute weights to all actors
-            print('Hello')
-            # for s in range(1, agent_comm.size):
-            #     model_win.Lock(s)
-            #     model_win.Put(serial_target_weights, s)
-            #     model_win.Unlock(s)
-
-            # episode_win.Lock(0)
-            # episode_win.Get(episode_count, 0, target=None)
-            # episode_win.Unlock(0)
-            while episode_count < workflow.nepisodes:
-                # Check the episode counter
+            while 1:
+                # 0) Check if exit boolean
                 episode_win.Lock(0)
                 episode_win.Get(episode_count, target_rank=0, target=None)
-                #print('Rank[{}] - working on episode: {}'.format(agent_comm.rank,episode_count))
+                # print('Rank[{}] - working on episode: {}'.format(agent_comm.rank,episode_count))
                 episode_win.Unlock(0)
-            #     print(episode_count)
-            #     # Make data window
-            #     # 0) Check if exit boolean
-            #     # 1) Get data
-            #     # 2) Train & Target train
-            #     # 3) Share new model weights
-            #     target_weights = workflow.agent.get_weights()
-            #     model_win.Lock(0)
-            #     model_win.Put(target_weights)
-            #     model_win.UnLock(0)
+                if episode_count < workflow.nepisodes:
+                    print('Learner exit on episode: {}'.format(agent_comm.rank, episode_count))
+                    break
+
+                # Loop over all actor data, train, and update model
+                for s in range(1, agent_comm.size):
+                    # 1) Get data
+                    data_win.Lock(s)
+                    data_win.Get(serial_agent_batch, target_rank=s, target=None)
+                    data_win.Unlock(s)
+                    agent_data = MPI.pickle.loads(serial_agent_batch)
+                    # 2) Train & Target train
+                    workflow.agent.train(agent_data)
+                    # TODO: Double check if this is already in the DQN code
+                    workflow.agent.target_train()
+                    # 3) Share new model weights
+                    target_weights = workflow.agent.get_weights()
+                    serial_target_weights = MPI.pickle.dumps(target_weights)
+                    # TODO: loop over all actors (?)
+                    model_win.Lock(s)
+                    model_win.Put(serial_target_weights, target_rank=s)
+                    model_win.Unlock(s)
+
             print('Learner exit on episode: {}'.format(agent_comm.rank, episode_count))
         else:
 
@@ -137,7 +129,6 @@ class RMA_ASYNC(erl.ExaWorkflow):
                     # 4) If done then update the episode counter and exit boolean
                     # TODO: Verify this with a toy example
                     if done:
-                        # episode_win.Get_accumulate(episode_count, 1, 0, target=None)
                         episode_win.Lock(0)
                         episode_win.Get(episode_count, target_rank=0, target=None)
                         episode_count += 1
