@@ -35,7 +35,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
             # Get serialized target weights size
             target_weights = workflow.agent.get_weights()
             serial_target_weights = MPI.pickle.dumps(target_weights)
-            serial_target_weights_size = len(serial_target_weights)            
+            serial_target_weights_size = len(serial_target_weights)
             target_weights_size = 0
             if mpi_settings.is_learner():
                 target_weights_size = serial_target_weights_size
@@ -51,7 +51,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 nserial_agent_batch = serial_agent_batch_size
             # Allocate data window
             data_win = MPI.Win.Allocate(nserial_agent_batch, 1, comm=agent_comm)
-            
+
         if mpi_settings.is_learner():
 
             # Write target weight to model window of learner
@@ -67,13 +67,13 @@ class RMA_ASYNC(erl.ExaWorkflow):
             # Initialize batch data buffer
             data_buffer = bytearray(serial_agent_batch_size)
 
-            while 1:
+            while True:
                 # Check episode counter
                 episode_win.Lock(0)
                 episode_win.Get(episode_count, target_rank=0, target=None)
                 # print('Learner [{}] - total done episode: {}'.format(agent_comm.rank, episode_count))
                 # Duplicating inside the lock to avoid inadvertent changes
-                episode_count_learner = episode_count              
+                episode_count_learner = episode_count
                 episode_win.Unlock(0)
                 if episode_count_learner >= workflow.nepisodes:
                     # print('Learner [{}] exit on episode: {}'.format(agent_comm.rank, episode_count))
@@ -166,4 +166,3 @@ class RMA_ASYNC(erl.ExaWorkflow):
                     episode_win.Unlock(0)
                     print('breaking out')
                     break
-                            
