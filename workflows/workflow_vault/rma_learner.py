@@ -104,6 +104,13 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 action = 0
 
                 while steps < workflow.nsteps:
+                    # 0) Check episode counter
+                    episode_win.Lock(0)
+                    episode_win.Get(episode_count, target_rank=0, target=None)
+                    episode_win.Unlock(0)
+                    if episode_count >= workflow.nepisodes:
+                        break
+
                     # 1) Update model weight
                     # TODO: weights are updated each step -- REVIEW --
                     buff = bytearray(target_weights_size)
