@@ -81,19 +81,21 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
                 # Loop over all actor data, train, and update model
                 for s in range(1, agent_comm.size):
-                    # 1) Get data
+                    # Get data
                     data_win.Lock(s)
                     data_win.Get(data_buffer, target_rank=s, target=None)
                     data_win.Unlock(s)
-                    agent_data = MPI.pickle.loads(data_buffer)
-                    # 2) Train & Target train
+                    try:
+                        agent_data = MPI.pickle.loads(data_buffer)
+                    except:
+                        continue
+                    # Train & Target train
                     workflow.agent.train(agent_data)
                     # TODO: Double check if this is already in the DQN code
                     workflow.agent.target_train()
-                    # 3) Share new model weights
+                    # Share new model weights
                     target_weights = workflow.agent.get_weights()
                     serial_target_weights = MPI.pickle.dumps(target_weights)
-                    # TODO: loop over all actors (?)
                     model_win.Lock(0)
                     model_win.Put(serial_target_weights, target_rank=0)
                     model_win.Unlock(0)
