@@ -114,8 +114,9 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 total_rewards = 0
                 steps = 0
                 action = 0
+                done = False
 
-                while steps < workflow.nsteps:
+                while done != True:
                     # Update model weight
                     # TODO: weights are updated each step -- REVIEW --
                     buff = bytearray(serial_target_weights_size)
@@ -153,16 +154,16 @@ class RMA_ASYNC(erl.ExaWorkflow):
                     data_win.Put(serial_agent_batch, target_rank=agent_comm.rank)
                     data_win.Unlock(agent_comm.rank)
 
-                    # If done then update the episode counter and exit boolean
-                    if done:
-                        episode_win.Lock(0)
-                        episode_win.Get(episode_count_actor, target_rank=0, target=None)
-                        episode_count_actor += 1
-                        if episode_count_actor < workflow.nepisodes:
-                            # print('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count))
-                            episode_win.Put(episode_count_actor, target_rank=0)
-                            episode_win.Unlock(0)
-                        else:
-                            episode_win.Unlock(0)
-                            break
+                # If done then update the episode counter and exit boolean
+                episode_win.Lock(0)
+                episode_win.Get(episode_count_actor, target_rank=0, target=None)
+                print('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count_actor))
+                episode_count_actor += 1
+                if episode_count_actor <= workflow.nepisodes:
+                    episode_win.Put(episode_count_actor, target_rank=0)
+                    episode_win.Unlock(0)
+                else:
+                    episode_win.Unlock(0)
+                    print('breaking out')
+                    break
                             
