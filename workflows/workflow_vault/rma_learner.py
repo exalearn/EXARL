@@ -29,7 +29,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
             episode_count = None
             if mpi_settings.is_learner():
                 episode_count = np.zeros(1, dtype=np.int64)
-            # Allocate episode window
+            # Create episode window (attach instead of allocate for zero initialization)
             episode_win = MPI.Win.Create(episode_count, disp, comm=agent_comm)
 
             # Get serialized target weights size
