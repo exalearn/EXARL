@@ -1,6 +1,6 @@
 import exarl.mpi_settings as mpi_settings
-# import time
-# import csv
+import time
+import csv
 from mpi4py import MPI
 import numpy as np
 import exarl as erl
@@ -66,43 +66,52 @@ class RMA_ASYNC(erl.ExaWorkflow):
         if mpi_settings.is_learner():
             # Initialize batch data buffer
             data_buffer = bytearray(serial_agent_batch_size)
-
+            episode_count_learner = np.zeros(1, dtype=np.int64)
+            learner_counter = 0
             while True:
+                # Define the actor counter
+                s = learner_counter%(agent_comm.size-1)
                 # Check episode counter
                 episode_win.Lock(0)
                 episode_win.Get(episode_count, target_rank=0, target=None)
-                # print('Learner [{}] - total done episode: {}'.format(agent_comm.rank, episode_count))
                 # Duplicating inside the lock to avoid inadvertent changes
                 episode_count_learner = episode_count
                 episode_win.Unlock(0)
                 if episode_count_learner >= workflow.nepisodes:
-                    # print('Learner [{}] exit on episode: {}'.format(agent_comm.rank, episode_count))
                     break
 
-                # Loop over all actor data, train, and update model
-                for s in range(1, agent_comm.size):
-                    # Get data
-                    data_win.Lock(s)
-                    data_win.Get(data_buffer, target_rank=s, target=None)
-                    data_win.Unlock(s)
-                    try:
-                        agent_data = MPI.pickle.loads(data_buffer)
-                    except:
-                        continue
-                    # Train & Target train
-                    workflow.agent.train(agent_data)
-                    # TODO: Double check if this is already in the DQN code
-                    workflow.agent.target_train()
-                    # Share new model weights
-                    target_weights = workflow.agent.get_weights()
-                    serial_target_weights = MPI.pickle.dumps(target_weights)
-                    model_win.Lock(0)
-                    model_win.Put(serial_target_weights, target_rank=0)
-                    model_win.Unlock(0)
+                # Get data
+                data_win.Lock(s)
+                data_win.Get(data_buffer, target_rank=s, target=None)
+                data_win.Unlock(s)
+
+                try:
+                    agent_data = MPI.pickle.loads(data_buffer)
+                except:
+                    continue
+
+                # Train & Target train
+                workflow.agent.train(agent_data)
+                # TODO: Double check if this is already in the DQN code
+                workflow.agent.target_train()
+                # Share new model weights
+                target_weights = workflow.agent.get_weights()
+                serial_target_weights = MPI.pickle.dumps(target_weights)
+                model_win.Lock(0)
+                model_win.Put(serial_target_weights, target_rank=0)
+                model_win.Unlock(0)
+                learner_counter += 1
 
             print('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_count))
 
         else:
+
+            # Logging files
+            filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
+                              % (str(workflow.nepisodes), str(workflow.nsteps), str(agent_comm.rank))
+            train_file = open(workflow.results_dir + '/' + filename_prefix + ".log", 'w')
+            train_writer = csv.writer(train_file, delimiter=" ")
+
             episode_count_actor = np.zeros(1, dtype=np.int64)
             episode_win.Lock(0)
             episode_win.Get(episode_count_actor, target_rank=0, target=None)
@@ -153,6 +162,11 @@ class RMA_ASYNC(erl.ExaWorkflow):
                     data_win.Lock(agent_comm.rank)
                     data_win.Put(serial_agent_batch, target_rank=agent_comm.rank)
                     data_win.Unlock(agent_comm.rank)
+
+                    # Print
+                    train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
+                                           done, episode_count_actor[0], steps, policy_type, workflow.agent.epsilon])
+                    train_file.flush()
 
                 # If done then update the episode counter and exit boolean
                 episode_win.Lock(0)
