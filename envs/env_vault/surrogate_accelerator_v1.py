@@ -165,7 +165,7 @@ class Surrogate_Accelerator_v1(gym.Env):
         self.state = np.zeros(shape=(1, self.nvariables, self.nsamples))
         self.predicted_state = np.zeros(shape=(1, self.nvariables, 1))
         logger.debug('Init pred shape:{}'.format(self.predicted_state.shape))
-        self.do_render = True
+        self.do_render = Flase
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
