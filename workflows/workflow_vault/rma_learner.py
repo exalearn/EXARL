@@ -116,7 +116,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
             episode_win.Lock(0)
             episode_win.Get(episode_count_actor, target_rank=0, target=None)
             episode_win.Unlock(0)
-
+            actor_episode_counter = 0
             while episode_count_actor < workflow.nepisodes:
                 workflow.env.seed(0)
                 current_state = workflow.env.reset()
@@ -124,6 +124,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 steps = 0
                 action = 0
                 done = False
+                actor_episode_counter += 1
 
                 while done != True:
                     # Update model weight
@@ -164,8 +165,9 @@ class RMA_ASYNC(erl.ExaWorkflow):
                     data_win.Unlock(agent_comm.rank)
 
                     # Print
+
                     train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
-                                           done, episode_count_actor[0], steps, policy_type, workflow.agent.epsilon])
+                                           done, actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
                     train_file.flush()
 
                 # If done then update the episode counter and exit boolean
