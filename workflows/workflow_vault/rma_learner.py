@@ -53,7 +53,6 @@ class RMA_ASYNC(erl.ExaWorkflow):
             data_win = MPI.Win.Allocate(nserial_agent_batch, 1, comm=agent_comm)
 
         if mpi_settings.is_learner():
-
             # Write target weight to model window of learner
             model_win.Lock(0)
             model_win.Put(serial_target_weights, target_rank=0)
@@ -74,6 +73,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 episode_win.Lock(0)
                 episode_win.Get(episode_count_learner, target_rank=0, target=None)
                 episode_win.Unlock(0)
+                # print("Episode count = ", episode_count_learner)
 
                 # Go over all actors (actor processes start from rank 1)
                 s = (learner_counter % (agent_comm.size - 1)) + 1
@@ -118,6 +118,16 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 local_actor_episode_counter = 0
 
             while episode_count_actor < workflow.nepisodes:
+                # Update the episode counter
+                episode_win.Lock(0)
+                episode_win.Get(episode_count_actor, target_rank=0, target=None)
+                print('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count_actor))
+                if mpi_settings.is_actor():
+                    episode_count_actor += 1
+                    episode_win.Put(episode_count_actor, target_rank=0)
+                episode_win.Unlock(0)
+
+                # Episode initialization
                 workflow.env.seed(0)
                 current_state = workflow.env.reset()
                 total_rewards = 0
@@ -169,12 +179,3 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
                                                done, local_actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
                         train_file.flush()
-
-                # Update the episode counter
-                episode_win.Lock(0)
-                episode_win.Get(episode_count_actor, target_rank=0, target=None)
-                logger.info('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count_actor))
-                if mpi_settings.is_actor():
-                    episode_count_actor += 1
-                    episode_win.Put(episode_count_actor, target_rank=0)
-                episode_win.Unlock(0)
