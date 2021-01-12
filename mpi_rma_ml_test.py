@@ -3,12 +3,11 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
-import pickle as pk
 
 comm = MPI.COMM_WORLD
 rank = comm.rank
-print('rank',rank)
-n = np.zeros (10 , dtype = np.int )
+print('rank', rank)
+n = np.zeros(10, dtype=np.int)
 
 ##
 model = keras.Sequential(
@@ -20,12 +19,12 @@ model = keras.Sequential(
 )
 x = tf.ones((3, 3))
 y = model(x)
-model.build((3,3))
+model.build((3, 3))
 weights = model.get_weights()
 print("Rank[%d] Initial data %s" % (rank, weights[0]))
 serial = MPI.pickle.dumps(weights)
 nserial = len(serial)
-win  = MPI.Win.Allocate(nserial, 1, comm=comm)
+win = MPI.Win.Allocate(nserial, 1)
 buff = win.tomemory()
 buff[:] = 0
 if rank > 0:
