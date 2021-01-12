@@ -76,7 +76,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 episode_win.Unlock(0)
                 if episode_count_learner >= workflow.nepisodes:
                     break
-                
+
                 # Go over all actors (actor processes start from rank 1)
                 s = (learner_counter % (agent_comm.size - 1)) + 1
                 # Get data
