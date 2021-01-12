@@ -102,18 +102,21 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
             logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_count))
 
+        # Actors
         else:
-            # Logging files
-            filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
-                              % (str(workflow.nepisodes), str(workflow.nsteps), str(agent_comm.rank))
-            train_file = open(workflow.results_dir + '/' + filename_prefix + ".log", 'w')
-            train_writer = csv.writer(train_file, delimiter=" ")
+            if mpi_settings.is_actor():
+                # Logging files
+                filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
+                    % (str(workflow.nepisodes), str(workflow.nsteps), str(agent_comm.rank))
+                train_file = open(workflow.results_dir + '/' + filename_prefix + ".log", 'w')
+                train_writer = csv.writer(train_file, delimiter=" ")
 
-            episode_count_actor = np.zeros(1, dtype=np.int64)
-            episode_win.Lock(0)
-            episode_win.Get(episode_count_actor, target_rank=0, target=None)
-            episode_win.Unlock(0)
-            local_actor_episode_counter = 0
+                episode_count_actor = np.zeros(1, dtype=np.int64)
+                episode_win.Lock(0)
+                episode_win.Get(episode_count_actor, target_rank=0, target=None)
+                episode_win.Unlock(0)
+                local_actor_episode_counter = 0
+
             while episode_count_actor < workflow.nepisodes:
                 workflow.env.seed(0)
                 current_state = workflow.env.reset()
@@ -124,17 +127,17 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 local_actor_episode_counter += 1
 
                 while done != True:
-                    # Update model weight
-                    # TODO: weights are updated each step -- REVIEW --
-                    buff = bytearray(serial_target_weights_size)
-                    model_win.Lock(0)
-                    model_win.Get(buff, target=0, target_rank=0)
-                    model_win.Unlock(0)
-                    target_weights = MPI.pickle.loads(buff)
-                    workflow.agent.set_weights(target_weights)
-
-                    # Inference action
                     if mpi_settings.is_actor():
+                        # Update model weight
+                        # TODO: weights are updated each step -- REVIEW --
+                        buff = bytearray(serial_target_weights_size)
+                        model_win.Lock(0)
+                        model_win.Get(buff, target=0, target_rank=0)
+                        model_win.Unlock(0)
+                        target_weights = MPI.pickle.loads(buff)
+                        workflow.agent.set_weights(target_weights)
+
+                        # Inference action
                         if workflow.action_type == 'fixed':
                             action, policy_type = 0, -11
                         else:
@@ -146,25 +149,28 @@ class RMA_ASYNC(erl.ExaWorkflow):
                     steps += 1
                     if steps >= workflow.nsteps:
                         done = True
+                    # Broadcast done
+                    done = env_comm.bcast(done, root=0)
 
-                    # Save memory
-                    total_rewards += reward
-                    memory = (current_state, action, reward, next_state, done, total_rewards)
-                    workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
-                    batch_data = next(workflow.agent.generate_data())
-                    
-                    # Write to data window
-                    serial_agent_batch = (MPI.pickle.dumps(batch_data))
-                    data_win.Lock(agent_comm.rank)
-                    data_win.Put(serial_agent_batch, target_rank=agent_comm.rank)
-                    data_win.Unlock(agent_comm.rank)
+                    if mpi_settings.is_actor():
+                        # Save memory
+                        total_rewards += reward
+                        memory = (current_state, action, reward, next_state, done, total_rewards)
+                        workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
+                        batch_data = next(workflow.agent.generate_data())
 
-                    # Log state, action, reward, ...
-                    train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
-                                           done, local_actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
-                    train_file.flush()
+                        # Write to data window
+                        serial_agent_batch = (MPI.pickle.dumps(batch_data))
+                        data_win.Lock(agent_comm.rank)
+                        data_win.Put(serial_agent_batch, target_rank=agent_comm.rank)
+                        data_win.Unlock(agent_comm.rank)
 
-                # If done then update the episode counter and exit boolean
+                        # Log state, action, reward, ...
+                        train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
+                                               done, local_actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
+                        train_file.flush()
+
+                # Update the episode counter
                 episode_win.Lock(0)
                 episode_win.Get(episode_count_actor, target_rank=0, target=None)
                 logger.info('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count_actor))
