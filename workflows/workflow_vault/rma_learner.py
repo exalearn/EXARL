@@ -71,9 +71,10 @@ class RMA_ASYNC(erl.ExaWorkflow):
             while episode_count_learner < workflow.nepisodes:
                 # Check episode counter
                 episode_win.Lock(0)
-                episode_win.Get(episode_count_learner, target_rank=0, target=None)
+                # Atomic Get using Get_accumulate
+                episode_win.Get_accumulate(np.ones(1, dtype=np.int64), episode_count_learner, target_rank=0, op=MPI.NO_OP)
+                episode_win.Flush(0)
                 episode_win.Unlock(0)
-                # print("Episode count = ", episode_count_learner)
 
                 # Go over all actors (actor processes start from rank 1)
                 s = (learner_counter % (agent_comm.size - 1)) + 1
@@ -112,20 +113,23 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 train_writer = csv.writer(train_file, delimiter=" ")
 
                 episode_count_actor = np.zeros(1, dtype=np.int64)
+                one = np.ones(1, dtype=np.int64)
+
+                # Get initial value of episode counter
                 episode_win.Lock(0)
-                episode_win.Get(episode_count_actor, target_rank=0, target=None)
+                # Atomic Get using Get_accumulate
+                episode_win.Get_accumulate(one, episode_count_actor, target_rank=0, op=MPI.NO_OP)
+                episode_win.Flush(0)
                 episode_win.Unlock(0)
                 local_actor_episode_counter = 0
 
             while episode_count_actor < workflow.nepisodes:
-                # Update the episode counter
                 episode_win.Lock(0)
-                episode_win.Get(episode_count_actor, target_rank=0, target=None)
-                print('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count_actor))
-                if mpi_settings.is_actor():
-                    episode_count_actor += 1
-                    episode_win.Put(episode_count_actor, target_rank=0)
+                # Atomic Get using Get_accumulate
+                episode_win.Get_accumulate(one, episode_count_actor, target_rank=0)
+                episode_win.Flush(0)
                 episode_win.Unlock(0)
+                logger.info('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count_actor))
 
                 # Episode initialization
                 workflow.env.seed(0)
