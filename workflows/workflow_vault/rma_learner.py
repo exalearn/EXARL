@@ -69,13 +69,11 @@ class RMA_ASYNC(erl.ExaWorkflow):
             episode_count_learner = np.zeros(1, dtype=np.int64)
             learner_counter = 0
 
-            while True:
+            while episode_count_learner < workflow.nepisodes:
                 # Check episode counter
                 episode_win.Lock(0)
                 episode_win.Get(episode_count_learner, target_rank=0, target=None)
                 episode_win.Unlock(0)
-                if episode_count_learner >= workflow.nepisodes:
-                    break
 
                 # Go over all actors (actor processes start from rank 1)
                 s = (learner_counter % (agent_comm.size - 1)) + 1
@@ -84,6 +82,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 data_win.Get(data_buffer, target_rank=s, target=None)
                 data_win.Unlock(s)
 
+                # Continue to the next actor if data_buffer is empty
                 try:
                     agent_data = MPI.pickle.loads(data_buffer)
                 except:
@@ -101,10 +100,9 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 model_win.Unlock(0)
                 learner_counter += 1
 
-            print('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_count))
+            logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_count))
 
         else:
-
             # Logging files
             filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
                               % (str(workflow.nepisodes), str(workflow.nsteps), str(agent_comm.rank))
@@ -154,16 +152,14 @@ class RMA_ASYNC(erl.ExaWorkflow):
                     memory = (current_state, action, reward, next_state, done, total_rewards)
                     workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
                     batch_data = next(workflow.agent.generate_data())
-                    # print('Rank [{}] - actor data shape: {}/{}'.format(agent_comm.rank,
-                    #                                              batch_data[0].shape, batch_data[1].shape))
-
+                    
                     # Write to data window
                     serial_agent_batch = (MPI.pickle.dumps(batch_data))
                     data_win.Lock(agent_comm.rank)
                     data_win.Put(serial_agent_batch, target_rank=agent_comm.rank)
                     data_win.Unlock(agent_comm.rank)
 
-                    # Log
+                    # Log state, action, reward, ...
                     train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
                                            done, local_actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
                     train_file.flush()
@@ -171,12 +167,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 # If done then update the episode counter and exit boolean
                 episode_win.Lock(0)
                 episode_win.Get(episode_count_actor, target_rank=0, target=None)
-                print('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count_actor))
+                logger.info('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count_actor))
                 episode_count_actor += 1
-                if episode_count_actor <= workflow.nepisodes:
-                    episode_win.Put(episode_count_actor, target_rank=0)
-                    episode_win.Unlock(0)
-                else:
-                    episode_win.Unlock(0)
-                    print('breaking out')
-                    break
+                episode_win.Put(episode_count_actor, target_rank=0)
+                episode_win.Unlock(0)
