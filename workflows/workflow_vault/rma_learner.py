@@ -174,6 +174,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 episode_win.Lock(0)
                 episode_win.Get(episode_count_actor, target_rank=0, target=None)
                 logger.info('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count_actor))
-                episode_count_actor += 1
-                episode_win.Put(episode_count_actor, target_rank=0)
+                if mpi_settings.is_actor():
+                    episode_count_actor += 1
+                    episode_win.Put(episode_count_actor, target_rank=0)
                 episode_win.Unlock(0)
