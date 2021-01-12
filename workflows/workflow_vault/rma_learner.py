@@ -68,18 +68,17 @@ class RMA_ASYNC(erl.ExaWorkflow):
             data_buffer = bytearray(serial_agent_batch_size)
             episode_count_learner = np.zeros(1, dtype=np.int64)
             learner_counter = 0
+
             while True:
-                # Define the actor counter
-                s = learner_counter%(agent_comm.size-1)
                 # Check episode counter
                 episode_win.Lock(0)
-                episode_win.Get(episode_count, target_rank=0, target=None)
-                # Duplicating inside the lock to avoid inadvertent changes
-                episode_count_learner = episode_count
+                episode_win.Get(episode_count_learner, target_rank=0, target=None)
                 episode_win.Unlock(0)
                 if episode_count_learner >= workflow.nepisodes:
                     break
-
+                
+                # Go over all actors (actor processes start from rank 1)
+                s = (learner_counter % (agent_comm.size - 1)) + 1
                 # Get data
                 data_win.Lock(s)
                 data_win.Get(data_buffer, target_rank=s, target=None)
@@ -116,7 +115,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
             episode_win.Lock(0)
             episode_win.Get(episode_count_actor, target_rank=0, target=None)
             episode_win.Unlock(0)
-            actor_episode_counter = 0
+            local_actor_episode_counter = 0
             while episode_count_actor < workflow.nepisodes:
                 workflow.env.seed(0)
                 current_state = workflow.env.reset()
@@ -124,7 +123,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 steps = 0
                 action = 0
                 done = False
-                actor_episode_counter += 1
+                local_actor_episode_counter += 1
 
                 while done != True:
                     # Update model weight
@@ -164,10 +163,9 @@ class RMA_ASYNC(erl.ExaWorkflow):
                     data_win.Put(serial_agent_batch, target_rank=agent_comm.rank)
                     data_win.Unlock(agent_comm.rank)
 
-                    # Print
-
+                    # Log
                     train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
-                                           done, actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
+                                           done, local_actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
                     train_file.flush()
 
                 # If done then update the episode counter and exit boolean
