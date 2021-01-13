@@ -125,7 +125,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
             while episode_count_actor < workflow.nepisodes:
                 episode_win.Lock(0)
-                # Atomic Get using Get_accumulate
+                # Atomic Get_accumulate to increment the episode counter
                 episode_win.Get_accumulate(one, episode_count_actor, target_rank=0)
                 episode_win.Flush(0)
                 episode_win.Unlock(0)
