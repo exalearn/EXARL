@@ -129,6 +129,10 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 episode_win.Get_accumulate(one, episode_count_actor, target_rank=0)
                 episode_win.Flush(0)
                 episode_win.Unlock(0)
+                # Include another check to avoid each actor running extra
+                # set of steps while terminating
+                if episode_count_actor >= workflow.nepisodes:
+                    break
                 logger.info('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count_actor))
 
                 # Episode initialization
