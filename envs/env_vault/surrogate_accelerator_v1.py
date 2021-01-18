@@ -165,7 +165,7 @@ class Surrogate_Accelerator_v1(gym.Env):
         self.state = np.zeros(shape=(1, self.nvariables, self.nsamples))
         self.predicted_state = np.zeros(shape=(1, self.nvariables, 1))
         logger.debug('Init pred shape:{}'.format(self.predicted_state.shape))
-        self.do_render = True
+        self.do_render = False#True
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -209,8 +209,8 @@ class Surrogate_Accelerator_v1(gym.Env):
         # Update data state for rendering
         self.data_state = np.copy(self.X_train[self.batch_id + self.steps].reshape(1, self.nvariables, self.nsamples))
         data_iminer = self.scalers[1].inverse_transform(self.data_state[0][1][self.nsamples - 1].reshape(1, -1))
-        # data_reward = -abs(data_iminer)
-        data_reward = np.array(1. * math.exp(-5 * abs(np.asscalar(data_iminer))))
+        data_reward = -abs(data_iminer)
+        # data_reward = np.array(1. * math.exp(-5 * abs(np.asscalar(data_iminer))))
 
         # Use data for everything but the B:IMINER prediction
         self.state[0, 2:self.nvariables, :] = self.data_state[0, 2:self.nvariables, :]
@@ -221,9 +221,9 @@ class Surrogate_Accelerator_v1(gym.Env):
         logger.debug('iminer:{}'.format(iminer))
 
         # Reward
-        # reward = -abs(iminer)
+        reward = -abs(iminer)
         # reward = np.array(-1 + 1. * math.exp(-5 * abs(np.asscalar(iminer))))
-        reward = np.array(1. * math.exp(-5 * abs(np.asscalar(iminer))))
+        # reward = np.array(1. * math.exp(-5 * abs(np.asscalar(iminer))))
 
         if abs(iminer) >= 2:
             logger.info('iminer:{} is out of bounds'.format(iminer))

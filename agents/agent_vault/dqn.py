@@ -172,6 +172,7 @@ class DQN(erl.ExaAgent):
         np.random.seed(int.from_bytes(random_data, byteorder="big"))
         rdm = np.random.rand()
         if rdm <= self.epsilon:
+            self.epsilon_adj()
             action = random.randrange(self.env.action_space.n)
             return action, 0
         else:
@@ -207,8 +208,9 @@ class DQN(erl.ExaAgent):
         # Worker method to create samples for training
         # TODO: This method is the most expensive and takes 90% of the agent compute time
         # TODO: Reduce computational time
-        batch_states = []
-        batch_target = []
+        # TODO: Revisit the shape (e.g. extra 1 for the LSTM)
+        batch_states = np.empty((self.batch_size, 1, self.env.observation_space.shape[0]))
+        batch_target = np.empty((self.batch_size, self.env.action_space.n))
         # Return empty batch
         if len(self.memory) < self.batch_size:
             yield batch_states, batch_target
@@ -229,7 +231,6 @@ class DQN(erl.ExaAgent):
 
     @introspectTrace()
     def train(self, batch):
-        self.epsilon_adj()
         if self.is_learner:
             # if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
             if len(batch[0]) >= (self.batch_size):
