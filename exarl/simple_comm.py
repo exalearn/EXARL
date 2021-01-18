@@ -87,10 +87,10 @@ class ExaSimple(erl.ExaComm):
         return buff, np_arrays
     @introspectTrace()
     def send(self, data, dest, pack=False):
-        if pack:
-            print("SIZE", self.get_flat_size(data), flush=True)
-            _, np_arrays = self.encode_list_format(data)
-            print("ARRAYS", np_arrays, flush=True)
+        # if pack:
+        #     print("SIZE", self.get_flat_size(data), flush=True)
+        #     _, np_arrays = self.encode_list_format(data)
+        #     print("ARRAYS", np_arrays, flush=True)
         return self.comm.send(data, dest=dest)
 
     @introspectTrace()
