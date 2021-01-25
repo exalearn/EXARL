@@ -79,9 +79,9 @@ class ExaLearner():
         # Create agent object
         agent = None
         # Only agent_comm processes will create agents
-        try:
+        if mpi_settings.is_agent():
             agent = agents.make(self.agent_id, env=env)
-        except:
+        else:
             logger.debug('Does not contain an agent')
         # Create workflow object
         workflow = workflows.make(self.workflow_id)
