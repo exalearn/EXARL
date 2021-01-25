@@ -161,11 +161,10 @@ class Surrogate_Accelerator_v1(gym.Env):
             self.actionMap_VIMIN.append(data['B:VIMIN_DIFF'].quantile(i / (self.nactions + 1)))
 
         self.VIMIN = 0
-        ##
         self.state = np.zeros(shape=(1, self.nvariables, self.nsamples))
         self.predicted_state = np.zeros(shape=(1, self.nvariables, 1))
         logger.debug('Init pred shape:{}'.format(self.predicted_state.shape))
-        self.do_render = False#True
+        self.do_render = False  # True
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
