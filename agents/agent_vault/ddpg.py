@@ -134,7 +134,7 @@ class DDPG(erl.ExaAgent):
         out = layers.Dense(256, activation="relu")(inputs)
         out = layers.Dense(256, activation="relu")(out)
         outputs = layers.Dense(self.num_actions, activation="relu", kernel_initializer=last_init)(out)
-        #outputs = layers.Dense(1, activation="tanh", kernel_initializer=last_init)(out)
+        # outputs = layers.Dense(1, activation="tanh", kernel_initializer=last_init)(out)
 
         outputs = outputs * self.upper_bound
         model = tf.keras.Model(inputs, outputs)
