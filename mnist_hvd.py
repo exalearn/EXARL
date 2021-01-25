@@ -16,7 +16,11 @@ if gpus:
 
 dataset = tf.data.Dataset.from_tensor_slices(
     (tf.cast(mnist_images[..., tf.newaxis] / 255.0, tf.float32),
+<<<<<<< HEAD
      tf.cast(mnist_labels, tf.int64))
+=======
+            tf.cast(mnist_labels, tf.int64))
+>>>>>>> ad975012e20332e707cf1f9fbe90bac303646996
 )
 dataset = dataset.repeat().shuffle(10000).batch(128)
 
@@ -74,4 +78,8 @@ for batch, (images, labels) in enumerate(dataset.take(1000 // hvd.size())):
 # Horovod: save checkpoints only on worker 0 to prevent other workers from
 # corrupting it.
 if hvd.rank() == 0:
+<<<<<<< HEAD
     checkpoint.save(checkpoint_dir)
+=======
+    checkpoint.save(checkpoint_dir)
+>>>>>>> ad975012e20332e707cf1f9fbe90bac303646996
