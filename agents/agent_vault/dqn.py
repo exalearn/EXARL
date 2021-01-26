@@ -18,10 +18,10 @@ import utils.candleDriver as cd
 import utils.log as log
 from utils.introspect import introspectTrace
 from tensorflow.compat.v1.keras.backend import set_session
+
 tf_version = int((tf.__version__)[0])
 
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
-
 
 # The Deep Q-Network (DQN)
 
@@ -156,7 +156,7 @@ class DQN(erl.ExaAgent):
             sys.exit("Oops! That was not a valid model type. Try again...")
 
     def set_learner(self):
-        # logger.debug('Agent[{}] - Creating active model for the learner'.format(self.rank))
+        logger.debug('Agent[{}] - Creating active model for the learner'.format(self.rank))
         self.is_learner = True
         self.model = self._build_model()
         self.model.compile(loss=self.loss, optimizer=self.optimizer)
@@ -194,7 +194,6 @@ class DQN(erl.ExaAgent):
         np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
         expectedQ = 0
         if not done:
-                # BELLMAN EQN
             with tf.device(self.device):
                 expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
         target = reward + expectedQ
@@ -209,15 +208,15 @@ class DQN(erl.ExaAgent):
         # TODO: This method is the most expensive and takes 90% of the agent compute time
         # TODO: Reduce computational time
         # TODO: Revisit the shape (e.g. extra 1 for the LSTM)
-        batch_states = np.empty((self.batch_size, 1, self.env.observation_space.shape[0]))
-        batch_target = np.empty((self.batch_size, self.env.action_space.n))
+        batch_states = np.empty((self.batch_size, 1, self.env.observation_space.shape[0]), dtype=np.float64)
+        batch_target = np.empty((self.batch_size, self.env.action_space.n), dtype=np.float32)
         # Return empty batch
         if len(self.memory) < self.batch_size:
             yield batch_states, batch_target
         start_time = time.time()
         minibatch = random.sample(self.memory, self.batch_size)
         batch_target = list(map(self.calc_target_f, minibatch))
-        batch_states = [np.array(exp[0], dtype=np.float32).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
+        batch_states = [np.array(exp[0]).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
         batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
         batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
         end_time = time.time()
@@ -225,9 +224,6 @@ class DQN(erl.ExaAgent):
         self.ndataprep_time += 1
         logger.debug('Agent[{}] - Minibatch time: {} '.format(self.rank, (end_time - start_time)))
         yield batch_states, batch_target
-
-    def get_data_shape(self):
-        return None
 
     @introspectTrace()
     def train(self, batch):
@@ -247,12 +243,10 @@ class DQN(erl.ExaAgent):
         else:
             logger.warning('Training will not be done because this instance is not set to learn.')
 
-    # @introspectTrace()
     def get_weights(self):
-        # logger.debug('Agent[%s] - get target weight.' % str(self.rank))
+        logger.debug('Agent[%s] - get target weight.' % str(self.rank))
         return self.target_model.get_weights()
 
-    # @introspectTrace()
     def set_weights(self, weights):
         logger.info('Agent[%s] - set target weight.' % str(self.rank))
         logger.debug('Agent[%s] - set target weight: %s' % (str(self.rank), weights))

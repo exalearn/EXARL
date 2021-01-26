@@ -73,7 +73,7 @@ def verify_path(path):
     """
     folder = os.path.dirname(path)
     if folder and not os.path.exists(folder):
-        os.makedirs(folder)
+        os.makedirs(folder, exist_ok=True)
 
 
 def set_up_logger(logfile, logger, verbose):
@@ -661,15 +661,15 @@ def directory_from_parameters(params, commonroot='Output'):
     else:  # Create path specified
         outdir = os.path.abspath(os.path.join('.', commonroot))
         if not os.path.exists(outdir):
-            os.makedirs(outdir)
+            os.makedirs(outdir, exist_ok=True)
 
         outdir = os.path.abspath(os.path.join(outdir, params['experiment_id']))
         if not os.path.exists(outdir):
-            os.makedirs(outdir)
+            os.makedirs(outdir, exist_ok=True)
 
         outdir = os.path.abspath(os.path.join(outdir, params['run_id']))
         if not os.path.exists(outdir):
-            os.makedirs(outdir)
+            os.makedirs(outdir, exist_ok=True)
 
     return outdir
 

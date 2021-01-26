@@ -3,15 +3,11 @@ import utils.candleDriver as cd
 import os
 import functools
 import time
-from exarl import ExaComm
-
-global_comm = ExaComm.global_comm
 
 prof = cd.run_params['profile']
 results_dir = cd.run_params['output_dir'] + '/'
 if not os.path.exists(results_dir + '/Profile'):
-    if (global_comm.rank == 0):
-        os.makedirs(results_dir + '/Profile')
+    os.makedirs(results_dir + '/Profile', exist_ok=True)
 
 
 def PROFILE(func):

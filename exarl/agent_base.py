@@ -56,7 +56,3 @@ class ExaAgent(ABC):
     @abstractmethod
     def monitor(self):
         pass
-
-    @abstractmethod
-    def get_data_shape(self):
-        pass

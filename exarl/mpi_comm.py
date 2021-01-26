@@ -26,7 +26,7 @@ class ExaMPI(erl.ExaComm):
             return np.float64
         if the_type == np.float32 or the_type == MPI.FLOAT:
             return np.float32
-        if the_type == int or the_type == np.int64 or the_type == MPI.MPI_INT64_T:
+        if the_type == int or the_type == np.int64 or the_type == MPI.INT64_T:
             return np.int64
         if the_type == np.int32 or the_type == MPI.INT:
             return np.int32

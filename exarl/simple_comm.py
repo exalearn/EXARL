@@ -87,10 +87,6 @@ class ExaSimple(erl.ExaComm):
         return buff, np_arrays
     @introspectTrace()
     def send(self, data, dest, pack=False):
-        # if pack:
-        #     print("SIZE", self.get_flat_size(data), flush=True)
-        #     _, np_arrays = self.encode_list_format(data)
-        #     print("ARRAYS", np_arrays, flush=True)
         return self.comm.send(data, dest=dest)
 
     @introspectTrace()
@@ -135,3 +131,18 @@ class ExaSimple(erl.ExaComm):
         env_comm = ExaSimple(comm=env_comm)
         return agent_comm, env_comm
     
+    def raw(self):
+        return self.comm
+        
+# class LazyCallable(object):
+#   def __init__(self, name):
+#     self.n, self.f = name, None
+
+#   def __call__(self, *a, **k):
+#     if self.f is None:
+#       modn, funcn = self.n.rsplit('.', 1)
+#       if modn not in sys.modules:
+#         __import__(modn)
+#       self.f = getattr(sys.modules[modn],
+#                        funcn)
+#     self.f(*a, **k)

@@ -1,7 +1,7 @@
 {
     "agent": "DQN-v0",
     "env": "CartPole-v0",
-    "workflow": "async",
+    "workflow": "rma",
     "n_episodes": 10,
     "n_steps": 10,
     "output_dir": "./results_dir/",
