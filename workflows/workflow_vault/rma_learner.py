@@ -187,3 +187,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
                                                done, local_actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
                         train_file.flush()
+
+        if mpi_settings.is_agent():
+            model_win.Free()
+            data_win.Free()
