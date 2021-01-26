@@ -109,7 +109,7 @@ class DQN(erl.ExaAgent):
         self.size = self.agent_comm.size
 
         # self._get_device()
-        # self.device = '/CPU:0'
+        self.device = '/CPU:0'
         # logger.info('Using device: {}'.format(self.device))
         # tf.config.experimental.set_memory_growth(self.device, True)
 
@@ -316,8 +316,9 @@ class DQN(erl.ExaAgent):
             if len(batch[0]) >= (self.batch_size):
                 # batch_states, batch_target = batch
                 start_time = time.time()
-                with tf.device(self.device):
-                    history = self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
+                #with tf.device(self.device):
+                with self.mirrored_strategy.scope():
+                    history = self.model.fit(batch[0], batch[1], epochs=10, verbose=0)
                 end_time = time.time()
                 self.training_time += (end_time - start_time)
                 self.ntraining_time += 1
