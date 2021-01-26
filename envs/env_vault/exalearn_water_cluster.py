@@ -9,10 +9,9 @@ import utils.log as log
 import utils.candleDriver as cd
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
-#
 from ase.io import read, write
 from ase import Atom, Atoms
-#
+
 from math import log10
 import subprocess
 import os
@@ -40,16 +39,11 @@ class WaterCluster(gym.Env):
 
         self.episode = 0
         self.steps = 0
-        #############################################################
-        # Setup water molecule application (show be configurable)
-        #############################################################
-        self.app_dir = '/gpfs/alpine/ast153/scratch/vinayr/pot_ttm'
-        self.app_name = 'main.x'
+
         self.app = os.path.join(self.app_dir, self.app_name)
         self.env_input_name = 'W10_geoms_lowest.xyz'  # 'input.xyz'
         self.env_input = os.path.join(self.app_dir, self.env_input_name)
 
-        # Inital state
         env_out = subprocess.Popen([self.app, self.env_input],
                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = env_out.communicate()
@@ -67,11 +61,11 @@ class WaterCluster(gym.Env):
 
         # Env state output: potential energy
         self.observation_space = spaces.Box(low=np.array([-500]),
-                                            high=np.array([0]), dtype=np.float32)
+                                            high=np.array([0]), dtype=np.float64)
 
         # Actions per cluster: cluster id, rotation angle, translation
         self.action_space = spaces.Box(low=np.array([0, 75, 0.3]),
-                                       high=np.array([self.nclusters, 105, 0.7]), dtype=np.float32)
+                                       high=np.array([self.nclusters, 105, 0.7]), dtype=np.float64)
 
     def _load_structure(self, env_input):
         # Read initial XYZ file
@@ -92,18 +86,19 @@ class WaterCluster(gym.Env):
         done = False
         energy = 0.0  # Default energy
         reward = np.random.normal(-100.0, 0.01)  # Default penalty
-        target_scale = 200.0  # Scale for calculations
+        # target_scale = 200.0  # Scale for calculations
 
+        # print('env action: ',action)
         # Make sure the action is within the defined space
-        isValid = self.action_space.contains(action)
-        if isValid == False:
-            logger.debug('Env::step(); Invalid action...')
-            # max_value = np.max(abs(action))
-            logger.debug(action)
-            # logger.debug("Reward: %s " % str(-max_value) )
-            # done=True
-            # return np.array([0]), np.array(-max_value), done, {}
-            return np.array([0]), np.array(reward), done, {}
+        # isValid = self.action_space.contains(action)
+        # if isValid == False:
+        #    logger.debug('Env::step(); Invalid action...')
+        #    # max_value = np.max(abs(action))
+        #    logger.debug(action)
+        #    # logger.debug("Reward: %s " % str(-max_value) )
+        #    # done=True
+        #    # return np.array([0]), np.array(-max_value), done, {}
+        #    return np.array([0]), np.array(reward), done, {}
 
         # Extract actions
         cluster_id = math.floor(action[0])
@@ -164,19 +159,26 @@ class WaterCluster(gym.Env):
         if any("Error in the det" in s for s in stdout):
             logger.debug("\tEnv::step(); !!! Error in the det !!!")
             done = True
-            return np.array([0]), np.array(reward), done, {}
+            return np.array([0]), np.array([reward]), done, {}
 
         # Reward is currently based on the potential energy
-        logger.debug("\tEnv::step(); stdout[{}]".format(stdout))
-        energy = float(stdout[-1].split()[-1])
-        logger.debug("\tEnv::step(); energy[{}]".format(energy))
-        energy = round(energy, 6)
+        try:
+            logger.debug("\tEnv::step(); stdout[{}]".format(stdout))
+            energy = float(stdout[-1].split()[-1])
+            logger.debug("\tEnv::step(); energy[{}]".format(energy))
+            energy = round(energy, 6)
+            reward = self.current_state[0] - energy
+            reward = np.array([round(reward, 6)])
+        except:
+            print('stdout:', stdout)
+            print('stderr:', stderr)
+            return np.array([0]), np.array([reward]), done, {}
 
         # Check if the structure is the same
         if round(self.current_state[0], 6) == energy:
             logger.debug('Env::step(); Same state ... terminating')
             done = True
-            return np.array([0]), np.array(reward), done, {}
+            return np.array([energy]), np.array(reward), done, {}
 
         # If valid action and simulation
         # reward= (energy/target_scale - 1.0)**2
@@ -185,8 +187,7 @@ class WaterCluster(gym.Env):
         # delta = energy-self.current_state[0]
         # delta = energy-self.inital_state[0]
         # reward = np.exp(-delta/5.0)
-        reward = (energy - self.current_state[0])
-        reward = np.array([round(reward, 6)])
+
         # logger.info('Current state: %s' % self.current_state)
         # logger.info('Next State: %s' % np.array([energy]))
         # logger.info('Reward: %s' % reward)
@@ -202,8 +203,8 @@ class WaterCluster(gym.Env):
         self.current_structure = self.init_structure
         self.current_state = self.inital_state
         # Start a new random starting point
-        random_action = self.action_space.sample()
-        self.step(random_action)
+        # random_action = self.action_space.sample()
+        # self.step(random_action)
         self.init_structure = self.current_structure
         self.inital_state = self.current_state
         logger.info("Resetting the environemnts.")
