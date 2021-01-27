@@ -14,3 +14,7 @@
 	path = envs/env_vault/pydemic
 	url = https://github.com/uiuc-covid19-modeling/pydemic
 	branch = master
+[submodule "molecular-graph-descriptors"]
+        path = envs/env_vault/molecular-graph-descriptors
+        url = https://github.com/exalearn/molecular-graph-descriptors.git
+        branch = master
