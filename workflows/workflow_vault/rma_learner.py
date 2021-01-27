@@ -25,12 +25,20 @@ class RMA_ASYNC(erl.ExaWorkflow):
         # Allocate RMA windows
         if mpi_settings.is_agent():
             # Get size of episode counter
-            disp = MPI.INT64_T.Get_size()
-            episode_count = None
+            disp = MPI.DOUBLE.Get_size()
+            episode_data = None
             if mpi_settings.is_learner():
-                episode_count = np.zeros(1, dtype=np.int64)
+                episode_data = np.zeros(1, dtype=np.float64)
             # Create episode window (attach instead of allocate for zero initialization)
-            episode_win = MPI.Win.Create(episode_count, disp, comm=agent_comm)
+            episode_win = MPI.Win.Create(episode_data, disp, comm=agent_comm)
+
+            # Get size of epsilon
+            disp = MPI.DOUBLE.Get_size()
+            epsilon = None
+            if mpi_settings.is_learner():
+                epsilon = np.zeros(1, dtype=np.float64)
+            # Create epsilon window
+            epsilon_win = MPI.Win.Create(epsilon, disp, comm=agent_comm)
 
             # Get serialized target weights size
             target_weights = workflow.agent.get_weights()
@@ -65,14 +73,20 @@ class RMA_ASYNC(erl.ExaWorkflow):
         if mpi_settings.is_learner():
             # Initialize batch data buffer
             data_buffer = bytearray(serial_agent_batch_size)
-            episode_count_learner = np.zeros(1, dtype=np.int64)
+            episode_count_learner = np.zeros(1, dtype=np.float64)
+            epsilon = np.array(workflow.agent.epsilon, dtype=np.float64)
             learner_counter = 0
+            # Initialize epsilon
+            epsilon_win.Lock(0)
+            epsilon_win.Put(epsilon, target_rank=0)
+            epsilon_win.Flush(0)
+            epsilon_win.Unlock(0)
 
             while episode_count_learner < workflow.nepisodes:
                 # Check episode counter
                 episode_win.Lock(0)
-                # Atomic Get using Get_accumulate
-                episode_win.Get_accumulate(np.ones(1, dtype=np.int64), episode_count_learner, target_rank=0, op=MPI.NO_OP)
+                # Atomic Get_accumulate to fetch episode count
+                episode_win.Get_accumulate(np.ones(1, dtype=np.float64), episode_count_learner, target_rank=0, op=MPI.NO_OP)
                 episode_win.Flush(0)
                 episode_win.Unlock(0)
 
@@ -101,10 +115,11 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 model_win.Unlock(0)
                 learner_counter += 1
 
-            logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_count))
+            logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_data))
 
         # Actors
         else:
+            local_actor_episode_counter = 0
             if mpi_settings.is_actor():
                 # Logging files
                 filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
@@ -112,8 +127,10 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 train_file = open(workflow.results_dir + '/' + filename_prefix + ".log", 'w')
                 train_writer = csv.writer(train_file, delimiter=" ")
 
-                episode_count_actor = np.zeros(1, dtype=np.int64)
-                one = np.ones(1, dtype=np.int64)
+                episode_count_actor = np.zeros(1, dtype=np.float64)
+                one = np.ones(1, dtype=np.float64)
+                epsilon_update = np.zeros(1, dtype=np.float64)
+                epsilon = np.zeros(1, dtype=np.float64)
 
                 # Get initial value of episode counter
                 episode_win.Lock(0)
@@ -121,14 +138,17 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 episode_win.Get_accumulate(one, episode_count_actor, target_rank=0, op=MPI.NO_OP)
                 episode_win.Flush(0)
                 episode_win.Unlock(0)
-                local_actor_episode_counter = 0
 
             while episode_count_actor < workflow.nepisodes:
-                episode_win.Lock(0)
-                # Atomic Get_accumulate to increment the episode counter
-                episode_win.Get_accumulate(one, episode_count_actor, target_rank=0)
-                episode_win.Flush(0)
-                episode_win.Unlock(0)
+                if mpi_settings.is_actor():
+                    episode_win.Lock(0)
+                    # Atomic Get_accumulate to increment the episode counter
+                    episode_win.Get_accumulate(one, episode_count_actor, target_rank=0)
+                    episode_win.Flush(0)
+                    episode_win.Unlock(0)
+
+                episode_count_actor = env_comm.bcast(episode_count_actor, root=0)
+
                 # Include another check to avoid each actor running extra
                 # set of steps while terminating
                 if episode_count_actor >= workflow.nepisodes:
@@ -151,15 +171,31 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         buff = bytearray(serial_target_weights_size)
                         model_win.Lock(0)
                         model_win.Get(buff, target=0, target_rank=0)
+                        model_win.Flush(0)
                         model_win.Unlock(0)
                         target_weights = MPI.pickle.loads(buff)
                         workflow.agent.set_weights(target_weights)
+
+                        # Atomic Get_accumulate to get epsilon
+                        epsilon_win.Lock(0)
+                        epsilon_win.Get(epsilon, target_rank=0)
+                        epsilon_win.Flush(0)
+                        epsilon_win.Unlock(0)
+
+                        workflow.agent.epsilon = epsilon
 
                         # Inference action
                         if workflow.action_type == 'fixed':
                             action, policy_type = 0, -11
                         else:
                             action, policy_type = workflow.agent.action(current_state)
+
+                        epsilon = np.array(workflow.agent.epsilon)
+                        # Atomic Get_accumulate to update epsilon
+                        epsilon_win.Lock(0)
+                        epsilon_win.Put(epsilon, target_rank=0)
+                        epsilon_win.Flush(0)
+                        epsilon_win.Unlock(0)
 
                     # Environment step
                     next_state, reward, done, _ = workflow.env.step(action)
