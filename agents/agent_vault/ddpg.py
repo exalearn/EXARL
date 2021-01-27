@@ -56,7 +56,10 @@ class DDPG(erl.ExaAgent):
         #                               damping=0.0005)
 
         std_dev = 0.2
-        self.ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(std_dev) * np.ones(1))
+        ave_bound = (self.upper_bound + self.lower_bound) / 2
+        print('ave_bound: ', ave_bound)
+        self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(std_dev) * np.ones(1))
+        # self.ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(std_dev) * np.ones(1))
 
         # Experience data
         self.buffer_capacity = 5000
@@ -131,7 +134,8 @@ class DDPG(erl.ExaAgent):
         inputs = layers.Input(shape=(self.num_states,))
         out = layers.Dense(256, activation="relu")(inputs)
         out = layers.Dense(256, activation="relu")(out)
-        outputs = layers.Dense(1, activation="tanh", kernel_initializer=last_init)(out)
+        outputs = layers.Dense(self.num_actions, activation="relu", kernel_initializer=last_init)(out)
+        # outputs = layers.Dense(1, activation="tanh", kernel_initializer=last_init)(out)
 
         outputs = outputs * self.upper_bound
         model = tf.keras.Model(inputs, outputs)
@@ -222,15 +226,27 @@ class DDPG(erl.ExaAgent):
         # else:
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
         sampled_actions = tf.squeeze(self.target_actor(tf_state))
+        # print('sampled_actions: ',sampled_actions)
         # sampled_actions = tf.squeeze(self.actor_model(tf_state))
-        noise = self.ou_noise()
+        noise = self.ou_noise()  # [self.ou_noise() for i in range(self.num_actions)]
         # Adding noise to action
+        # print('noise: ', noise)
         sampled_actions_wn = sampled_actions.numpy() + noise
+        legal_action = sampled_actions_wn
+        # print('sampled_actions_wn: ', sampled_actions_wn)
         # Make sure action is within bounds
-        legal_action = np.clip(sampled_actions_wn, self.lower_bound, self.upper_bound)
+        # legal_action = np.clip(sampled_actions_wn, self.lower_bound, self.upper_bound)
+        isValid = self.env.action_space.contains(sampled_actions_wn)
+        print('isValid: ', isValid)
+        if isValid == False:
+            legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
+            return np.squeeze(legal_action), 0
+        print('legal_action: ', legal_action)
         logger.info('legal action:{}'.format([np.squeeze(legal_action)]))
         # return legal_action, noise[0]
-        return [np.squeeze(legal_action)], 1
+        return_action = np.squeeze(legal_action)
+        # print('return_action',return_action)
+        return return_action, 1
 
     # For distributed actors #
     def get_weights(self):

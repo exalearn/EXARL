@@ -16,7 +16,7 @@ if gpus:
 
 dataset = tf.data.Dataset.from_tensor_slices(
     (tf.cast(mnist_images[..., tf.newaxis] / 255.0, tf.float32),
-            tf.cast(mnist_labels, tf.int64))
+     tf.cast(mnist_labels, tf.int64))
 )
 dataset = dataset.repeat().shuffle(10000).batch(128)
 
@@ -39,7 +39,7 @@ checkpoint_dir = './checkpoints'
 checkpoint = tf.train.Checkpoint(model=mnist_model, optimizer=opt)
 
 
-@tf.function
+@ tf.function
 def training_step(images, labels, first_batch):
     with tf.GradientTape() as tape:
         probs = mnist_model(images, training=True)

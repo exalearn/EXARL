@@ -81,8 +81,10 @@ class ExaLearner():
         # Create agent object
         agent = None
         # Only agent_comm processes will create agents
-        if ExaComm.is_agent():
-            agent = agents.make(self.agent_id, env=env)
+        if ExaComm.is_learner():
+            agent = agents.make(self.agent_id, env=env, is_learner=True)
+        elif ExaComm.is_actor(): 
+            agent = agents.make(self.agent_id, env=env, is_learner=False)
         else:
             logger.debug('Does not contain an agent')
         # Create workflow object

@@ -91,18 +91,19 @@ class WaterCluster(gym.Env):
         done = False
         energy = 0.0  # Default energy
         reward = np.random.normal(-100.0, 0.01)  # Default penalty
-        target_scale = 200.0  # Scale for calculations
+        # target_scale = 200.0  # Scale for calculations
 
+        # print('env action: ',action)
         # Make sure the action is within the defined space
-        isValid = self.action_space.contains(action)
-        if isValid == False:
-            logger.debug('Env::step(); Invalid action...')
-            # max_value = np.max(abs(action))
-            logger.debug(action)
-            # logger.debug("Reward: %s " % str(-max_value) )
-            # done=True
-            # return np.array([0]), np.array(-max_value), done, {}
-            return np.array([0]), np.array(reward), done, {}
+        # isValid = self.action_space.contains(action)
+        # if isValid == False:
+        #    logger.debug('Env::step(); Invalid action...')
+        #    # max_value = np.max(abs(action))
+        #    logger.debug(action)
+        #    # logger.debug("Reward: %s " % str(-max_value) )
+        #    # done=True
+        #    # return np.array([0]), np.array(-max_value), done, {}
+        #    return np.array([0]), np.array(reward), done, {}
 
         # Extract actions
         cluster_id = math.floor(action[0])
@@ -148,7 +149,6 @@ class WaterCluster(gym.Env):
         # tmp_input='rotationz_test.xyz'
         prefix = 'rotationz_rank{}_episode{}_steps{}.xyz'.format(
             ExaComm.agent_comm.rank, self.episode, self.steps)
-        prefix = cd.run_params['output_dir'] + prefix
         write(prefix, self.current_structure, 'xyz', parallel=False)
         tmp_input = prefix
 
@@ -166,10 +166,17 @@ class WaterCluster(gym.Env):
             return np.array([0]), np.array(reward), done, {}
 
         # Reward is currently based on the potential energy
-        logger.debug("\tEnv::step(); stdout[{}]".format(stdout))
-        energy = float(stdout[-1].split()[-1])
-        logger.debug("\tEnv::step(); energy[{}]".format(energy))
-        energy = round(energy, 6)
+        try:
+            logger.debug("\tEnv::step(); stdout[{}]".format(stdout))
+            energy = float(stdout[-1].split()[-1])
+            logger.debug("\tEnv::step(); energy[{}]".format(energy))
+            energy = round(energy, 6)
+            reward = self.current_state[0] - energy
+            reward = np.array([round(reward, 6)])
+        except:
+            print('stdout:', stdout)
+            print('stderr:', stderr)
+            return np.array([0]), np.array([reward]), done, {}
 
         # Check if the structure is the same
         if round(self.current_state[0], 6) == energy:
@@ -201,8 +208,8 @@ class WaterCluster(gym.Env):
         self.current_structure = self.init_structure
         self.current_state = self.inital_state
         # Start a new random starting point
-        random_action = self.action_space.sample()
-        self.step(random_action)
+        # random_action = self.action_space.sample()
+        # self.step(random_action)
         self.init_structure = self.current_structure
         self.inital_state = self.current_state
         logger.info("Resetting the environemnts.")

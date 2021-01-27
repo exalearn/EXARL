@@ -7,6 +7,7 @@ import utils.log as log
 import utils.candleDriver as cd
 from exarl.comm_base import ExaComm
 from mpi4py import MPI
+from exarl.learner_trace import learner_trace
 
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
@@ -18,6 +19,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
         # MPI communicators
         agent_comm = ExaComm.agent_comm.raw()
         env_comm = ExaComm.env_comm.raw()
+        trace = learner_trace(ExaComm.agent_comm)
 
         if ExaComm.is_learner():
             workflow.agent.set_learner()
@@ -89,6 +91,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 except:
                     continue
 
+                trace.snapshot()
                 # Train & Target train
                 workflow.agent.train(agent_data)
                 # TODO: Double check if this is already in the DQN code
@@ -181,8 +184,15 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         data_win.Lock(agent_comm.rank)
                         data_win.Put(serial_agent_batch, target_rank=agent_comm.rank)
                         data_win.Unlock(agent_comm.rank)
+                        trace.update(total_rewards)
 
                         # Log state, action, reward, ...
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
                                                done, local_actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
                         train_file.flush()
+
+        if ExaComm.is_agent():
+            model_win.Free()
+            data_win.Free()
+
+        trace.write()

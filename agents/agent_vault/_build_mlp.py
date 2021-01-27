@@ -1,6 +1,6 @@
-from keras.models import Sequential, Model
-from keras.layers import Dense, Dropout, Input, GaussianNoise, BatchNormalization, Flatten
-from keras.optimizers import Adam
+from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.layers import Dense, Dropout, Input, GaussianNoise, BatchNormalization, Flatten
+from tensorflow.keras.optimizers import Adam
 
 
 def build_model(self):
@@ -18,8 +18,8 @@ def build_model(self):
     layers.append(Flatten()(layers[-1]))
 
     model = Model(inputs=layers[0], outputs=layers[-1])
-    model.summary()
-    print('', flush=True)
+    #model.summary()
+    #print('', flush=True)
 
     # optimizer = self.candle.build_optimizer(self.optimizer, self.learning_rate, self.candle.keras_default_config())
     # model.compile(loss=self._huber_loss, optimizer=optimizer)
