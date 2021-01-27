@@ -81,7 +81,7 @@ class ExaLearner():
         # Only agent_comm processes will create agents
         if mpi_settings.is_learner():
             agent = agents.make(self.agent_id, env=env, is_learner=True)
-        elif mpi_settings.is_actor(): 
+        elif mpi_settings.is_actor():
             agent = agents.make(self.agent_id, env=env, is_learner=False)
         else:
             logger.debug('Does not contain an agent')
