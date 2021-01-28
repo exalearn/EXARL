@@ -2,6 +2,7 @@ import time
 import csv
 import numpy as np
 import exarl as erl
+from utils.introspect import ib
 from utils.profile import *
 import utils.log as log
 import utils.candleDriver as cd
@@ -94,8 +95,10 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 trace.snapshot()
                 # Train & Target train
                 workflow.agent.train(agent_data)
+                ib.update("Async_Learner_Train", 1)
                 # TODO: Double check if this is already in the DQN code
                 workflow.agent.target_train()
+                ib.update("Async_Learner_Target_Train", 1)
                 # Share new model weights
                 target_weights = workflow.agent.get_weights()
                 serial_target_weights = MPI.pickle.dumps(target_weights)
@@ -103,6 +106,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 model_win.Put(serial_target_weights, target_rank=0)
                 model_win.Unlock(0)
                 learner_counter += 1
+                # ib.update("Async_Learner_Episode", 1)
 
             logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_count))
 
@@ -160,11 +164,15 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
                         # Inference action
                         action, policy_type = workflow.agent.action(current_state)
+                        ib.update("Async_Env_Inference", 1)
                         if workflow.action_type == 'fixed':
                             action, policy_type = 0, -11
 
                     # Environment step
+                    ib.startTrace("step", 0)
                     next_state, reward, done, _ = workflow.env.step(action)
+                    ib.stopTrace()
+                    ib.update("Async_Env_Step", 1)
 
                     steps += 1
                     if steps >= workflow.nsteps:
@@ -177,6 +185,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         memory = (current_state, action, reward, next_state, done, total_rewards)
                         workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
                         batch_data = next(workflow.agent.generate_data())
+                        ib.update("Async_Env_Generate_Data", 1)
 
                         # Write to data window
                         serial_agent_batch = (MPI.pickle.dumps(batch_data))
@@ -190,6 +199,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
                                                done, local_actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
                         train_file.flush()
+                    ib.update("Async_Env_Episode", 1)
 
         if ExaComm.is_agent():
             model_win.Free()

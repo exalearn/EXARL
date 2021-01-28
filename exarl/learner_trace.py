@@ -46,7 +46,7 @@ class learner_trace:
         self.winCounter.Fence()
         self.winReward.Fence()
         if self.comm.rank == 0:
-            with open("trace_" + str(self.comm.size) + ".txt", "w") as f:
+            with open("tr_" + str(self.comm.size) + ".txt", "w") as f:
                 for count, reward in self.trace:
                     line = ",".join([str(x) for x in count]) + "," + ",".join([str(x) for x in reward]) + "\n"
                     f.write(line)
