@@ -18,6 +18,62 @@ import os
 import math
 import tempfile
 
+import os
+import numpy as np
+import torch
+
+from ase.io import read
+
+from schnetpack import AtomsData
+from schnetpack import AtomsLoader
+
+# Jenna's code
+def get_data_loader(datapath, dbpath = './db.db'):
+    # load atoms from xyz file
+    # index key specifies number of entries to take
+    atoms = read(datapath, index=':1')
+        
+    # parse properties as list of dictionaries
+    property_list = []
+    for at in atoms:
+        # All properties need to be stored as numpy arrays.
+        # Note: The shape for scalars should be (1,), not ()
+        energy = np.array([float(list(at.info.keys())[0])], dtype=np.float32)
+        property_list.append(
+            {'energy': energy}
+        )
+     
+    #return atoms, property_list
+    # create SchNet dataset
+    # will add to ase database if one is present at dbpath 
+    new_dataset = AtomsData(dbpath)
+    new_dataset.add_systems(atoms, property_list)
+    
+    # create SchNet data loader with batches
+    data_loader = AtomsLoader(new_dataset, batch_size=1)
+    return data_loader
+
+def get_activation(name, model, activation={}):
+    def hook(model, input, output):
+        activation[name] = output.detach()
+    return hook, activation
+
+def get_schnet_activation(data_loader, modelpath, cuda):
+    # load model
+    model = torch.load(os.path.join(args.modelpath, "best_model"), map_location=args.cuda)
+
+    # model created using DataParallel
+    model = torch.nn.DataParallel(model.module)
+    
+    # extract activation
+    activation = {}
+    with torch.no_grad():
+        for batch in data_loader:
+            hook, activation = get_activation('dense', model)
+            model.module.representation.interactions[1].dense.register_forward_hook(hook)
+            output = model(batch)
+    
+    return activation['dense']
 
 class WaterCluster(gym.Env):
     metadata = {'render.modes': ['human']}
@@ -40,10 +96,18 @@ class WaterCluster(gym.Env):
         self.episode = 0
         self.steps = 0
 
+        #############################################################
+        # Setup water molecule application (should be configurable)
+        #############################################################
+        self.app_dir = '/gpfs/alpine/ast153/proj-shared/pot_ttm/'
+        self.app_name = 'main.x'
         self.app = os.path.join(self.app_dir, self.app_name)
         self.env_input_name = 'W10_geoms_lowest.xyz'  # 'input.xyz'
         self.env_input = os.path.join(self.app_dir, self.env_input_name)
 
+        # Schnet encodering model
+        self.schnet_model = '/gpfs/alpine/ast153/proj-shared/schnet_encoder/best_model'
+        
         env_out = subprocess.Popen([self.app, self.env_input],
                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = env_out.communicate()
@@ -142,19 +206,24 @@ class WaterCluster(gym.Env):
         #       Now created using the index of rank, episode, and steps
         # write('rotationz_test.xyz',self.current_structure,'xyz',parallel=False)
         # tmp_input='rotationz_test.xyz'
-        prefix = 'rotationz_rank{}_episode{}_steps{}.xyz'.format(
-            mpi_settings.agent_comm.rank, self.episode, self.steps)
-        prefix = cd.run_params['output_dir'] + prefix
-        write(prefix, self.current_structure, 'xyz', parallel=False)
-        tmp_input = prefix
+        new_xyz = 'rotationz_rank{}_episode{}_steps{}.xyz'.format(mpi_settings.agent_comm.rank, self.episode, self.steps)
+        new_xyz_pfn = cd.run_params['output_dir'] + new_xyz
+        write(new_xyz, self.current_structure, 'xyz', parallel=False)
+        tmp_input = new_xyz
 
         # Run the process
+        print('tmp_input:',tmp_input)
         env_out = subprocess.Popen([self.app, tmp_input], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = env_out.communicate()
-        logger.debug(stdout)
-        logger.debug(stderr)
+        print('stdout:',stdout)
+        print('stderr:',stderr)
+        
         stdout = stdout.decode('utf-8').splitlines()
 
+        # Run the
+        dataloader = get_data_loader(new_xyz)
+        activation = get_schnet_activation(dataloader, self.schnet_model, 'cpu')
+    
         # Check for clear problems
         if any("Error in the det" in s for s in stdout):
             logger.debug("\tEnv::step(); !!! Error in the det !!!")
