@@ -39,7 +39,7 @@ class DQN(erl.ExaAgent):
 
         # Learner setup
         self.is_learner = is_learner
-        logger.error('is_learner: {}'.format(self.is_learner))
+        logger.info('is_learner: {}'.format(self.is_learner))
         # General
         # gpus = tf.config.experimental.list_physical_devices('GPU')
         # if gpus:
@@ -190,15 +190,15 @@ class DQN(erl.ExaAgent):
         if self.is_learner:
             # tf.debugging.set_log_device_placement(True)
             gpus = tf.config.experimental.list_physical_devices('GPU')
-            logger.error('Available GPUs: {}'.format(gpus))
+            logger.info('Available GPUs: {}'.format(gpus))
             self.mirrored_strategy = tf.distribute.MirroredStrategy()
-            logger.error('Using learner strategy: {}'.format(self.mirrored_strategy))
+            logger.info('Using learner strategy: {}'.format(self.mirrored_strategy))
             # Active model
             with self.mirrored_strategy.scope():
                 #
                 self.model = self._build_model()
                 self.model.compile(loss=self.loss, optimizer=self.optimizer)
-                logger.error('Active model: \n'.format(self.model.summary()))
+                logger.info('Active model: \n'.format(self.model.summary()))
             # Target model
             with tf.device('/CPU:0'):
                 self.target_model = self._build_model()
@@ -207,7 +207,7 @@ class DQN(erl.ExaAgent):
                 self.target_weights = self.target_model.get_weights()
         else:
             cpus = tf.config.experimental.list_physical_devices('CPU')
-            logger.error('Available CPUs: {}'.format(cpus))
+            logger.info('Available CPUs: {}'.format(cpus))
             with tf.device('/CPU:0'):
                 self.model = None
                 self.target_model = self._build_model()
@@ -309,7 +309,7 @@ class DQN(erl.ExaAgent):
 
     def train(self, batch):
         if self.is_learner:
-            logger.error('Training using learner.')
+            logger.info('Training using learner.')
             # if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
             if len(batch[0]) >= (self.batch_size):
                 # batch_states, batch_target = batch
