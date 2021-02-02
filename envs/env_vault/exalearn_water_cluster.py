@@ -45,11 +45,14 @@ def get_data_loader(datapath, dbpath = './db.db'):
      
     #return atoms, property_list
     # create SchNet dataset
-    # will add to ase database if one is present at dbpath 
+    # will add to ase database if one is present at dbpath
+    
+    # TODO: Not atomic actions - could cause a race condition and corrupt the data
     new_dataset = AtomsData(dbpath)
     new_dataset.add_systems(atoms, property_list)
     
     # create SchNet data loader with batches
+    # TODO: Problem with random retrieves 
     data_loader = AtomsLoader(new_dataset, batch_size=1)
     return data_loader
 
@@ -106,7 +109,10 @@ class WaterCluster(gym.Env):
         self.env_input = os.path.join(self.app_dir, self.env_input_name)
 
         # Schnet encodering model
-        self.schnet_model = '/gpfs/alpine/ast153/proj-shared/schnet_encoder/best_model'
+        self.schnet_model_pfn = '/gpfs/alpine/ast153/proj-shared/schnet_encoder/best_model'
+        model = torch.load(self.schnet_model_pfn, map_location='cpu')
+        self.schnet_model =  torch.nn.DataParallel(model.module)
+        # TODO: Migrate the rest of the code here
         
         env_out = subprocess.Popen([self.app, self.env_input],
                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -226,8 +232,9 @@ class WaterCluster(gym.Env):
         stdout = stdout.decode('utf-8').splitlines()
 
         # Run the
-        dataloader = get_data_loader(new_xyz)
-        activation = get_schnet_activation(dataloader, self.schnet_model, 'cpu')
+        # TODO: We need a method to input(xyz) -> Model -> output(encoding)
+        #dataloader = get_data_loader(new_xyz)
+        #activation = get_schnet_activation(dataloader, self.schnet_model, 'cpu')
     
         # Check for clear problems
         if any("Error in the det" in s for s in stdout):
