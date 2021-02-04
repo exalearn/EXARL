@@ -28,9 +28,9 @@ logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 
 class DQN(erl.ExaAgent):
-    def __init__(self, env):
+    def __init__(self, env, is_learner):
         #
-        self.is_learner = False
+        self.is_learner = is_learner
         self.model = None
         self.target_model = None
         self.target_weights = None
