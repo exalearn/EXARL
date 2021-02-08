@@ -8,7 +8,7 @@ import utils.log as log
 import utils.candleDriver as cd
 from exarl.comm_base import ExaComm
 from mpi4py import MPI
-from exarl.learner_trace import learner_trace
+from utils.trace_win import Trace_Win
 
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
@@ -20,7 +20,9 @@ class RMA_ASYNC(erl.ExaWorkflow):
         # MPI communicators
         agent_comm = ExaComm.agent_comm.raw()
         env_comm = ExaComm.env_comm.raw()
-        trace = learner_trace(ExaComm.agent_comm)
+        epTrace = Trace_Win(name="episodes_tr", comm=ExaComm.agent_comm, arrayType=np.int64)
+        reTrace = Trace_Win(name="reward_tr", comm=ExaComm.agent_comm, arrayType=np.float64)
+        moTrace = Trace_Win(name="model_tr", comm=ExaComm.agent_comm, arrayType=np.int64)
 
         if ExaComm.is_learner():
             workflow.agent.set_learner()
@@ -92,7 +94,8 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 except:
                     continue
 
-                trace.snapshot()
+                reTrace.snapshot()
+                epTrace.snapshot()
                 # Train & Target train
                 workflow.agent.train(agent_data)
                 ib.update("Async_Learner_Train", 1)
@@ -105,6 +108,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 model_win.Lock(0)
                 model_win.Put(serial_target_weights, target_rank=0)
                 model_win.Unlock(0)
+                moTrace.snapshot()
                 learner_counter += 1
                 # ib.update("Async_Learner_Episode", 1)
 
@@ -159,6 +163,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         model_win.Lock(0)
                         model_win.Get(buff, target=0, target_rank=0)
                         model_win.Unlock(0)
+                        moTrace.update()
                         target_weights = MPI.pickle.loads(buff)
                         workflow.agent.set_weights(target_weights)
 
@@ -193,7 +198,8 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         data_win.Lock(agent_comm.rank)
                         data_win.Put(serial_agent_batch, target_rank=agent_comm.rank)
                         data_win.Unlock(agent_comm.rank)
-                        trace.update(total_rewards)
+                        reTrace.update(value=total_rewards)
+                        epTrace.update()
 
                         # Log state, action, reward, ...
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
@@ -205,4 +211,5 @@ class RMA_ASYNC(erl.ExaWorkflow):
             model_win.Free()
             data_win.Free()
 
-        trace.write()
+        Trace_Win.write()
+        Trace_Win.plot()
