@@ -105,8 +105,9 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 try:
                     agent_data = MPI.pickle.loads(data_buffer)
                     data_counter += 1
-                except Exception:
+                except Exception as e:
                     data_error_counter += 1
+                    print('In learner - problem with agent_data: '+ str(e))
                     continue
 
                 # print('***************************')
@@ -222,6 +223,13 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         memory = (current_state, action, reward, next_state, done, total_rewards)
                         workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
                         batch_data = next(workflow.agent.generate_data())
+                        
+                        try:
+                            serial_agent_batch = (MPI.pickle.dumps(batch_data))
+                            print('actor serial data length:', len(serial_agent_batch))
+                        except Exception as e:
+                            print('In actor - problem with agent_data: '+ str(e))
+                            
                         # print('****************************')
                         # print('batch data = ', batch_data)
 
