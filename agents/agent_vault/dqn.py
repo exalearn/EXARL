@@ -237,8 +237,7 @@ class DQN(erl.ExaAgent):
         expectedQ = 0
         if not done:
             with tf.device(self.device):
-                pred = self.target_model.predict(np_next_state)[0]
-                expectedQ = self.gamma * np.amax(pred)
+                expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
         target = reward + expectedQ
         with tf.device(self.device):
             target_f = self.target_model.predict(np_state)
