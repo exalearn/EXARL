@@ -96,8 +96,8 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 episode_win.Unlock(0)
 
                 # Go over all actors (actor processes start from rank 1)
-                s = (learner_counter % (agent_comm.size - 1)) + 1
-                # s = np.random.randint(low=1, high=agent_comm.size, size=1)
+                # s = (learner_counter % (agent_comm.size - 1)) + 1
+                s = np.random.randint(low=1, high=agent_comm.size, size=1)
                 # Get data
                 data_win.Lock(s)
                 data_win.Get(data_buffer, target_rank=s, target=None)
@@ -106,13 +106,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 # Continue to the next actor if data_buffer is empty
                 try:
                     agent_data = MPI.pickle.loads(data_buffer)
-                    data_counter += 1
-                    flag[s - 1] += 1
                 except Exception as e:
-                    data_error_counter += 1
-                    # print('In learner - problem with agent_data: ' + str(e))
-                    if flag[s - 1] > 0:
-                        print("Error after good stuff in rank = ", s)
                     continue
 
                 # print('***************************')
@@ -128,9 +122,6 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 model_win.Unlock(0)
                 learner_counter += 1
 
-            print('flag = ', flag)
-            print('data counter = ', data_counter)
-            print('data error counter = ', data_error_counter)
             logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_data))
 
         # Actors
@@ -230,16 +221,9 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
                         batch_data = next(workflow.agent.generate_data())
 
-                        try:
-                            serial_agent_batch = (MPI.pickle.dumps(batch_data))
-                            # print('actor serial data length:', len(serial_agent_batch))
-                        except Exception as e:
-                            print('In actor - problem with agent_data: ' + str(e))
+                        serial_agent_batch = (MPI.pickle.dumps(batch_data))
 
-                            # print('****************************')
-                            # print('batch data = ', batch_data)
-
-                            # Write to data window
+                        # Write to data window
                         serial_agent_batch = MPI.pickle.dumps(batch_data)
                         data_win.Lock(agent_comm.rank)
                         data_win.Put(serial_agent_batch, target_rank=agent_comm.rank)
