@@ -44,7 +44,7 @@ def create_dataset(dataset, look_back=10 * 15, look_forward=1):
 
 def get_dataset(df, variable='B:VIMIN'):
     dataset = df[variable].values
-    dataset = dataset.astype('float32')
+    dataset = dataset.astype('float64')
     dataset = np.reshape(dataset, (-1, 1))
     scaler = MinMaxScaler(feature_range=(0, 1))
     dataset = scaler.fit_transform(dataset)
