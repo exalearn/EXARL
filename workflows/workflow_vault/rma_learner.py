@@ -255,5 +255,5 @@ class RMA_ASYNC(erl.ExaWorkflow):
             model_win.Free()
             data_win.Free()
 
-        Trace_Win.write()
-        Trace_Win.plot()
+        Trace_Win.write(workflow.results_dir)
+        Trace_Win.plot(workflow.results_dir)

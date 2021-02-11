@@ -5,8 +5,11 @@ import numpy as np
 from mpi4py import MPI
 import matplotlib.pyplot as plt
 
+
+
 class Trace_Win:
     _instances = {}
+    _ON = False
 
     def __new__(cls, name=None, *args, **kwargs):
         if name not in Trace_Win._instances:
@@ -14,7 +17,7 @@ class Trace_Win:
         return Trace_Win._instances[name]
 
     def __init__(self, arrayType=np.int64, name=None, comm=None):
-        if name not in Trace_Win._instances:  
+        if Trace_Win._ON and name not in Trace_Win._instances:  
             Trace_Win._instances[name] = self
 
             self.comm = comm.raw()
@@ -35,62 +38,65 @@ class Trace_Win:
                 self.winCounter = MPI.Win.Create(self.counters, disp_unit=MPI.DOUBLE.Get_size(), comm=self.comm)
 
             self.winCounter.Fence()
-            print(name, self)  
 
     def update(self, value=None):
-        if value:
-            if self.arrayType == np.int64:
-                data = np.array([int(value)],  dtype=np.int64)
+        if Trace_Win._ON:
+            if value:
+                if self.arrayType == np.int64:
+                    data = np.array([int(value)],  dtype=np.int64)
+                else:
+                    data = np.array([float(value)],  dtype=np.float64)
+                print(data)
+                self.winCounter.Accumulate(data, 0, target=[self.comm.rank,1], op=MPI.REPLACE)
             else:
-                data = np.array([float(value)],  dtype=np.float64)
-            print(data)
-            self.winCounter.Accumulate(data, 0, target=[self.comm.rank,1], op=MPI.REPLACE)
-        else:
-            data = np.ones(1, dtype=np.int64)
-            self.winCounter.Accumulate(data, 0, target=[self.comm.rank,1])
+                data = np.ones(1, dtype=np.int64)
+                self.winCounter.Accumulate(data, 0, target=[self.comm.rank,1])
 
     def snapshot(self, rank=0):
-        if self.comm.rank == rank:
-            if self.arrayType == np.int64:
-                counts = np.zeros(self.comm.size, dtype=np.int64)
-            else:
-                counts = np.zeros(self.comm.size, dtype=np.float64)
-            self.winCounter.Get_accumulate(counts, counts, 0, op=MPI.NO_OP)
-            self.trace.append(counts)
-            return counts
+        if Trace_Win._ON:
+            if self.comm.rank == rank:
+                if self.arrayType == np.int64:
+                    counts = np.zeros(self.comm.size, dtype=np.int64)
+                else:
+                    counts = np.zeros(self.comm.size, dtype=np.float64)
+                self.winCounter.Get_accumulate(counts, counts, 0, op=MPI.NO_OP)
+                self.trace.append(counts)
+                return counts
 
-    def write():
-        for name in Trace_Win._instances:
-            tw = Trace_Win._instances[name]
-            tw.winCounter.Fence()
-            if tw.comm.rank == 0:
-                with open(str(name) + ".txt", "w") as f:
-                    for count in tw.trace:
-                        line = ",".join([str(x) for x in count]) + "\n"
-                        f.write(line)
-                print("Wrote", name)
+    def write(log_dir):
+        if Trace_Win._ON:
+            for name in Trace_Win._instances:
+                tw = Trace_Win._instances[name]
+                tw.winCounter.Fence()
+                if tw.comm.rank == 0:
+                    with open(log_dir + "/" + str(name) + ".log", "w") as f:
+                        for count in tw.trace:
+                            line = ",".join([str(x) for x in count]) + "\n"
+                            f.write(line)
+                    print("Wrote", name)
 
-    def plot(hist=True, bins=100):
-        for name in Trace_Win._instances:
-            tw = Trace_Win._instances[name]
-            tw.winCounter.Fence()
-            if tw.comm.rank == 0:
-                data = []
-                for j in range(tw.comm.size):
-                    temp = []
-                    for l in tw.trace:
-                        temp.append(l[j])
-                    data.append(temp)
+    def plot(log_dir, hist=True, bins=100):
+        if Trace_Win._ON:
+            for name in Trace_Win._instances:
+                tw = Trace_Win._instances[name]
+                tw.winCounter.Fence()
+                if tw.comm.rank == 0:
+                    data = []
+                    for j in range(tw.comm.size):
+                        temp = []
+                        for l in tw.trace:
+                            temp.append(l[j])
+                        data.append(temp)
 
-                for i in range(tw.comm.size):
-                    if hist:
-                        plt.hist(data[i], bins=10, alpha=0.5, label=i)
-                    else:
-                        plt.plot(range(len(data[i])), data[i], label=i)
-                plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-                plt.xlabel("Step")
-                plt.ylabel("Occurance")
-                plt.savefig(str(name) + ".pdf")
+                    for i in range(tw.comm.size):
+                        if hist:
+                            plt.hist(data[i], bins=10, alpha=0.5, label=i)
+                        else:
+                            plt.plot(range(len(data[i])), data[i], label=i)
+                    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+                    plt.xlabel("Step")
+                    plt.ylabel("Occurance")
+                    plt.savefig(log_dir + "/" + str(name) + ".pdf", bbox_inches='tight')
 
 
 def Trace_Win_Up(name, comm, arrayType=np.int64, position=None, keyword=None):
