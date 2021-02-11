@@ -1,10 +1,10 @@
 import gym
 import time
-from mpi4py import MPI
 import numpy as np
 import sys
 import json
 import exarl as erl
+from exarl import ExaMPI
 
 
 class ExaCartpoleDynamic(gym.Env):
@@ -26,6 +26,7 @@ class ExaCartpoleDynamic(gym.Env):
         # Compute PI with dynamic process spawning
 
         # parent_comm = MPI.Comm.Get_parent()
+        MPI = ExaMPI.mpi
         spawn_comm = MPI.COMM_SELF.Spawn(sys.executable,
                                          args=[self.worker],
                                          maxprocs=self.process_per_env)  # .Merge()

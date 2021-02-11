@@ -38,7 +38,6 @@ class Trace_Win:
             print(name, self)  
 
     def update(self, value=None):
-        print("Value", value)
         if value:
             if self.arrayType == np.int64:
                 data = np.array([int(value)],  dtype=np.int64)

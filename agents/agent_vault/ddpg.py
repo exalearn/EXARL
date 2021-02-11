@@ -6,6 +6,7 @@ import os
 from datetime import datetime
 from utils.OUActionNoise import OUActionNoise
 from utils.OUActionNoise import OUActionNoise2
+from utils.introspect import introspectTrace
 
 import exarl as erl
 
@@ -162,6 +163,7 @@ class DDPG(erl.ExaAgent):
 
         return model
 
+    @introspectTrace()
     def generate_data(self):
         # if self.buffer_counter < self.batch_size:
         #      yield [], [], [], []
@@ -178,12 +180,14 @@ class DDPG(erl.ExaAgent):
 
         yield state_batch, action_batch, reward_batch, next_state_batch
 
+    @introspectTrace()
     def train(self, batch):
         # self.epsilon_adj()
         # if len(batch[0]) >= self.batch_size:
         #     logger.info('Training...')
         self.update_grad(batch[0], batch[1], batch[2], batch[3])
 
+    @introspectTrace()
     def target_train(self):
         # Update the target model
         # if self.buffer_counter >= self.batch_size:
@@ -201,6 +205,7 @@ class DDPG(erl.ExaAgent):
             target_weights[i] = self.tau * model_weights[i] + (1 - self.tau) * target_weights[i]
         self.target_critic.set_weights(target_weights)
 
+    @introspectTrace()
     def action(self, state):
         # random.seed(datetime.now())
         # random_data = os.urandom(4)

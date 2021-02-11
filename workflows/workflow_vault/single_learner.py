@@ -1,7 +1,8 @@
 import time
 import csv
-from mpi4py import MPI
 import exarl as erl
+from exarl import ExaComm
+from utils.introspect import ib
 
 import utils.log as log
 import utils.candleDriver as cd
@@ -13,7 +14,7 @@ class SYNC(erl.ExaWorkflow):
         print('Class SYNC learner')
 
     def run(self, learner):
-        comm = MPI.COMM_WORLD
+        comm = ExaComm.global_com
 
         filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' % (
             str(learner.nepisodes), str(learner.nsteps), str(comm.rank))
@@ -61,7 +62,11 @@ class SYNC(erl.ExaWorkflow):
                 memory = (current_state, None, reward, None, done, 0)
                 if done != True:
                     action, policy_type = learner.agent.action(current_state)
+                    ib.update("Sync_Env_Inference", 1)
+                    ib.startTrace("step", 0)
                     next_state, reward, done, _ = learner.env.step(action)
+                    ib.stopTrace()
+                    ib.update("Sync_Env_Step", 1)
                     total_reward += reward
                     memory = (current_state, action, reward,
                               next_state, done, total_reward)
@@ -72,6 +77,7 @@ class SYNC(erl.ExaWorkflow):
                         memory[0], memory[1], memory[2], memory[3], memory[4])
                     # TODO: we need a memory class to scale
                     batch_data = next(learner.agent.generate_data())
+                    ib.update("Sync_Env_Generate_Data", 1)
                     logger.info(
                         'Rank[{}] - Generated data: {}'.format(comm.rank, len(batch_data[0])))
                 logger.info(
@@ -99,7 +105,9 @@ class SYNC(erl.ExaWorkflow):
                     # Push memories to learner
                     for batch in new_batch:
                         learner.agent.train(batch)
+                    ib.update("Sync_Learner_Train", 1)
                     learner.agent.target_train()
+                    ib.update("Sync_Learner_Target_Train", 1)
                     rank0_epsilon = learner.agent.epsilon
                     target_weights = learner.agent.get_weights()
                     # if rank0_memories%(comm.size) == 0:
@@ -134,7 +142,8 @@ class SYNC(erl.ExaWorkflow):
                                            next_state, total_reward, done, e, steps, policy_type, rank0_epsilon])
                     train_file.flush()
 
-                all_done = comm.allreduce(done, op=MPI.LAND)
+                all_done = comm.allreduce(done)
+                ib.update("Sync_Learner_Episode", 1)
 
             end_time_episode = time.time()
             logger.info('Rank[%s] run-time for episode %s: %s ' %

@@ -9,20 +9,20 @@
 # derivative works, distribute copies to the public, perform publicly and display publicly, and
 # to permit others to do so.
 
-
-import exarl.mpi_settings as mpi_settings
 import time
 import gym
 import envs
 import agents
 import workflows
 
+from exarl.simple_comm import ExaSimple
+from exarl.mpi_comm import ExaMPI
+from exarl.comm_base import ExaComm
 from exarl.env_base import ExaEnv
 
 import os
 import csv
 import sys
-from mpi4py import MPI
 import json
 
 import utils.log as log
@@ -32,11 +32,8 @@ logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class ExaLearner():
 
-    def __init__(self, comm):
-        # Global communicator
-        self.global_comm = comm
-        self.global_size = self.global_comm.size
-
+    def __init__(self, comm=None):
+        
         # Default training
         self.nepisodes = 1
         self.nsteps = 10
@@ -51,6 +48,13 @@ class ExaLearner():
         self.env_id   = 'envs:' + cd.run_params['env']
         self.workflow_id = 'workflows:' + cd.run_params['workflow']
 
+        # Setup MPI
+        # Global communicator
+        # ExaMPI(comm, self.process_per_env)
+        ExaSimple(comm, self.process_per_env)
+        self.global_comm = ExaComm.global_comm
+        self.global_size = ExaComm.global_comm.size
+
         # Sanity check before we actually allocate resources
         if self.global_size < self.process_per_env:
             sys.exit('EXARL::ERROR Not enough processes.')
@@ -60,8 +64,6 @@ class ExaLearner():
             print('\n################\nNot enough processes, running synchronous single learner ...\n################\n')
             self.workflow_id = 'workflows:' + 'sync'
 
-        # Setup MPI
-        mpi_settings.init(self.global_comm, self.process_per_env)
         self.agent, self.env, self.workflow = self.make()
         self.env.unwrapped.spec.max_episode_steps  = self.nsteps
         self.env.unwrapped._max_episode_steps = self.nsteps
@@ -79,9 +81,9 @@ class ExaLearner():
         # Create agent object
         agent = None
         # Only agent_comm processes will create agents
-        if mpi_settings.is_learner():
+        if ExaComm.is_learner():
             agent = agents.make(self.agent_id, env=env, is_learner=True)
-        elif mpi_settings.is_actor():
+        elif ExaComm.is_actor(): 
             agent = agents.make(self.agent_id, env=env, is_learner=False)
         else:
             logger.debug('Does not contain an agent')

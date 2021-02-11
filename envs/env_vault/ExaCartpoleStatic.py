@@ -1,12 +1,11 @@
 import gym
 import time
-from mpi4py import MPI
 import numpy as np
 import sys
 import json
 import exarl as erl
 # from envs.env_vault.computePI import computePI as cp
-import exarl.mpi_settings as mpi_settings
+from exarl.comm_base import ExaComm
 
 
 def computePI(N, new_comm):
@@ -25,7 +24,7 @@ class ExaCartpoleStatic(gym.Env):
 
     def __init__(self):
         super().__init__()
-        self.env_comm = mpi_settings.env_comm
+        self.env_comm = ExaComm.env_comm
         self.env = gym.make('CartPole-v0')
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
@@ -40,10 +39,10 @@ class ExaCartpoleStatic(gym.Env):
         else:
             N = None
 
-        N = self.env_comm.bcast(N, root=0)
+        N = self.env_comm.bcast(N, 0)
         myPI = computePI(N, self.env_comm)  # Calls python function
         # myPI = cp.compute_pi(N, self.env_comm) # Calls C++ function
-        PI = self.env_comm.reduce(myPI, op=MPI.SUM, root=0)
+        PI = self.env_comm.reduce(myPI, sum, 0)
 
         if self.env_comm.rank == 0:
             print(PI)  # Print PI for verification
