@@ -27,26 +27,26 @@ import json
 
 import utils.log as log
 import utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.run_params['log_level'])
+
+logger = log.setup_logger(__name__, cd.run_params["log_level"])
 
 
-class ExaLearner():
-
+class ExaLearner:
     def __init__(self, comm=None):
-        
+
         # Default training
         self.nepisodes = 1
         self.nsteps = 10
-        self.results_dir = './results'  # Default dir, will be overridden by candle
+        self.results_dir = "./results"  # Default dir, will be overridden by candle
         self.do_render = False
 
-        self.process_per_env = int(cd.run_params['process_per_env'])
-        self.action_type = cd.run_params['action_type']
+        self.process_per_env = int(cd.run_params["process_per_env"])
+        self.action_type = cd.run_params["action_type"]
 
         # Setup agent and environments
-        self.agent_id = 'agents:' + cd.run_params['agent']
-        self.env_id   = 'envs:' + cd.run_params['env']
-        self.workflow_id = 'workflows:' + cd.run_params['workflow']
+        self.agent_id = "agents:" + cd.run_params["agent"]
+        self.env_id = "envs:" + cd.run_params["env"]
+        self.workflow_id = "workflows:" + cd.run_params["workflow"]
 
         # Setup MPI
         # Global communicator
@@ -57,18 +57,20 @@ class ExaLearner():
 
         # Sanity check before we actually allocate resources
         if self.global_size < self.process_per_env:
-            sys.exit('EXARL::ERROR Not enough processes.')
+            sys.exit("EXARL::ERROR Not enough processes.")
         if (self.global_size - 1) % self.process_per_env != 0:
-            sys.exit('EXARL::ERROR Uneven number of processes.')
-        if self.global_size < 2 and self.workflow_id == 'workflows:async':
-            print('\n################\nNot enough processes, running synchronous single learner ...\n################\n')
-            self.workflow_id = 'workflows:' + 'sync'
+            sys.exit("EXARL::ERROR Uneven number of processes.")
+        if self.global_size < 2 and self.workflow_id == "workflows:async":
+            print(
+                "\n################\nNot enough processes, running synchronous single learner ...\n################\n"
+            )
+            self.workflow_id = "workflows:" + "sync"
 
         self.agent, self.env, self.workflow = self.make()
-        self.env.unwrapped.spec.max_episode_steps  = self.nsteps
+        self.env.unwrapped.spec.max_episode_steps = self.nsteps
         self.env.unwrapped._max_episode_steps = self.nsteps
 
-        self.env.spec.max_episode_steps  = self.nsteps
+        self.env.spec.max_episode_steps = self.nsteps
         self.env._max_episode_steps = self.nsteps
         self.set_config()
         # self.env.set_env()
@@ -83,32 +85,33 @@ class ExaLearner():
         # Only agent_comm processes will create agents
         if ExaComm.is_learner():
             agent = agents.make(self.agent_id, env=env, is_learner=True)
-        elif ExaComm.is_actor(): 
+        elif ExaComm.is_actor():
             agent = agents.make(self.agent_id, env=env, is_learner=False)
         else:
-            logger.debug('Does not contain an agent')
+            logger.debug("Does not contain an agent")
         # Create workflow object
         workflow = workflows.make(self.workflow_id)
         return agent, env, workflow
 
     def set_training(self, nepisodes, nsteps):
         self.nepisodes = nepisodes
-        self.nsteps    = nsteps
+        self.nsteps = nsteps
         if self.global_size > self.nepisodes:
             sys.exit(
-                'EXARL::ERROR There is more resources allocated for the number of episodes.\nnprocs should be less than nepisodes.')
+                "EXARL::ERROR There is more resources allocated for the number of episodes.\nnprocs should be less than nepisodes."
+            )
         self.env.unwrapped._max_episode_steps = self.nsteps
-        self.env.unwrapped.spec.max_episode_steps  = self.nsteps
-        self.env.spec.max_episode_steps  = self.nsteps
+        self.env.unwrapped.spec.max_episode_steps = self.nsteps
+        self.env.spec.max_episode_steps = self.nsteps
         self.env._max_episode_steps = self.nsteps
 
     # Use with CANDLE
     def set_config(self):
         params = cd.run_params
-        self.set_training(int(params['n_episodes']), int(params['n_steps']))
-        self.results_dir = params['output_dir']
+        self.set_training(int(params["n_episodes"]), int(params["n_steps"]))
+        self.results_dir = params["output_dir"]
         if not os.path.exists(self.results_dir):
-            if (self.global_comm.rank == 0):
+            if self.global_comm.rank == 0:
                 os.makedirs(self.results_dir)
 
     def render_env(self):

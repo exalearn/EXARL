@@ -13,13 +13,14 @@ import sys
 import os
 from abc import ABC, abstractmethod
 
+
 class ExaComm(ABC):
     global_comm = None
     agent_comm = None
     env_comm = None
 
     def __init__(self, comm, procs_per_env):
-        if ExaComm.global_comm == None:
+        if ExaComm.global_comm is None:
             ExaComm.global_comm = comm
             ExaComm.agent_comm, ExaComm.env_comm = comm.split(procs_per_env)
 
@@ -56,16 +57,16 @@ class ExaComm(ABC):
         pass
 
     def is_learner():
-        if ExaComm.agent_comm != None:
+        if ExaComm.agent_comm is not None:
             if ExaComm.agent_comm.rank == 0:
                 return True
         return False
 
     def is_actor():
-        if ExaComm.agent_comm != None:
+        if ExaComm.agent_comm is not None:
             if ExaComm.agent_comm.rank > 0:
                 return True
         return False
 
     def is_agent():
-        return ExaComm.agent_comm != None
+        return ExaComm.agent_comm is not None

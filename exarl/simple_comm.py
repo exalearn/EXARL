@@ -4,14 +4,15 @@ import numpy as np
 import exarl as erl
 
 import mpi4py.rc
+
 mpi4py.rc.threads = False
 mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
 
-class ExaSimple(erl.ExaComm):
 
+class ExaSimple(erl.ExaComm):
     def __init__(self, comm=MPI.COMM_WORLD, procs_per_env=1):
-        if comm == None:
+        if comm is None:
             comm = MPI.COMM_WORLD
         self.comm = comm
         self.size = comm.Get_size()
@@ -23,7 +24,7 @@ class ExaSimple(erl.ExaComm):
         if isinstance(data, range):
             list_flag = True
             cast_flag = True
-        elif isinstance (data, tuple):
+        elif isinstance(data, tuple):
             list_flag = True
             cast_flag = True
         elif isinstance(data, np.ndarray):
@@ -48,7 +49,11 @@ class ExaSimple(erl.ExaComm):
     def is_float(self, data):
         list_flag, new_data = self.list_like(data)
         if not list_flag:
-            if isinstance(data, float) or isinstance(data, np.float32) or isinstance(data, np.float64):
+            if (
+                isinstance(data, float)
+                or isinstance(data, np.float32)
+                or isinstance(data, np.float64)
+            ):
                 return True
             return False
         return any([self.is_float(x) for x in data])
@@ -62,11 +67,11 @@ class ExaSimple(erl.ExaComm):
     def encode_list_format(self, data, buff=None, np_arrays=None, level=0):
         if not self.list_like(data, prep=False):
             return self.encode_type(type(data)), np_arrays
-        
+
         # Everything after this should be list like!
-        if buff == None:
+        if buff is None:
             buff = []
-        if np_arrays == None:
+        if np_arrays is None:
             np_arrays = []
 
         # 0 indicates a new list
@@ -77,14 +82,17 @@ class ExaSimple(erl.ExaComm):
             data = data.flatten()
             # buff.append(2)
         # else:
-            # buff.append(0)
+        # buff.append(0)
         for i, x in enumerate(data):
             if self.list_like(data[i], prep=False):
-                self.encode_list_format(data[i], buff=buff, np_arrays=np_arrays, level=level+1)
+                self.encode_list_format(
+                    data[i], buff=buff, np_arrays=np_arrays, level=level + 1
+                )
             # else:
             #     buff.append(self.encode_type(type(x)))
         # buff.append(1)
         return buff, np_arrays
+
     @introspectTrace()
     def send(self, data, dest, pack=False):
         return self.comm.send(data, dest=dest)
@@ -101,7 +109,7 @@ class ExaSimple(erl.ExaComm):
         return self.comm.Barrier()
 
     def reduce(self, arg, op, root):
-        converter = { sum:MPI.SUM, max:MPI.MAX, min:MPI.MIN }
+        converter = {sum: MPI.SUM, max: MPI.MAX, min: MPI.MIN}
         return self.comm.reduce(arg, op=converter[op], root=root)
 
     def allreduce(self, arg, op=MPI.LAND):
@@ -123,17 +131,18 @@ class ExaSimple(erl.ExaComm):
         else:
             env_color = (int((self.rank - 1) / procs_per_env)) + 1
         env_comm = self.comm.Split(env_color, self.rank)
-        
+
         if agent_color == 0:
             agent_comm = ExaSimple(comm=agent_comm)
         else:
             agent_comm = None
         env_comm = ExaSimple(comm=env_comm)
         return agent_comm, env_comm
-    
+
     def raw(self):
         return self.comm
-        
+
+
 # class LazyCallable(object):
 #   def __init__(self, name):
 #     self.n, self.f = name, None

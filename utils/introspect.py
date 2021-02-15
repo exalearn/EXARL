@@ -1,15 +1,17 @@
 import functools
+
 # Try to import introbind and replace if fail
 try:
     import introbind as ib
 except:
-    class ib():
+
+    class ib:
         def update(name, toAdd):
             return 0
 
         def start():
             return 0
-        
+
         def stop():
             pass
 
@@ -18,6 +20,7 @@ except:
 
         def stopTrace():
             pass
+
 
 def introspectTrace(position=None, keyword=None, default=0):
     def decorator(func):
@@ -33,8 +36,11 @@ def introspectTrace(position=None, keyword=None, default=0):
             if flag:
                 ib.stopTrace()
             return result
+
         return wrapper
+
     return decorator
+
 
 def introspect(func):
     @functools.wraps(func)
@@ -42,4 +48,5 @@ def introspect(func):
         result = func(*args, **kwargs)
         ib.update(func.__name__, 1)
         return result
+
     return wrapper

@@ -7,13 +7,15 @@ from utils.introspect import ib
 from utils.profile import *
 import utils.log as log
 import utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.run_params['log_level'])
+
+logger = log.setup_logger(__name__, cd.run_params["log_level"])
 
 from exarl.comm_base import ExaComm
 
+
 class ASYNC(erl.ExaWorkflow):
     def __init__(self):
-        print('Class ASYNC learner')
+        print("Class ASYNC learner")
 
     @PROFILE
     def run(self, workflow):
@@ -23,17 +25,17 @@ class ASYNC(erl.ExaWorkflow):
 
         # # Set target model
         shape = workflow.agent.get_weights()
-        hasShape = (shape != None)
+        hasShape = shape is not None
         target_weights = workflow.agent.get_weights()
         if ExaComm.is_learner():
             workflow.agent.set_learner()
-        
+
         # Only agent_comm processes will run this try block
         if agent_comm:
-            target_weights = agent_comm.bcast(target_weights,0)
+            target_weights = agent_comm.bcast(target_weights, 0)
             workflow.agent.set_weights(target_weights)
         else:
-            logger.debug('Does not contain an agent')
+            logger.debug("Does not contain an agent")
 
         # Variables for all
         episode = 0
@@ -45,7 +47,7 @@ class ASYNC(erl.ExaWorkflow):
             start = agent_comm.time()
             agent_comm.time()
             worker_episodes = np.arange(1, agent_comm.size)
-            logger.debug('worker_episodes:{}'.format(worker_episodes))
+            logger.debug("worker_episodes:{}".format(worker_episodes))
 
             logger.info("Initializing ...\n")
             for s in range(1, agent_comm.size):
@@ -56,7 +58,7 @@ class ASYNC(erl.ExaWorkflow):
                 agent_comm.send([episode, rank0_epsilon, target_weights], s)
 
             init_nepisodes = episode
-            logger.debug('init_nepisodes:{}'.format(init_nepisodes))
+            logger.debug("init_nepisodes:{}".format(init_nepisodes))
 
             logger.debug("Continuing ...\n")
             while episode_done < workflow.nepisodes:
@@ -69,9 +71,9 @@ class ASYNC(erl.ExaWorkflow):
                 step = recv_data[1]
                 batch = recv_data[2]
                 done = recv_data[3]
-                
-                logger.debug('step:{}'.format(step))
-                logger.debug('done:{}'.format(done))
+
+                logger.debug("step:{}".format(step))
+                logger.debug("done:{}".format(done))
 
                 # Train
                 workflow.agent.train(batch)
@@ -82,24 +84,27 @@ class ASYNC(erl.ExaWorkflow):
 
                 # Send target weights
                 rank0_epsilon = workflow.agent.epsilon
-                logger.debug('rank0_epsilon:{}'.format(rank0_epsilon))
+                logger.debug("rank0_epsilon:{}".format(rank0_epsilon))
 
                 target_weights = workflow.agent.get_weights()
 
                 # Increment episode when starting
                 if step == 0:
                     episode += 1
-                    logger.debug('if episode:{}'.format(episode))
+                    logger.debug("if episode:{}".format(episode))
 
                 # Increment the number of completed episodes
                 if done:
                     episode_done += 1
                     latest_episode = worker_episodes.max()
                     worker_episodes[whofrom - 1] = latest_episode + 1
-                    logger.debug('episode_done:{}'.format(episode_done))
+                    logger.debug("episode_done:{}".format(episode_done))
                     ib.update("Async_Learner_Episode", 1)
 
-                agent_comm.send([worker_episodes[whofrom - 1], rank0_epsilon, target_weights], whofrom)
+                agent_comm.send(
+                    [worker_episodes[whofrom - 1], rank0_epsilon, target_weights],
+                    whofrom,
+                )
 
             logger.info("Finishing up ...\n")
             episode = -1
@@ -110,22 +115,31 @@ class ASYNC(erl.ExaWorkflow):
                 step = recv_data[1]
                 batch = recv_data[2]
                 done = recv_data[3]
-                logger.debug('step:{}'.format(step))
-                logger.debug('done:{}'.format(done))
+                logger.debug("step:{}".format(step))
+                logger.debug("done:{}".format(done))
                 # Train
                 workflow.agent.train(batch)
                 # TODO: Double check if this is already in the DQN code
                 workflow.agent.target_train()
                 agent_comm.send([episode, -1, target_weights], dest=s)
 
-            logger.info('Learner time: {}'.format(agent_comm.time() - start))
+            logger.info("Learner time: {}".format(agent_comm.time() - start))
 
         else:
             if ExaComm.is_actor():
                 # Setup logger
-                filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
-                                % (str(workflow.nepisodes), str(workflow.nsteps), str(agent_comm.rank))
-                train_file = open(workflow.results_dir + '/' + filename_prefix + ".log", 'w')
+                filename_prefix = (
+                    "ExaLearner_"
+                    + "Episodes%s_Steps%s_Rank%s_memory_v1"
+                    % (
+                        str(workflow.nepisodes),
+                        str(workflow.nsteps),
+                        str(agent_comm.rank),
+                    )
+                )
+                train_file = open(
+                    workflow.results_dir + "/" + filename_prefix + ".log", "w"
+                )
                 train_writer = csv.writer(train_file, delimiter=" ")
 
             start = env_comm.time()
@@ -142,8 +156,11 @@ class ASYNC(erl.ExaWorkflow):
 
                 # Steps in an episode
                 while steps < workflow.nsteps:
-                    logger.debug('ASYNC::run() agent_comm.rank{}; step({} of {})'
-                                 .format(agent_comm.rank, steps, (workflow.nsteps - 1)))
+                    logger.debug(
+                        "ASYNC::run() agent_comm.rank{}; step({} of {})".format(
+                            agent_comm.rank, steps, (workflow.nsteps - 1)
+                        )
+                    )
                     if ExaComm.is_actor():
                         # Receive target weights
                         recv_data = [0, 0, target_weights]
@@ -153,23 +170,26 @@ class ASYNC(erl.ExaWorkflow):
                             episode = recv_data[0]
                         # This variable is used for kill check
                         episode_interim = recv_data[0]
-                    
+
                     # Broadcast episode within env_comm
                     episode_interim = env_comm.bcast(episode_interim, 0)
 
                     if episode_interim == -1:
                         episode = -1
                         if ExaComm.is_actor():
-                            logger.info('Rank[%s] - Episode/Step:%s/%s' % (str(agent_comm.rank), str(episode), str(steps)))
+                            logger.info(
+                                "Rank[%s] - Episode/Step:%s/%s"
+                                % (str(agent_comm.rank), str(episode), str(steps))
+                            )
                         break
-                    
+
                     if ExaComm.is_actor():
                         workflow.agent.epsilon = recv_data[1]
                         workflow.agent.set_weights(recv_data[2])
 
                         action, policy_type = workflow.agent.action(current_state)
                         ib.update("Async_Env_Inference", 1)
-                        if workflow.action_type == 'fixed':
+                        if workflow.action_type == "fixed":
                             action, policy_type = 0, -11
 
                     ib.startTrace("step", 0)
@@ -179,15 +199,32 @@ class ASYNC(erl.ExaWorkflow):
 
                     if ExaComm.is_actor():
                         total_reward += reward
-                        memory = (current_state, action, reward, next_state, done, total_reward)
+                        memory = (
+                            current_state,
+                            action,
+                            reward,
+                            next_state,
+                            done,
+                            total_reward,
+                        )
 
-                        workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
+                        workflow.agent.remember(
+                            memory[0], memory[1], memory[2], memory[3], memory[4]
+                        )
 
                         batch = next(workflow.agent.generate_data())
                         ib.update("Async_Env_Generate_Data", 1)
 
-                        logger.info('Rank[{}] - Generated data: {}'.format(agent_comm.rank, len(batch[0])))
-                        logger.info('Rank[{}] - Memories: {}'.format(agent_comm.rank, len(workflow.agent.memory)))
+                        logger.info(
+                            "Rank[{}] - Generated data: {}".format(
+                                agent_comm.rank, len(batch[0])
+                            )
+                        )
+                        logger.info(
+                            "Rank[{}] - Memories: {}".format(
+                                agent_comm.rank, len(workflow.agent.memory)
+                            )
+                        )
 
                     if steps >= workflow.nsteps - 1:
                         done = True
@@ -195,16 +232,41 @@ class ASYNC(erl.ExaWorkflow):
                     if ExaComm.is_actor():
                         # Send batched memories
                         pack = not hasShape
-                        agent_comm.send([agent_comm.rank, steps, batch, done], 0, pack=pack)
+                        agent_comm.send(
+                            [agent_comm.rank, steps, batch, done], 0, pack=pack
+                        )
 
-                        logger.info('Rank[%s] - Total Reward:%s' % (str(agent_comm.rank), str(total_reward)))
                         logger.info(
-                            'Rank[%s] - Episode/Step/Status:%s/%s/%s' % (str(agent_comm.rank), str(episode), str(steps), str(done)))
+                            "Rank[%s] - Total Reward:%s"
+                            % (str(agent_comm.rank), str(total_reward))
+                        )
+                        logger.info(
+                            "Rank[%s] - Episode/Step/Status:%s/%s/%s"
+                            % (
+                                str(agent_comm.rank),
+                                str(episode),
+                                str(steps),
+                                str(done),
+                            )
+                        )
 
-                        train_writer.writerow([time.time(), current_state, action, reward, next_state, total_reward,
-                                            done, episode, steps, policy_type, workflow.agent.epsilon])
+                        train_writer.writerow(
+                            [
+                                time.time(),
+                                current_state,
+                                action,
+                                reward,
+                                next_state,
+                                total_reward,
+                                done,
+                                episode,
+                                steps,
+                                policy_type,
+                                workflow.agent.epsilon,
+                            ]
+                        )
                         train_file.flush()
-                    
+
                     # Update state and step
                     current_state = next_state
                     steps += 1
@@ -215,10 +277,10 @@ class ASYNC(erl.ExaWorkflow):
                     if done:
                         break
             ib.update("Async_Env_Episode", 1)
-            logger.info('Worker time = {}'.format(env_comm.time() - start))
+            logger.info("Worker time = {}".format(env_comm.time() - start))
             if ExaComm.is_actor():
                 train_file.close()
-            
+
         if ExaComm.is_actor():
-            logger.info(f'Agent[{agent_comm.rank}] timing info:\n')
+            logger.info(f"Agent[{agent_comm.rank}] timing info:\n")
             workflow.agent.print_timers()

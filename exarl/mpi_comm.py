@@ -4,15 +4,17 @@ import numpy as np
 import exarl as erl
 
 import mpi4py.rc
+
 mpi4py.rc.threads = False
 mpi4py.rc.recv_mprobe = False
-from  mpi4py import MPI
+from mpi4py import MPI
+
 
 class ExaMPI(erl.ExaComm):
     mpi = MPI
 
     def __init__(self, comm=MPI.COMM_WORLD, procs_per_env=1, run_length=False):
-        if comm == None:
+        if comm is None:
             comm = MPI.COMM_WORLD
         self.comm = comm
         self.size = comm.Get_size()
@@ -45,25 +47,41 @@ class ExaMPI(erl.ExaComm):
         return the_type
 
     def encode_type(self, the_type):
-        type_map = {int:3, float:4, bool:5, np.int32:6, np.int64:7, np.float32:8, np.float64:9}
+        type_map = {
+            int: 3,
+            float: 4,
+            bool: 5,
+            np.int32: 6,
+            np.int64: 7,
+            np.float32: 8,
+            np.float64: 9,
+        }
         if the_type in type_map:
             return type_map[the_type]
         print("Encode: Type", the_type, "unsupported", flush=True)
 
     def decode_type(self, the_type, cast=True):
-        type_map = {3:int, 4:float, 5:bool, 6:np.int32, 7:np.int64, 8:np.float32, 9:np.float64}
+        type_map = {
+            3: int,
+            4: float,
+            5: bool,
+            6: np.int32,
+            7: np.int64,
+            8: np.float32,
+            9: np.float64,
+        }
         if the_type in type_map:
             if cast:
                 return type_map[the_type](the_type)
             else:
                 return type_map[the_type]
         print("Decode: Type code", the_type, "unsupported", flush=True)
-   
+
     def list_like(self, data, prep=True):
         if isinstance(data, range):
             list_flag = True
             cast_flag = True
-        elif isinstance (data, tuple):
+        elif isinstance(data, tuple):
             list_flag = True
             cast_flag = True
         elif isinstance(data, np.ndarray):
@@ -88,7 +106,11 @@ class ExaMPI(erl.ExaComm):
     def is_float(self, data):
         list_flag, new_data = self.list_like(data)
         if not list_flag:
-            if isinstance(data, float) or isinstance(data, np.float32) or isinstance(data, np.float64):
+            if (
+                isinstance(data, float)
+                or isinstance(data, np.float32)
+                or isinstance(data, np.float64)
+            ):
                 return True
             return False
         return any([self.is_float(x) for x in data])
@@ -103,7 +125,7 @@ class ExaMPI(erl.ExaComm):
     # We are guarenteing this is an array
     @introspectTrace()
     def encode_int_list(self, data, buff=None, level=0):
-        if buff == None:
+        if buff is None:
             buff = []
         # 0 indicates a new list
         # 1 indicates the end of the list
@@ -112,10 +134,10 @@ class ExaMPI(erl.ExaComm):
         buff.append(0)
         for i, x in enumerate(data):
             if self.list_like(data[i], prep=False):
-                self.encode_int_list(data[i], buff=buff, level=level+1)
+                self.encode_int_list(data[i], buff=buff, level=level + 1)
             else:
-                assert data[i]+2 > 1
-                buff.append(data[i]+2)
+                assert data[i] + 2 > 1
+                buff.append(data[i] + 2)
         buff.append(1)
         return buff
 
@@ -128,18 +150,22 @@ class ExaMPI(erl.ExaComm):
             if buff[index] == 1:
                 return index + 1
             elif buff[index] == 0:
-                if data == None:
+                if data is None:
                     data = []
-                    index = self.decode_int_list(buff, data=data, index=index+1, level=level+1)
+                    index = self.decode_int_list(
+                        buff, data=data, index=index + 1, level=level + 1
+                    )
                 else:
                     data.append([])
-                    index = self.decode_int_list(buff, data=data[-1], index=index+1, level=level+1)
+                    index = self.decode_int_list(
+                        buff, data=data[-1], index=index + 1, level=level + 1
+                    )
             else:
-                data.append(buff[index]-2)
+                data.append(buff[index] - 2)
                 index = index + 1
         if level > 0:
             return index
-        return data   
+        return data
 
     # This is a general for of the encode_int_list above
     # It should support single values
@@ -149,11 +175,11 @@ class ExaMPI(erl.ExaComm):
     def encode_list_format(self, data, buff=None, np_arrays=None, level=0):
         if not self.list_like(data, prep=False):
             return self.encode_type(type(data)), np_arrays
-        
+
         # Everything after this should be list like!
-        if buff == None:
+        if buff is None:
             buff = []
-        if np_arrays == None:
+        if np_arrays is None:
             np_arrays = []
 
         # 0 indicates a new list
@@ -167,7 +193,9 @@ class ExaMPI(erl.ExaComm):
             buff.append(0)
         for i, x in enumerate(data):
             if self.list_like(data[i], prep=False):
-                self.encode_list_format(data[i], buff=buff, np_arrays=np_arrays, level=level+1)
+                self.encode_list_format(
+                    data[i], buff=buff, np_arrays=np_arrays, level=level + 1
+                )
             else:
                 buff.append(self.encode_type(type(x)))
         buff.append(1)
@@ -177,12 +205,14 @@ class ExaMPI(erl.ExaComm):
     # Also supports single values and np.arrays
     # This requires the np.array shapes
     @introspectTrace()
-    def decode_list_format(self, buff, data=None, is_np=False, np_arrays=None, np_index=0, index=0):
+    def decode_list_format(
+        self, buff, data=None, is_np=False, np_arrays=None, np_index=0, index=0
+    ):
         if not self.list_like(buff, prep=False):
             return self.decode_type(buff)
-        
+
         # Everything after this should be list like!
-        first = (data==None)
+        first = data is None
         # Decode is based on the encoding in encode_list_format
         while index < len(buff):
             if buff[index] == 1:
@@ -191,16 +221,30 @@ class ExaMPI(erl.ExaComm):
                 return data, index + 1, np_index + 1
             elif buff[index] == 0 or buff[index] == 2:
                 np_array = buff[index]
-                if data == None:
+                if data is None:
                     data = []
-                    data, index, np_index = self.decode_list_format(buff, data=data, is_np=np_array, np_arrays=np_arrays, np_index=np_index, index=index+1)
+                    data, index, np_index = self.decode_list_format(
+                        buff,
+                        data=data,
+                        is_np=np_array,
+                        np_arrays=np_arrays,
+                        np_index=np_index,
+                        index=index + 1,
+                    )
                 else:
                     data.append([])
-                    data[-1], index, np_index = self.decode_list_format(buff, data=data[-1], is_np=np_array, np_arrays=np_arrays, np_index=np_index, index=index+1)
+                    data[-1], index, np_index = self.decode_list_format(
+                        buff,
+                        data=data[-1],
+                        is_np=np_array,
+                        np_arrays=np_arrays,
+                        np_index=np_index,
+                        index=index + 1,
+                    )
             else:
                 data.append(self.decode_type(buff[index]))
                 index = index + 1
-        
+
         if first:
             return data
         return data, index, np_index
@@ -226,7 +270,7 @@ class ExaMPI(erl.ExaComm):
                     count += 1
             encoding.append(count)
             if len(encoding) < len(data):
-                data[:len(encoding)] = encoding
+                data[: len(encoding)] = encoding
         return data
 
     # This decodes run_length_encode
@@ -242,7 +286,7 @@ class ExaMPI(erl.ExaComm):
             for i, x in enumerate(data):
                 if i & 1:
                     # Odd
-                    decode.extend([num]*int(x))
+                    decode.extend([num] * int(x))
                 else:
                     # Even
                     num = x
@@ -279,12 +323,14 @@ class ExaMPI(erl.ExaComm):
             return buff
         # This is a simple copy for only flat lists
         if not index and data_count and data_count == len(data):
-            buff[:len(data)] = [data_type(x) for x in data]
+            buff[: len(data)] = [data_type(x) for x in data]
             return buff
         # This does marshalling of complex list_like of list_like
         for i, x in enumerate(data):
             if self.list_like(data[i], prep=False):
-                index = self.marshall(data[i], buff, data_type, index=index, first=False)
+                index = self.marshall(
+                    data[i], buff, data_type, index=index, first=False
+                )
             else:
                 buff[index] = data_type(data[i])
                 index = index + 1
@@ -358,7 +404,7 @@ class ExaMPI(erl.ExaComm):
         # Special support for np.array to recover their structure
         np_arrays_flat = self.encode_int_list(np_arrays)
         np_arrays_size = len(np_arrays_flat)
-        
+
         # Prep message with data and formats
         data_send = [np_arrays_flat, data_shape, data]
         second = self.prep_data(data_send, copy=True, default_buffer_type=data_type)
@@ -366,9 +412,18 @@ class ExaMPI(erl.ExaComm):
         compress_size = len(second[0])
 
         # Send first message with sizes and types
-        first = np.array([np_arrays_size, data_shape_len, data_count, compress_size, self.encode_type(data_type)], dtype=np.int32)
+        first = np.array(
+            [
+                np_arrays_size,
+                data_shape_len,
+                data_count,
+                compress_size,
+                self.encode_type(data_type),
+            ],
+            dtype=np.int32,
+        )
         self.comm.Send([first, 5, MPI.INT], dest=dest)
-        
+
         # Send second message with real data
         return self.comm.Send(second, dest=dest)
 
@@ -395,7 +450,7 @@ class ExaMPI(erl.ExaComm):
         data_count = buff[2]
         compress_size = buff[3]
         data_type = self.decode_type(buff[4], cast=False)
-        
+
         data_total = np_arrays_shape_size + data_shape_len + data_count
         buff = self.buffer(data_type, compress_size)
         second = [buff, compress_size, self.mpi_type_converter(data_type)]
@@ -405,8 +460,8 @@ class ExaMPI(erl.ExaComm):
 
         # These are the three elements of the message
         buff_np_arrays = [int(x) for x in buff[:np_arrays_shape_size]]
-        buff_shape = buff[np_arrays_shape_size:np_arrays_shape_size+data_shape_len]
-        buff_data = buff[np_arrays_shape_size+data_shape_len:data_total]
+        buff_shape = buff[np_arrays_shape_size: np_arrays_shape_size + data_shape_len]
+        buff_data = buff[np_arrays_shape_size + data_shape_len: data_total]
 
         # Expand the np.arrays
         np_arrays = self.decode_int_list(buff_np_arrays)
@@ -418,20 +473,24 @@ class ExaMPI(erl.ExaComm):
     @introspectTrace()
     def recv(self, data, source=MPI.ANY_SOURCE, default_buffer_type=np.int64):
         # This is if we do not know the type on both sides of the send/recv
-        if data == None:
+        if data is None:
             return self.recv_with_type(source)
-        toRecv = self.prep_data(data, copy=False, default_buffer_type=default_buffer_type)
+        toRecv = self.prep_data(
+            data, copy=False, default_buffer_type=default_buffer_type
+        )
         self.comm.Recv(toRecv, source=source)
-        return self.demarshall(data, toRecv[0][:toRecv[1]], data_count=toRecv[1])
+        return self.demarshall(data, toRecv[0][: toRecv[1]], data_count=toRecv[1])
 
     # Broadcasts must know the data format on both sides
     @introspectTrace()
     def bcast(self, data, root):
-        copy = (self.rank == root)
+        copy = self.rank == root
         newData = self.prep_data(data, copy=copy)
         self.comm.Bcast(newData, root=root)
         if not copy:
-            return self.demarshall(data, newData[0][:newData[1]], data_count=newData[1])
+            return self.demarshall(
+                data, newData[0][: newData[1]], data_count=newData[1]
+            )
         return data
 
     def barrier(self):
@@ -446,7 +505,7 @@ class ExaMPI(erl.ExaComm):
         recv_buff = np.array(arg, dtype=np_type)
         toSend = [send_buff, 1, mpi_type]
         toRecv = [recv_buff, 1, mpi_type]
-        converter = { sum:MPI.SUM, max:MPI.MAX, min:MPI.MIN }
+        converter = {sum: MPI.SUM, max: MPI.MAX, min: MPI.MIN}
         self.comm.Reduce(toSend, toRecv, op=converter[op], root=root)
         return ret_type(toRecv[0])
 
@@ -459,7 +518,7 @@ class ExaMPI(erl.ExaComm):
         recv_buff = np.array(arg, dtype=np_type)
         toSend = [send_buff, 1, mpi_type]
         toRecv = [recv_buff, 1, mpi_type]
-        converter = { sum:MPI.SUM, max:MPI.MAX, min:MPI.MIN }
+        converter = {sum: MPI.SUM, max: MPI.MAX, min: MPI.MIN}
         self.comm.Allreduce(toSend, toRecv, op=converter[op], root=root)
         return ret_type(toRecv[0])
 
@@ -479,14 +538,14 @@ class ExaMPI(erl.ExaComm):
         else:
             env_color = (int((self.rank - 1) / procs_per_env)) + 1
         env_comm = self.comm.Split(env_color, self.rank)
-        
+
         if agent_color == 0:
             agent_comm = ExaMPI(comm=agent_comm)
         else:
             agent_comm = None
         env_comm = ExaMPI(comm=env_comm)
         return agent_comm, env_comm
-    
+
     def printBufSize(self):
         print("Printing buffers")
         for i in buffers:
