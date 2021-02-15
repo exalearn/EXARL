@@ -5,8 +5,6 @@ import numpy as np
 from mpi4py import MPI
 import matplotlib.pyplot as plt
 
-
-
 class Trace_Win:
     _instances = {}
     _ON = False
@@ -43,14 +41,18 @@ class Trace_Win:
         if Trace_Win._ON:
             if value:
                 if self.arrayType == np.int64:
-                    data = np.array([int(value)],  dtype=np.int64)
+                    data = np.array([int(value)],  dtype=np.int64, op=MPI.REPLACE)
                 else:
                     data = np.array([float(value)],  dtype=np.float64)
-                print(data)
+
+                self.winCounter.Lock(0)
                 self.winCounter.Accumulate(data, 0, target=[self.comm.rank,1], op=MPI.REPLACE)
+                self.winCounter.Unlock(0)
             else:
                 data = np.ones(1, dtype=np.int64)
-                self.winCounter.Accumulate(data, 0, target=[self.comm.rank,1])
+                self.winCounter.Lock(0)
+                self.winCounter.Accumulate(data, 0, target=[self.comm.rank,1], op=MPI.SUM)
+                self.winCounter.Unlock(0)
 
     def snapshot(self, rank=0):
         if Trace_Win._ON:
@@ -59,7 +61,12 @@ class Trace_Win:
                     counts = np.zeros(self.comm.size, dtype=np.int64)
                 else:
                     counts = np.zeros(self.comm.size, dtype=np.float64)
+                    
+                self.winCounter.Lock(0)
+                self.winCounter.Flush(0)
                 self.winCounter.Get_accumulate(counts, counts, 0, op=MPI.NO_OP)
+                self.winCounter.Unlock(0)
+
                 self.trace.append(counts)
                 return counts
 
@@ -69,7 +76,7 @@ class Trace_Win:
                 tw = Trace_Win._instances[name]
                 tw.winCounter.Fence()
                 if tw.comm.rank == 0:
-                    with open(log_dir + "/" + str(name) + ".log", "w") as f:
+                    with open(log_dir + "/" + str(name) + ".txt", "w") as f:
                         for count in tw.trace:
                             line = ",".join([str(x) for x in count]) + "\n"
                             f.write(line)

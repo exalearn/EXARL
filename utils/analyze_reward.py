@@ -8,17 +8,21 @@ logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 
 def read_data(filename):
-    frame = pd.read_csv(filename, sep=' ',
-                        header=None,
-                        names=['time', 'current_state', 'action', 'reward', 'next_state', 'total_reward', 'done',
-                               'episode', 'step', 'policy_type', 'epsilon'])
+    try:
+        frame = pd.read_csv(filename, sep=' ',
+                            header=None,
+                            names=['time', 'current_state', 'action', 'reward', 'next_state', 'total_reward', 'done',
+                                'episode', 'step', 'policy_type', 'epsilon'])
 
-    # Make time relative to the start time
-    frame['time'] = pd.to_datetime(frame['time'], unit='ns')
-    # TODO the time alignment after the merge
-    frame['rel_time'] = [idx - frame.time[0] for idx in frame.time]
-    frame['rel_time'] = frame['rel_time'].values.astype(float)
-    frame = frame[frame.done == True]
+        # Make time relative to the start time
+        frame['time'] = pd.to_datetime(frame['time'], unit='ns')
+        # TODO the time alignment after the merge
+        frame['rel_time'] = [idx - frame.time[0] for idx in frame.time]
+        frame['rel_time'] = frame['rel_time'].values.astype(float)
+        frame = frame[frame.done == True]
+    except:
+        print("Failed to read", filename)
+        frame = pd.DataFrame()
     return frame
 
 
