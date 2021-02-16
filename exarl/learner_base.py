@@ -15,8 +15,8 @@ import envs
 import agents
 import workflows
 
-from exarl.simple_comm import ExaSimple
-from exarl.mpi_comm import ExaMPI
+from network.simple_comm import ExaSimple
+# from network.mpi_comm import ExaMPI
 from exarl.comm_base import ExaComm
 from exarl.env_base import ExaEnv
 
