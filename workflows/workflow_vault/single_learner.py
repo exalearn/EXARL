@@ -14,7 +14,7 @@ class SYNC(erl.ExaWorkflow):
         print('Class SYNC learner')
 
     def run(self, learner):
-        comm = ExaComm.global_com
+        comm = ExaComm.global_comm
 
         filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' % (
             str(learner.nepisodes), str(learner.nsteps), str(comm.rank))
