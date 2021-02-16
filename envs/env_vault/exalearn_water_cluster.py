@@ -48,7 +48,7 @@ def load_data(atoms, idx=0):
     return AtomsLoader([new_dataset], batch_size=1)
 
 
-def get_activation(name, model, activation={}):
+def get_activation(name, activation={}):
     def hook(model, input, output):
         activation[name] = output.detach()
     return hook#, activation
@@ -59,9 +59,12 @@ def get_state_embedding(model,structure):
     logger.debug('torch.no_grad()')
     with torch.no_grad():
         for batch in data_loader:
-            model.module.output_modules[0].standardize.register_forward_hook(get_activation('standardize',model,activation))
+            model.module.output_modules[0].standardize.register_forward_hook(get_activation('standardize',activation))
             output = model(batch)
         state_embedding = activation['standardize'].cpu().detach().numpy()
+
+    state_embedding = state_embedding.flatten()
+    state_embedding = np.insert(state_embedding, 0, float(np.sum(state_embedding)), axis=0)
     return state_embedding
 
 class WaterCluster(gym.Env):
@@ -75,16 +78,18 @@ class WaterCluster(gym.Env):
         """
 
         # Default
+        natoms = 3
         self.init_structure = None
         self.current_structure = None
         self.nclusters = 0.0
         self.inital_state = 0.0
         self.current_state = 0.0
         self.reward_scale = 2.0
-
+        self.current_energy = 0
+        
         self.episode = 0
         self.steps = 0
-
+        self.lowest_energy=0
         #############################################################
         # Setup water molecule application (should be configurable)
         #############################################################
@@ -100,24 +105,25 @@ class WaterCluster(gym.Env):
         self.schnet_model =  torch.nn.DataParallel(model.module)
         # TODO: Migrate the rest of the code here
         
-        env_out = subprocess.Popen([self.app, self.env_input],
-                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        stdout, stderr = env_out.communicate()
-        logger.debug(stdout)
-        logger.debug(stderr)
-        stdout = stdout.decode('utf-8').splitlines()
+        # env_out = subprocess.Popen([self.app, self.env_input],
+        #                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        # stdout, stderr = env_out.communicate()
+        # logger.debug(stdout)
+        # logger.debug(stderr)
+        # stdout = stdout.decode('utf-8').splitlines()
         # Initial energy
-        self.inital_state = np.array([round(float(stdout[-1].split()[-1]), 6)])
 
         # Read initial XYZ file
         (self.init_structure, self.nclusters) = self._load_structure(self.env_input)
+        self.inital_state = get_state_embedding(self.schnet_model,self.init_structure) 
 
         # State of the current setup
         self.current_structure = self.init_structure
 
         # Env state output: based on the SchetPack molecule energy
-        self.observation_space = spaces.Box(low=np.zeros(self.nclusters+1)*(-500),
-                                            high=np.zeros(self.nclusters+1), dtype=np.float64)
+        self.embedded_state_size = (self.nclusters+1)*natoms+1
+        self.observation_space = spaces.Box(low=-500*np.zeros(self.embedded_state_size),
+                                            high=np.zeros(self.embedded_state_size), dtype=np.float64)
 
         # Actions per cluster: cluster id, rotation angle, translation
         self.action_space = spaces.Box(low=np.array([0, 75, 0.3]),
@@ -142,19 +148,6 @@ class WaterCluster(gym.Env):
         done = False
         energy = 0.0  # Default energy
         reward = np.random.normal(-100.0, 0.01)  # Default penalty
-        # target_scale = 200.0  # Scale for calculations
-
-        # print('env action: ',action)
-        # Make sure the action is within the defined space
-        # isValid = self.action_space.contains(action)
-        # if isValid == False:
-        #    logger.debug('Env::step(); Invalid action...')
-        #    # max_value = np.max(abs(action))
-        #    logger.debug(action)
-        #    # logger.debug("Reward: %s " % str(-max_value) )
-        #    # done=True
-        #    # return np.array([0]), np.array(-max_value), done, {}
-        #    return np.array([0]), np.array(reward), done, {}
 
         # Extract actions
         cluster_id = math.floor(action[0])
@@ -194,87 +187,50 @@ class WaterCluster(gym.Env):
             self.current_structure[atom_idx + i].position = atoms[i].position
 
         # Save structure in xyz format
-        # TODO: need to create random name
-        #       Now created using the index of rank, episode, and steps
-        # write('rotationz_test.xyz',self.current_structure,'xyz',parallel=False)
-        # tmp_input='rotationz_test.xyz'
         new_xyz = 'rotationz_rank{}_episode{}_steps{}.xyz'.format(mpi_settings.agent_comm.rank, self.episode, self.steps)
-        logger.debug('new_xyz: {}'.format(new_xyz))
-#        new_xyz_pfn = cd.run_params['output_dir'] + '/xyz/' + new_xyz
-        #new_xyz_pfn = cd.run_params['output_dir'] + '/' + new_xyz
-        logger.debug('new_xyz: {}'.format(new_xyz))
         try:
             write(new_xyz, self.current_structure, 'xyz', parallel=False)
         except Exception as e:
-            logger.debub('Error writing file: {}'.format(e))
+            logger.debug('Error writing file: {}'.format(e))
+            done = True
+            next_state = np.zeros(self.embedded_state_size)
+            logger.debug('Next state:{}'.format(next_state))
+            return next_state, np.array([reward]), done, {}
 
         # Run the process
         env_out = subprocess.Popen([self.app, new_xyz], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = env_out.communicate()
-        #logger.debug('stdout:',stdout)
-        #logger.debug('stderr:',stderr)
-        # TODO: Move xyz
-        #new_xyz_pfn = cd.run_params['output_dir'] + '/' + new_xyz
-        #logger.debug('new_xyz_pfn: {}'.format(new_xyz_pfn))
-        #try:
-        #    write(new_xyz_pfn, self.current_structure, 'xyz', parallel=False)
-        #except Exception as e:
-        #    logger.error('Error writing file: {}'.format(e))
-        #stdout = stdout.decode('utf-8').splitlines()
+        stdout = stdout.decode('utf-8').splitlines()
 
-        # Get SchetPack embedding
-        logger.debug('load_data()')
-        data_loader =  load_data(atoms, idx=0)
-        activation = {}
-        logger.debug('torch.no_grad()')
-        with torch.no_grad():
-            for batch in data_loader:
-                self.schnet_model.module.output_modules[0].standardize.register_forward_hook(get_activation('standardize',activation))
-                output = self.schnet_model(batch)
-        embedding = activation['standardize']
-        logger.info('ScnetPack embedding:{}'.format(embedding))
-        # TODO: We need a method to input(xyz) -> Model -> output(encoding)
-        #dataloader = get_data_loader(new_xyz)
-        #activation = get_schnet_activation(dataloader, self.schnet_model, 'cpu')
-    
         # Check for clear problems
         if any("Error in the det" in s for s in stdout):
             logger.debug("\tEnv::step(); !!! Error in the det !!!")
             done = True
-            return np.array([0]), np.array([reward]), done, {}
-
+            next_state = np.zeros(self.embedded_state_size)
+            logger.debug('Next state:{}'.format(next_state))
+            return next_state, np.array([reward]), done, {}
+        
         # Reward is currently based on the potential energy
         try:
-            logger.debug("\tEnv::step(); stdout[{}]".format(stdout))
+            #logger.debug("\tEnv::step(); stdout[{}]".format(stdout))
             energy = float(stdout[-1].split()[-1])
-            logger.debug("\tEnv::step(); energy[{}]".format(energy))
+            if  self.lowest_energy>energy:
+                self.lowest_energy=energy
+                logger.info("\t Found lower energy:{}".format(energy))
             energy = round(energy, 6)
-            reward = self.current_state[0] - energy
+            reward = self.current_energy - energy
             reward = np.array([round(reward, 6)])
-        except:
+        except Exception as e:
+            logger.debug('Error wth energy value: {}'.format(e))
             print('stdout:', stdout)
             print('stderr:', stderr)
-            return np.array([0]), np.array([reward]), done, {}
+            next_state = np.zeros(self.embedded_state_size)
+            logger.debug('Next state:{}'.format(next_state))
+            return next_state, np.array([reward]), done, {}
+        
+        self.current_state = get_state_embedding(self.schnet_model,self.current_structure)
+        logger.debug('Schnetpack next state:{}'.format(self.current_state))
 
-        # Check if the structure is the same
-        if round(self.current_state[0], 6) == energy:
-            logger.debug('Env::step(); Same state ... terminating')
-            done = True
-            return np.array([energy]), np.array(reward), done, {}
-
-        # If valid action and simulation
-        # reward= (energy/target_scale - 1.0)**2
-        # Current reward is based on the energy difference between
-        #     the current state and the new state
-        # delta = energy-self.current_state[0]
-        # delta = energy-self.inital_state[0]
-        # reward = np.exp(-delta/5.0)
-
-        # logger.info('Current state: %s' % self.current_state)
-        # logger.info('Next State: %s' % np.array([energy]))
-        # logger.info('Reward: %s' % reward)
-        # Update current state
-        self.current_state = np.array([energy])
         return self.current_state, reward, done, {}
 
     def reset(self):
@@ -283,31 +239,17 @@ class WaterCluster(gym.Env):
         logger.debug('Env::reset(); episode[{0:4d}]'.format(self.episode, self.steps))
         (self.init_structure, self.nclusters) = self._load_structure(self.env_input)
         self.current_structure = self.init_structure
-        logger.info('Current_structure :{}'.format((self.current_structure)))
+        #logger.info('Current_structure :{}'.format((self.current_structure)))
 
         self.init_structure = self.current_structure
         self.inital_state = self.current_state
         logger.info("Resetting the environemnts.")
-        
+        logger.info("Current lowest energy: {}".format(self.lowest_energy))
 
         state_embedding = get_state_embedding(self.schnet_model,self.current_structure)
-        ##
-        #logger.debug('load_data()')
-        #data_loader =  load_data(self.current_structure, idx=0)
-        #activation = {}
-        #logger.debug('torch.no_grad()')
-        #with torch.no_grad():
-        #    for batch in data_loader:
-        #        self.schnet_model.module.output_modules[0].standardize.register_forward_hook(get_activation('standardize',self.schnet_model,activation))
-        #        output = self.schnet_model(batch)
-        #embedding = activation['standardize'].cpu().detach().numpy()
-        #logger.info('ScnetPack embedding type: {}'.format(type(embedding)))
-        #logger.info('ScnetPack embedding: {}'.format(embedding))
-        self.inital_state = state_embedding
-        logger.info("New initial state: %s" % str(self.inital_state))
-        logger.info("New initial energy: %s" % str(np.sum(self.inital_state)))
-        self.current_state = self.inital_state
-
+        self.current_energy = state_embedding[0]#np.sum(state_embedding)
+        self.current_state =  state_embedding
+        logger.debug('self.current_state shape:{}'.format(self.current_state.shape))
         return self.current_state
 
     def render(self, mode='human'):
