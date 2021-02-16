@@ -46,7 +46,8 @@ class RMA_ASYNC(erl.ExaWorkflow):
             epsilon_win = MPI.Win.Create(epsilon, disp, comm=agent_comm)
 
             # Get serialized target weights size
-            target_weights = workflow.agent.get_weights()
+            learner_counter = 0
+            target_weights = (workflow.agent.get_weights(), learner_counter)
             serial_target_weights = MPI.pickle.dumps(target_weights)
             serial_target_weights_size = len(serial_target_weights)
             target_weights_size = 0
@@ -80,7 +81,6 @@ class RMA_ASYNC(erl.ExaWorkflow):
             data_buffer = bytearray(serial_agent_batch_size)
             episode_count_learner = np.zeros(1, dtype=np.float64)
             epsilon = np.array(workflow.agent.epsilon, dtype=np.float64)
-            learner_counter = 0
             flag = np.zeros(agent_comm.size - 1)
             # Initialize epsilon
             epsilon_win.Lock(0)
@@ -122,14 +122,15 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 # TODO: Double check if this is already in the DQN code
                 workflow.agent.target_train()
                 ib.update("Async_Learner_Target_Train", 1)
+
                 # Share new model weights
-                target_weights = workflow.agent.get_weights()
+                learner_counter += 1
+                target_weights = (workflow.agent.get_weights(), learner_counter)
                 serial_target_weights = MPI.pickle.dumps(target_weights)
                 model_win.Lock(0)
                 model_win.Put(serial_target_weights, target_rank=0)
                 model_win.Unlock(0)
                 moTrace.snapshot()
-                learner_counter += 1
                 # ib.update("Async_Learner_Episode", 1)
 
             logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_data))
@@ -191,9 +192,9 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         model_win.Get(buff, target=0, target_rank=0)
                         model_win.Flush(0)
                         model_win.Unlock(0)
-                        moTrace.update()
-                        target_weights = MPI.pickle.loads(buff)
+                        target_weights, learner_counter = MPI.pickle.loads(buff)
                         workflow.agent.set_weights(target_weights)
+                        moTrace.update(value=learner_counter)
 
                         # Atomic Get_accumulate to get epsilon
                         epsilon_win.Lock(0)

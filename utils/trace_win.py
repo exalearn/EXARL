@@ -46,7 +46,7 @@ class Trace_Win:
         if Trace_Win._ON:
             if value:
                 if self.arrayType == np.int64:
-                    data = np.array([int(value)], dtype=np.int64, op=MPI.REPLACE)
+                    data = np.array([int(value)], dtype=np.int64)
                 else:
                     data = np.array([float(value)], dtype=np.float64)
 
