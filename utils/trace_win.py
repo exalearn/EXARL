@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 class Trace_Win:
     _instances = {}
-    _ON = False
+    _ON = True
 
     def __new__(cls, name=None, *args, **kwargs):
         if name not in Trace_Win._instances:
@@ -72,7 +72,7 @@ class Trace_Win:
                     counts = np.zeros(self.comm.size, dtype=np.float64)
 
                 self.winCounter.Lock(0)
-                self.winCounter.Flush(0)
+                self.winCounter.Flush_all()
                 self.winCounter.Get_accumulate(counts, counts, 0, op=MPI.NO_OP)
                 self.winCounter.Unlock(0)
 
@@ -105,14 +105,17 @@ class Trace_Win:
                         data.append(temp)
 
                     for i in range(tw.comm.size):
-                        if hist:
-                            plt.hist(data[i], bins=10, alpha=0.5, label=i)
-                        else:
-                            plt.plot(range(len(data[i])), data[i], label=i)
+                        if i > 0:
+                            if hist:
+                                plt.hist(data[i], bins=len(data[0]), alpha=0.5, label=i)
+                            else:
+                                plt.plot(range(len(data[i])), data[i], label=i)
                     plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
                     plt.xlabel("Step")
                     plt.ylabel("Occurance")
+                    print(log_dir + "/" + str(name) + ".pdf")
                     plt.savefig(log_dir + "/" + str(name) + ".pdf", bbox_inches="tight")
+                    plt.close()
 
 
 def Trace_Win_Up(name, comm, arrayType=np.int64, position=None, keyword=None):
