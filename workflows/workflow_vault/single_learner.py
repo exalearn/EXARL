@@ -98,7 +98,7 @@ class SYNC(erl.ExaWorkflow):
 
                 # TODO: gather the generated data for the learner
                 # TODO: should it be an isend irecv ?
-                new_batch = comm.gather(batch_data, root=0)
+                new_batch = comm.gather(batch_data, 0)
 
                 # Learner
                 if comm.rank == 0:

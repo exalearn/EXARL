@@ -115,6 +115,9 @@ class ExaSimple(erl.ExaComm):
     def allreduce(self, arg, op=MPI.LAND):
         return self.comm.allreduce(arg, op)
 
+    def gather(self, data, root):
+        return self.comm.gather(data, root=root)
+
     def time(self):
         return MPI.Wtime()
 
