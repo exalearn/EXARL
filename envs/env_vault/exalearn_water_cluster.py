@@ -21,48 +21,56 @@ import tempfile
 import os
 import numpy as np
 import torch
-
 from ase.io import read
 
 from schnetpack import AtomsData
 from schnetpack import AtomsLoader
 
-from schnetpack.environment import SimpleEnvironmentProvider
-from schnetpack import AtomsLoader
-
 # Jenna's code
-def load_data(atoms, idx=0):
-    #atoms = atoms#read(datapath, index=f'{idx}:{idx+1}')
-    at = atoms#[0]
-    new_dataset={}
-    atom_positions = at.positions.astype(np.float32)
-    atom_positions -= at.get_center_of_mass() 
-    environment_provider = SimpleEnvironmentProvider()
-    nbh_idx, offsets = environment_provider.get_environment(at)
-    new_dataset['_atomic_numbers'] = torch.LongTensor(at.numbers.astype(np.int))
-    new_dataset['_positions'] = torch.FloatTensor(atom_positions)
-    new_dataset['_cell'] = torch.FloatTensor(at.cell.astype(np.float32))
-    new_dataset['_neighbors'] = torch.LongTensor(nbh_idx.astype(np.int))
-    new_dataset['_cell_offset'] = torch.FloatTensor(offsets.astype(np.float32))
-    new_dataset['_idx'] = torch.LongTensor(np.array([idx], dtype=np.int))
-    return AtomsLoader([new_dataset], batch_size=1)
-
+def get_data_loader(datapath, dbpath = './db.db'):
+    # load atoms from xyz file
+    # index key specifies number of entries to take
+    atoms = read(datapath, index=':1')
+        
+    # parse properties as list of dictionaries
+    property_list = []
+    for at in atoms:
+        # All properties need to be stored as numpy arrays.
+        # Note: The shape for scalars should be (1,), not ()
+        energy = np.array([float(list(at.info.keys())[0])], dtype=np.float32)
+        property_list.append({'energy': energy})
+     
+    #return atoms, property_list
+    # create SchNet dataset
+    # will add to ase database if one is present at dbpath 
+    new_dataset = AtomsData(dbpath)
+    new_dataset.add_systems(atoms, property_list)
+    
+    # create SchNet data loader with batches
+    data_loader = AtomsLoader(new_dataset, batch_size=1)
+    return data_loader
 
 def get_activation(name, model, activation={}):
     def hook(model, input, output):
         activation[name] = output.detach()
-    return hook#, activation
+    return hook, activation
 
-def get_state_embedding(model,structure):
-    data_loader =  load_data(structure, idx=0)
+def get_schnet_activation(data_loader, modelpath, cuda):
+    # load model
+    model = torch.load(os.path.join(args.modelpath, "best_model"), map_location=args.cuda)
+
+    # model created using DataParallel
+    model = torch.nn.DataParallel(model.module)
+    
+    # extract activation
     activation = {}
-    logger.debug('torch.no_grad()')
     with torch.no_grad():
         for batch in data_loader:
-            model.module.output_modules[0].standardize.register_forward_hook(get_activation('standardize',model,activation))
+            hook, activation = get_activation('dense', model)
+            model.module.representation.interactions[1].dense.register_forward_hook(hook)
             output = model(batch)
-        state_embedding = activation['standardize'].cpu().detach().numpy()
-    return state_embedding
+    
+    return activation['dense']
 
 class WaterCluster(gym.Env):
     metadata = {'render.modes': ['human']}
@@ -95,10 +103,7 @@ class WaterCluster(gym.Env):
         self.env_input = os.path.join(self.app_dir, self.env_input_name)
 
         # Schnet encodering model
-        self.schnet_model_pfn = '/gpfs/alpine/ast153/proj-shared/schnet_encoder/best_model'
-        model = torch.load(self.schnet_model_pfn, map_location='cpu')
-        self.schnet_model =  torch.nn.DataParallel(model.module)
-        # TODO: Migrate the rest of the code here
+        self.schnet_model = '/gpfs/alpine/ast153/proj-shared/schnet_encoder/best_model'
         
         env_out = subprocess.Popen([self.app, self.env_input],
                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -115,9 +120,9 @@ class WaterCluster(gym.Env):
         # State of the current setup
         self.current_structure = self.init_structure
 
-        # Env state output: based on the SchetPack molecule energy
-        self.observation_space = spaces.Box(low=np.zeros(self.nclusters+1)*(-500),
-                                            high=np.zeros(self.nclusters+1), dtype=np.float64)
+        # Env state output: potential energy
+        self.observation_space = spaces.Box(low=np.array([-500]),
+                                            high=np.array([0]), dtype=np.float64)
 
         # Actions per cluster: cluster id, rotation angle, translation
         self.action_space = spaces.Box(low=np.array([0, 75, 0.3]),
@@ -177,7 +182,7 @@ class WaterCluster(gym.Env):
             elif atomic_number == 1:
                 H_coords.append(atoms.get_positions()[i])
             else:
-                logger.info('Atom type not in water...')
+                print('Atom type not in water...')
         # Calculate bisector vector along two O--H bonds.
         u = np.array(H_coords[0]) - np.array(O_coords)
         v = np.array(H_coords[1]) - np.array(O_coords)
@@ -204,43 +209,22 @@ class WaterCluster(gym.Env):
         #tmp_input = prefix
 
         new_xyz = 'rotationz_rank{}_episode{}_steps{}.xyz'.format(mpi_settings.agent_comm.rank, self.episode, self.steps)
-        logger.debug('new_xyz: {}'.format(new_xyz))
-#        new_xyz_pfn = cd.run_params['output_dir'] + '/xyz/' + new_xyz
-        #new_xyz_pfn = cd.run_params['output_dir'] + '/' + new_xyz
-        logger.debug('new_xyz: {}'.format(new_xyz))
-        try:
-            write(new_xyz, self.current_structure, 'xyz', parallel=False)
-        except Exception as e:
-            logger.debub('Error writing file: {}'.format(e))
+        new_xyz_pfn = cd.run_params['output_dir'] + new_xyz
+        write(new_xyz, self.current_structure, 'xyz', parallel=False)
+        tmp_input = new_xyz
 
         # Run the process
-        env_out = subprocess.Popen([self.app, new_xyz], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        print('tmp_input:',tmp_input)
+        env_out = subprocess.Popen([self.app, tmp_input], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = env_out.communicate()
-        #logger.debug('stdout:',stdout)
-        #logger.debug('stderr:',stderr)
-        # TODO: Move xyz
-        #new_xyz_pfn = cd.run_params['output_dir'] + '/' + new_xyz
-        #logger.debug('new_xyz_pfn: {}'.format(new_xyz_pfn))
-        #try:
-        #    write(new_xyz_pfn, self.current_structure, 'xyz', parallel=False)
-        #except Exception as e:
-        #    logger.error('Error writing file: {}'.format(e))
-        #stdout = stdout.decode('utf-8').splitlines()
+        print('stdout:',stdout)
+        print('stderr:',stderr)
+        
+        stdout = stdout.decode('utf-8').splitlines()
 
-        # Get SchetPack embedding
-        logger.debug('load_data()')
-        data_loader =  load_data(atoms, idx=0)
-        activation = {}
-        logger.debug('torch.no_grad()')
-        with torch.no_grad():
-            for batch in data_loader:
-                self.schnet_model.module.output_modules[0].standardize.register_forward_hook(get_activation('standardize',activation))
-                output = self.schnet_model(batch)
-        embedding = activation['standardize']
-        logger.info('ScnetPack embedding:{}'.format(embedding))
-        # TODO: We need a method to input(xyz) -> Model -> output(encoding)
-        #dataloader = get_data_loader(new_xyz)
-        #activation = get_schnet_activation(dataloader, self.schnet_model, 'cpu')
+        # Run the
+        dataloader = get_data_loader(new_xyz)
+        activation = get_schnet_activation(dataloader, self.schnet_model, 'cpu')
     
         # Check for clear problems
         if any("Error in the det" in s for s in stdout):
@@ -288,31 +272,14 @@ class WaterCluster(gym.Env):
         logger.debug('Env::reset(); episode[{0:4d}]'.format(self.episode, self.steps))
         (self.init_structure, self.nclusters) = self._load_structure(self.env_input)
         self.current_structure = self.init_structure
-        logger.info('Current_structure :{}'.format((self.current_structure)))
-
+        self.current_state = self.inital_state
+        # Start a new random starting point
+        # random_action = self.action_space.sample()
+        # self.step(random_action)
         self.init_structure = self.current_structure
         self.inital_state = self.current_state
         logger.info("Resetting the environemnts.")
-        
-
-        state_embedding = get_state_embedding(self.schnet_model,self.current_structure)
-        ##
-        #logger.debug('load_data()')
-        #data_loader =  load_data(self.current_structure, idx=0)
-        #activation = {}
-        #logger.debug('torch.no_grad()')
-        #with torch.no_grad():
-        #    for batch in data_loader:
-        #        self.schnet_model.module.output_modules[0].standardize.register_forward_hook(get_activation('standardize',self.schnet_model,activation))
-        #        output = self.schnet_model(batch)
-        #embedding = activation['standardize'].cpu().detach().numpy()
-        #logger.info('ScnetPack embedding type: {}'.format(type(embedding)))
-        #logger.info('ScnetPack embedding: {}'.format(embedding))
-        self.inital_state = state_embedding
         logger.info("New initial state: %s" % str(self.inital_state))
-        logger.info("New initial energy: %s" % str(np.sum(self.inital_state)))
-        self.current_state = self.inital_state
-
         return self.current_state
 
     def render(self, mode='human'):
