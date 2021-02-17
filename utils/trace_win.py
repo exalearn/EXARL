@@ -44,12 +44,12 @@ class Trace_Win:
 
     def update(self, value=None):
         if Trace_Win._ON:
-            if value:
+            if value is not None:
                 if self.arrayType == np.int64:
-                    data = np.array([int(value)], dtype=np.int64)
+                    data = np.array([value], dtype=np.int64)
                 else:
-                    data = np.array([float(value)], dtype=np.float64)
-
+                    data = np.array([value], dtype=np.float64)
+                
                 self.winCounter.Lock(0)
                 self.winCounter.Accumulate(
                     data, 0, target=[self.comm.rank, 1], op=MPI.REPLACE
@@ -63,9 +63,9 @@ class Trace_Win:
                 )
                 self.winCounter.Unlock(0)
 
-    def snapshot(self, rank=0):
+    def snapshot(self):
         if Trace_Win._ON:
-            if self.comm.rank == rank:
+            if self.comm.rank == 0:
                 if self.arrayType == np.int64:
                     counts = np.zeros(self.comm.size, dtype=np.int64)
                 else:
@@ -85,6 +85,7 @@ class Trace_Win:
                 tw = Trace_Win._instances[name]
                 tw.winCounter.Fence()
                 if tw.comm.rank == 0:
+                    tw.snapshot()
                     with open(log_dir + "/" + str(name) + ".txt", "w") as f:
                         for count in tw.trace:
                             line = ",".join([str(x) for x in count]) + "\n"
@@ -107,7 +108,7 @@ class Trace_Win:
                     for i in range(tw.comm.size):
                         if i > 0:
                             if hist:
-                                plt.hist(data[i], bins=len(data[0]), alpha=0.5, label=i)
+                                plt.hist(data[i], bins=len(data[0]), alpha=0.5, label="Node " + str(i))
                             else:
                                 plt.plot(range(len(data[i])), data[i], label=i)
                     plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
@@ -117,6 +118,68 @@ class Trace_Win:
                     plt.savefig(log_dir + "/" + str(name) + ".pdf", bbox_inches="tight")
                     plt.close()
 
+    def plotSteps(log_dir, name):
+        if Trace_Win._ON:
+            tw = Trace_Win._instances[name]
+            tw.winCounter.Fence()
+            tw.winCounter.Fence()
+            if tw.comm.rank == 0:
+                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10,4))
+                last = tw.trace[-1]
+                data = []
+                for j in range(tw.comm.size):
+                    temp = []
+                    for l in tw.trace:
+                        temp.append(l[j])
+                    data.append(temp)
+
+                for i in range(tw.comm.size):
+                    if i > 0:
+                        ax1.hist(data[i], bins=last[i], alpha=0.5, label="Node " + str(i))
+                        temp = np.histogram(data[i], bins=last[i])
+                        ax2.hist(temp[0], density=True, histtype='step', cumulative=True, label="Node " + str(i))
+                ax1.legend(loc="upper left")
+                ax1.set_xlabel("Step")
+                ax1.set_ylabel("Number of times a step was used")
+                ax2.legend(loc="upper left")
+                ax2.set_xlabel("Number of times a step was used")
+                ax2.set_ylabel("CDF")
+                plt.savefig(log_dir + "/" + str(name) + ".pdf", bbox_inches="tight")
+
+    def plotModel(log_dir, name):
+        if Trace_Win._ON:
+            tw = Trace_Win._instances[name]
+            tw.winCounter.Fence()
+            tw.winCounter.Fence()
+            if tw.comm.rank == 0:
+                fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15,4))
+                last = tw.trace[-1]
+                data = []
+                for j in range(tw.comm.size):
+                    temp = []
+                    for l in tw.trace:
+                        temp.append(l[j])
+                    data.append(temp)
+
+                totalDelay = []
+                for i in range(tw.comm.size):
+                    if i > 0:
+                        delay = [x - y for x, y in enumerate(data[i])]
+                        ax1.step(range(len(data[i])), data[i], label="Node " + str(i))
+                        ax1.step(range(len(data[i])), delay, label="Node " + str(i) + " Delay")
+                        ax2.hist(delay, alpha=0.5, label="Node " + str(i))
+                        temp = np.histogram(delay, bins=last[i])
+                        ax3.hist(temp[0], density=True, histtype='step', cumulative=True, label="Node " + str(i))
+                ax1.legend()
+                ax1.set_xlabel("Train")
+                ax1.set_ylabel("Model Version")
+                ax2.legend()
+                ax2.set_xlabel("Size of Delay")
+                ax2.set_ylabel("Count of the Size of Delays")
+                ax3.set_xlabel("Size of Delay")
+                ax3.set_ylabel("CDF")
+                ax3.legend()
+                plt.savefig(log_dir + "/" + str(name) + ".pdf", bbox_inches="tight")
 
 def Trace_Win_Up(name, comm, arrayType=np.int64, position=None, keyword=None):
     def decorator(func):

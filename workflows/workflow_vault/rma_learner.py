@@ -21,8 +21,9 @@ class RMA_ASYNC(erl.ExaWorkflow):
         agent_comm = ExaComm.agent_comm.raw()
         env_comm = ExaComm.env_comm.raw()
         epTrace = Trace_Win(name="episodes_tr", comm=ExaComm.agent_comm, arrayType=np.int64)
-        reTrace = Trace_Win(name="reward_tr", comm=ExaComm.agent_comm, arrayType=np.float64)
+        # reTrace = Trace_Win(name="reward_tr", comm=ExaComm.agent_comm, arrayType=np.float64)
         moTrace = Trace_Win(name="model_tr", comm=ExaComm.agent_comm, arrayType=np.int64)
+        learner_counter = 0
 
         if ExaComm.is_learner():
             workflow.agent.set_learner()
@@ -46,8 +47,10 @@ class RMA_ASYNC(erl.ExaWorkflow):
             epsilon_win = MPI.Win.Create(epsilon, disp, comm=agent_comm)
 
             # Get serialized target weights size
-            learner_counter = 0
-            target_weights = (workflow.agent.get_weights(), learner_counter)
+            # The counter needs to be 64 bit value
+            # Otherwise dumps only gives it 1 byte which will overflow at 256
+            # Causing put/get to fail
+            target_weights = (workflow.agent.get_weights(), np.int64(learner_counter))
             serial_target_weights = MPI.pickle.dumps(target_weights)
             serial_target_weights_size = len(serial_target_weights)
             target_weights_size = 0
@@ -113,8 +116,9 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 except Exception as e:
                     continue
 
-                reTrace.snapshot()
+                # reTrace.snapshot()
                 epTrace.snapshot()
+                moTrace.snapshot()
                 # print('***************************')
                 # Train & Target train
                 workflow.agent.train(agent_data)
@@ -125,12 +129,12 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
                 # Share new model weights
                 learner_counter += 1
-                target_weights = (workflow.agent.get_weights(), learner_counter)
+                target_weights = (workflow.agent.get_weights(), np.int64(learner_counter))
+                # target_weights = workflow.agent.get_weights()
                 serial_target_weights = MPI.pickle.dumps(target_weights)
                 model_win.Lock(0)
                 model_win.Put(serial_target_weights, target_rank=0)
                 model_win.Unlock(0)
-                moTrace.snapshot()
                 # ib.update("Async_Learner_Episode", 1)
 
             logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_data))
@@ -193,8 +197,8 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         model_win.Flush(0)
                         model_win.Unlock(0)
                         target_weights, learner_counter = MPI.pickle.loads(buff)
+                        # target_weights = MPI.pickle.loads(buff)
                         workflow.agent.set_weights(target_weights)
-                        moTrace.update(value=learner_counter)
 
                         # Atomic Get_accumulate to get epsilon
                         epsilon_win.Lock(0)
@@ -213,7 +217,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         epsilon = np.array(workflow.agent.epsilon)
                         # Atomic Get_accumulate to update epsilon
                         epsilon_win.Lock(0)
-                        epsilon_win.Put(epsilon, target_rank=0)
+                        # epsilon_win.Put(epsilon, target_rank=0)
                         epsilon_win.Flush(0)
                         epsilon_win.Unlock(0)
 
@@ -243,8 +247,9 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         data_win.Lock(agent_comm.rank)
                         data_win.Put(serial_agent_batch, target_rank=agent_comm.rank)
                         data_win.Unlock(agent_comm.rank)
-                        reTrace.update(value=total_rewards)
                         epTrace.update()
+                        moTrace.update(value=learner_counter)
+                        # reTrace.update(value=total_rewards)
 
                         # Log state, action, reward, ...
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
@@ -257,4 +262,5 @@ class RMA_ASYNC(erl.ExaWorkflow):
             data_win.Free()
 
         Trace_Win.write(workflow.results_dir)
-        Trace_Win.plot(workflow.results_dir)
+        Trace_Win.plotModel(workflow.results_dir, "model_tr")
+        Trace_Win.plotSteps(workflow.results_dir, "episodes_tr")
