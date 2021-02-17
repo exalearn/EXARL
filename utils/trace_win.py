@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 class Trace_Win:
     _instances = {}
-    _ON = True
+    _ON = False
 
     def __new__(cls, name=None, *args, **kwargs):
         if name not in Trace_Win._instances:
@@ -49,7 +49,7 @@ class Trace_Win:
                     data = np.array([value], dtype=np.int64)
                 else:
                     data = np.array([value], dtype=np.float64)
-                
+
                 self.winCounter.Lock(0)
                 self.winCounter.Accumulate(
                     data, 0, target=[self.comm.rank, 1], op=MPI.REPLACE
@@ -108,7 +108,12 @@ class Trace_Win:
                     for i in range(tw.comm.size):
                         if i > 0:
                             if hist:
-                                plt.hist(data[i], bins=len(data[0]), alpha=0.5, label="Node " + str(i))
+                                plt.hist(
+                                    data[i],
+                                    bins=len(data[0]),
+                                    alpha=0.5,
+                                    label="Node " + str(i),
+                                )
                             else:
                                 plt.plot(range(len(data[i])), data[i], label=i)
                     plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
@@ -124,7 +129,7 @@ class Trace_Win:
             tw.winCounter.Fence()
             tw.winCounter.Fence()
             if tw.comm.rank == 0:
-                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10,4))
+                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
                 last = tw.trace[-1]
                 data = []
                 for j in range(tw.comm.size):
@@ -135,9 +140,17 @@ class Trace_Win:
 
                 for i in range(tw.comm.size):
                     if i > 0:
-                        ax1.hist(data[i], bins=last[i], alpha=0.5, label="Node " + str(i))
+                        ax1.hist(
+                            data[i], bins=last[i], alpha=0.5, label="Node " + str(i)
+                        )
                         temp = np.histogram(data[i], bins=last[i])
-                        ax2.hist(temp[0], density=True, histtype='step', cumulative=True, label="Node " + str(i))
+                        ax2.hist(
+                            temp[0],
+                            density=True,
+                            histtype="step",
+                            cumulative=True,
+                            label="Node " + str(i),
+                        )
                 ax1.legend(loc="upper left")
                 ax1.set_xlabel("Step")
                 ax1.set_ylabel("Number of times a step was used")
@@ -152,7 +165,7 @@ class Trace_Win:
             tw.winCounter.Fence()
             tw.winCounter.Fence()
             if tw.comm.rank == 0:
-                fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15,4))
+                fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 4))
                 last = tw.trace[-1]
                 data = []
                 for j in range(tw.comm.size):
@@ -166,10 +179,20 @@ class Trace_Win:
                     if i > 0:
                         delay = [x - y for x, y in enumerate(data[i])]
                         ax1.step(range(len(data[i])), data[i], label="Node " + str(i))
-                        ax1.step(range(len(data[i])), delay, label="Node " + str(i) + " Delay")
+                        ax1.step(
+                            range(len(data[i])),
+                            delay,
+                            label="Node " + str(i) + " Delay",
+                        )
                         ax2.hist(delay, alpha=0.5, label="Node " + str(i))
                         temp = np.histogram(delay, bins=last[i])
-                        ax3.hist(temp[0], density=True, histtype='step', cumulative=True, label="Node " + str(i))
+                        ax3.hist(
+                            temp[0],
+                            density=True,
+                            histtype="step",
+                            cumulative=True,
+                            label="Node " + str(i),
+                        )
                 ax1.legend()
                 ax1.set_xlabel("Train")
                 ax1.set_ylabel("Model Version")
@@ -180,6 +203,7 @@ class Trace_Win:
                 ax3.set_ylabel("CDF")
                 ax3.legend()
                 plt.savefig(log_dir + "/" + str(name) + ".pdf", bbox_inches="tight")
+
 
 def Trace_Win_Up(name, comm, arrayType=np.int64, position=None, keyword=None):
     def decorator(func):
