@@ -63,7 +63,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
             # Get serialized batch data size
             agent_batch = next(workflow.agent.generate_data())
-            data_exchange = ExaMPIBuff(ExaComm.agent_comm, ExaComm.learner_rank(), data=agent_batch)
+            # data_exchange = ExaMPIBuff(ExaComm.agent_comm, ExaComm.learner_rank(), data=agent_batch)
             data_exchange = ExaMPIStack(ExaComm.agent_comm, ExaComm.learner_rank(), data=agent_batch)
 
         if ExaComm.is_learner():
