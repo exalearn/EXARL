@@ -8,6 +8,7 @@ import utils.log as log
 import utils.candleDriver as cd
 from exarl.comm_base import ExaComm
 from network.data_structures import ExaMPIBuff
+from network.data_structures import ExaMPIStack
 from mpi4py import MPI
 from utils.trace_win import Trace_Win
 
@@ -63,6 +64,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
             # Get serialized batch data size
             agent_batch = next(workflow.agent.generate_data())
             data_exchange = ExaMPIBuff(ExaComm.agent_comm, ExaComm.learner_rank(), data=agent_batch)
+            data_exchange = ExaMPIStack(ExaComm.agent_comm, ExaComm.learner_rank(), data=agent_batch)
 
         if ExaComm.is_learner():
             # Write target weight to model window of learner
@@ -100,6 +102,8 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 # s = (learner_counter % (agent_comm.size - 1)) + 1
                 s = np.random.randint(low=1, high=agent_comm.size, size=1)
                 agent_data = data_exchange.pop(s)
+                if agent_data is None:
+                    continue
 
                 # reTrace.snapshot()
                 epTrace.snapshot()
