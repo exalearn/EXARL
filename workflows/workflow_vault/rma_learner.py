@@ -7,6 +7,7 @@ from utils.profile import *
 import utils.log as log
 import utils.candleDriver as cd
 from exarl.comm_base import ExaComm
+from network.data_structures import ExaMPIBuff
 from mpi4py import MPI
 from utils.trace_win import Trace_Win
 
@@ -61,13 +62,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
             # Get serialized batch data size
             agent_batch = next(workflow.agent.generate_data())
-            serial_agent_batch = (MPI.pickle.dumps(agent_batch))
-            serial_agent_batch_size = len(serial_agent_batch)
-            nserial_agent_batch = 0
-            if ExaComm.is_actor():
-                nserial_agent_batch = serial_agent_batch_size
-            # Allocate data window
-            data_win = MPI.Win.Allocate(nserial_agent_batch, 1, comm=agent_comm)
+            data_exchange = ExaMPIBuff(ExaComm.agent_comm, ExaComm.learner_rank(), data=agent_batch)
 
         if ExaComm.is_learner():
             # Write target weight to model window of learner
@@ -81,7 +76,6 @@ class RMA_ASYNC(erl.ExaWorkflow):
         # Learner
         if ExaComm.is_learner():
             # Initialize batch data buffer
-            data_buffer = bytearray(serial_agent_batch_size)
             episode_count_learner = np.zeros(1, dtype=np.float64)
             epsilon = np.array(workflow.agent.epsilon, dtype=np.float64)
             flag = np.zeros(agent_comm.size - 1)
@@ -105,16 +99,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 # Go over all actors (actor processes start from rank 1)
                 # s = (learner_counter % (agent_comm.size - 1)) + 1
                 s = np.random.randint(low=1, high=agent_comm.size, size=1)
-                # Get data
-                data_win.Lock(s)
-                data_win.Get(data_buffer, target_rank=s, target=None)
-                data_win.Unlock(s)
-
-                # Continue to the next actor if data_buffer is empty
-                try:
-                    agent_data = MPI.pickle.loads(data_buffer)
-                except Exception as e:
-                    continue
+                agent_data = data_exchange.pop(s)
 
                 # reTrace.snapshot()
                 epTrace.snapshot()
@@ -130,7 +115,6 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 # Share new model weights
                 learner_counter += 1
                 target_weights = (workflow.agent.get_weights(), np.int64(learner_counter))
-                # target_weights = workflow.agent.get_weights()
                 serial_target_weights = MPI.pickle.dumps(target_weights)
                 model_win.Lock(0)
                 model_win.Put(serial_target_weights, target_rank=0)
@@ -197,7 +181,6 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         model_win.Flush(0)
                         model_win.Unlock(0)
                         target_weights, learner_counter = MPI.pickle.loads(buff)
-                        # target_weights = MPI.pickle.loads(buff)
                         workflow.agent.set_weights(target_weights)
 
                         # Atomic Get_accumulate to get epsilon
@@ -240,13 +223,9 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         batch_data = next(workflow.agent.generate_data())
                         ib.update("Async_Env_Generate_Data", 1)
 
-                        serial_agent_batch = (MPI.pickle.dumps(batch_data))
-
                         # Write to data window
-                        serial_agent_batch = MPI.pickle.dumps(batch_data)
-                        data_win.Lock(agent_comm.rank)
-                        data_win.Put(serial_agent_batch, target_rank=agent_comm.rank)
-                        data_win.Unlock(agent_comm.rank)
+                        # Here is the PUSH
+                        agent_data = data_exchange.push(batch_data)
                         epTrace.update()
                         moTrace.update(value=learner_counter)
                         # reTrace.update(value=total_rewards)
@@ -259,7 +238,6 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
         if ExaComm.is_agent():
             model_win.Free()
-            data_win.Free()
 
         Trace_Win.write(workflow.results_dir)
         Trace_Win.plotModel(workflow.results_dir, "model_tr")

@@ -56,6 +56,11 @@ class ExaComm(ABC):
     def split(self, procs_per_env):
         pass
 
+    def learner_rank():
+        if ExaComm.agent_comm is not None:
+            return 0
+        return -1
+
     def is_learner():
         if ExaComm.agent_comm is not None:
             if ExaComm.agent_comm.rank == 0:

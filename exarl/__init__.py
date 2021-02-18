@@ -1,5 +1,6 @@
 # import faulthandler; faulthandler.enable()
 from exarl.comm_base import ExaComm
+from exarl.data_exchange import ExaData
 from exarl.agent_base import ExaAgent
 from exarl.env_base import ExaEnv
 from exarl.workflow_base import ExaWorkflow
