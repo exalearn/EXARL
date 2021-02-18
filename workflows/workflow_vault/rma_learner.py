@@ -217,7 +217,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         epsilon = np.array(workflow.agent.epsilon)
                         # Atomic Get_accumulate to update epsilon
                         epsilon_win.Lock(0)
-                        # epsilon_win.Put(epsilon, target_rank=0)
+                        epsilon_win.Put(epsilon, target_rank=0)
                         epsilon_win.Flush(0)
                         epsilon_win.Unlock(0)
 
