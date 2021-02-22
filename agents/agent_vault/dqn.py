@@ -19,6 +19,7 @@ import utils.log as log
 from utils.introspect import introspectTrace
 from tensorflow.compat.v1.keras.backend import set_session
 
+
 tf_version = int((tf.__version__)[0])
 
 logger = log.setup_logger(__name__, cd.run_params["log_level"])
@@ -130,15 +131,15 @@ class DQN(erl.ExaAgent):
         if self.is_learner:
             # tf.debugging.set_log_device_placement(True)
             gpus = tf.config.experimental.list_physical_devices("GPU")
-            logger.error("Available GPUs: {}".format(gpus))
+            logger.info("Available GPUs: {}".format(gpus))
             self.mirrored_strategy = tf.distribute.MirroredStrategy()
-            logger.error("Using learner strategy: {}".format(self.mirrored_strategy))
+            logger.info("Using learner strategy: {}".format(self.mirrored_strategy))
             # Active model
             with self.mirrored_strategy.scope():
                 self.model = self._build_model()
                 self.model._name = "learner"
                 self.model.compile(loss=self.loss, optimizer=self.optimizer)
-                logger.error("Active model: \n".format(self.model.summary()))
+                logger.info("Active model: \n".format(self.model.summary()))
             # Target model
             with tf.device("/CPU:0"):
                 self.target_model = self._build_model()
@@ -148,7 +149,7 @@ class DQN(erl.ExaAgent):
                 self.target_weights = self.target_model.get_weights()
         else:
             cpus = tf.config.experimental.list_physical_devices("CPU")
-            logger.error("Available CPUs: {}".format(cpus))
+            logger.info("Available CPUs: {}".format(cpus))
             with tf.device("/CPU:0"):
                 self.model = None
                 self.target_model = self._build_model()
@@ -234,7 +235,7 @@ class DQN(erl.ExaAgent):
         return np.argmax(act_values[0])
 
     @introspectTrace()
-    def calc_target_f(self, exp):
+    def bellman_equation(self, exp):
         state, action, reward, next_state, done = exp
         np_state = np.array(state).reshape(1, 1, len(state))
         np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
@@ -250,42 +251,44 @@ class DQN(erl.ExaAgent):
         target_f[0][action] = target
         return target_f[0]
 
-    @introspectTrace()
-    def generate_data(self):
-        # Worker method to create samples for training
-        # TODO: This method is the most expensive and takes 90% of the agent compute time
-        # TODO: Reduce computational time
-        # TODO: Revisit the shape (e.g. extra 1 for the LSTM)
-        batch_states = np.zeros(
-            (self.batch_size, 1, self.env.observation_space.shape[0])
-        ).astype("float64")
-        batch_target = np.zeros((self.batch_size, self.env.action_space.n)).astype(
-            "float64"
-        )
-        # Return empty batch
-        if len(self.memory) < self.batch_size:
-            yield batch_states, batch_target
-        start_time = time.time()
-        minibatch = random.sample(self.memory, self.batch_size)
-        batch_target = list(map(self.calc_target_f, minibatch))
-        batch_states = [
-            np.array(exp[0]).reshape(1, 1, len(exp[0]))[0] for exp in minibatch
-        ]
-        batch_states = np.reshape(
-            batch_states, [len(minibatch), 1, len(minibatch[0][0])]
-        ).astype("float64")
-        batch_target = np.reshape(
-            batch_target, [len(minibatch), self.env.action_space.n]
-        ).astype("float64")
-        end_time = time.time()
-        self.dataprep_time += end_time - start_time
-        self.ndataprep_time += 1
-        logger.debug(
-            "Agent[{}] - Minibatch time: {} ".format(self.rank, (end_time - start_time))
-        )
-        yield batch_states, batch_target
+    # BufferDataset(data_buffer, data_win).prefetch(-1).cache().batch(256).map(bellman_equation))
 
-    @introspectTrace()
+    # @introspectTrace()
+    # def generate_data(self):
+    #     # Worker method to create samples for training
+    #     # TODO: This method is the most expensive and takes 90% of the agent compute time
+    #     # TODO: Reduce computational time
+    #     # TODO: Revisit the shape (e.g. extra 1 for the LSTM)
+    #     batch_states = np.zeros(
+    #         (self.batch_size, 1, self.env.observation_space.shape[0])
+    #     ).astype("float64")
+    #     batch_target = np.zeros((self.batch_size, self.env.action_space.n)).astype(
+    #         "float64"
+    #     )
+    #     # Return empty batch
+    #     if len(self.memory) < self.batch_size:
+    #         yield batch_states, batch_target
+    #     start_time = time.time()
+    #     minibatch = random.sample(self.memory, self.batch_size)
+    #     batch_target = list(map(self.bellman_equation, minibatch))
+    #     batch_states = [
+    #         np.array(exp[0]).reshape(1, 1, len(exp[0]))[0] for exp in minibatch
+    #     ]
+    #     batch_states = np.reshape(
+    #         batch_states, [len(minibatch), 1, len(minibatch[0][0])]
+    #     ).astype("float64")
+    #     batch_target = np.reshape(
+    #         batch_target, [len(minibatch), self.env.action_space.n]
+    #     ).astype("float64")
+    #     end_time = time.time()
+    #     self.dataprep_time += end_time - start_time
+    #     self.ndataprep_time += 1
+    #     logger.debug(
+    #         "Agent[{}] - Minibatch time: {} ".format(self.rank, (end_time - start_time))
+    #     )
+    #     yield batch_states, batch_target
+
+    @ introspectTrace()
     def train(self, batch):
         if self.is_learner:
             # if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):

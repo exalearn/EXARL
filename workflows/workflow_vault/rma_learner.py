@@ -9,6 +9,7 @@ import utils.candleDriver as cd
 from exarl.comm_base import ExaComm
 from mpi4py import MPI
 from utils.trace_win import Trace_Win
+from exarl.dataset_base import BufferDataset
 
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
@@ -56,7 +57,15 @@ class RMA_ASYNC(erl.ExaWorkflow):
             model_win = MPI.Win.Allocate(target_weights_size, 1, comm=agent_comm)
 
             # Get serialized batch data size
-            agent_batch = next(workflow.agent.generate_data())
+            batch_states = np.zeros((workflow.agent.batch_size, 1, workflow.env.observation_space.shape[0])).astype("float64")
+            batch_actions = np.zeros((workflow.agent.batch_size, workflow.env.action_space.n)).astype("float64")
+            batch_reward = np.zeros(workflow.agent.batch_size, dtype=np.float64)
+            batch_next_states = np.zeros((workflow.agent.batch_size, 1, workflow.env.observation_space.shape[0])).astype("float64")
+            batch_done = np.zeros(workflow.agent.batch_size, dtype=np.bool)
+            batch_total_reward = np.zeros(workflow.agent.batch_size, dtype=np.float64)
+
+            agent_batch = [batch_states, batch_actions, batch_reward, batch_next_states, batch_done, batch_total_reward]
+            # agent_batch = next(workflow.agent.generate_data())
             serial_agent_batch = (MPI.pickle.dumps(agent_batch))
             serial_agent_batch_size = len(serial_agent_batch)
             nserial_agent_batch = 0
@@ -106,7 +115,8 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 data_win.Lock(s)
                 data_win.Get(data_buffer, target_rank=s, target=None)
                 data_win.Unlock(s)
-
+                # TODO: call BufferDataset
+                # batch_data = BufferDataset(workflow.agent, buff, data_win).prefetch(-1).cache().batch(256).map(workflow.agent.bellman_equation)
                 # Continue to the next actor if data_buffer is empty
                 try:
                     agent_data = MPI.pickle.loads(data_buffer)
@@ -232,13 +242,12 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         total_rewards += reward
                         memory = (current_state, action, reward, next_state, done, total_rewards)
                         workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
-                        batch_data = next(workflow.agent.generate_data())
+                        # batch_data = BufferDataset(workflow.agent, buff, data_win).prefetch(-1).cache().batch(256).map(workflow.agent.bellman_equation)
+                        # batch_data=next(workflow.agent.generate_data())
                         ib.update("Async_Env_Generate_Data", 1)
 
-                        serial_agent_batch = (MPI.pickle.dumps(batch_data))
-
                         # Write to data window
-                        serial_agent_batch = MPI.pickle.dumps(batch_data)
+                        serial_agent_batch = MPI.pickle.dumps(memory)
                         data_win.Lock(agent_comm.rank)
                         data_win.Put(serial_agent_batch, target_rank=agent_comm.rank)
                         data_win.Unlock(agent_comm.rank)
