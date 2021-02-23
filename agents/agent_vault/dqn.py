@@ -288,29 +288,57 @@ class DQN(erl.ExaAgent):
     #     )
     #     yield batch_states, batch_target
 
+    # @ introspectTrace()
+    # def train(self, batch):
+    #     if self.is_learner:
+    #         # if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
+    #         if len(batch[0]) >= (self.batch_size):
+    #             # batch_states, batch_target = batch
+    #             start_time = time.time()
+    #             # with tf.device(self.device):
+    #             with self.mirrored_strategy.scope():
+    #                 history = self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
+    #             end_time = time.time()
+    #             self.training_time += end_time - start_time
+    #             self.ntraining_time += 1
+    #             logger.info(
+    #                 "Agent[{}]- Training: {} ".format(
+    #                     self.rank, (end_time - start_time)
+    #                 )
+    #             )
+    #             start_time_episode = time.time()
+    #             logger.info(
+    #                 "Agent[%s] - Target update time: %s "
+    #                 % (str(self.rank), str(time.time() - start_time_episode))
+    #             )
+    #     else:
+    #         logger.warning(
+    #             "Training will not be done because this instance is not set to learn."
+    #         )
+
     @ introspectTrace()
-    def train(self, batch):
+    def train(self, batch_gen):
         if self.is_learner:
             # if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
-            if len(batch[0]) >= (self.batch_size):
-                # batch_states, batch_target = batch
-                start_time = time.time()
-                # with tf.device(self.device):
-                with self.mirrored_strategy.scope():
-                    history = self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
-                end_time = time.time()
-                self.training_time += end_time - start_time
-                self.ntraining_time += 1
-                logger.info(
-                    "Agent[{}]- Training: {} ".format(
-                        self.rank, (end_time - start_time)
-                    )
+            # if len(batch[0]) >= (self.batch_size):
+            # batch_states, batch_target = batch
+            start_time = time.time()
+            # with tf.device(self.device):
+            # with self.mirrored_strategy.scope():
+            history = self.model.fit_generator(batch_gen, epochs=1, verbose=0)
+            end_time = time.time()
+            self.training_time += end_time - start_time
+            self.ntraining_time += 1
+            logger.info(
+                "Agent[{}]- Training: {} ".format(
+                    self.rank, (end_time - start_time)
                 )
-                start_time_episode = time.time()
-                logger.info(
-                    "Agent[%s] - Target update time: %s "
-                    % (str(self.rank), str(time.time() - start_time_episode))
-                )
+            )
+            start_time_episode = time.time()
+            logger.info(
+                "Agent[%s] - Target update time: %s "
+                % (str(self.rank), str(time.time() - start_time_episode))
+            )
         else:
             logger.warning(
                 "Training will not be done because this instance is not set to learn."

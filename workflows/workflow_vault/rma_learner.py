@@ -110,24 +110,25 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
                 # Go over all actors (actor processes start from rank 1)
                 # s = (learner_counter % (agent_comm.size - 1)) + 1
-                s = np.random.randint(low=1, high=agent_comm.size, size=1)
-                # Get data
-                data_win.Lock(s)
-                data_win.Get(data_buffer, target_rank=s, target=None)
-                data_win.Unlock(s)
+                # s = np.random.randint(low=1, high=agent_comm.size, size=1)
+                # # Get data
+                # data_win.Lock(s)
+                # data_win.Get(data_buffer, target_rank=s, target=None)
+                # data_win.Unlock(s)
                 # TODO: call BufferDataset
-                # batch_data = BufferDataset(workflow.agent, buff, data_win).prefetch(-1).cache().batch(256).map(workflow.agent.bellman_equation)
-                # Continue to the next actor if data_buffer is empty
-                try:
-                    agent_data = MPI.pickle.loads(data_buffer)
-                except Exception as e:
-                    continue
+                buff = bytearray(serial_agent_batch_size)
+                batch_gen = BufferDataset(workflow.agent, buff, data_win).prefetch(-1).cache().batch(256).map(workflow.agent.bellman_equation)
+                # # Continue to the next actor if data_buffer is empty
+                # try:
+                #     agent_data = MPI.pickle.loads(data_buffer)
+                # except Exception as e:
+                #     continue
 
                 reTrace.snapshot()
                 epTrace.snapshot()
                 # print('***************************')
                 # Train & Target train
-                workflow.agent.train(agent_data)
+                workflow.agent.train(batch_gen)
                 ib.update("Async_Learner_Train", 1)
                 # TODO: Double check if this is already in the DQN code
                 workflow.agent.target_train()

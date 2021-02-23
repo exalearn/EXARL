@@ -2,6 +2,7 @@ from numpy.core.arrayprint import _none_or_positive_arg
 import tensorflow as tf
 import numpy as np
 from exarl.comm_base import ExaComm
+from mpi4py import MPI
 import time
 
 class BufferDataset(tf.data.Dataset):
@@ -28,7 +29,12 @@ class BufferDataset(tf.data.Dataset):
         data_win.Get(data_buffer, target_rank=actor_idx)
         data_win.Unlock(actor_idx)
 
-        yield (data_buffer,)
+        try:
+            agent_data = MPI.pickle.loads(data_buffer)
+        except Exception as e:
+            BufferDataset._generator(agent, data_buffer, data_win)
+
+        yield (agent_data,)
 
     def __new__(cls, agent, data_buffer, data_win):
         return tf.data.Dataset.from_generator(
@@ -48,7 +54,6 @@ class BufferDataset(tf.data.Dataset):
 
 # def bellman_equation(raw_data):
 #     return raw_data + 1
-
 
 # data_buffer = np.arange(10)
 # data_win = 0
