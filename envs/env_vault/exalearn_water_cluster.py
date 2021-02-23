@@ -93,9 +93,9 @@ class WaterCluster(gym.Env):
         self.episode = 0
         self.steps = 0
 
-        #############################################################
+        #
         # Setup water molecule application (should be configurable)
-        #############################################################
+        #
         self.app_dir = '/gpfs/alpine/ast153/proj-shared/pot_ttm/'
         self.app_name = 'main.x'
         self.app = os.path.join(self.app_dir, self.app_name)
