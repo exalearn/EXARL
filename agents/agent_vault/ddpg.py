@@ -24,9 +24,11 @@ class DDPG(erl.ExaAgent):
     is_learner: bool
 
     def __init__(self, env):
+        
         # Distributed variables
         self.is_learner = False
 
+        #tf.keras.backend.set_floatx('float64')
         # Not used by agent but required by the learner class
         self.epsilon = 1.0
         self.epsilon_min = 0.01
@@ -89,15 +91,25 @@ class DDPG(erl.ExaAgent):
         self.critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
         self.actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
+        #
+        #self.tb_callback = tf.keras.callbacks.TensorBoard(log_dir='tmp_tfboard', profile_batch='10, 15')
+
     def remember(self, state, action, reward, next_state, done):
-        # If the counter exceeds the capacity then
-        index = self.buffer_counter % self.buffer_capacity
-        self.state_buffer[index] = state
-        self.action_buffer[index] = action[0]
-        self.reward_buffer[index] = reward
-        self.next_state_buffer[index] = next_state
-        self.done_buffer[index] = int(done)
-        self.buffer_counter += 1
+        try:
+            # If the counter exceeds the capacity then
+            index = self.buffer_counter % self.buffer_capacity
+            self.state_buffer[index] = state
+            self.action_buffer[index] = action[0]
+            self.reward_buffer[index] = reward
+            self.next_state_buffer[index] = next_state
+            self.done_buffer[index] = int(done)
+            self.buffer_counter += 1
+        except Exception as e:
+            logger.debug('error:{}'.format(e))
+            logger.debug('state:{}'.format(state))
+            logger.debug('action:{}'.format(action))
+            logger.debug('reward:{}'.format(reward))
+            logger.debug('next_state:{}'.format(next_state))
 
     # @tf.function
     def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch):
@@ -132,7 +144,10 @@ class DDPG(erl.ExaAgent):
 
         inputs = layers.Input(shape=(self.num_states,))
         out = layers.Dense(256, activation="relu")(inputs)
+        out = layers.BatchNormalization()(out)
+        out = layers.Dropout(0.1)(out)
         out = layers.Dense(256, activation="relu")(out)
+        #outputs = layers.Dense(self.num_actions, activation="tanh", kernel_initializer=last_init)(out)
         outputs = layers.Dense(self.num_actions, activation="relu", kernel_initializer=last_init)(out)
         # outputs = layers.Dense(1, activation="tanh", kernel_initializer=last_init)(out)
 
@@ -169,7 +184,7 @@ class DDPG(erl.ExaAgent):
         logger.info('record_range:{}'.format(record_range))
         # Randomly sample indices
         batch_indices = np.random.choice(record_range, self.batch_size)
-        logger.info('batch_indices:{}'.format(batch_indices))
+        logger.debug('batch_indices:{}'.format(batch_indices))
         state_batch = tf.convert_to_tensor(self.state_buffer[batch_indices])
         action_batch = tf.convert_to_tensor(self.action_buffer[batch_indices])
         reward_batch = tf.convert_to_tensor(self.reward_buffer[batch_indices])
@@ -230,16 +245,16 @@ class DDPG(erl.ExaAgent):
         legal_action = sampled_actions_wn
         # print('sampled_actions_wn: ', sampled_actions_wn)
         # Make sure action is within bounds
-        # legal_action = np.clip(sampled_actions_wn, self.lower_bound, self.upper_bound)
+        #legal_action = np.clip(sampled_actions_wn, self.lower_bound, self.upper_bound)
         isValid = self.env.action_space.contains(sampled_actions_wn)
-        print('isValid: ', isValid)
+        #print('isValid: ', isValid)
         if isValid == False:
             legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
-            return np.squeeze(legal_action), 0
-        print('legal_action: ', legal_action)
-        logger.info('legal action:{}'.format([np.squeeze(legal_action)]))
+            return [np.squeeze(legal_action)], 0
+        #print('legal_action: ', legal_action)
+        return_action = [np.squeeze(legal_action)]
+        logger.info('legal action:{}'.format(return_action))
         # return legal_action, noise[0]
-        return_action = np.squeeze(legal_action)
         # print('return_action',return_action)
         return return_action, 1
 
