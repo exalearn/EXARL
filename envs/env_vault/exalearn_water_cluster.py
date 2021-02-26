@@ -92,8 +92,13 @@ class WaterCluster(gym.Env):
 
         self.episode = 0
         self.steps = 0
+<<<<<<< HEAD
 
         #
+=======
+        self.lowest_energy=100
+        #############################################################
+>>>>>>> Only save best structures
         # Setup water molecule application (should be configurable)
         #
         self.app_dir = '/gpfs/alpine/ast153/proj-shared/pot_ttm/'
@@ -209,9 +214,23 @@ class WaterCluster(gym.Env):
         #tmp_input = prefix
 
         new_xyz = 'rotationz_rank{}_episode{}_steps{}.xyz'.format(mpi_settings.agent_comm.rank, self.episode, self.steps)
+<<<<<<< HEAD
         new_xyz_pfn = cd.run_params['output_dir'] + new_xyz
         write(new_xyz, self.current_structure, 'xyz', parallel=False)
         tmp_input = new_xyz
+=======
+        try:
+            write(new_xyz, self.current_structure, 'xyz', parallel=False)
+        except Exception as e:
+            logger.debug('Error writing file: {}'.format(e))
+            os.remove(new_xyz)
+            # 
+            done = True
+            self.current_state = np.zeros(self.embedded_state_size)
+            #logger.debug('Next state:{}'.format(next_state))
+            #logger.debug('Hum ... reward - 1:{}'.format(reward))
+            return next_state, np.array([reward]), done, {}
+>>>>>>> Only save best structures
 
         # Run the process
         print('tmp_input:',tmp_input)
@@ -229,14 +248,27 @@ class WaterCluster(gym.Env):
         # Check for clear problems
         if any("Error in the det" in s for s in stdout):
             logger.debug("\tEnv::step(); !!! Error in the det !!!")
+            os.remove(new_xyz)
             done = True
             return np.array([0]), np.array([reward]), done, {}
 
         # Reward is currently based on the potential energy
+        lowest_energy_xyz = ''
         try:
             logger.debug("\tEnv::step(); stdout[{}]".format(stdout))
             energy = float(stdout[-1].split()[-1])
+<<<<<<< HEAD
             logger.debug("\tEnv::step(); energy[{}]".format(energy))
+=======
+            logger.debug('self.lowest_energy:{}'.format(self.lowest_energy))
+            logger.debug('energy:{}'.format(energy))
+            if  self.lowest_energy>energy:
+                self.lowest_energy=energy
+                lowest_energy_xyz = 'rotationz_rank{}_episode{}_steps{}_energy{}.xyz'.format(
+                    mpi_settings.agent_comm.rank, self.episode, self.steps,round(self.lowest_energy,4))
+                logger.info("\t Found lower energy:{}".format(energy))
+
+>>>>>>> Only save best structures
             energy = round(energy, 6)
             reward = self.current_state[0] - energy
             reward = np.array([round(reward, 6)])
@@ -249,6 +281,7 @@ class WaterCluster(gym.Env):
         if round(self.current_state[0], 6) == energy:
             logger.debug('Env::step(); Same state ... terminating')
             done = True
+<<<<<<< HEAD
             return np.array([energy]), np.array(reward), done, {}
 
         # If valid action and simulation
@@ -264,6 +297,22 @@ class WaterCluster(gym.Env):
         # logger.info('Reward: %s' % reward)
         # Update current state
         self.current_state = np.array([energy])
+=======
+            self.current_state = np.zeros(self.embedded_state_size)
+            #logger.debug('Next state:{}'.format(next_state))
+            #logger.debug('Hum ... reward - 2:{}'.format(reward))
+            #return next_state, np.array([reward]), done, {}
+
+        #self.current_state = get_state_embedding(self.schnet_model,self.current_structure)
+        #logger.debug('Schnetpack next state:{}'.format(self.current_state))
+        #logger.debug('Next state:{}'.format(self.current_state))
+        if lowest_energy_xyz!='':
+            os.rename(new_xyz,lowest_energy_xyz)
+        else:
+            os.remove(new_xyz)
+        logger.debug('Reward:{}'.format(reward))
+        logger.debug('Energy:{}'.format(energy))
+>>>>>>> Only save best structures
         return self.current_state, reward, done, {}
 
     def reset(self):
