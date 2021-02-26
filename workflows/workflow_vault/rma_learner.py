@@ -11,6 +11,8 @@ from network.data_structures import ExaMPIBuff
 from network.data_structures import ExaMPIStack
 from mpi4py import MPI
 from utils.trace_win import Trace_Win
+from utils.typing import TypeUtils
+from exarl.dataset_base import BufferDataset
 
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
@@ -62,9 +64,9 @@ class RMA_ASYNC(erl.ExaWorkflow):
             model_win = MPI.Win.Allocate(target_weights_size, 1, comm=agent_comm)
 
             # Get serialized batch data size
-            agent_batch = next(workflow.agent.generate_data())
-            # data_exchange = ExaMPIBuff(ExaComm.agent_comm, ExaComm.learner_rank(), data=agent_batch)
+            agent_batch = workflow.agent.get_batch_shape()
             data_exchange = ExaMPIStack(ExaComm.agent_comm, ExaComm.learner_rank(), data=agent_batch)
+            #batch_gen = BufferDataset(data_exchange, ExaComm.agent_comm.size) #.map(workflow.agent.bellman_equation) #.prefetch(-1).cache().batch(256).map(workflow.agent.bellman_equation)
 
         if ExaComm.is_learner():
             # Write target weight to model window of learner
@@ -98,23 +100,15 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 episode_win.Flush(0)
                 episode_win.Unlock(0)
 
-                # Go over all actors (actor processes start from rank 1)
-                # s = (learner_counter % (agent_comm.size - 1)) + 1
-                s = np.random.randint(low=1, high=agent_comm.size, size=1)
-                agent_data = data_exchange.pop(s)
-                if agent_data is None:
-                    continue
-
-                # reTrace.snapshot()
-                epTrace.snapshot()
-                moTrace.snapshot()
-                # print('***************************')
                 # Train & Target train
-                workflow.agent.train(agent_data)
+                # workflow.agent.train(batch_gen)
                 ib.update("Async_Learner_Train", 1)
                 # TODO: Double check if this is already in the DQN code
                 workflow.agent.target_train()
                 ib.update("Async_Learner_Target_Train", 1)
+                # reTrace.snapshot()
+                epTrace.snapshot()
+                moTrace.snapshot()
 
                 # Share new model weights
                 learner_counter += 1
@@ -222,17 +216,25 @@ class RMA_ASYNC(erl.ExaWorkflow):
                     if ExaComm.is_actor():
                         # Save memory
                         total_rewards += reward
-                        memory = (current_state, action, reward, next_state, done, total_rewards)
+                        memory = (
+                            TypeUtils.promote_numpy_type(current_state),
+                            TypeUtils.promote_numpy_type(action),
+                            TypeUtils.promote_numpy_type(reward),
+                            TypeUtils.promote_numpy_type(next_state),
+                            TypeUtils.promote_numpy_type(done),
+                            TypeUtils.promote_numpy_type(total_rewards)
+                            )
                         workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
-                        batch_data = next(workflow.agent.generate_data())
+                        batch_data = workflow.agent.generate_data()
                         ib.update("Async_Env_Generate_Data", 1)
 
                         # Write to data window
                         # Here is the PUSH
-                        agent_data = data_exchange.push(batch_data)
-                        epTrace.update()
-                        moTrace.update(value=learner_counter)
-                        # reTrace.update(value=total_rewards)
+                        if batch_data is not None:
+                            agent_data = data_exchange.push(batch_data)
+                            epTrace.update()
+                            moTrace.update(value=learner_counter)
+                            # reTrace.update(value=total_rewards)
 
                         # Log state, action, reward, ...
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,

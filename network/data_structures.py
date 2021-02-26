@@ -14,6 +14,8 @@ import os
 import exarl as erl
 import numpy as np
 from mpi4py import MPI
+from utils.typing import TypeUtils
+import pickle
 
 # Move to ExaBuffMPI
 class ExaMPIBuff(erl.ExaData):
@@ -59,14 +61,15 @@ class ExaMPIBuff(erl.ExaData):
         )
         self.win.Unlock(self.rank)
 
-
 class ExaMPIStack(erl.ExaData):
     def __init__(self, comm, rank, size=None, data=None):
+        # self.dump_count = 0
         self.comm = comm
         self.rank = rank
         self.length = 32
 
         if data is not None:
+            self.data = data
             dataBytes = MPI.pickle.dumps(data)
             size = len(dataBytes)
         super().__init__(bytes, size)
@@ -141,10 +144,13 @@ class ExaMPIStack(erl.ExaData):
     def push(self, data):
         rank = self.comm.rank
         toSend = MPI.pickle.dumps(data)
-        assert len(toSend) == self.dataSize
+        assert len(toSend) <= self.dataSize, TypeUtils.compare(data, self.data)
+        # if rank == 1 and self.dump_count == 0:
+        #     with open('dump_tf.pickle', 'wb') as handle:
+        #         pickle.dump(data, handle)
+        #     self.dump_count = 1
 
         head = np.zeros(1, dtype=np.int64)
-
         self.head[rank].Lock(self.rank)
         # If we don't wait we can't guarentee the value until after the lock...
         req = self.head[rank].Rget_accumulate(self.plus, head, self.rank, op=MPI.SUM)
