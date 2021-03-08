@@ -1,0 +1,64 @@
+#!/bin/bash
+#BSUB -P AST153
+#BSUB -W 0:30
+#BSUB -nnodes 2
+#BSUB -alloc_flags "gpumps"
+#BSUB -J ExaRun
+#BSUB -o ExaRun.%J.out
+#BSUB -e ExaRun.%J.err
+
+while getopts mscn:t:d:e option
+do
+case "${option}"
+in
+a) EXA_ALL="1";;
+c) EXA_CARTPOLE="1";;
+p) EXA_BCP="1";;
+b) EXA_BOOSTER="1";;
+w) EXA_WATER_CLUSTER="1";;
+n) NODES="2";;
+esac
+done
+
+if [[ -n $EXA_ALL ]]; then
+	EXA_CARTPOLE="1"
+	EXA_BCP="1"
+	EXA_BOOSTER="1"
+	EXA_WATER_CLUSTER="1"
+fi
+
+source /ccs/proj/ast153/ExaLearn/set_summit_env.sh
+
+
+export N=$NODES
+export nres=$((N*6))
+
+if [[ -n $EXA_CARTPOLE ]]; then
+	DIR_NAME=Exa_CartPole
+	export OUTPUT_DIR=/gpfs/alpine/ast153/scratch/$USER/${DIR_NAME}_results/${DIR_NAME}_${N}_nodes/
+
+	jsrun --nrs $nres --tasks_per_rs 1 --cpu_per_rs 7 --gpu_per_rs 1 --rs_per_host 6 --latency_priority GPU-CPU --launch_distribution packed --bind packed:7 python driver/driver.py --output_dir $OUTPUT_DIR --env ExaCartPole-v1 --n_episodes 100 --n_steps 100 --workflow async --agent DQN-v0
+fi
+
+if [[ -n $EXA_BCP ]]; then
+        DIR_NAME=Exa_BCP
+        export OUTPUT_DIR=/gpfs/alpine/ast153/scratch/$USER/${DIR_NAME}_results/${DIR_NAME}_${N}_nodes/
+
+        jsrun --nrs $nres --tasks_per_rs 1 --cpu_per_rs 7 --gpu_per_rs 1 --rs_per_host 6 --latency_priority GPU-CPU --launch_distribution packed --bind packed:7 python driver/driver.py --output_dir $OUTPUT_DIR --env ExaCH-v0 --n_episodes 500 --n_steps 10 --workflow async --agent DQN-v0
+fi
+
+if [[ -n $EXA_BOOSTER ]]; then
+        DIR_NAME=Exa_Booster
+        export OUTPUT_DIR=/gpfs/alpine/ast153/scratch/$USER/${DIR_NAME}_results/${DIR_NAME}_${N}_nodes/
+
+        jsrun --nrs $nres --tasks_per_rs 1 --cpu_per_rs 7 --gpu_per_rs 1 --rs_per_host 6 --latency_priority GPU-CPU --launch_distribution packed --bind packed:7 python driver/driver.py --output_dir $OUTPUT_DIR --env ExaBooster-v1 --n_episodes 2000 --n_steps 100 --workflow async --agent DQN-v0
+fi
+
+if [[ -n $EXA_WATER_CLUSTER ]]; then
+        DIR_NAME=Exa_Water_Cluster
+        export OUTPUT_DIR=/gpfs/alpine/ast153/scratch/$USER/${DIR_NAME}_results/${DIR_NAME}_${N}_nodes/
+
+        jsrun --nrs $nres --tasks_per_rs 1 --cpu_per_rs 7 --gpu_per_rs 1 --rs_per_host 6 --latency_priority GPU-CPU --launch_distribution packed --bind packed:7 python driver/driver.py --output_dir $OUTPUT_DIR --env ExaWaterCluster-v0 --n_episodes 1000 --n_steps 100 --workflow async --agent DQN-v0
+fi
+
+
