@@ -77,7 +77,7 @@ class CahnHilliardEnv(gym.Env):
 
         # self.args = args
         self.comm      = ExaComm.global_comm      # mpi_settings.env_comm
-        self.comm_rank = ExaComm.global_comm.size # self.comm.Get_rank() if self.comm else 0
+        self.comm_rank = ExaComm.global_comm.size  # self.comm.Get_rank() if self.comm else 0
 
         # These are problem dependent and must be available during environment object creation time: cannot be set by CANDLE
         self.size_struct_vec = 200
@@ -456,7 +456,7 @@ class CahnHilliardEnv(gym.Env):
 
         # Setup checkpointing in time
         n_dt              = self.length  # 2000
-        n_tsteps          = self._max_episode_steps # self.steps  # 100
+        n_tsteps          = self._max_episode_steps  # self.steps  # 100
         self.info.t0      = 0
         self.info.iter    = 0
         stiff_dt          = np.min([self.biharm_dt, self.diff_dt, self.lin_dt])
