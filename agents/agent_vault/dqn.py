@@ -237,6 +237,8 @@ class DQN(erl.ExaAgent):
                 logger.info('Agent[{}]- Training: {} '.format(self.rank, (end_time - start_time)))
                 start_time_episode = time.time()
                 logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
+
+                return history
         else:
             logger.warning('Training will not be done because this instance is not set to learn.')
 
