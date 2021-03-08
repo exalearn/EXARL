@@ -1,4 +1,5 @@
-import exarl.mpi_settings as mpi_settings
+#import exarl.mpi_settings as mpi_settings
+from exarl.comm_base import ExaComm
 import datetime as dt
 import shutil
 import image_structure
@@ -76,8 +77,8 @@ class CahnHilliardEnv(gym.Env):
         self.episodes        = 0
 
         # self.args = args
-        self.comm = mpi_settings.env_comm
-        self.comm_rank = self.comm.Get_rank() if self.comm else 0
+        self.comm      = ExaComm.global_comm           # mpi_settings.env_comm
+        self.comm_rank = ExaComm.global_comm.size # self.comm.Get_rank() if self.comm else 0
 
         # These are problem dependent and must be available during environment object creation time: cannot be set by CANDLE
         self.size_struct_vec = 200
@@ -218,9 +219,9 @@ class CahnHilliardEnv(gym.Env):
         self.chparams.T_const = av.aligned_double_vector(self.targetT * np.ones(int(self.info.nx)**2))
 
         # create a target directory
-        out_dir = os.path.join(self.target_dir)
-        if not os.path.exists(out_dir):
-            os.mkdir(out_dir)
+#        out_dir = os.path.join(self.target_dir)
+#        if not os.path.exists(out_dir):
+#            os.mkdir(out_dir)
 
         for i in range(self.steps):
             self.info.t0 = self.t[i]
@@ -456,15 +457,17 @@ class CahnHilliardEnv(gym.Env):
 
         # Setup checkpointing in time
         n_dt              = self.length  # 2000
-        n_tsteps          = self.steps  # 100
+        n_tsteps          = self._max_episode_steps # self.steps  # 100
         self.info.t0      = 0
         self.info.iter    = 0
         stiff_dt          = np.min([self.biharm_dt, self.diff_dt, self.lin_dt])
         self.t            = np.linspace(self.info.t0, self.info.t0 + n_dt * stiff_dt, n_tsteps + 1)
-        dt_check          = self.t[1] - self.t[0]
 
         # print('self.t:', self.t)
 
+        dt_check          = self.t[1] - self.t[0]
+
+        
         # Run solver
         if self.debug >= 1:
             print('Biharmonic timescale dt_biharm = ', self.biharm_dt)
