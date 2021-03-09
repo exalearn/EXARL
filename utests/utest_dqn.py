@@ -282,7 +282,7 @@ class TestClass:
 
             assert epsilon1 > test_agent.epsilon_min and \
                 epsilon2 > test_agent.epsilon_min and \
-                epsilon2 < epsilon1
+                epsilon2 <= epsilon1
 
             for h1, h2 in zip(history1.history.values(), history2.history.values()):
                 if isinstance(h1, list) and isinstance(h2, list):
