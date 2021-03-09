@@ -63,6 +63,7 @@ def get_state_embedding(model,structure):
         state_embedding = activation['standardize'].cpu().detach().numpy()
 
     state_embedding = state_embedding.flatten()
+    state_embedding = np.sort(state_embedding)
     state_embedding = np.insert(state_embedding, 0, float(np.sum(state_embedding)), axis=0)
     return state_embedding
 
@@ -140,7 +141,7 @@ class WaterCluster(gym.Env):
         # Initialize outut
         done = False
         energy = 0  # Default energy
-        reward = np.random.normal(-100.0, 0.01)  # Default penalty
+        reward = 0#np.random.normal(-100.0, 0.01)  # Default penalty
 
         action = action[0]
         
