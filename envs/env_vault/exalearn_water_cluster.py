@@ -144,7 +144,6 @@ class WaterCluster(gym.Env):
         # tmp_input='rotationz_test.xyz'
         prefix = 'rotationz_rank{}_episode{}_steps{}.xyz'.format(
             mpi_settings.agent_comm.rank, self.episode, self.steps)
-        prefix = cd.run_params['output_dir'] + prefix
         write(prefix, self.current_structure, 'xyz', parallel=False)
         tmp_input = prefix
 

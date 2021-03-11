@@ -58,7 +58,7 @@ class DDPG(erl.ExaAgent):
         ave_bound = (self.upper_bound + self.lower_bound) / 2
         print('ave_bound: ', ave_bound)
         self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(std_dev) * np.ones(1))
-#        self.ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(std_dev) * np.ones(1))
+        # self.ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(std_dev) * np.ones(1))
 
         # Experience data
         self.buffer_capacity = 5000
