@@ -40,7 +40,7 @@ def load_data(atoms, idx=0):
     nbh_idx, offsets = environment_provider.get_environment(at)
     new_dataset['_atomic_numbers'] = torch.LongTensor(at.numbers.astype(np.int))
     new_dataset['_positions'] = torch.FloatTensor(atom_positions)
-    new_dataset['_cell'] = torch.FloatTensor(at.cell.astype(np.float32))
+    new_dataset['_cell'] = torch.FloatTensor(at.cell)#.astype(np.float32))
     new_dataset['_neighbors'] = torch.LongTensor(nbh_idx.astype(np.int))
     new_dataset['_cell_offset'] = torch.FloatTensor(offsets.astype(np.float32))
     new_dataset['_idx'] = torch.LongTensor(np.array([idx], dtype=np.int))
@@ -63,9 +63,10 @@ def get_state_embedding(model,structure):
         state_embedding = activation['standardize'].cpu().detach().numpy()
 
     state_embedding = state_embedding.flatten()
+    state_order = np.argsort(state_embedding[::3])
     state_embedding = np.sort(state_embedding)
     state_embedding = np.insert(state_embedding, 0, float(np.sum(state_embedding)), axis=0)
-    return state_embedding
+    return state_embedding, state_order
 
 class WaterCluster(gym.Env):
     metadata = {'render.modes': ['human']}
@@ -97,8 +98,9 @@ class WaterCluster(gym.Env):
         self.app_name = 'main.x'
         self.app = os.path.join(self.app_dir, self.app_name)
         # TODO:Needs to be put in cfg
-        self.env_input_name = 'W10_geoms_lowest.xyz'  # 'input.xyz'
-        self.env_input = os.path.join(self.app_dir, self.env_input_name)
+        self.env_input_name = 'input.xyz'
+        self.env_input_dir = '/gpfs/alpine/ast153/scratch/pope044/ExaRL'
+        self.env_input = os.path.join(self.env_input_dir, self.env_input_name)
 
         # Schnet encodering model
         # TODO: Need to be a cfg and push model to a repo
@@ -108,7 +110,7 @@ class WaterCluster(gym.Env):
 
         # Read initial XYZ file
         (self.init_structure, self.nclusters) = self._load_structure(self.env_input)
-        self.inital_state = get_state_embedding(self.schnet_model,self.init_structure) 
+        self.inital_state, self.state_order = get_state_embedding(self.schnet_model,self.init_structure) 
 
         # State of the current setup
         self.current_structure = self.init_structure
@@ -144,14 +146,15 @@ class WaterCluster(gym.Env):
         reward = 0#np.random.normal(-100.0, 0.01)  # Default penalty
 
         action = action[0]
-        
+        natoms = 3
         # Extract actions
         cluster_id = math.floor(action[0])
+        # TODO remap cluster_id back to sorting in schnet order[action[0]]
+        cluster_id = self.state_order[cluster_id]
         rotation_z = float(action[1])
         translation = float(action[2])  # (x,y,z)
 
         # Create water cluster from action
-        natoms = 3
         atom_idx = cluster_id * natoms
         atoms = Atoms()
         for i in range(0, natoms):
@@ -199,7 +202,7 @@ class WaterCluster(gym.Env):
         # Run the process
         env_out = subprocess.Popen([self.app, new_xyz], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = env_out.communicate()
-        stdout = stdout.decode('utf-8').splitlines()
+        stdout = stdout.decode('latin-1').splitlines()
 
         # Check for clear problems
         if any("Error in the det" in s for s in stdout):
@@ -235,7 +238,7 @@ class WaterCluster(gym.Env):
             logger.debug('Reward:{}'.format(reward))
 
             # Update state information
-            self.current_state = get_state_embedding(self.schnet_model,self.current_structure)
+            self.current_state, self.state_order = get_state_embedding(self.schnet_model,self.current_structure)
             self.current_energy = energy
             # Check with Schnet predictions
             schnet_energy = self.current_state[0]
@@ -253,7 +256,7 @@ class WaterCluster(gym.Env):
             #logger.debug('Hum ... reward - 2:{}'.format(reward))
             #return next_state, np.array([reward]), done, {}
 
-        #self.current_state = get_state_embedding(self.schnet_model,self.current_structure)
+        #self.current_state, self.state_order = get_state_embedding(self.schnet_model,self.current_structure)
         #logger.debug('Schnetpack next state:{}'.format(self.current_state))
         #logger.debug('Next state:{}'.format(self.current_state))
         if lowest_energy_xyz!='':
@@ -274,7 +277,7 @@ class WaterCluster(gym.Env):
         (self.init_structure, self.nclusters) = self._load_structure(self.env_input)
         self.current_structure = self.init_structure
 
-        state_embedding = get_state_embedding(self.schnet_model,self.current_structure)
+        state_embedding, self.state_order = get_state_embedding(self.schnet_model,self.current_structure)
         self.current_energy = state_embedding[0]
         self.current_state =  state_embedding
         logger.debug('self.current_state shape:{}'.format(self.current_state.shape))
