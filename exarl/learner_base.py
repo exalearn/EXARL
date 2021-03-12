@@ -13,9 +13,11 @@
 import exarl.mpi_settings as mpi_settings
 import time
 import gym
-import envs
-import agents
-import workflows
+from exarl import (
+    envs,
+    agents,
+    workflows,
+)
 
 from exarl.env_base import ExaEnv
 
@@ -25,8 +27,8 @@ import sys
 from mpi4py import MPI
 import json
 
-import utils.log as log
-import utils.candleDriver as cd
+import exarl.utils.log as log
+import exarl.utils.candleDriver as cd
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 

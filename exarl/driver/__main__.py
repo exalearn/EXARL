@@ -1,0 +1,30 @@
+import mpi4py
+mpi4py.rc.threads = False
+mpi4py.rc.recv_mprobe = False
+from mpi4py import MPI
+import exarl.utils.analyze_reward as ar
+import time
+import exarl as erl
+
+# MPI communicator
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
+
+# Create learner object and run
+exa_learner = erl.ExaLearner(comm)
+
+# Run the learner, measure time
+start = time.time()
+exa_learner.run()
+elapse = time.time() - start
+
+# Compute and print average time
+max_elapse = comm.reduce(elapse, op=MPI.MAX, root=0)
+elapse = comm.reduce(elapse, op=MPI.SUM, root=0)
+
+if rank == 0:
+    print("Average elapsed time = ", elapse / size)
+    print("Maximum elapsed time = ", max_elapse)
+    # Save rewards vs. episodes plot
+    ar.save_reward_plot()
