@@ -6,33 +6,35 @@
 # reserved by Triad National Security, LLC, and the U.S. Department of Energy/National Nuclear
 # Security Administration. The Government is granted for itself and others acting on its behalf a
 # nonexclusive, paid-up, irrevocable worldwide license in this material to reproduce, prepare
-# derivative works, distribute copies to the public, perform publicly and display publicly, and 
+# derivative works, distribute copies to the public, perform publicly and display publicly, and
 # to permit others to do so.
 
 
-import json, os, sys, gym, time
-#from abc import ABC, abstractmethod
+import json
+import os
+import sys
+import gym
+import time
 from gym import Wrapper
 from mpi4py import MPI
 import exarl.mpi_settings as mpi_settings
 
 
 class ExaEnv(Wrapper):
-    def __init__(self, env, **kwargs):  
-        
-        super(ExaEnv, self).__init__(env)     
-        
+    def __init__(self, env, **kwargs):
+
+        super(ExaEnv, self).__init__(env)
+
         # Use relative path not absolute
         self.base_dir = os.path.dirname(__file__)
         print(self.base_dir)
-        #self.env = env
-        self.env_comm = mpi_settings.env_comm        
-        
-    def set_results_dir(self,results_dir):
-        ''' 
-        Default method to save environment specific information 
+        self.env_comm = mpi_settings.env_comm
+
+    def set_results_dir(self, results_dir):
+        '''
+        Default method to save environment specific information
         '''
         if not os.path.exists(results_dir):
             os.makedirs(results_dir)
-        ## Top level directory 
-        self.results_dir=results_dir
+        # Top level directory
+        self.results_dir = results_dir

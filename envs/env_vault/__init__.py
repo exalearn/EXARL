@@ -1,7 +1,6 @@
-from utils.candleDriver import initialize_parameters
+import utils.candleDriver as cd
 
-run_params = initialize_parameters()
-env = run_params['env']
+env = cd.run_params['env']
 
 if env == 'ExaTDLG-v0':
     from envs.env_vault.exalearn_bcp_tdlg import BlockCoPolymerTDLG
@@ -21,3 +20,5 @@ elif env == 'ExaBoosterContinuous-v1':
     from envs.env_vault.surrogate_accelerator_v2 import Surrogate_Accelerator_v2 as ExaBoosterContinuous
 elif env == 'ExaLAMMPS-v0':
     from envs.env_vault.exalearn_lammps_ex1 import ExaLammpsEx1 as ExaLAMMPS
+elif env == 'ExaWaterCluster-v0':
+    from envs.env_vault.exalearn_water_cluster import WaterCluster

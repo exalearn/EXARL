@@ -12,19 +12,24 @@ import numpy as np
 import requests
 import tensorflow as tf
 
-import logging
+# import logging
 
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('RL-Logger')
-logger.setLevel(logging.INFO)
+# logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
+# logger = logging.getLogger('RL-Logger')
+# logger.setLevel(logging.INFO)
+import utils.log as log
+import utils.candleDriver as cd
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 np.seterr(divide='ignore', invalid='ignore')
 
-def load_reformated_cvs(filename,nrows=100000):
-    df = pd.read_csv(filename,nrows=nrows)
-    df=df.replace([np.inf, -np.inf], np.nan)
-    df=df.dropna(axis=0)
+
+def load_reformated_cvs(filename, nrows=100000):
+    df = pd.read_csv(filename, nrows=nrows)
+    df = df.replace([np.inf, -np.inf], np.nan)
+    df = df.dropna(axis=0)
     return df
+
 
 def create_dataset(dataset, look_back=10 * 15, look_forward=1):
     X, Y = [], []
@@ -61,7 +66,7 @@ class Surrogate_Accelerator_v1(gym.Env):
         # https://zenodo.org/record/4088982#.X4836kJKhTY
 
         self.file_dir = os.path.dirname(__file__)
-        booster_dir = os.path.join(self.file_dir,'booster')
+        booster_dir = os.path.join(self.file_dir, 'booster')
         logger.info('booster related directory: '.format(booster_dir))
         try:
             os.mkdir(booster_dir)
@@ -79,13 +84,13 @@ class Surrogate_Accelerator_v1(gym.Env):
         tf.compat.v1.keras.backend.set_session(sess)
 
         booster_model_file = 'fullbooster_noshift_e250_bs99_nsteps250k_invar5_outvar3_axis1_mmscaler_t0_D10122020-T175237_kfold2__e16_vl0.00038.h5'
-        booster_model_pfn = os.path.join(booster_dir,booster_model_file)
+        booster_model_pfn = os.path.join(booster_dir, booster_model_file)
         with tf.device('/cpu:0'):
             self.booster_model = keras.models.load_model(booster_model_pfn)
 
         # Check if data is available
         booster_data_file = 'BOOSTR.cvs'
-        booster_file_pfn = os.path.join(booster_dir,booster_data_file)
+        booster_file_pfn = os.path.join(booster_dir, booster_data_file)
         logger.info('Booster data file pfn:{}'.format(booster_file_pfn))
         if not os.path.exists(booster_file_pfn):
             logger.info('No cached file. Downloading...')
@@ -105,7 +110,7 @@ class Surrogate_Accelerator_v1(gym.Env):
         data = data.dropna()
         data = data.drop_duplicates()
 
-        self.save_dir = './'
+        self.save_dir = cd.run_params['output_dir']
         self.episodes = 0
         self.steps = 0
         self.max_steps = 100
@@ -152,15 +157,14 @@ class Surrogate_Accelerator_v1(gym.Env):
         self.nactions = 15
         self.action_space = spaces.Discrete(self.nactions)
         self.actionMap_VIMIN = []
-        for i in range(1, self.nactions+1):
-            self.actionMap_VIMIN.append(data['B:VIMIN_DIFF'].quantile(i / (self.nactions+1)))
+        for i in range(1, self.nactions + 1):
+            self.actionMap_VIMIN.append(data['B:VIMIN_DIFF'].quantile(i / (self.nactions + 1)))
 
         self.VIMIN = 0
-        ##
         self.state = np.zeros(shape=(1, self.nvariables, self.nsamples))
         self.predicted_state = np.zeros(shape=(1, self.nvariables, 1))
         logger.debug('Init pred shape:{}'.format(self.predicted_state.shape))
-        self.do_render = True
+        self.do_render = False  # True
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -204,8 +208,8 @@ class Surrogate_Accelerator_v1(gym.Env):
         # Update data state for rendering
         self.data_state = np.copy(self.X_train[self.batch_id + self.steps].reshape(1, self.nvariables, self.nsamples))
         data_iminer = self.scalers[1].inverse_transform(self.data_state[0][1][self.nsamples - 1].reshape(1, -1))
-        # data_reward = -abs(data_iminer)
-        data_reward = np.array(1. * math.exp(-5 * abs(np.asscalar(data_iminer))))
+        data_reward = -abs(data_iminer)
+        # data_reward = np.array(1. * math.exp(-5 * abs(np.asscalar(data_iminer))))
 
         # Use data for everything but the B:IMINER prediction
         self.state[0, 2:self.nvariables, :] = self.data_state[0, 2:self.nvariables, :]
@@ -216,9 +220,9 @@ class Surrogate_Accelerator_v1(gym.Env):
         logger.debug('iminer:{}'.format(iminer))
 
         # Reward
-        # reward = -abs(iminer)
+        reward = -abs(iminer)
         # reward = np.array(-1 + 1. * math.exp(-5 * abs(np.asscalar(iminer))))
-        reward = np.array(1. * math.exp(-5 * abs(np.asscalar(iminer))))
+        # reward = np.array(1. * math.exp(-5 * abs(np.asscalar(iminer))))
 
         if abs(iminer) >= 2:
             logger.info('iminer:{} is out of bounds'.format(iminer))
@@ -304,10 +308,10 @@ class Surrogate_Accelerator_v1(gym.Env):
             trace = self.scalers[v].inverse_transform(utrace.reshape(-1, 1))
             if v == 0:
                 iminer_imp = 0
-                if self.total_iminer>0:
-                    iminer_imp = self.data_total_iminer/self.total_iminer
+                if self.total_iminer > 0:
+                    iminer_imp = self.data_total_iminer / self.total_iminer
                 axs[v].set_title('Raw data reward: {:.2f} - RL agent reward: {:.2f} - Improvement: {:.2f} '.format(self.data_total_reward,
-                                                                                             self.total_reward,iminer_imp))
+                                                                                                                   self.total_reward, iminer_imp))
             axs[v].plot(trace, label='Digital twin', color='black')
 
             # if v==1:
