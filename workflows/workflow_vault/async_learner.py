@@ -69,7 +69,7 @@ class ASYNC(erl.ExaWorkflow):
                 whofrom = recv_data[0]
                 step = recv_data[1]
                 batch = recv_data[2]
-                epsilon = recv_data[3]
+                policy_type = recv_data[3]
                 done = recv_data[4]
                 logger.debug('step:{}'.format(step))
                 logger.debug('done:{}'.format(done))
@@ -77,6 +77,9 @@ class ASYNC(erl.ExaWorkflow):
                 workflow.agent.train(batch)
                 # TODO: Double check if this is already in the DQN code
                 workflow.agent.target_train()
+                if policy_type == 0:
+                    workflow.agent.epsilon_adj()
+                epsilon = workflow.agent.epsilon
 
                 # Send target weights
                 logger.debug('rank0_epsilon:{}'.format(epsilon))
@@ -171,8 +174,6 @@ class ASYNC(erl.ExaWorkflow):
                             action, policy_type = workflow.agent.action(
                                 current_state)
 
-                        epsilon = workflow.agent.epsilon
-
                     next_state, reward, done, _ = workflow.env.step(action)
 
                     if mpi_settings.is_actor():
@@ -196,7 +197,7 @@ class ASYNC(erl.ExaWorkflow):
                     if mpi_settings.is_actor():
                         # Send batched memories
                         agent_comm.send(
-                            [agent_comm.rank, steps, batch_data, epsilon, done], dest=0)
+                            [agent_comm.rank, steps, batch_data, policy_type, done], dest=0)
 
                         logger.info('Rank[%s] - Total Reward:%s' %
                                     (str(agent_comm.rank), str(total_reward)))
