@@ -2,6 +2,7 @@ import tensorflow as tf
 import horovod.tensorflow as hvd
 
 # Horovod: initialize Horovod.
+# hvd.init(comm=subcomm)
 hvd.init()
 
 # Horovod: pin GPU to be used to process local rank (one GPU per process)
@@ -39,7 +40,7 @@ checkpoint_dir = './checkpoints'
 checkpoint = tf.train.Checkpoint(model=mnist_model, optimizer=opt)
 
 
-@ tf.function
+@tf.function
 def training_step(images, labels, first_batch):
     with tf.GradientTape() as tape:
         probs = mnist_model(images, training=True)
@@ -65,7 +66,7 @@ def training_step(images, labels, first_batch):
 
 
 # Horovod: adjust number of steps based on number of GPUs.
-for batch, (images, labels) in enumerate(dataset.take(1000 // hvd.size())):
+for batch, (images, labels) in enumerate(dataset.take(10000 // hvd.size())):
     loss_value = training_step(images, labels, batch == 0)
 
     if batch % 10 == 0 and hvd.local_rank() == 0:
