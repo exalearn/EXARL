@@ -101,6 +101,7 @@ class WaterCluster(gym.Env):
         self.env_input_name = 'input.xyz'
         self.env_input_dir = '/gpfs/alpine/ast153/scratch/pope044/ExaRL'
         self.env_input = os.path.join(self.env_input_dir, self.env_input_name)
+        self.output_dir = 'results/'
 
         # Schnet encodering model
         # TODO: Need to be a cfg and push model to a repo
@@ -186,7 +187,7 @@ class WaterCluster(gym.Env):
             self.current_structure[atom_idx + i].position = atoms[i].position
 
         # Save structure in xyz format
-        new_xyz = 'rotationz_rank{}_episode{}_steps{}.xyz'.format(mpi_settings.agent_comm.rank, self.episode, self.steps)
+        new_xyz = os.path.join(self.output_dir,'rotationz_rank{}_episode{}_steps{}.xyz'.format(mpi_settings.agent_comm.rank, self.episode, self.steps))
         try:
             write(new_xyz, self.current_structure, 'xyz', parallel=False)
         except Exception as e:
@@ -200,7 +201,8 @@ class WaterCluster(gym.Env):
             return next_state, np.array([reward]), done, {}
 
         # Run the process
-        env_out = subprocess.Popen([self.app, new_xyz], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        min_xyz = os.path.join(self.output_dir,'minimum_rank{}.xyz'.format(mpi_settings.agent_comm.rank))
+        env_out = subprocess.Popen([self.app, new_xyz, min_xyz)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = env_out.communicate()
         stdout = stdout.decode('latin-1').splitlines()
 
@@ -214,14 +216,15 @@ class WaterCluster(gym.Env):
         
         # Reward is currently based on the potential energy
         lowest_energy_xyz = ''
+        (self.current_structure, self.nclusters) = self._load_structure(min_xyz)
         try:
             energy = float(stdout[-1].split()[-1])
             logger.debug('self.lowest_energy:{}'.format(self.lowest_energy))
             logger.debug('energy:{}'.format(energy))
             if  self.lowest_energy>energy:
                 self.lowest_energy=energy
-                lowest_energy_xyz = 'rotationz_rank{}_episode{}_steps{}_energy{}.xyz'.format(
-                    mpi_settings.agent_comm.rank, self.episode, self.steps,round(self.lowest_energy,4))
+                lowest_energy_xyz = os.path.join(self.output_dir,'rotationz_rank{}_episode{}_steps{}_energy{}.xyz'.format(
+                    mpi_settings.agent_comm.rank, self.episode, self.steps,round(self.lowest_energy,4)))
                 logger.info("\t Found lower energy:{}".format(energy))
 
             energy = round(energy, 6)
