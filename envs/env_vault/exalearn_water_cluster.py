@@ -71,7 +71,7 @@ def get_state_embedding(model,structure):
 class WaterCluster(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, cfg='envs/env_vault/env_cfg/env_setup.json'):
+    def __init__(self):#, cfg='envs/env_vault/env_cfg/env_setup.json'):
         super().__init__()
         """
         Description:
@@ -94,18 +94,18 @@ class WaterCluster(gym.Env):
         #############################################################
         # Setup water molecule application (should be configurable)
         #############################################################
-        self.app_dir = '/gpfs/alpine/ast153/proj-shared/pot_ttm/'
+        self.app_dir = cd.run_params['app_dir']
         self.app_name = 'main.x'
         self.app = os.path.join(self.app_dir, self.app_name)
         # TODO:Needs to be put in cfg
-        self.env_input_name = 'input.xyz'
-        self.env_input_dir = '/gpfs/alpine/ast153/scratch/pope044/ExaRL'
+        self.env_input_name = cd.run_params['env_input_name']
+        self.env_input_dir = cd.run_params['env_input_dir']
         self.env_input = os.path.join(self.env_input_dir, self.env_input_name)
         self.output_dir = 'results/'
 
         # Schnet encodering model
         # TODO: Need to be a cfg and push model to a repo
-        self.schnet_model_pfn = '/gpfs/alpine/ast153/proj-shared/schnet_encoder/best_model'
+        self.schnet_model_pfn = cd.run_params['schnet_model_pfn']
         model = torch.load(self.schnet_model_pfn, map_location='cpu')
         self.schnet_model =  torch.nn.DataParallel(model.module)
 
