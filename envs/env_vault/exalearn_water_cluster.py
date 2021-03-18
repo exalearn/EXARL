@@ -17,12 +17,8 @@ import subprocess
 import os
 import math
 import tempfile
-
-import os
-import numpy as np
+from shutil import copyfile
 import torch
-
-from ase.io import read
 
 from schnetpack import AtomsData
 from schnetpack import AtomsLoader
@@ -68,6 +64,119 @@ def get_state_embedding(model,structure):
     state_embedding = np.insert(state_embedding, 0, float(np.sum(state_embedding)), axis=0)
     return state_embedding, state_order
 
+def update_cluster(structure, action=[0,0,0]):
+    temp_struct=structure.copy()
+    natoms = len(structure)
+
+    # Actions
+    cluster_id = math.floor(action[0])
+    rotation_z = float(action[1])
+    translation_action = float(action[2])  # applied equally to (x,y,z)
+
+    # Create water cluster from action
+    O_idx = cluster_id *3
+    atoms = Atoms()
+    for i in range(3):
+        atoms.append(temp_struct[O_idx + i])
+
+    # rotation
+    O_coords = structure[O_idx].position
+    H_coords = [structure[O_idx+1].position, structure[O_idx+2].position]
+    # Calculate bisector vector along two O--H bonds.
+    u = np.array(H_coords[0]) - np.array(O_coords)
+    v = np.array(H_coords[1]) - np.array(O_coords)
+    bisector_vector = (np.linalg.norm(v) * u) + (np.linalg.norm(u) * v)
+
+    # Apply rotation through the z-axis of the water molecule.
+    atoms.rotate(rotation_z, v=bisector_vector, center=O_coords)
+    atoms.translate(translation_action)
+
+    # Update structure
+    for i in range(3):
+        structure[O_idx + i].position = atoms[i].position
+
+    return structure
+
+def write_structure(PATH, structure, energy=0.0):
+    nice_struct = [str(n).replace('[','').replace(']','') for n in structure.positions]
+    nice_struct = ['  '.join(x) for x in list(zip(structure.get_chemical_symbols(),nice_struct))]
+    pos='\n'.join(nice_struct)
+    with open(PATH, 'w') as f:
+        f.writelines(str(len(structure))+'\n')
+        f.writelines(str(energy)+'\n')
+        f.writelines(pos)
+
+
+def findWater(geom, Num):
+    sortedGeom = []
+    sortedGeom.append("O  " + str(geom[Num])+"\n")
+    for line in geom:
+        dist = np.linalg.norm(geom[Num] - line)
+        if dist > 0.01 and dist < 1.20: #assuming angstroms
+            sortedGeom.append("H  " + str(line) + "\n")
+    return sortedGeom
+
+def read_geoms(geom):
+    '''
+    Reads a file containing a large number of XYZ formatted files concatenated together and splits them
+    into an array of arrays of vectors (MxNx3) where M is the number of geometries, N is the number of atoms,
+    and 3 is from each x, y, z coordinate.
+    '''
+    #atoms = []
+    iFile = open(geom).read()
+    allCoords = []
+    atomLabels = []
+    header = []
+    with open(geom) as ifile:
+        #iMol = 0
+        while True:
+            atomLabels__ = []
+            line = ifile.readline()
+            if line.strip().isdigit():
+                natoms = int(line)
+                title = ifile.readline()
+                header.append(str(natoms) + '\n' + title)
+                coords = np.zeros([natoms, 3], dtype="float64")
+                for x in coords:
+                    line = ifile.readline().split()
+                    atomLabels__.append(line[0])
+                    temp_list = line[1:4]
+                    temp_list2 = [float(o) for o in temp_list]
+                    x[:] = temp_list2
+                allCoords.append(coords)
+                atomLabels.append(atomLabels__)
+                #iMol += 1
+            if not line:
+                break
+    return header, atomLabels, allCoords
+
+def fix_structure_file(infile):
+    '''reorders xyz to group molecule atoms together'''
+    header, atomLabels, geoms = read_geoms(infile)
+    sortedGeoms = []
+    for iGeom, geom in enumerate(geoms):
+        sortedGeom = []
+        OIndices = []
+        #determine which indices have an oxygen atom
+        for i in range(len(atomLabels[iGeom])):
+            if atomLabels[iGeom][i] == "O" or atomLabels[iGeom][i] == "o":
+                OIndices.append(i)
+
+        #loop through findWater sorting the geometry
+        for line in OIndices:
+            sortedGeom.append(findWater(geom, line))
+        sortedGeoms.append(sortedGeom)
+
+    # rewrite xyz file
+    f = open(infile, 'w')
+    for iGeom, geom in enumerate(sortedGeoms):
+        f.write(header[iGeom])
+        for line in geom:
+            printable = "".join(str(x) for x in line).replace("[","").replace("]","")
+            printable = printable[:-1]
+            f.write(printable)
+            f.write("\n")
+
 class WaterCluster(gym.Env):
     metadata = {'render.modes': ['human']}
 
@@ -111,10 +220,11 @@ class WaterCluster(gym.Env):
         self.schnet_model =  torch.nn.DataParallel(model.module)
 
         # Read initial XYZ file
-        (self.init_structure, self.nclusters) = self._load_structure(self.env_input)
-        self.inital_state, self.state_order = get_state_embedding(self.schnet_model,self.init_structure) 
+        (init_ase, self.nclusters) = self._load_structure(self.env_input)
+        self.inital_state, self.state_order = get_state_embedding(self.schnet_model,init_ase) 
 
         # State of the current setup
+        self.init_structure = self.env_input
         self.current_structure = self.init_structure
 
         # Env state output: based on the SchetPack molecule energy
@@ -127,18 +237,14 @@ class WaterCluster(gym.Env):
                                        high=np.array([self.nclusters, 120, 0.7]), dtype=np.float64)
 
     def _load_structure(self, env_input):
-        try:
-            # Read initial XYZ file
-            logger.debug('Env Input: {}'.format(env_input))
-            structure = read(env_input, parallel=False)
-            logger.debug('Structure: {}'.format(structure))
-            nclusters = (''.join(structure.get_chemical_symbols()).count("OHH")) - 1
-            logger.debug('Number of atoms: %s' % len(structure))
-            logger.debug('Number of water clusters: %s ' % (nclusters + 1))
-            return (structure, nclusters)
-        except Exception as e:
-            logger.debug('Error reading file: {}'.format(e))
-            return -1, -1
+        # Read initial XYZ file
+        logger.debug('Env Input: {}'.format(env_input))
+        structure = read(env_input, parallel=False)
+        logger.debug('Structure: {}'.format(structure))
+        nclusters = (''.join(structure.get_chemical_symbols()).count("OHH")) - 1
+        logger.debug('Number of atoms: %s' % len(structure))
+        logger.debug('Number of water clusters: %s ' % (nclusters + 1))
+        return (structure, nclusters)
 
     def step(self, action):
         logger.debug('Env::step()')
@@ -156,78 +262,44 @@ class WaterCluster(gym.Env):
         natoms = 3
         # Extract actions
         cluster_id = math.floor(action[0])
-        # TODO remap cluster_id back to sorting in schnet order[action[0]]
         cluster_id = self.state_order[cluster_id]
         rotation_z = float(action[1])
         translation = float(action[2])  # (x,y,z)
+        actions = [cluster_id, round(rotation_z,2), round(translation,4)]
 
-        # Create water cluster from action
-        atom_idx = cluster_id * natoms
-        atoms = Atoms()
-        for i in range(0, natoms):
-            atoms.append(self.current_structure[atom_idx + i])
+        # read in structure as ase atom object
+        current_ase = read(self.current_structure, parallel=False)
 
-        # Apply rotate_z action
-        # Get coordinates for each atom
-        H_coords = []
-        for i, atomic_number in enumerate(atoms.get_atomic_numbers()):
-            if atomic_number == 8:
-                O_coords = atoms.get_positions()[i]
-            elif atomic_number == 1:
-                H_coords.append(atoms.get_positions()[i])
-            else:
-                logger.info('Atom type not in water...')
-        # Calculate bisector vector along two O--H bonds.
-        u = np.array(H_coords[0]) - np.array(O_coords)
-        v = np.array(H_coords[1]) - np.array(O_coords)
-        bisector_vector = (np.linalg.norm(v) * u) + (np.linalg.norm(u) * v)
-
-        # Apply rotation through the z-axis of the water molecule.
-        atoms.rotate(rotation_z, v=bisector_vector, center=O_coords)
-
-        # Apply translation
-        atoms.translate(translation)
-
-        # Update structure
-        for i in range(0, natoms):
-            self.current_structure[atom_idx + i].position = atoms[i].position
+        # take actions
+        current_ase = update_cluster(current_ase, actions)
 
         # Save structure in xyz format
-        new_xyz = os.path.join(self.output_dir,'rotationz_rank{}_episode{}_steps{}.xyz'.format(mpi_settings.agent_comm.rank, self.episode, self.steps))
-        try:
-            write(new_xyz, self.current_structure, 'xyz', parallel=False)
-        except Exception as e:
-            logger.debug('Error writing file: {}'.format(e))
-            os.remove(new_xyz)
-            # 
-            done = True
-            self.current_state = np.zeros(self.embedded_state_size)
-            return next_state, np.array([reward]), done, {}
+        self.current_structure = os.path.join(self.output_dir,'rotationz_rank{}_episode{}_steps{}.xyz'.format(mpi_settings.agent_comm.rank, self.episode, self.steps))
+        write_structure(self.current_structure, current_ase)
+        fix_structure_file(self.current_structure)
 
         # Run the process
         min_xyz = os.path.join(self.output_dir,'minimum_rank{}.xyz'.format(mpi_settings.agent_comm.rank))
-        env_out = subprocess.Popen([self.app, new_xyz, min_xyz], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        env_out = subprocess.Popen([self.app, self.current_structure, min_xyz], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = env_out.communicate()
-        logger.debug('stdout: {}'.format(stdout))
-        logger.debug('stderr: {}'.format(stderr))
+        #logger.debug('stdout: {}'.format(stdout))
+        #logger.debug('stderr: {}'.format(stderr))
         stdout = stdout.decode('latin-1').splitlines()
-        (self.current_structure, self.nclusters) = self._load_structure(min_xyz)
-        if self.nclusters==-1:
-            logger.debug("Return bad value")
-            done = True
-            next_state = np.zeros(self.embedded_state_size)
-            return next_state, np.array([reward]), done, {}
-        
+
         # Check for clear problems
         if any("Error in the det" in s for s in stdout):
             logger.debug("\tEnv::step(); !!! Error in the det !!!")
-            os.remove(new_xyz)
+            os.remove(self.current_structure)
             done = True
             next_state = np.zeros(self.embedded_state_size)
-            return next_state, np.array([reward]), done, {}
+            # pass negative reward
+            reward = -10
+            return next_state, reward, done, {}
         
         # Reward is currently based on the potential energy
         lowest_energy_xyz = ''
+        current_ase = read(min_xyz, parallel=False)
+
         try:
             energy = float(stdout[-1].split()[-1])
             logger.debug('lowest_energy:{}'.format(self.lowest_energy))
@@ -252,7 +324,7 @@ class WaterCluster(gym.Env):
             logger.debug('Reward:{}'.format(reward))
 
             # Update state information
-            self.current_state, self.state_order = get_state_embedding(self.schnet_model,self.current_structure)
+            self.current_state, self.state_order = get_state_embedding(self.schnet_model,current_ase)
             self.current_energy = energy
             # Check with Schnet predictions
             schnet_energy = self.current_state[0]
@@ -266,17 +338,13 @@ class WaterCluster(gym.Env):
             # Return values
             done = True
             self.current_state = np.zeros(self.embedded_state_size)
-            #logger.debug('Next state:{}'.format(next_state))
-            #logger.debug('Hum ... reward - 2:{}'.format(reward))
-            #return next_state, np.array([reward]), done, {}
 
-        #self.current_state, self.state_order = get_state_embedding(self.schnet_model,self.current_structure)
-        #logger.debug('Schnetpack next state:{}'.format(self.current_state))
-        #logger.debug('Next state:{}'.format(self.current_state))
+        write_structure(self.current_structure, current_ase, self.current_energy)
+        fix_structure_file(self.current_structure)
+
         if lowest_energy_xyz!='':
-            os.rename(new_xyz,lowest_energy_xyz)
-        else:
-            os.remove(new_xyz)
+            copyfile(self.current_structure,lowest_energy_xyz)
+
         logger.debug('Reward:{}'.format(reward))
         logger.debug('Energy:{}'.format(energy))
         return self.current_state, reward, done, {}
@@ -285,13 +353,21 @@ class WaterCluster(gym.Env):
         logger.info("Resetting the environemnts.")
         logger.info("Current lowest energy: {}".format(self.lowest_energy))
 
+        # delete all files from last episode of the rank (not lowest energy files)
+        files_in_directory = os.listdir(self.output_dir)
+        filtered_files = [file for file in files_in_directory if (file.endswith(".xyz")) and ('rank{}_'.format(mpi_settings.agent_comm.rank) in file) and ('-' not in file)]
+        for file in filtered_files:
+            path_to_file = os.path.join(self.output_dir, file)
+            os.remove(path_to_file)
+
         self.episode += 1
         self.steps = 0
         logger.debug('Env::reset(); episode[{0:4d}]'.format(self.episode, self.steps))
-        (self.init_structure, self.nclusters) = self._load_structure(self.env_input)
+        (init_ase, self.nclusters) = self._load_structure(self.env_input)
+        self.current_structure = self.init_structure
         self.current_structure = self.init_structure
 
-        state_embedding, self.state_order = get_state_embedding(self.schnet_model,self.current_structure)
+        state_embedding, self.state_order = get_state_embedding(self.schnet_model,init_ase)
         self.current_energy = state_embedding[0]
         self.current_state =  state_embedding
         logger.debug('self.current_state shape:{}'.format(self.current_state.shape))
