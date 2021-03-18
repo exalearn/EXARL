@@ -1,3 +1,10 @@
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
+      when: never
+    - if: '$CI_COMMIT_BRANCH'
+
 stages:
   - run-exabooster-benchmark
   - ornl-test
@@ -47,22 +54,15 @@ test_on_compute_node:
       python -c 'import mpi4py; print(mpi4py.__path__)'
       jsrun -n 4 python -c 'from mpi4py import MPI; print(MPI.COMM_WORLD.Get_rank())'
 
-      cmd="jsrun --nrs 6 \
+      jsrun --nrs 6 \
         --tasks_per_rs 1 \
         --cpu_per_rs 7 --gpu_per_rs 1 \
         --rs_per_host 6 --latency_priority CPU-CPU \
         --launch_distribution packed \
         --bind packed:7 \
-        python driver/driver.py"
+        python driver/driver.py
 
-      $cmd
       res=$?
-
-      if [[ $res -ne 0 ]]; then
-        echo 'Retrying once...'
-        $cmd
-        res=$?
-      fi
 
       echo "Exiting with code $res"
       exit $res
