@@ -95,13 +95,14 @@ class WaterCluster(gym.Env):
         # Setup water molecule application (should be configurable)
         #############################################################
         self.app_dir = cd.run_params['app_dir']
+        logger.debug('Using app_dir: {}'.format(self.app_dir))
         self.app_name = 'main.x'
         self.app = os.path.join(self.app_dir, self.app_name)
         # TODO:Needs to be put in cfg
         self.env_input_name = cd.run_params['env_input_name']
         self.env_input_dir = cd.run_params['env_input_dir']
         self.env_input = os.path.join(self.env_input_dir, self.env_input_name)
-        self.output_dir = 'results/'
+        self.output_dir = cd.run_params['output_dir']
 
         # Schnet encodering model
         # TODO: Need to be a cfg and push model to a repo
@@ -202,7 +203,7 @@ class WaterCluster(gym.Env):
 
         # Run the process
         min_xyz = os.path.join(self.output_dir,'minimum_rank{}.xyz'.format(mpi_settings.agent_comm.rank))
-        env_out = subprocess.Popen([self.app, new_xyz, min_xyz)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        env_out = subprocess.Popen([self.app, new_xyz, min_xyz], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = env_out.communicate()
         stdout = stdout.decode('latin-1').splitlines()
 
