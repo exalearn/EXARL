@@ -1,4 +1,4 @@
-from exarl.comm_base import ExaComm
+from   exarl.comm_base import ExaComm
 import datetime as dt
 import shutil
 import image_structure
@@ -15,7 +15,7 @@ import pylab
 import argparse
 import numpy as np
 import pandas as pd
-from collections import namedtuple
+from   collections import namedtuple
 import matplotlib.pyplot as plt
 
 import exarl as erl
@@ -29,12 +29,10 @@ sys.path.append('envs/env_vault/ImageStructure')
 
 
 def print_status(msg, *args, comm_rank=None, showtime=True, barrier=True, allranks=False, flush=True):
+
     if comm_rank is None:
         comm_rank = 0
-    # if not comm:
-    #    comm = MPI.COMM_WORLD
-    # if barrier:
-    #    comm.Barrier()
+ 
     if showtime:
         s = dt.datetime.now().strftime('[%H:%M:%S.%f] ')
     else:
@@ -44,6 +42,7 @@ def print_status(msg, *args, comm_rank=None, showtime=True, barrier=True, allran
     else:
         if comm_rank > 0:
             return
+
     s += msg.format(*args)
     print(s, flush=flush)
 
@@ -64,10 +63,10 @@ class CahnHilliardEnv(gym.Env):
         self.initT           = 0.0
         self.targetT         = 0.0
         self.notTrain        = False
-        self.rewardOption    = 0
+        # self.rewardOption    = 0
         self.output_dir      = ''
-        self.target_dir      = ''
-        self.target_file     = ''
+        self.target_dir      = './data/ch/'
+        self.target_file     = 'target.out'
         self.notPlotRL       = False
         self.length          = 0
         self.genTarget       = True
@@ -109,6 +108,8 @@ class CahnHilliardEnv(gym.Env):
         self.time_step            = -1
         self.isTest               = True if self.notTrain else False
         self.isTarget = False
+
+        # self.setTargetState()
 
     '''
     def set_env(self):
@@ -157,7 +158,7 @@ class CahnHilliardEnv(gym.Env):
         if self.episode == self.episodes:
             self.isTest = True
 
-        self.setTargetState()
+        self.setTargetState()    # TODO: this is not efficient
         self.setInitSimParams()  # TODO: I do not have to initialze all parameter at each episode
 
         if self.randInitial:
@@ -187,22 +188,16 @@ class CahnHilliardEnv(gym.Env):
 
     # set the target state
     def setTargetState(self):
-
-        if (self.genTarget):  # generate target
-            self.generateTargetState()
-
-        else:  # given target
-            if self.size_struct_vec == 6:
-                self.targetStructVec = [278.0, 0.0, 0.0, 69.0, 75.0, -4.0]
-            elif self.size_struct_vec == 2:
-                self.targetStructVec = [9, 1]  # [10.44, 1.6]  #[7.1, 1.6]
-            elif self.size_struct_vec == 200:
-                self.targetStructVec = np.genfromtxt(self.target_dir +
-                                                     self.target_file + '.out')[1]
-            else:
-                assert('linux' in sys.platform), \
-                    "Error: The number of structure vector components should be 2, 6, or 200!"
-
+        
+        # Disabled this feature due to the error related to setTargetState
+        # if (self.genTarget):  # generate target
+        #     self.generateTargetState()
+        
+        print(self.target_dir + self.target_file)
+        # given target
+        self.targetStructVec = np.genfromtxt(self.target_dir +
+                                             self.target_file)[1]
+        
         if self.debug >= 10:
             print("Target Structured Vector: ",
                   np.around(self.targetStructVec, 2))
@@ -281,6 +276,8 @@ class CahnHilliardEnv(gym.Env):
             self.time_isTerminalState += time.time() - time_tmp
 
         items = dict()
+        
+        print("Reward: ", reward)
 
         return state, reward, self.isTerminalState(), items
 
@@ -309,16 +306,13 @@ class CahnHilliardEnv(gym.Env):
 
         reward = 0.0
 
-        # if t==self.steps-1:
+        print("curren_state: ", self.currStructVec)
+        print("target_state: ", self.targetStructVec)
+        print("reward: ", reward)
 
-        if self.rewardOption == 2 or self.rewardOption == 3 or self.rewardOption == 5:
-            for i in range(self.size_struct_vec):
-                reward -= 1.0 / self.size_struct_vec * abs(self.currStructVec[i] - self.targetStructVec[i])
-        elif self.rewardOption == 0 or self.rewardOption == 1 or self.rewardOption == 4:
-            for i in range(self.size_struct_vec):
-                # reward -= self.vecWeight[i] * (self.currStructVec[i]-self.targetStructVec[i])**2
-                reward -= 1.0 / self.size_struct_vec * (self.currStructVec[i] - self.targetStructVec[i])**2
-
+        for i in range(self.size_struct_vec):
+            reward -= 1.0 / self.size_struct_vec * (self.currStructVec[i] - self.targetStructVec[i])**2
+        
         return reward
 
     # get the next action
@@ -377,7 +371,7 @@ class CahnHilliardEnv(gym.Env):
         if self.debug >= 1:
             t0 = time.time()
         img_struct = self.getImgStruct(img_data, i + 2)
-        if self.debug >= 1:
+        if self.debug >= 0:
             print_status("Time getImgStruct: {}".format(time.time() - t0),
                          comm_rank=self.comm_rank)
 
@@ -456,6 +450,7 @@ class CahnHilliardEnv(gym.Env):
 
         # Setup checkpointing in time
         n_dt              = self.length  # 2000
+        # TODO: THIS DOES NOT WORK ANYMORE if the setTargetState is called in the constructor!
         n_tsteps          = self._max_episode_steps  # self.steps  # 100
         self.info.t0      = 0
         self.info.iter    = 0
@@ -556,15 +551,7 @@ class CahnHilliardEnv(gym.Env):
         if self.debug >= 50:
             print_status(data, comm_rank=self.comm_rank, allranks=True)
         structure_analysis = image_structure.src.ImageStructure.ImageStructure(inputs)
-
-        """
-        TODO: fix this later!
-        if self.isTest:
-            out_dir = os.path.join(self.output_dir, "rank_"+str(self.comm_rank), 'test/')
-        else:
-            out_dir = os.path.join(self.output_dir, "rank_"+str(self.comm_rank), 'episode_' + str(self.episode) + '/')
-        """
-
+     
         out_dir = os.path.join(self.output_dir)
         if self.isTarget:
             out_dir = os.path.join(self.target_dir)
@@ -579,6 +566,7 @@ class CahnHilliardEnv(gym.Env):
         return y_fft
 
     # plot target image
+    """
     def plotTarget(self, datafile, M=128, N=128):
 
         data_file = os.path.join(self.output_dir, datafile)
@@ -605,6 +593,7 @@ class CahnHilliardEnv(gym.Env):
         fig.savefig(os.path.join(self.target_dir, "rank_" + str(self.comm_rank),
                                  self.target_file + str(self.size_struct_vec)
                                  + ".png"), bbox_inches='tight')
+    """
 
     # plot target image
     def render(self, mode='human', close=False):
