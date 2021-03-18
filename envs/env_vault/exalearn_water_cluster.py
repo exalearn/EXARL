@@ -127,27 +127,32 @@ class WaterCluster(gym.Env):
                                        high=np.array([self.nclusters, 120, 0.7]), dtype=np.float64)
 
     def _load_structure(self, env_input):
-        # Read initial XYZ file
-        logger.debug('Env Input: {}'.format(env_input))
-        structure = read(env_input, parallel=False)
-        logger.debug('Structure: {}'.format(structure))
-        nclusters = (''.join(structure.get_chemical_symbols()).count("OHH")) - 1
-        logger.debug('Number of atoms: %s' % len(structure))
-        logger.debug('Number of water clusters: %s ' % (nclusters + 1))
-        return (structure, nclusters)
+        try:
+            # Read initial XYZ file
+            logger.debug('Env Input: {}'.format(env_input))
+            structure = read(env_input, parallel=False)
+            logger.debug('Structure: {}'.format(structure))
+            nclusters = (''.join(structure.get_chemical_symbols()).count("OHH")) - 1
+            logger.debug('Number of atoms: %s' % len(structure))
+            logger.debug('Number of water clusters: %s ' % (nclusters + 1))
+            return (structure, nclusters)
+        except Exception as e:
+            logger.debug('Error reading file: {}'.format(e))
+            return -1, -1
 
     def step(self, action):
         logger.debug('Env::step()')
         self.steps += 1
         logger.debug('Env::step(); steps[{0:3d}]'.format(self.steps))
         logger.debug('Current energy:{}'.format(self.current_energy))
+        logger.debug('Action:{}'.format(action))
 
         # Initialize outut
         done = False
         energy = 0  # Default energy
         reward = 0#np.random.normal(-100.0, 0.01)  # Default penalty
 
-        action = action[0]
+        #action = action[0]
         natoms = 3
         # Extract actions
         cluster_id = math.floor(action[0])
@@ -197,16 +202,22 @@ class WaterCluster(gym.Env):
             # 
             done = True
             self.current_state = np.zeros(self.embedded_state_size)
-            #logger.debug('Next state:{}'.format(next_state))
-            #logger.debug('Hum ... reward - 1:{}'.format(reward))
             return next_state, np.array([reward]), done, {}
 
         # Run the process
         min_xyz = os.path.join(self.output_dir,'minimum_rank{}.xyz'.format(mpi_settings.agent_comm.rank))
         env_out = subprocess.Popen([self.app, new_xyz, min_xyz], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = env_out.communicate()
+        logger.debug('stdout: {}'.format(stdout))
+        logger.debug('stderr: {}'.format(stderr))
         stdout = stdout.decode('latin-1').splitlines()
-
+        (self.current_structure, self.nclusters) = self._load_structure(min_xyz)
+        if self.nclusters==-1:
+            logger.debug("Return bad value")
+            done = True
+            next_state = np.zeros(self.embedded_state_size)
+            return next_state, np.array([reward]), done, {}
+        
         # Check for clear problems
         if any("Error in the det" in s for s in stdout):
             logger.debug("\tEnv::step(); !!! Error in the det !!!")
@@ -217,10 +228,9 @@ class WaterCluster(gym.Env):
         
         # Reward is currently based on the potential energy
         lowest_energy_xyz = ''
-        (self.current_structure, self.nclusters) = self._load_structure(min_xyz)
         try:
             energy = float(stdout[-1].split()[-1])
-            logger.debug('self.lowest_energy:{}'.format(self.lowest_energy))
+            logger.debug('lowest_energy:{}'.format(self.lowest_energy))
             logger.debug('energy:{}'.format(energy))
             if  self.lowest_energy>energy:
                 self.lowest_energy=energy
