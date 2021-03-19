@@ -276,7 +276,15 @@ class WaterCluster(gym.Env):
         actions = [cluster_id, rotation_z, translation]
 
         # read in structure as ase atom object
-        current_ase = read(self.current_structure, parallel=False)
+        try:
+            current_ase = read(self.current_structure, parallel=False)
+        except:
+            done = True
+            self.current_state = np.zeros(self.embedded_state_size)
+            reward = 0
+            self.current_energy = -1
+            write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, self.current_energy, self.current_state[0], reward, done])
+            return self.current_state, reward, done, {}
 
         # take actions
         current_ase = update_cluster(current_ase, actions)
@@ -298,9 +306,8 @@ class WaterCluster(gym.Env):
             os.remove(self.current_structure)
             done = True
             self.current_state = np.zeros(self.embedded_state_size)
-            # pass negative reward
             reward = 0
-            self.current_energy = -1
+            self.current_energy = -2
             write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, self.current_energy, self.current_state[0], reward, done])
             return self.current_state, reward, done, {}
         
