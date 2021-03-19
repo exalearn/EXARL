@@ -109,8 +109,10 @@ def write_structure(PATH, structure, energy=0.0):
         f.writelines(pos)
 
 def write_csv(path, rank, data):
-    with open(os.path.join(path,f'rank{rank}.csv'), mode='a') as f:
-        f.writerow(data)
+    data = [str(x) for x in data]
+    data = ','.join(data)
+    with open(os.path.join(path,'rank{}.csv'.format(rank)), 'a') as f:
+        f.writelines(data+'\n')
 
 
 def findWater(geom, Num):
