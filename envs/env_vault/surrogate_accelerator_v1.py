@@ -65,8 +65,10 @@ class Surrogate_Accelerator_v1(gym.Env):
         # Environment is based on the "BOOSTR: A Dataset for Accelerator Reinforcement Learning Control"
         # https://zenodo.org/record/4088982#.X4836kJKhTY
 
-        self.file_dir = os.path.dirname(__file__)
-        booster_dir = os.path.join(self.file_dir, 'booster')
+        booster_dir = cd.run_params['model_dir']
+        if booster_dir == 'None':
+            self.file_dir = os.path.dirname(__file__)
+            booster_dir = os.path.join(self.file_dir, 'booster')
         logger.info('booster related directory: '.format(booster_dir))
         try:
             os.mkdir(booster_dir)
@@ -83,19 +85,22 @@ class Surrogate_Accelerator_v1(gym.Env):
         sess = tf.compat.v1.Session(config=config)
         tf.compat.v1.keras.backend.set_session(sess)
 
-        booster_model_file = 'fullbooster_noshift_e250_bs99_nsteps250k_invar5_outvar3_axis1_mmscaler_t0_D10122020-T175237_kfold2__e16_vl0.00038.h5'
+        # booster_model_file = 'fullbooster_noshift_e250_bs99_nsteps250k_invar5_outvar3_axis1_mmscaler_t0_D10122020-T175237_kfold2__e16_vl0.00038.h5'
+        booster_model_file = cd.run_params['model_file']
         booster_model_pfn = os.path.join(booster_dir, booster_model_file)
         with tf.device('/cpu:0'):
             self.booster_model = keras.models.load_model(booster_model_pfn)
 
         # Check if data is available
-        booster_data_file = 'BOOSTR.cvs'
+        # booster_data_file = 'BOOSTR.cvs'
+        booster_data_file = cd.run_params['data_file']
         booster_file_pfn = os.path.join(booster_dir, booster_data_file)
         logger.info('Booster data file pfn:{}'.format(booster_file_pfn))
         if not os.path.exists(booster_file_pfn):
             logger.info('No cached file. Downloading...')
             try:
-                url = 'https://zenodo.org/record/4088982/files/data%20release.csv?download=1'
+                # url = 'https://zenodo.org/record/4088982/files/data%20release.csv?download=1'
+                url = cd.run_params['url']
                 r = requests.get(url, allow_redirects=True)
                 open(booster_file_pfn, 'wb').write(r.content)
             except:
@@ -113,7 +118,7 @@ class Surrogate_Accelerator_v1(gym.Env):
         self.save_dir = cd.run_params['output_dir']
         self.episodes = 0
         self.steps = 0
-        self.max_steps = 100
+        self.max_steps = cd.run_params['max_steps']
         self.total_reward = 0
         self.data_total_reward = 0
         self.total_iminer = 0
@@ -121,8 +126,8 @@ class Surrogate_Accelerator_v1(gym.Env):
         self.diff = 0
 
         # Define boundary
-        self.min_BIMIN = 103.1
-        self.max_BIMIN = 103.6
+        self.min_BIMIN = cd.run_params['min_BIMIN']
+        self.max_BIMIN = cd.run_params['max_BIMIN']
         self.variables = ['B:VIMIN', 'B:IMINER', 'B:LINFRQ', 'I:IB', 'I:MDAT40']
         self.nvariables = len(self.variables)
         logger.info('Number of variables:{}'.format(self.nvariables))
@@ -154,7 +159,7 @@ class Surrogate_Accelerator_v1(gym.Env):
 
         # Dynamically allocate
         data['B:VIMIN_DIFF'] = data['B:VIMIN'] - data['B:VIMIN'].shift(-1)
-        self.nactions = 15
+        self.nactions = cd.run_params['nactions']
         self.action_space = spaces.Discrete(self.nactions)
         self.actionMap_VIMIN = []
         for i in range(1, self.nactions + 1):
