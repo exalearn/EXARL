@@ -4,9 +4,10 @@
 # base_dir = '/projects/users/vinayr/ExaLearn/ExaRL/summit_results_exabooster/'
 # nodes_dir = ['ExaBooster_RMA_learner_1_nodes', 'ExaBooster_RMA_learner_4_nodes']
 
-base_dir           = '/gpfs/alpine/scratch/aik07/ast153/results_dir_a1_mp16_e10_t10'
+base_dir           = 'results_dir1' #'/gpfs/alpine/scratch/aik07/ast153/results_dir_a1_mp16_e10_t10'
 nodes_dir          = ['']
 episodes_per_nodes = []
+IS_SHOW = False
 
 # **********************************************************************************
 
@@ -125,4 +126,6 @@ plt.ylabel('Rolling Total Reward ({})'.format(rolling_setting))
 #plt.ylim(-20,0)
 plt.legend(loc="lower right")
 
-plt.show()
+if IS_SHOW: plt.show()
+
+fig.savefig('reward.png')

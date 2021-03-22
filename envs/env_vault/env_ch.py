@@ -56,19 +56,21 @@ class CahnHilliardEnv(gym.Env):
 
     def __init__(self):
 
+        # PROBLEM: the config file is not working
+
         # Declare hyper-parameters, initialized for determining datatype
         super().__init__()
         self.debug           = 0
-        self.change_T        = 0.0
-        self.initT           = 0.0
-        self.targetT         = 0.0
+        self.change_T        = 0.1
+        self.initT           = 0.5
+        self.targetT         = 0.5
         self.notTrain        = False
         # self.rewardOption    = 0
         self.output_dir      = ''
         self.target_dir      = './data/ch/'
         self.target_file     = 'target.out'
         self.notPlotRL       = False
-        self.length          = 0
+        self.length          = 100
         self.genTarget       = True
         self.randInitial     = False
         self.steps           = 0
@@ -164,7 +166,7 @@ class CahnHilliardEnv(gym.Env):
         if self.randInitial:
             self.T = self.setRandInitT()
         else:
-            self.T = self.initT
+            self.T = self.initT 
         # initial value, always start from the same initial value for now.
 
         if self.debug >= 10:
@@ -193,7 +195,7 @@ class CahnHilliardEnv(gym.Env):
         # if (self.genTarget):  # generate target
         #     self.generateTargetState()
         
-        print(self.target_dir + self.target_file)
+        # print(self.target_dir + self.target_file)
         # given target
         self.targetStructVec = np.genfromtxt(self.target_dir +
                                              self.target_file)[1]
@@ -277,7 +279,7 @@ class CahnHilliardEnv(gym.Env):
 
         items = dict()
         
-        print("Reward: ", reward)
+        # print("Reward: ", reward)
 
         return state, reward, self.isTerminalState(), items
 
@@ -303,13 +305,13 @@ class CahnHilliardEnv(gym.Env):
 
         if self.debug >= 30:
             print_status("wt {}".format(self.vecWeight), comm_rank=self.comm_rank, allranks=True)
+    
+            print("curren_state: ", self.currStructVec)
+            print("target_state: ", self.targetStructVec)
+            print("reward: ", reward)
 
         reward = 0.0
-
-        print("curren_state: ", self.currStructVec)
-        print("target_state: ", self.targetStructVec)
-        print("reward: ", reward)
-
+        
         for i in range(self.size_struct_vec):
             reward -= 1.0 / self.size_struct_vec * (self.currStructVec[i] - self.targetStructVec[i])**2
         
@@ -338,6 +340,8 @@ class CahnHilliardEnv(gym.Env):
     # return the next state after taking the action at the current state
     def getNextState(self, action_idx, i):
 
+        t0 = 0 # initialize timer
+
         self.setNextAction(action_idx)     # self.T is updated to the next action
         self.setControlParams(T=self.T)  # set control parameter for the simulation code
         # print('i: ', i)
@@ -352,6 +356,7 @@ class CahnHilliardEnv(gym.Env):
 
         if self.debug >= 1:
             t0 = time.time()
+
         residual = ch.run_ch_solver(self.chparams, self.info)
         residual /= np.linalg.norm(np.array(self.info.x), ord=2)
 
