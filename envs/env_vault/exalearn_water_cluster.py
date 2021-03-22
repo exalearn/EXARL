@@ -259,6 +259,7 @@ class WaterCluster(gym.Env):
         self.steps += 1
         logger.debug('Env::step(); steps[{0:3d}]'.format(self.steps))
         logger.debug('Current energy:{}'.format(self.current_energy))
+        action = action[0]
         logger.debug('Action:{}'.format(action))
 
         # Initialize outut
