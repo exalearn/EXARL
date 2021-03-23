@@ -9,3 +9,8 @@ register(
     id='DDPG-v0',
     entry_point='agents.agent_vault:DDPG'
 )
+
+register(
+    id='DDPG-Vtrace-v0',
+    entry_point='agents.agent_vault:DDPG_Vtrace',
+)
