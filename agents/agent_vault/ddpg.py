@@ -64,16 +64,31 @@ class DDPG(erl.ExaAgent):
         self.done_buffer = np.zeros((self.buffer_capacity, 1))
         self.memory = self.state_buffer  # BAD
 
-        # TODO: Required by the learner
-        self.actor_model = self.get_actor()
-        self.critic_model = self.get_critic()
+        # Setup TF configuration to allow memory growth
+        config = tf.compat.v1.ConfigProto()
+        config.gpu_options.allow_growth = True
+        sess = tf.compat.v1.Session(config=config)
+        tf.compat.v1.keras.backend.set_session(sess)
+        
+        # Training model only required by the learners
+        self.actor_model = None
+        self.critic_model = None
+        if self.is_learner:
+            self.actor_model = self.get_actor()
+            self.critic_model = self.get_critic()
 
-        # Every agent needs this
-        self.target_critic = self.get_critic()
-        self.target_actor = self.get_actor()
-
-        self.target_actor.set_weights(self.actor_model.get_weights())
-        self.target_critic.set_weights(self.critic_model.get_weights())
+        # Every agent needs this, however, actors only use the CPU (for now)
+        self.target_critic = None
+        self.target_actor = None
+        if self.is_learner:
+            self.target_actor = self.get_actor()
+            self.target_critic = self.get_critic()
+            self.target_actor.set_weights(self.actor_model.get_weights())
+            self.target_critic.set_weights(self.critic_model.get_weights())
+        else:
+            with tf.device('/CPU:0'):
+                self.target_actor = self.get_actor()
+                self.target_critic = self.get_critic()
 
         # Learning rate for actor-critic models
         critic_lr = 0.002
@@ -168,7 +183,8 @@ class DDPG(erl.ExaAgent):
         # self.epsilon_adj()
         # if len(batch[0]) >= self.batch_size:
         #     logger.info('Training...')
-        self.update_grad(batch[0], batch[1], batch[2], batch[3])
+        if self.is_learner:
+            self.update_grad(batch[0], batch[1], batch[2], batch[3])
         
 
     def target_train(self):
@@ -214,6 +230,12 @@ class DDPG(erl.ExaAgent):
 
     def set_learner(self):
         self.is_learner = True
+        self.actor_model = self.get_actor()
+        self.critic_model = self.get_critic()
+        self.target_actor = self.get_actor()
+        self.target_critic = self.get_critic()
+        self.target_actor.set_weights(self.actor_model.get_weights())
+        self.target_critic.set_weights(self.critic_model.get_weights())
 
     # Extra methods
     def update(self):
