@@ -346,7 +346,6 @@ class WaterCluster(gym.Env):
 
             # Update state information
             self.current_state, self.state_order = get_state_embedding(self.schnet_model,current_ase)
-            self.current_energy = energy
             # Check with Schnet predictions
             schnet_energy = self.current_state[0]
             energy_mape = np.abs(energy-schnet_energy)/(energy+schnet_energy)
@@ -354,8 +353,10 @@ class WaterCluster(gym.Env):
                 logger.debug('Large difference model predict and Schnet MAPE :{}'.format(energy_mape))
 
             # Set reward to normalized SchNet energy (first value in state)
-            reward = self.current_state[0] / self.initial_energy
+            reward = (energy - self.current_energy) / self.initial_energy
 
+            # Update current energy
+            self.current_energy = energy
         except Exception as e:
             logger.debug('Error with energy value: {}'.format(e))
             #logger.debug('stdout:', stdout)
