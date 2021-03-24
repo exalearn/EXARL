@@ -332,8 +332,15 @@ class WaterCluster(gym.Env):
                 logger.info("\t Found lower energy:{}".format(energy))
 
             energy = round(energy, 6)
-            #reward = self.current_energy - energy     
-            #reward = - energy
+
+            # End episode if the structure is unstable
+            if energy > self.initial_energy * 0.5:
+                done = True
+                self.current_state = np.zeros(self.embedded_state_size)
+                write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, self.current_energy, self.current_state[0], reward, done])
+                return self.current_state, reward, done, {}
+
+
             if energy==3:
                 logger.info('Open - Odd value (3)')
                 logger.info(stdout)
@@ -357,6 +364,7 @@ class WaterCluster(gym.Env):
 
             # Update current energy
             self.current_energy = energy
+
         except Exception as e:
             logger.debug('Error with energy value: {}'.format(e))
             #logger.debug('stdout:', stdout)
