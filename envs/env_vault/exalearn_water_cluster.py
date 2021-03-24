@@ -185,6 +185,11 @@ def fix_structure_file(infile):
             f.write(printable)
             f.write("\n")
 
+def read_energy(xyz):
+    with open(xyz, "r") as f:
+        lines=f.readlines()
+    return float(lines[1])
+
 class WaterCluster(gym.Env):
     metadata = {'render.modes': ['human']}
 
@@ -229,7 +234,7 @@ class WaterCluster(gym.Env):
         # Read initial XYZ file
         (init_ase, self.nclusters) = self._load_structure(self.env_input)
         self.inital_state, self.state_order = get_state_embedding(self.schnet_model,init_ase) 
-        self.initial_energy = self.inital_state[0]
+        self.initial_energy = read_energy(self.env_input)#self.inital_state[0]
 
         # State of the current setup
         self.init_structure = self.env_input
@@ -392,7 +397,7 @@ class WaterCluster(gym.Env):
         self.current_structure = self.init_structure
 
         state_embedding, self.state_order = get_state_embedding(self.schnet_model,init_ase)
-        self.initial_energy = state_embedding[0] 
+        self.initial_energy = read_energy(self.env_input)#state_embedding[0] 
         self.current_energy = self.initial_energy
         self.current_state =  state_embedding
         logger.debug('self.current_state shape:{}'.format(self.current_state.shape))
