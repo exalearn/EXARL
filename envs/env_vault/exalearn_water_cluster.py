@@ -270,7 +270,7 @@ class WaterCluster(gym.Env):
         # Initialize outut
         done = False
         energy = 0  # Default energy
-        reward = 0#np.random.normal(-100.0, 0.01)  # Default penalty
+        reward = np.random.normal(-10.0, 0.01)  # Default penalty
 
         #action = action[0]
         natoms = 3
@@ -287,7 +287,7 @@ class WaterCluster(gym.Env):
         except:
             done = True
             self.current_state = np.zeros(self.embedded_state_size)
-            reward = 0
+            #reward = 0
             self.current_energy = -1
             write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, self.current_energy, self.current_state[0], reward, done])
             return self.current_state, reward, done, {}
@@ -312,7 +312,7 @@ class WaterCluster(gym.Env):
             os.remove(self.current_structure)
             done = True
             self.current_state = np.zeros(self.embedded_state_size)
-            reward = 0
+            #reward = 0
             self.current_energy = -2
             write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, self.current_energy, self.current_state[0], reward, done])
             return self.current_state, reward, done, {}
@@ -353,7 +353,7 @@ class WaterCluster(gym.Env):
                 logger.debug('Large difference model predict and Schnet MAPE :{}'.format(energy_mape))
 
             # Set reward to normalized SchNet energy (first value in state)
-            reward = (energy - self.current_energy) / self.initial_energy
+            reward = (self.current_energy - energy ) #/ self.initial_energy
 
             # Update current energy
             self.current_energy = energy
@@ -365,7 +365,7 @@ class WaterCluster(gym.Env):
             done = True
             self.current_state = np.zeros(self.embedded_state_size)
             self.current_energy = -2
-            reward = 0
+            #reward = 0
 
         write_structure(self.current_structure, current_ase, self.current_energy)
         fix_structure_file(self.current_structure)
