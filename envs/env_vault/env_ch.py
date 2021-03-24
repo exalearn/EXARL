@@ -24,6 +24,8 @@ import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
 
+import utils.candleDriver as cd
+
 sys.path.append('envs/env_vault/CahnHilliard2D/cpp/python')
 sys.path.append('envs/env_vault/ImageStructure')
 
@@ -60,21 +62,22 @@ class CahnHilliardEnv(gym.Env):
 
         # Declare hyper-parameters, initialized for determining datatype
         super().__init__()
-        self.debug           = 0
-        self.change_T        = 0.1
-        self.initT           = 0.5
-        self.targetT         = 0.5
-        self.notTrain        = False
+     
+        self.debug           = cd.run_params['debug']     # 0
+        self.change_T        = cd.run_params['changeT']   # 0.1
+        self.initT           = cd.run_params['initT']     # 0.5
+        self.targetT         = cd.run_params['targetT']   # 0.5
+        self.notTrain        = cd.run_params['notTrain']  # False
         # self.rewardOption    = 0
-        self.output_dir      = ''
-        self.target_dir      = './data/ch/'
-        self.target_file     = 'target.out'
-        self.notPlotRL       = False
-        self.length          = 100
-        self.genTarget       = True
-        self.randInitial     = False
-        self.steps           = 0
-        self.episodes        = 0
+        self.output_dir      = ''            # cd.run_params['output_dir'] 
+        self.target_dir      = './data/ch/'  # cannot put target_dir and output_dir in the config file 
+        self.target_file     = cd.run_params['target_file']    # 'target.out'
+        self.notPlotRL       = cd.run_params['initT']          # False
+        self.length          = cd.run_params['notPlotRL']      # 100
+        self.genTarget       = cd.run_params['genTarget']      # True
+        self.randInitial     = cd.run_params['randInitial']    # False
+        # self.steps           = 0
+        # self.episodes        = 0
 
         # self.args = args
         self.comm      = ExaComm.global_comm      # mpi_settings.env_comm
@@ -157,8 +160,8 @@ class CahnHilliardEnv(gym.Env):
         self.episode   += 1
         self.time_step  = -1
         # print('episode', self.episode)
-        if self.episode == self.episodes:
-            self.isTest = True
+        # if self.episode == self.episodes:
+        #    self.isTest = True
 
         self.setTargetState()    # TODO: this is not efficient
         self.setInitSimParams()  # TODO: I do not have to initialze all parameter at each episode
