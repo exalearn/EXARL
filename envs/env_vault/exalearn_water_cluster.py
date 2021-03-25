@@ -334,7 +334,7 @@ class WaterCluster(gym.Env):
             energy = round(energy, 6)
 
             # End episode if the structure is unstable
-            if energy > self.initial_energy * 0.5:
+            if energy > self.initial_energy * 0.95:
                 done = True
                 self.current_state = np.zeros(self.embedded_state_size)
                 write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, self.current_energy, self.current_state[0], reward, done])
@@ -346,6 +346,10 @@ class WaterCluster(gym.Env):
                 logger.info(stdout)
                 logger.info(stderr)
                 logger.info('End - Odd value (3)')
+                done = True
+                self.current_state = np.zeros(self.embedded_state_size)
+                return self.current_state, reward, done, {}
+            
             #reward1 = np.array([round(reward, 6)])
             logger.debug('Pre-step current energy:{}'.format(self.current_energy))
             logger.debug('Energy:{}'.format(energy))
@@ -372,7 +376,8 @@ class WaterCluster(gym.Env):
             # Return values
             done = True
             self.current_state = np.zeros(self.embedded_state_size)
-            self.current_energy = -2
+            return self.current_state, reward, done, {}
+            #self.current_energy = -2
             #reward = 0
 
         write_structure(self.current_structure, current_ase, self.current_energy)
