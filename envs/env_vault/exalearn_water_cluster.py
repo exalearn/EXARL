@@ -232,7 +232,7 @@ class WaterCluster(gym.Env):
         self.schnet_model =  torch.nn.DataParallel(model.module)
 
         # Read initial XYZ file
-        fix_structure_file(self.env_input)
+        #fix_structure_file(self.env_input)
         (init_ase, self.nclusters) = self._load_structure(self.env_input)
         self.inital_state, self.state_order = get_state_embedding(self.schnet_model,init_ase) 
         self.initial_energy = read_energy(self.env_input)#self.inital_state[0]
