@@ -232,6 +232,7 @@ class WaterCluster(gym.Env):
         self.schnet_model =  torch.nn.DataParallel(model.module)
 
         # Read initial XYZ file
+        fix_structure_file(self.env_input)
         (init_ase, self.nclusters) = self._load_structure(self.env_input)
         self.inital_state, self.state_order = get_state_embedding(self.schnet_model,init_ase) 
         self.initial_energy = read_energy(self.env_input)#self.inital_state[0]
@@ -248,6 +249,9 @@ class WaterCluster(gym.Env):
         # Actions per cluster: cluster id, rotation angle, translation
         self.action_space = spaces.Box(low=np.array([0, 80, 0.5]),
                                        high=np.array([self.nclusters, 120, 0.7]), dtype=np.float64)
+        #self.rotation_map = list(range(80,121,4)) #jumps of 4deg
+        #self.translation_map = [x/100 for x in range(50,71)][::2] # steps of 0.02 A
+        #self.action_space = spaces.MultiDiscrete((0, self.nclusters), (0,len(self.rotation_map)-1), (0,len(self.translation_map)-1))
 
     def _load_structure(self, env_input):
         # Read initial XYZ file
@@ -277,6 +281,8 @@ class WaterCluster(gym.Env):
         # Extract actions
         cluster_id = math.floor(action[0])
         cluster_id = self.state_order[cluster_id]
+        #rotation_z = self.rotation_map[action[1]]
+        #translation = self.translation_map[action[2]]
         rotation_z = round(float(action[1]),2)
         translation = round(float(action[2]),4)  # (x,y,z)
         actions = [cluster_id, rotation_z, translation]
@@ -298,7 +304,7 @@ class WaterCluster(gym.Env):
         # Save structure in xyz format
         self.current_structure = os.path.join(self.output_dir,'rotationz_rank{}_episode{}_steps{}.xyz'.format(mpi_settings.agent_comm.rank, self.episode, self.steps))
         write_structure(self.current_structure, current_ase)
-        fix_structure_file(self.current_structure)
+        #fix_structure_file(self.current_structure)
 
         # Run the process
         min_xyz = os.path.join(self.output_dir,'minimum_rank{}.xyz'.format(mpi_settings.agent_comm.rank))
@@ -340,15 +346,15 @@ class WaterCluster(gym.Env):
                 write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, self.current_energy, self.current_state[0], reward, done])
                 return self.current_state, reward, done, {}
 
-
-            if energy==3:
-                logger.info('Open - Odd value (3)')
-                logger.info(stdout)
-                logger.info(stderr)
-                logger.info('End - Odd value (3)')
-                done = True
-                self.current_state = np.zeros(self.embedded_state_size)
-                return self.current_state, reward, done, {}
+            # Never going to hit this with energy max condition above
+            #if energy==3:
+            #    logger.info('Open - Odd value (3)')
+            #    logger.info(stdout)
+            #    logger.info(stderr)
+            #    logger.info('End - Odd value (3)')
+            #    done = True
+            #    self.current_state = np.zeros(self.embedded_state_size)
+            #    return self.current_state, reward, done, {}
             
             #reward1 = np.array([round(reward, 6)])
             logger.debug('Pre-step current energy:{}'.format(self.current_energy))
@@ -360,7 +366,7 @@ class WaterCluster(gym.Env):
             # Check with Schnet predictions
             schnet_energy = self.current_state[0]
             energy_mape = np.abs(energy-schnet_energy)/(energy+schnet_energy)
-            if energy_mape>0.05:
+            if energy_mape>0.01:
                 logger.debug('Large difference model predict and Schnet MAPE :{}'.format(energy_mape))
 
             # Set reward to normalized SchNet energy (first value in state)
