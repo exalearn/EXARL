@@ -226,7 +226,7 @@ class DQN(erl.ExaAgent):
     def train(self, batch):
         if self.is_learner:
             # if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
-            if len(batch[0]) >= (self.batch_size):
+            if len(batch) > 0 and len(batch[0]) >= (self.batch_size):
                 # batch_states, batch_target = batch
                 start_time = time.time()
                 with tf.device(self.device):
