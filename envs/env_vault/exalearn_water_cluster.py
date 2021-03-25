@@ -269,8 +269,8 @@ class WaterCluster(gym.Env):
 
         # Initialize outut
         done = False
-        energy = 0  # Default energy
-        reward = np.random.normal(-10.0, 0.01)  # Default penalty
+        energy = np.random.normal(self.current_energy, 0.01)  # Default energy
+        reward = np.random.normal(-25.0, 0.05)  # Default penalty
 
         #action = action[0]
         natoms = 3
@@ -288,7 +288,7 @@ class WaterCluster(gym.Env):
             done = True
             self.current_state = np.zeros(self.embedded_state_size)
             #reward = 0
-            self.current_energy = -1
+            #self.current_energy = -1
             write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, self.current_energy, self.current_state[0], reward, done])
             return self.current_state, reward, done, {}
 
@@ -313,7 +313,7 @@ class WaterCluster(gym.Env):
             done = True
             self.current_state = np.zeros(self.embedded_state_size)
             #reward = 0
-            self.current_energy = -2
+            #self.current_energy = -2
             write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, self.current_energy, self.current_state[0], reward, done])
             return self.current_state, reward, done, {}
         
