@@ -254,17 +254,11 @@ class DDPG(erl.ExaAgent):
         self.is_learner = True
 
     # Extra methods
-    def update(self):
-        print("Implement update method in ddpg.py")
-
     def load(self):
         print("Implement load method in ddpg.py")
 
     def save(self, results_dir):
         print("Implement load method in ddpg.py")
-
-    def monitor(self):
-        print("Implement monitor method in ddpg.py")
 
     def set_agent(self):
         print("Implement set_agent method in ddpg.py")
