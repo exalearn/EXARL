@@ -14,6 +14,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
     def __init__(self):
         print('Creating RMA async workflow...')
 
+    @PROFILE
     def run(self, workflow):
         # MPI communicators
         agent_comm = mpi_settings.agent_comm

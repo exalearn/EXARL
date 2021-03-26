@@ -287,12 +287,6 @@ class DQN(erl.ExaAgent):
         with open(filename, 'wb') as f:
             pickle.dump(pickle_list, f, -1)
 
-    def update(self):
-        logger.info("Implement update method in dqn.py")
-
-    def monitor(self):
-        logger.info("Implement monitor method in dqn.py")
-
     def benchmark(dataset, num_epochs=1):
         start_time = time.perf_counter()
         for epoch_num in range(num_epochs):

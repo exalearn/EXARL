@@ -38,10 +38,6 @@ class ExaAgent(ABC):
         pass
 
     @abstractmethod
-    def update(self):
-        pass
-
-    @abstractmethod
     def action(self):
         pass
 
@@ -54,5 +50,5 @@ class ExaAgent(ABC):
         pass
 
     @abstractmethod
-    def monitor(self):
+    def set_learner(self):
         pass

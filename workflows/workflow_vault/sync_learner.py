@@ -5,6 +5,7 @@ import exarl as erl
 import exarl.mpi_settings as mpi_settings
 import utils.log as log
 import utils.candleDriver as cd
+from utils.profile import *
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 
@@ -12,6 +13,7 @@ class SYNC(erl.ExaWorkflow):
     def __init__(self):
         print('Class SYNC learner')
 
+    @PROFILE
     def run(self, workflow):
         comm = MPI.COMM_WORLD
 
@@ -21,39 +23,28 @@ class SYNC(erl.ExaWorkflow):
                           filename_prefix + ".log", 'w')
         train_writer = csv.writer(train_file, delimiter=" ")
 
-        ########################################
-        # Set target model the sample for all #
-        ########################################
+        # Set target model the sample for all
         target_weights = None
 
         if mpi_settings.is_learner():
             workflow.agent.set_learner()
             target_weights = workflow.agent.get_weights()
 
-        ####################################
-        # Send and set to all other agents #
-        ####################################
+        # Send and set to all other agents
         current_weights = comm.bcast(target_weights, root=0)
         workflow.agent.set_weights(current_weights)
 
-        #####################
-        # Variables for all #
-        #####################
-        rank0_epsilon  = 0
+        # Variables for all
+        rank0_epsilon = 0
 
-        ######################
-        # Loop over episodes #
-        ######################
+        # Loop over episodes
         for e in range(workflow.nepisodes):
-
-            ################################
-            # Reset variables each episode #
-            ################################
+            # Reset variables each episode
             current_state = workflow.env.reset()
-            total_reward = 0
-            steps        = 0
-            done         = False
-            all_done     = False
+            total_reward  = 0
+            steps         = 0
+            done          = False
+            all_done      = False
 
             start_time_episode = time.time()
 
