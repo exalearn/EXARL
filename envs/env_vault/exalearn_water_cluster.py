@@ -250,8 +250,11 @@ class WaterCluster(gym.Env):
         # Actions per cluster: cluster id, rotation angle, translation
         #self.action_space = spaces.Box(low=np.array([0, 80, 0.5]),
         #                               high=np.array([self.nclusters, 120, 0.7]), dtype=np.float64)
-        self.rotation_map = list(range(80,121,4)) #jumps of 4deg
-        self.translation_map = [x/100 for x in range(50,71)][::2] # steps of 0.02 A
+        #self.rotation_map = list(range(80,121,4)) #jumps of 4deg
+        self.rotation_map = list(range(80,121,10)) # jumps of 10 deg
+        #self.translation_map = [x/100 for x in range(50,71)][::2] # steps of 0.02 A
+        self.translation_map = [x/100 for x in range(50,71)][::5] # steps of 0.05 A
+        
         self.action_space = spaces.MultiDiscrete([self.nclusters+1,len(self.rotation_map),len(self.translation_map)])
         a =[list(range(self.nclusters+1)), self.rotation_map, self.translation_map]
         self.action_map = list(itertools.product(*a))
@@ -278,7 +281,7 @@ class WaterCluster(gym.Env):
         # Initialize outut
         done = False
         energy = np.random.normal(self.current_energy, 0.01)  # Default energy
-        reward = np.random.normal(-25.0, 0.05)  # Default penalty
+        reward = np.random.normal(0.0, 0.05)  # Default penalty
 
         #action = action[0]
         natoms = 3
