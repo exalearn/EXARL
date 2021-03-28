@@ -130,15 +130,15 @@ class DQN(erl.ExaAgent):
         if self.is_learner:
             # tf.debugging.set_log_device_placement(True)
             gpus = tf.config.experimental.list_physical_devices("GPU")
-            logger.error("Available GPUs: {}".format(gpus))
+            logger.info("Available GPUs: {}".format(gpus))
             self.mirrored_strategy = tf.distribute.MirroredStrategy()
-            logger.error("Using learner strategy: {}".format(self.mirrored_strategy))
+            logger.info("Using learner strategy: {}".format(self.mirrored_strategy))
             # Active model
             with self.mirrored_strategy.scope():
                 self.model = self._build_model()
                 self.model._name = "learner"
                 self.model.compile(loss=self.loss, optimizer=self.optimizer)
-                logger.error("Active model: \n".format(self.model.summary()))
+                logger.info("Active model: \n".format(self.model.summary()))
             # Target model
             with tf.device("/CPU:0"):
                 self.target_model = self._build_model()

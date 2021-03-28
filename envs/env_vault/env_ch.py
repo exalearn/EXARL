@@ -1,27 +1,18 @@
 import datetime as dt
-import shutil
 import os
 import sys
 import time
-import random
-import json
 import math
-import scipy
-import pylab
-import argparse
 import numpy as np
-import pandas as pd
 from collections import namedtuple
-import matplotlib.pyplot as plt
 
 import gym
-from gym import error, spaces, utils
-from gym.utils import seeding
+from gym import spaces
 
-import exarl as erl
 from exarl.comm_base import ExaComm
 
 import image_structure
+
 import ch2d.cahnhilliard as ch
 import ch2d.aligned_vector as av
 
@@ -29,6 +20,8 @@ import utils.candleDriver as cd
 
 sys.path.append('envs/env_vault/CahnHilliard2D/cpp/python')
 sys.path.append('envs/env_vault/ImageStructure')
+
+gym.logger.set_level(40)
 
 
 def print_status(
@@ -66,8 +59,6 @@ class CahnHilliardEnv(gym.Env):
 
     def __init__(self):
 
-        # PROBLEM: the config file is not working
-
         # Declare hyper-parameters, initialized for determining datatype
         super().__init__()
 
@@ -95,7 +86,7 @@ class CahnHilliardEnv(gym.Env):
         # object creation time: cannot be set by CANDLE
         self.size_struct_vec = 200
         self.num_control_params = 1
-        self.action_space = spaces.Discrete(self.getActionSize())
+        self.action_space = spaces.Discrete(self.getActionSize())  # space from gym
         # TODO: fix the high values later since I do not know the maximum
         # values
         self.observation_space = spaces.Box(
@@ -166,11 +157,8 @@ class CahnHilliardEnv(gym.Env):
 
         self.episode += 1
         self.time_step = -1
-        # print('episode', self.episode)
-        # if self.episode == self.episodes:
-        #    self.isTest = True
 
-        # self.setTargetState()    # TODO: this is not efficient
+        # self.setTargetState()   TODO: this is not efficient
         self.setInitSimParams()  # TODO: I do not have to initialze all parameter at each episode
 
         if self.randInitial:
@@ -194,7 +182,7 @@ class CahnHilliardEnv(gym.Env):
         # print("Time ch_solver: ",time.time()-t0)
 
         # No need to calculate initial structure vector
-        # self.currStructVec = self.getImgStruct("C_1.out", 1) # get the current structure vector
+        # self.currStructVec = self.getImgStruct("C_1.out", 1)  get the current structure vector
         # if self.debug>=-1: print("Init struct vec: ", np.around(self.currStructVec, 2))
 
         state = []
@@ -205,7 +193,7 @@ class CahnHilliardEnv(gym.Env):
     def setTargetState(self):
 
         # Disabled this feature due to the error related to setTargetState
-        # if (self.genTarget):  # generate target
+        # if (self.genTarget):   generate target
         #     self.generateTargetState()
 
         # print(self.target_dir + self.target_file)
@@ -295,7 +283,7 @@ class CahnHilliardEnv(gym.Env):
         # check if done
         if self.debug >= 1:
             time_tmp = time.time()
-        deviation = self.distanceFromTerminalState()
+        # deviation = self.distanceFromTerminalState()
         if self.debug >= 1:
             self.time_isTerminalState += time.time() - time_tmp
 
@@ -330,22 +318,10 @@ class CahnHilliardEnv(gym.Env):
     # TODO: modify this reward function
     def getReward(self, t):
 
-        if self.debug >= 30:
-            print_status(
-                "wt {}".format(
-                    self.vecWeight),
-                comm_rank=self.comm_rank,
-                allranks=True)
-
-            print("curren_state: ", self.currStructVec)
-            print("target_state: ", self.targetStructVec)
-            print("reward: ", reward)
-
         reward = 0.0
 
         for i in range(self.size_struct_vec):
-            reward -= 1.0 / self.size_struct_vec * \
-                (self.currStructVec[i] - self.targetStructVec[i])**2
+            reward -= 1.0 / self.size_struct_vec * (self.currStructVec[i] - self.targetStructVec[i])**2
 
         return reward
 
@@ -439,9 +415,9 @@ class CahnHilliardEnv(gym.Env):
         n_repeat = 15
         L_omega = n_repeat * L_repeat
         L_kuhn = (10**-9) * np.mean([0.5, 3.0])  # meters
-        Tmin = 0.1
-        Tmax = 1
-        T = 1.0
+        # Tmin = 0.1
+        # Tmax = 1
+        # T = 1.0
         # **************************************
 
         # *********** INPUTS ***********
@@ -526,14 +502,6 @@ class CahnHilliardEnv(gym.Env):
 
     # set the controlling parameters
     def setControlParams(self, T):
-        if self.debug >= 20:
-            print_status(
-                "setControlParam T: ".format(
-                    np.around(
-                        T,
-                        2)),
-                comm_rank=self.comm_rank,
-                allranks=True)
         T = self.chparams.T_min if T < self.chparams.T_min else T
         T = self.chparams.T_max if T > self.chparams.T_max else T
         self.chparams.T_const = av.aligned_double_vector(
