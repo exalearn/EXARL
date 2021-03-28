@@ -62,18 +62,18 @@ class CahnHilliardEnv(gym.Env):
         # Declare hyper-parameters, initialized for determining datatype
         super().__init__()
 
-        self.debug = cd.run_params['debug']     # 0
-        self.change_T = cd.run_params['changeT']   # 0.1
-        self.initT = cd.run_params['initT']     # 0.5
-        self.targetT = cd.run_params['targetT']   # 0.5
-        self.notTrain = cd.run_params['notTrain']  # False
+        self.debug = cd.run_params['debug']        # 0
+        self.change_T = cd.run_params['changeT']      # 0.1
+        self.initT = cd.run_params['initT']        # 0.5
+        self.targetT = cd.run_params['targetT']      # 0.5
+        self.notTrain = cd.run_params['notTrain']     # False
         self.output_dir = cd.run_params['output_dir']
-        self.target_dir = cd.run_params['target_dir']     # './data/ch/'
-        self.target_file = cd.run_params['target_file']    # 'target.out'
-        self.notPlotRL = cd.run_params['initT']          # False
-        self.length = cd.run_params['notPlotRL']      # 100
-        self.genTarget = cd.run_params['genTarget']      # True
-        self.randInitial = cd.run_params['randInitial']    # False
+        self.target_dir = cd.run_params['target_dir']   # './data/ch/'
+        self.target_file = cd.run_params['target_file']  # 'target.out'
+        self.notPlotRL = cd.run_params['initT']        # False
+        self.length = cd.run_params['notPlotRL']    # 100
+        self.genTarget = cd.run_params['genTarget']    # True
+        self.randInitial = cd.run_params['randInitial']  # False
         # self.steps           = 0
         # self.episodes        = 0
 
@@ -86,9 +86,10 @@ class CahnHilliardEnv(gym.Env):
         # object creation time: cannot be set by CANDLE
         self.size_struct_vec = 200
         self.num_control_params = 1
-        self.action_space = spaces.Discrete(self.getActionSize())  # space from gym
-        # TODO: fix the high values later since I do not know the maximum
-        # values
+
+        self.action_space = spaces.Discrete(self.getActionSize())  # spaces from gym
+
+        # TODO: fix the high values later since I do not know the maximum values
         self.observation_space = spaces.Box(
             low=np.append(
                 np.zeros(
@@ -99,6 +100,7 @@ class CahnHilliardEnv(gym.Env):
                     self.getStateSize() - 1),
                 [1000]),
             dtype=np.float32)
+
         # stores current structure vector
         self.currStructVec = np.zeros(self.size_struct_vec)
         # target  structure vector (loaded or generated at setTargetState()
@@ -578,8 +580,8 @@ class CahnHilliardEnv(gym.Env):
 
         # datafile = os.path.join(self.output_dir , datafile)
         # w        = np.genfromtxt( datafile )
+        # Ci       = w.reshape([N,M],order='C');
 
-        # Ci     = w.reshape([N,M],order='C');
         inputs = Inputs(data, 2, 'fourier_yager_full', os.path.join(
             self.output_dir, 'structure_metrics_2d.dat'), N, M)
 
