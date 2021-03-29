@@ -247,8 +247,18 @@ class WaterCluster(gym.Env):
                                             high=np.zeros(self.embedded_state_size), dtype=np.float64)
 
         # Actions per cluster: cluster id, rotation angle, translation
-        self.action_space = spaces.Box(low=np.array([0, 80, 0.5]),
-                                       high=np.array([self.nclusters, 120, 0.7]), dtype=np.float64)
+        # Make the actions symmetrical
+        self.rot_min = 80
+        self.rot_max = 120
+        self.rot_mean = (self.rot_max + self.rot_min)/2
+        rot_width = self.rot_max - self.rot_min
+        self.trans_min = 0.5
+        self.trans_max = 0.7
+        self.trans_mean = (self.trans_max + self.trans_min)/2
+        trans_width = self.trans_max - self.trans_min
+        self.action_space = spaces.Box(low=np.array([-self.nclusters/2, -rot_width/2, -trans_width/2]),
+                                       high=np.array([self.nclusters/2, +rot_width/2, +trans_width/2]), dtype=np.float64)
+        logger.warning('action_space: {}/{}'.format(self.action_space.low,self.action_space.high))
         #self.rotation_map = list(range(80,121,4)) #jumps of 4deg
         #self.translation_map = [x/100 for x in range(50,71)][::2] # steps of 0.02 A
         #self.action_space = spaces.MultiDiscrete((0, self.nclusters), (0,len(self.rotation_map)-1), (0,len(self.translation_map)-1))
@@ -279,14 +289,15 @@ class WaterCluster(gym.Env):
         #action = action[0]
         natoms = 3
         # Extract actions
-        cluster_id = math.floor(action[0])
+        cluster_id = math.floor(action[0]+self.nclusters/2+0.5)
         cluster_id = self.state_order[cluster_id]
         #rotation_z = self.rotation_map[action[1]]
         #translation = self.translation_map[action[2]]
-        rotation_z = round(float(action[1]),2)
-        translation = round(float(action[2]),4)  # (x,y,z)
+        rotation_z = round(float(action[1])+self.rot_mean,2)
+        translation = round(float(action[2]+self.trans_mean ),4)  # (x,y,z)
         actions = [cluster_id, rotation_z, translation]
-
+        logger.warning('Converted actions: {}'.format(actions))
+        
         # read in structure as ase atom object
         try:
             current_ase = read(self.current_structure, parallel=False)
