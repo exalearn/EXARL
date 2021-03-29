@@ -52,7 +52,6 @@ def save_reward_plot():
     episodes_per_nodes.append(len(df_merged))
     plt.xlabel('Relative Time')
     plt.ylabel('Rolling Total Reward ({})'.format(rolling_setting))
-    plt.legend(loc="lower right")
     if not os.path.exists(results_dir + '/Plots'):
         os.makedirs(results_dir + '/Plots')
     fig.savefig(results_dir + '/Plots/Reward_plot.png')
