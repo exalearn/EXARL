@@ -27,7 +27,8 @@ def build_model(self):
                    kernel_regularizer=l1_l2(self.regularizer[0], self.regularizer[1]),
                    ))
     model.add(GaussianNoise(self.gauss_noise[l]))
-    model.add(Dense(np.prod(self.env.action_space.nvec), activation=self.out_activation))
+    #model.add(Dense(np.prod(self.env.action_space.nvec), activation=self.out_activation))
+    model.add(Dense(self.env.action_space.n, activation=self.out_activation))
     opt = Adam(lr=1e-3)  # ,clipnorm=1.0, clipvalue=0.5)
     # opt = self.candle.build_optimizer(self.optimizer, self.learning_rate,
     #                                  #clipnorm= self.clipnorm, clipvalue = self.clipvalue,

@@ -173,7 +173,7 @@ class DQN(erl.ExaAgent):
         rdm = np.random.rand()
         if rdm <= self.epsilon:
             self.epsilon_adj()
-            action = random.randrange(np.prod(self.env.action_space.nvec))
+            action = random.randrange(self.env.action_space.n)#np.prod(self.env.action_space.nvec))
             return action, 0
         else:
             np_state = np.array(state).reshape(1, 1, len(state))
@@ -207,7 +207,7 @@ class DQN(erl.ExaAgent):
         # TODO: Reduce computational time
         # TODO: Revisit the shape (e.g. extra 1 for the LSTM)
         batch_states = np.empty((self.batch_size, 1, self.env.observation_space.shape[0]))
-        batch_target = np.empty((self.batch_size, np.prod(self.env.action_space.nvec)))
+        batch_target = np.empty((self.batch_size, self.env.action_space.n))#np.prod(self.env.action_space.nvec)))
         # Return empty batch
         if len(self.memory) < self.batch_size:
             yield batch_states, batch_target
@@ -216,7 +216,7 @@ class DQN(erl.ExaAgent):
         batch_target = list(map(self.calc_target_f, minibatch))
         batch_states = [np.array(exp[0]).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
         batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
-        batch_target = np.reshape(batch_target, [len(minibatch), np.prod(self.env.action_space.nvec)])
+        batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])#np.prod(self.env.action_space.nvec)])
         end_time = time.time()
         self.dataprep_time += (end_time - start_time)
         self.ndataprep_time += 1

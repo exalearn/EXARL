@@ -254,10 +254,11 @@ class WaterCluster(gym.Env):
         self.rotation_map = list(range(80,121,10)) # jumps of 10 deg
         #self.translation_map = [x/100 for x in range(50,71)][::2] # steps of 0.02 A
         self.translation_map = [x/100 for x in range(50,71)][::5] # steps of 0.05 A
-        
-        self.action_space = spaces.MultiDiscrete([self.nclusters+1,len(self.rotation_map),len(self.translation_map)])
-        a =[list(range(self.nclusters+1)), self.rotation_map, self.translation_map]
+        self.cluster_map = list(range(self.nclusters+1)) 
+        a =[self.cluster_map, self.rotation_map, self.translation_map]                                               
         self.action_map = list(itertools.product(*a))
+
+        self.action_space = spaces.Discrete(len(self.action_map))
 
     def _load_structure(self, env_input):
         # Read initial XYZ file
