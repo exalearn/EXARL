@@ -65,6 +65,7 @@ class DDPG(erl.ExaAgent):
         self.memory = self.state_buffer  # BAD
 
         # Setup TF configuration to allow memory growth
+#        tf.keras.backend.set_floatx('float64')
         config = tf.compat.v1.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.compat.v1.Session(config=config)
@@ -111,13 +112,20 @@ class DDPG(erl.ExaAgent):
         # Training and updating Actor & Critic networks.
         with tf.GradientTape() as tape:
             target_actions = self.target_actor(next_state_batch, training=True)
+            #logger.warning('target action: {}'.format(target_actions))
+            #target_actions = np.array([np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,)) for i in next_state_batch])
+            #isValids = [ self.env.action_space.contains(i) for i in target_actions ]
+            #logger.warning('isValids: {}'.format(isValids))
             y = reward_batch + self.gamma * self.target_critic(
                 [next_state_batch, target_actions], training=True
             )
             critic_value = self.critic_model([state_batch, action_batch], training=True)
             critic_loss = tf.math.reduce_mean(tf.math.square(y - critic_value))
-
-        logger.info("loss: {}".format(critic_loss))
+            #if isValid==False:
+            #    logger.warning('Initial loss: {}'.format(critic_loss))
+            #    critic_loss += 100000
+                
+        logger.warning("Critic loss: {}".format(critic_loss))
         critic_grad = tape.gradient(critic_loss, self.critic_model.trainable_variables)
         self.critic_optimizer.apply_gradients(
             zip(critic_grad, self.critic_model.trainable_variables)
@@ -127,7 +135,9 @@ class DDPG(erl.ExaAgent):
             actions = self.actor_model(state_batch, training=True)
             critic_value = self.critic_model([state_batch, actions], training=True)
             actor_loss = -tf.math.reduce_mean(critic_value)
+            #actor_loss = tf.math.reduce_mean(critic_value)
 
+        logger.warning("Actor loss: {}".format(actor_loss))
         actor_grad = tape.gradient(actor_loss, self.actor_model.trainable_variables)
         self.actor_optimizer.apply_gradients(
             zip(actor_grad, self.actor_model.trainable_variables)
@@ -139,6 +149,7 @@ class DDPG(erl.ExaAgent):
         out = layers.Dense(256, activation="relu")(inputs)
         out = layers.Dense(256, activation="relu")(out)
         out = layers.Dense(self.num_actions, activation="tanh", kernel_initializer=tf.random_uniform_initializer())(out)
+        #out = layers.Dense(self.num_actions, activation="sigmoid", kernel_initializer=tf.random_uniform_initializer())(out)
         outputs = layers.Lambda(lambda i: i * self.upper_bound)(out)
         model = tf.keras.Model(inputs, outputs)
         return model
@@ -184,6 +195,7 @@ class DDPG(erl.ExaAgent):
         # if len(batch[0]) >= self.batch_size:
         #     logger.info('Training...')
         if self.is_learner:
+            logger.warning('Training...')
             self.update_grad(batch[0], batch[1], batch[2], batch[3])
         
 
@@ -216,9 +228,11 @@ class DDPG(erl.ExaAgent):
         if isValid == False:
             legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
             policy_type = 0
-            
+            logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn,legal_action))
+            logger.warning('Policy action: {}; noise: {}'.format(sampled_actions,noise))
+
         return_action = [np.squeeze(legal_action)]
-        logger.info('legal action:{}'.format(return_action))
+        logger.warning('Legal action:{}'.format(return_action))
         return return_action, policy_type
 
     # For distributed actors #
