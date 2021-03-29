@@ -173,7 +173,7 @@ class DQN(erl.ExaAgent):
         rdm = np.random.rand()
         if rdm <= self.epsilon:
             self.epsilon_adj()
-            action = random.randrange(self.env.action_space.n)#np.prod(self.env.action_space.nvec))
+            action = random.randrange(self.env.action_space.n)
             return action, 0
         else:
             np_state = np.array(state).reshape(1, 1, len(state))
@@ -206,8 +206,10 @@ class DQN(erl.ExaAgent):
         # TODO: This method is the most expensive and takes 90% of the agent compute time
         # TODO: Reduce computational time
         # TODO: Revisit the shape (e.g. extra 1 for the LSTM)
-        batch_states = np.empty((self.batch_size, 1, self.env.observation_space.shape[0]))
-        batch_target = np.empty((self.batch_size, self.env.action_space.n))#np.prod(self.env.action_space.nvec)))
+        # batch_states = np.empty((self.batch_size, 1, self.env.observation_space.shape[0]))
+        # batch_target = np.empty((self.batch_size, self.env.action_space.n))
+        batch_states = []
+        batch_target = []
         # Return empty batch
         if len(self.memory) < self.batch_size:
             yield batch_states, batch_target
@@ -216,7 +218,7 @@ class DQN(erl.ExaAgent):
         batch_target = list(map(self.calc_target_f, minibatch))
         batch_states = [np.array(exp[0]).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
         batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
-        batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])#np.prod(self.env.action_space.nvec)])
+        batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
         end_time = time.time()
         self.dataprep_time += (end_time - start_time)
         self.ndataprep_time += 1
@@ -226,7 +228,7 @@ class DQN(erl.ExaAgent):
     def train(self, batch):
         if self.is_learner:
             # if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
-            if len(batch[0]) >= (self.batch_size):
+            if len(batch) > 0 and len(batch[0]) >= (self.batch_size):
                 # batch_states, batch_target = batch
                 start_time = time.time()
                 with tf.device(self.device):
@@ -287,12 +289,6 @@ class DQN(erl.ExaAgent):
         with open(filename, 'wb') as f:
             pickle.dump(pickle_list, f, -1)
 
-    def update(self):
-        logger.info("Implement update method in dqn.py")
-
-    def monitor(self):
-        logger.info("Implement monitor method in dqn.py")
-
     def benchmark(dataset, num_epochs=1):
         start_time = time.perf_counter()
         for epoch_num in range(num_epochs):
@@ -314,3 +310,9 @@ class DQN(erl.ExaAgent):
                                                                         self.dataprep_time / self.ndataprep_time))
         else:
             logger.info("Agent[{}] - Average data prep time: {}".format(self.rank, 0))
+
+    def update(self):
+        logger.info("Implement update method in dqn.py")
+
+    def monitor(self):
+        logger.info("Implement monitor method in dqn.py")
