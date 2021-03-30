@@ -333,21 +333,3 @@ class TestClass:
             assert callable(method)
         except AttributeError:
             pytest.fail('Must implement abstractmethod save()', pytrace=True)
-
-    # 13 test update() for agents
-    def test_update(self):
-        # checking if abstractmethod update() is in agent (DQN) class
-        try:
-            method = getattr(test_agent, 'update')
-            assert callable(method)
-        except AttributeError:
-            pytest.fail('Must implement abstractmethod update()', pytrace=True)
-
-    # 14 test monitor() for agents
-    def test_monitor(self):
-        # checking if abstractmethod monitor() is in agent (DQN) class
-        try:
-            method = getattr(test_agent, 'monitor')
-            assert callable(method)
-        except AttributeError:
-            pytest.fail('Must implement abstractmethod monitor()', pytrace=True)

@@ -206,8 +206,10 @@ class DQN(erl.ExaAgent):
         # TODO: This method is the most expensive and takes 90% of the agent compute time
         # TODO: Reduce computational time
         # TODO: Revisit the shape (e.g. extra 1 for the LSTM)
-        batch_states = np.empty((self.batch_size, 1, self.env.observation_space.shape[0]))
-        batch_target = np.empty((self.batch_size, self.env.action_space.n))
+        # batch_states = np.empty((self.batch_size, 1, self.env.observation_space.shape[0]))
+        # batch_target = np.empty((self.batch_size, self.env.action_space.n))
+        batch_states = []
+        batch_target = []
         # Return empty batch
         if len(self.memory) < self.batch_size:
             yield batch_states, batch_target
@@ -226,7 +228,7 @@ class DQN(erl.ExaAgent):
     def train(self, batch):
         if self.is_learner:
             # if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
-            if len(batch[0]) >= (self.batch_size):
+            if len(batch) > 0 and len(batch[0]) >= (self.batch_size):
                 # batch_states, batch_target = batch
                 start_time = time.time()
                 with tf.device(self.device):
@@ -286,12 +288,6 @@ class DQN(erl.ExaAgent):
 
         with open(filename, 'wb') as f:
             pickle.dump(pickle_list, f, -1)
-
-    def update(self):
-        logger.info("Implement update method in dqn.py")
-
-    def monitor(self):
-        logger.info("Implement monitor method in dqn.py")
 
     def benchmark(dataset, num_epochs=1):
         start_time = time.perf_counter()
