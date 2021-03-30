@@ -88,7 +88,7 @@ class SciPyOptimizer(Optimizer):
         if self.force_consistent is None:
             self.set_force_consistent()
         self.fmax = fmax
-        self.callback(None)
+        #self.callback(None)
         try:
             self.call_fmin(fmax / self.H0, steps)
         except Converged:
@@ -226,76 +226,6 @@ def write_csv(path, rank, data):
         f.writelines(data+'\n')
 
 
-def findWater(geom, Num):
-    sortedGeom = []
-    sortedGeom.append("O  " + str(geom[Num])+"\n")
-    for line in geom:
-        dist = np.linalg.norm(geom[Num] - line)
-        if dist > 0.01 and dist < 1.20: #assuming angstroms
-            sortedGeom.append("H  " + str(line) + "\n")
-    return sortedGeom
-
-def read_geoms(geom):
-    '''
-    Reads a file containing a large number of XYZ formatted files concatenated together and splits them
-    into an array of arrays of vectors (MxNx3) where M is the number of geometries, N is the number of atoms,
-    and 3 is from each x, y, z coordinate.
-    '''
-    #atoms = []
-    iFile = open(geom).read()
-    allCoords = []
-    atomLabels = []
-    header = []
-    with open(geom) as ifile:
-        #iMol = 0
-        while True:
-            atomLabels__ = []
-            line = ifile.readline()
-            if line.strip().isdigit():
-                natoms = int(line)
-                title = ifile.readline()
-                header.append(str(natoms) + '\n' + title)
-                coords = np.zeros([natoms, 3], dtype="float64")
-                for x in coords:
-                    line = ifile.readline().split()
-                    atomLabels__.append(line[0])
-                    temp_list = line[1:4]
-                    temp_list2 = [float(o) for o in temp_list]
-                    x[:] = temp_list2
-                allCoords.append(coords)
-                atomLabels.append(atomLabels__)
-                #iMol += 1
-            if not line:
-                break
-    return header, atomLabels, allCoords
-
-def fix_structure_file(infile):
-    '''reorders xyz to group molecule atoms together'''
-    header, atomLabels, geoms = read_geoms(infile)
-    sortedGeoms = []
-    for iGeom, geom in enumerate(geoms):
-        sortedGeom = []
-        OIndices = []
-        #determine which indices have an oxygen atom
-        for i in range(len(atomLabels[iGeom])):
-            if atomLabels[iGeom][i] == "O" or atomLabels[iGeom][i] == "o":
-                OIndices.append(i)
-
-        #loop through findWater sorting the geometry
-        for line in OIndices:
-            sortedGeom.append(findWater(geom, line))
-        sortedGeoms.append(sortedGeom)
-
-    # rewrite xyz file
-    f = open(infile, 'w')
-    for iGeom, geom in enumerate(sortedGeoms):
-        f.write(header[iGeom])
-        for line in geom:
-            printable = "".join(str(x) for x in line).replace("[","").replace("]","")
-            printable = printable[:-1]
-            f.write(printable)
-            f.write("\n")
-
 def read_energy(xyz):
     with open(xyz, "r") as f:
         lines=f.readlines()
@@ -349,10 +279,10 @@ class WaterCluster(gym.Env):
         self.schnet_model =  torch.nn.DataParallel(model.module)
 
         # Read initial XYZ file
-        #fix_structure_file(self.env_input)
-        (init_ase, self.nclusters) = self._load_structure(self.env_input)
-        self.inital_state, self.state_order = get_state_embedding(self.schnet_model,init_ase) 
-        self.initial_energy = read_energy(self.env_input)#self.inital_state[0]
+        (self.current_ase, self.nclusters) = self._load_structure(self.env_input)
+        self.current_ase.calc = self.calc
+        self.inital_state, self.state_order = get_state_embedding(self.schnet_model, self.current_ase) 
+        self.initial_energy = read_energy(self.env_input)
         self.current_energy = self.initial_energy
 
         # State of the current setup
@@ -406,19 +336,19 @@ class WaterCluster(gym.Env):
         actions = [cluster_id, rotation_z, translation]
 
         # read in structure as ase atom object
-        try:
+        '''try:
             current_ase = read(self.current_structure, parallel=False)
         except:
             done = True
             self.current_state = np.zeros(self.embedded_state_size)
             write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, self.current_energy, self.current_state[0], reward, done])
             return self.current_state, reward, done, {}
-
+        '''
         # take actions
-        current_ase = update_cluster(current_ase, actions)
+        self.current_ase = update_cluster(self.current_ase, actions)
 
         # Save structure in xyz format
-        self.current_structure = os.path.join(self.output_dir,'rotationz_rank{}_episode{}_steps{}.xyz'.format(mpi_settings.agent_comm.rank, self.episode, self.steps))
+        #self.current_structure = os.path.join(self.output_dir,'rotationz_rank{}_episode{}_steps{}.xyz'.format(mpi_settings.agent_comm.rank, self.episode, self.steps))
         #write_structure(self.current_structure, current_ase)
         #fix_structure_file(self.current_structure)
         '''
@@ -441,13 +371,13 @@ class WaterCluster(gym.Env):
         '''
 
         try:
-            current_ase.calc = self.calc
-            dyn = SciPyFminLBFGSB(current_ase)
+            #self.current_ase.calc = self.calc
+            dyn = SciPyFminLBFGSB(self.current_ase)
             dyn.run(fmax=1e-2)
-            energy = self.calc.get_potential_energy(current_ase)
+            energy = self.calc.get_potential_energy(self.current_ase)
             logger.debug('energy from ttm {}'.format(energy))
         except:
-            os.remove(self.current_structure)
+            #os.remove(self.current_structure)
             done = True
             self.current_state = np.zeros(self.embedded_state_size)
             write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, self.current_energy, self.current_state[0], reward, done])
@@ -465,6 +395,7 @@ class WaterCluster(gym.Env):
             lowest_energy_xyz = os.path.join(self.output_dir,'rotationz_rank{}_episode{}_steps{}_energy{}.xyz'.format(
                 mpi_settings.agent_comm.rank, self.episode, self.steps,round(self.lowest_energy,4)))
             logger.info("\t Found lower energy:{}".format(energy))
+            write_structure(lowest_energy_xyz, self.current_ase, self.current_energy)
 
         #energy = round(energy, 6)
 
@@ -480,12 +411,12 @@ class WaterCluster(gym.Env):
         logger.debug('Reward:{}'.format(reward))
 
         # Update state information
-        self.current_state, self.state_order = get_state_embedding(self.schnet_model,current_ase)
+        self.current_state, self.state_order = get_state_embedding(self.schnet_model, self.current_ase)
         # Check with Schnet predictions
         schnet_energy = self.current_state[0]
-        energy_mape = np.abs(energy-schnet_energy)/(energy+schnet_energy)
-        if energy_mape>0.01:
-            logger.debug('Large difference model predict and Schnet MAPE :{}'.format(energy_mape))
+        #energy_mape = np.abs(energy-schnet_energy)/(energy+schnet_energy)
+        #if energy_mape>0.01:
+        #    logger.debug('Large difference model predict and Schnet MAPE :{}'.format(energy_mape))
 
         # End episode if the same structure is found max_streak times in a row
         if round(self.current_energy,4) == round(energy,4):
@@ -499,16 +430,17 @@ class WaterCluster(gym.Env):
             self.streak = 0
 
         # Set reward to normalized SchNet energy (first value in state) 
-        reward = (self.current_energy - energy ) #/ self.initial_energy 
+        reward = energy/self.initial_energy#(self.current_energy - energy ) #/ self.initial_energy 
 
         # Update current energy    
         self.current_energy = energy       
 
-        write_structure(self.current_structure, current_ase, self.current_energy)
+        #write_structure(self.current_structure, self.current_ase, self.current_energy)
         #fix_structure_file(self.current_structure)
 
-        if lowest_energy_xyz!='':
-            copyfile(self.current_structure,lowest_energy_xyz)
+        #if lowest_energy_xyz!='':
+            #copyfile(self.current_structure,lowest_energy_xyz)
+            #write_structure(lowest_energy_xyz, self.current_ase, self.current_energy)
 
 
         write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, self.current_energy, self.current_state[0], reward, done])
@@ -532,11 +464,12 @@ class WaterCluster(gym.Env):
         self.steps = 0
         self.streak = 0
         logger.debug('Env::reset(); episode[{0:4d}]'.format(self.episode, self.steps))
-        (init_ase, self.nclusters) = self._load_structure(self.env_input)
-        self.current_structure = self.init_structure
+        (self.current_ase, self.nclusters) = self._load_structure(self.env_input)
+        self.current_ase.calc = self.calc
+        #self.current_structure = self.init_structure
 
-        state_embedding, self.state_order = get_state_embedding(self.schnet_model,init_ase)
-        self.initial_energy = read_energy(self.env_input)#state_embedding[0] 
+        state_embedding, self.state_order = get_state_embedding(self.schnet_model, self.current_ase)
+        self.initial_energy = read_energy(self.env_input) 
         self.current_energy = self.initial_energy
         self.current_state =  state_embedding
         logger.debug('self.current_state shape:{}'.format(self.current_state.shape))
