@@ -44,21 +44,13 @@ class DDPG(erl.ExaAgent):
         logger.info('Env upper bounds: {}'.format(self.upper_bound))
         logger.info('Env lower bounds: {}'.format(self.lower_bound))
 
-        self.gamma = 0.995
-        self.tau = 0.05
-
-        # start_std = self.upper_bound - self.lower_bound
-        # stop_std = 0.05*start_std
-        # self.ou_noise = OUActionNoise2(mean=float(0) * np.ones(1),
-        #                               start_std=float(start_std) * np.ones(1),
-        #                               stop_std=float(stop_std) * np.ones(1),
-        #                               damping=0.0005)
+        self.gamma = 0.99
+        self.tau = 0.005
 
         std_dev = 0.2
         ave_bound = (self.upper_bound + self.lower_bound) / 2
-        print('ave_bound: ', ave_bound)
+        print('ave_bound: {}'.format(ave_bound))
         self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(std_dev) * np.ones(1))
-        # self.ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(std_dev) * np.ones(1))
 
         # Experience data
         self.buffer_capacity = 5000
@@ -72,20 +64,36 @@ class DDPG(erl.ExaAgent):
         self.done_buffer = np.zeros((self.buffer_capacity, 1))
         self.memory = self.state_buffer  # BAD
 
-        # TODO: Required by the learner
-        self.actor_model = self.get_actor()
-        self.critic_model = self.get_critic()
+        # Setup TF configuration to allow memory growth
+#        tf.keras.backend.set_floatx('float64')
+        config = tf.compat.v1.ConfigProto()
+        config.gpu_options.allow_growth = True
+        sess = tf.compat.v1.Session(config=config)
+        tf.compat.v1.keras.backend.set_session(sess)
+        
+        # Training model only required by the learners
+        self.actor_model = None
+        self.critic_model = None
+        if self.is_learner:
+            self.actor_model = self.get_actor()
+            self.critic_model = self.get_critic()
 
-        # Every agent needs this
-        self.target_critic = self.get_critic()
-        self.target_actor = self.get_actor()
-
-        self.target_actor.set_weights(self.actor_model.get_weights())
-        self.target_critic.set_weights(self.critic_model.get_weights())
+        # Every agent needs this, however, actors only use the CPU (for now)
+        self.target_critic = None
+        self.target_actor = None
+        if self.is_learner:
+            self.target_actor = self.get_actor()
+            self.target_critic = self.get_critic()
+            self.target_actor.set_weights(self.actor_model.get_weights())
+            self.target_critic.set_weights(self.critic_model.get_weights())
+        else:
+            with tf.device('/CPU:0'):
+                self.target_actor = self.get_actor()
+                self.target_critic = self.get_critic()
 
         # Learning rate for actor-critic models
-        critic_lr = 0.0001
-        actor_lr = 0.002
+        critic_lr = 0.002
+        actor_lr = 0.001
         self.critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
         self.actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
@@ -104,13 +112,20 @@ class DDPG(erl.ExaAgent):
         # Training and updating Actor & Critic networks.
         with tf.GradientTape() as tape:
             target_actions = self.target_actor(next_state_batch, training=True)
+            #logger.warning('target action: {}'.format(target_actions))
+            #target_actions = np.array([np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,)) for i in next_state_batch])
+            #isValids = [ self.env.action_space.contains(i) for i in target_actions ]
+            #logger.warning('isValids: {}'.format(isValids))
             y = reward_batch + self.gamma * self.target_critic(
                 [next_state_batch, target_actions], training=True
             )
             critic_value = self.critic_model([state_batch, action_batch], training=True)
             critic_loss = tf.math.reduce_mean(tf.math.square(y - critic_value))
-
-        logger.info("loss: {}".format(critic_loss))
+            #if isValid==False:
+            #    logger.warning('Initial loss: {}'.format(critic_loss))
+            #    critic_loss += 100000
+                
+        logger.warning("Critic loss: {}".format(critic_loss))
         critic_grad = tape.gradient(critic_loss, self.critic_model.trainable_variables)
         self.critic_optimizer.apply_gradients(
             zip(critic_grad, self.critic_model.trainable_variables)
@@ -120,23 +135,22 @@ class DDPG(erl.ExaAgent):
             actions = self.actor_model(state_batch, training=True)
             critic_value = self.critic_model([state_batch, actions], training=True)
             actor_loss = -tf.math.reduce_mean(critic_value)
+            #actor_loss = tf.math.reduce_mean(critic_value)
 
+        logger.warning("Actor loss: {}".format(actor_loss))
         actor_grad = tape.gradient(actor_loss, self.actor_model.trainable_variables)
         self.actor_optimizer.apply_gradients(
             zip(actor_grad, self.actor_model.trainable_variables)
         )
 
     def get_actor(self):
-        # Initialize weights between -3e-3 and 3-e3
-        last_init = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
-
+        # State as input
         inputs = layers.Input(shape=(self.num_states,))
         out = layers.Dense(256, activation="relu")(inputs)
         out = layers.Dense(256, activation="relu")(out)
-        outputs = layers.Dense(self.num_actions, activation="relu", kernel_initializer=last_init)(out)
-        # outputs = layers.Dense(1, activation="tanh", kernel_initializer=last_init)(out)
-
-        outputs = outputs * self.upper_bound
+        out = layers.Dense(self.num_actions, activation="tanh", kernel_initializer=tf.random_uniform_initializer())(out)
+        #out = layers.Dense(self.num_actions, activation="sigmoid", kernel_initializer=tf.random_uniform_initializer())(out)
+        outputs = layers.Lambda(lambda i: i * self.upper_bound)(out)
         model = tf.keras.Model(inputs, outputs)
         return model
 
@@ -154,7 +168,7 @@ class DDPG(erl.ExaAgent):
         concat = layers.Concatenate()([state_out, action_out])
 
         out = layers.Dense(256, activation="relu")(concat)
-        out = layers.Dense(256, activation="relu")(out)
+        out = layers.Dense(256, activation="linear",kernel_initializer=tf.random_uniform_initializer())(out)
         outputs = layers.Dense(1)(out)
 
         # Outputs single value for give state-action
@@ -163,8 +177,6 @@ class DDPG(erl.ExaAgent):
         return model
 
     def generate_data(self):
-        # if self.buffer_counter < self.batch_size:
-        #      yield [], [], [], []
         record_range = min(self.buffer_counter, self.buffer_capacity)
         logger.info('record_range:{}'.format(record_range))
         # Randomly sample indices
@@ -182,7 +194,10 @@ class DDPG(erl.ExaAgent):
         # self.epsilon_adj()
         # if len(batch[0]) >= self.batch_size:
         #     logger.info('Training...')
-        self.update_grad(batch[0], batch[1], batch[2], batch[3])
+        if self.is_learner:
+            logger.warning('Training...')
+            self.update_grad(batch[0], batch[1], batch[2], batch[3])
+        
 
     def target_train(self):
         # Update the target model
@@ -202,46 +217,23 @@ class DDPG(erl.ExaAgent):
         self.target_critic.set_weights(target_weights)
 
     def action(self, state):
-        # random.seed(datetime.now())
-        # random_data = os.urandom(4)
-        # np.random.seed(int.from_bytes(random_data, byteorder="big"))
-        # rdm = np.random.rand()
-        # if rdm <= self.epsilon:
-        #     action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=self.env.action_space.shape)
-        #     # random.randrange(self.env.action_space.n)
-        #     logger.info('rdm action:{}'.format(action))
-        #     return action, 0
-        # else:
-        # random.seed(datetime.now())
-        # random_data = os.urandom(4)
-        # np.random.seed(int.from_bytes(random_data, byteorder="big"))
-        # if self.buffer_counter <= self.batch_size:
-        #     action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(1,))
-        #     return action, 0
-        # else:
+        policy_type = 1
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
+        
         sampled_actions = tf.squeeze(self.target_actor(tf_state))
-        # print('sampled_actions: ',sampled_actions)
-        # sampled_actions = tf.squeeze(self.actor_model(tf_state))
-        noise = self.ou_noise()  # [self.ou_noise() for i in range(self.num_actions)]
-        # Adding noise to action
-        # print('noise: ', noise)
+        noise = self.ou_noise()  
         sampled_actions_wn = sampled_actions.numpy() + noise
         legal_action = sampled_actions_wn
-        # print('sampled_actions_wn: ', sampled_actions_wn)
-        # Make sure action is within bounds
-        # legal_action = np.clip(sampled_actions_wn, self.lower_bound, self.upper_bound)
         isValid = self.env.action_space.contains(sampled_actions_wn)
-        print('isValid: ', isValid)
         if isValid == False:
             legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
-            return np.squeeze(legal_action), 0
-        print('legal_action: ', legal_action)
-        logger.info('legal action:{}'.format([np.squeeze(legal_action)]))
-        # return legal_action, noise[0]
-        return_action = np.squeeze(legal_action)
-        # print('return_action',return_action)
-        return return_action, 1
+            policy_type = 0
+            logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn,legal_action))
+            logger.warning('Policy action: {}; noise: {}'.format(sampled_actions,noise))
+
+        return_action = [np.squeeze(legal_action)]
+        logger.warning('Legal action:{}'.format(return_action))
+        return return_action, policy_type
 
     # For distributed actors #
     def get_weights(self):
@@ -252,13 +244,25 @@ class DDPG(erl.ExaAgent):
 
     def set_learner(self):
         self.is_learner = True
+        self.actor_model = self.get_actor()
+        self.critic_model = self.get_critic()
+        self.target_actor = self.get_actor()
+        self.target_critic = self.get_critic()
+        self.target_actor.set_weights(self.actor_model.get_weights())
+        self.target_critic.set_weights(self.critic_model.get_weights())
 
     # Extra methods
+    def update(self):
+        print("Implement update method in ddpg.py")
+
     def load(self):
         print("Implement load method in ddpg.py")
 
     def save(self, results_dir):
         print("Implement load method in ddpg.py")
+
+    def monitor(self):
+        print("Implement monitor method in ddpg.py")
 
     def set_agent(self):
         print("Implement set_agent method in ddpg.py")
