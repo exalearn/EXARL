@@ -426,11 +426,14 @@ class WaterCluster(gym.Env):
                 done = True
                 self.current_state = np.zeros(self.embedded_state_size)
                 return self.current_state, reward, done, {}
+            
         else:
             self.streak = 0
+            # only give reward if a different structure is found, else 0ish
+            reward = energy/self.initial_energy
 
         # Set reward to normalized SchNet energy (first value in state) 
-        reward = energy/self.initial_energy#(self.current_energy - energy ) #/ self.initial_energy 
+        # reward = energy/self.initial_energy#(self.current_energy - energy ) #/ self.initial_energy 
 
         # Update current energy    
         self.current_energy = energy       
