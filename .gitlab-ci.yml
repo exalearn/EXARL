@@ -1,0 +1,18 @@
+stages:
+  - run-exabooster-benchmark
+
+cori_benchmarks:
+  stage: run-exabooster-benchmark
+  script:
+    - export SLURM_CPU_BIND="cores"
+    - cd /global/cfs/cdirs/m3363/exarl-profiling/ExaRL.git
+    - git pull
+    - hash=$(git rev-parse --short HEAD)
+    - shifter pip install -e . --user
+    - output_dir="${SCRATCH}/exarl-ci/output-${hash}"
+    - mkdir -p "${output_dir}"
+    - srun shifter python driver/driver.py --output_dir ${output_dir} --env ExaBooster-v1 --n_episodes 50 --n_steps 5 --workflow async --agent DQN-v0
+  tags:
+    - cori
+  variables:
+    SCHEDULER_PARAMETERS: "-C gpu -M escori -t 10 -n 2 --ntasks-per-node=2 -c 10 --gpus-per-task=1 --gpu-bind=map_gpu:0,1 -J ExaRL-ExaBooster-v1-2g-cgpu -L SCRATCH,cfs --image=registry.nersc.gov/apg/exarl-ngc:0.1"

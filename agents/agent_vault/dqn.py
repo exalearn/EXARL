@@ -27,16 +27,13 @@ logger = log.setup_logger(__name__, cd.run_params["log_level"])
 
 
 class DQN(erl.ExaAgent):
-    def __init__(self, env, is_learner):
 
-        # Initial values
-        self.is_learner = is_learner
+    def __init__(self, env):
+        #
+        self.is_learner = False
         self.model = None
         self.target_model = None
         self.target_weights = None
-        self.device = None
-        self.mirrored_strategy = None
-        #
 
         self.env = env
         self.agent_comm = ExaComm.agent_comm
@@ -45,9 +42,9 @@ class DQN(erl.ExaAgent):
         self.rank = self.agent_comm.rank
         self.size = self.agent_comm.size
 
-        # self._get_device()
-        self.device = "/CPU:0"
-        logger.info("Using device: {}".format(self.device))
+        self._get_device()
+        # self.device = '/CPU:0'
+        logger.info('Using device: {}'.format(self.device))
         # tf.config.experimental.set_memory_growth(self.device, True)
 
         # Timers
@@ -62,26 +59,29 @@ class DQN(erl.ExaAgent):
         # num_GPU = 0
 
         # Setup GPU cfg
-        # if tf_version < 2:
-        #    gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
-        #    if self.rank == 0 and len(gpu_names) > 0:
-        #        num_cores = 1
-        #        num_CPU = 1
-        #        num_GPU = len(gpu_names)
-        #    config = tf.ConfigProto(intra_op_parallelism_threads=num_cores,
-        #                            inter_op_parallelism_threads=num_cores,
-        #                            allow_soft_placement=True,
-        #                            device_count={'CPU': num_CPU,
-        #                                          'GPU': num_GPU})
-        #    config.gpu_options.allow_growth = True
-        #    sess = tf.Session(config=config)
-        #    set_session(sess)
-        # elif tf_version >= 2:
-        #
-        #    config = tf.compat.v1.ConfigProto()
-        #    config.gpu_options.allow_growth = True
-        #    sess = tf.compat.v1.Session(config=config)
-        #    tf.compat.v1.keras.backend.set_session(sess)
+        if tf_version < 2:
+            gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
+            if self.rank == 0 and len(gpu_names) > 0:
+                num_cores = 1
+                num_CPU = 1
+                num_GPU = len(gpu_names)
+            config = tf.ConfigProto(intra_op_parallelism_threads=num_cores,
+                                    inter_op_parallelism_threads=num_cores,
+                                    allow_soft_placement=True,
+                                    device_count={'CPU': num_CPU,
+                                                  'GPU': num_GPU})
+            config.gpu_options.allow_growth = True
+            sess = tf.Session(config=config)
+            set_session(sess)
+        elif tf_version >= 2:
+
+            config = tf.compat.v1.ConfigProto()
+            config.gpu_options.allow_growth = True
+            sess = tf.compat.v1.Session(config=config)
+            tf.compat.v1.keras.backend.set_session(sess)
+
+        # Optimization using XLA (1.1x speedup)
+        # tf.config.optimizer.set_jit(True)
 
         # Optimization using XLA (1.1x speedup)
         # tf.config.optimizer.set_jit(True)
@@ -120,42 +120,20 @@ class DQN(erl.ExaAgent):
         self.clipnorm = cd.run_params["clipnorm"]
         self.clipvalue = cd.run_params["clipvalue"]
 
-        #
-        config = tf.compat.v1.ConfigProto()
-        config.gpu_options.allow_growth = True
-        sess = tf.compat.v1.Session(config=config)
-        tf.compat.v1.keras.backend.set_session(sess)
-
-        # Build active network model - only for learner agent -
-        if self.is_learner:
-            # tf.debugging.set_log_device_placement(True)
-            gpus = tf.config.experimental.list_physical_devices("GPU")
-            logger.info("Available GPUs: {}".format(gpus))
-            self.mirrored_strategy = tf.distribute.MirroredStrategy()
-            logger.info("Using learner strategy: {}".format(self.mirrored_strategy))
-            # Active model
-            with self.mirrored_strategy.scope():
+        # Build network model
+        with tf.device(self.device):
+            if self.is_learner:
                 self.model = self._build_model()
                 self.model._name = "learner"
                 self.model.compile(loss=self.loss, optimizer=self.optimizer)
-                logger.info("Active model: \n".format(self.model.summary()))
-            # Target model
-            with tf.device("/CPU:0"):
-                self.target_model = self._build_model()
-                self.target_model._name = "target_model"
-                self.target_model.compile(loss=self.loss, optimizer=self.optimizer)
-                # self.target_model.summary()
-                self.target_weights = self.target_model.get_weights()
-        else:
-            cpus = tf.config.experimental.list_physical_devices("CPU")
-            logger.error("Available CPUs: {}".format(cpus))
-            with tf.device("/CPU:0"):
-                self.model = None
-                self.target_model = self._build_model()
-                self.target_model._name = "target_model"
-                self.target_model.compile(loss=self.loss, optimizer=self.optimizer)
-                # self.target_model.summary()
-                self.target_weights = self.target_model.get_weights()
+                self.model.summary()
+        # with tf.device('/CPU:0'):
+            # self.target_model = self._build_model()
+        with tf.device('/CPU:0'):
+            self.target_model = self._build_model()
+            self.target_model.compile(loss=self.loss, optimizer=self.optimizer)
+            self.target_model.summary()
+            self.target_weights = self.target_model.get_weights()
 
         # Build network model
         # with tf.device(self.device):
@@ -177,15 +155,15 @@ class DQN(erl.ExaAgent):
     def _get_device(self):
         return "/CPU:0"
         # cpus = tf.config.experimental.list_physical_devices('CPU')
-        # gpus = tf.config.experimental.list_physical_devices('GPU')
-        # ngpus = len(gpus)
-        # logger.info('Number of available GPUs: {}'.format(ngpus))
-        # if ngpus > 0:
-        #    gpu_id = self.rank % ngpus
-        #    self.device = '/GPU:{}'.format(gpu_id)
-        #    # tf.config.experimental.set_memory_growth(gpus[gpu_id], True)
-        # else:
-        #    self.device = '/CPU:0'
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        ngpus = len(gpus)
+        logger.info('Number of available GPUs: {}'.format(ngpus))
+        if ngpus > 0:
+            gpu_id = self.rank % ngpus
+            self.device = '/GPU:{}'.format(gpu_id)
+            # tf.config.experimental.set_memory_growth(gpus[gpu_id], True)
+        else:
+            self.device = '/CPU:0'
 
     def _build_model(self):
         if self.model_type == "MLP":
@@ -200,13 +178,11 @@ class DQN(erl.ExaAgent):
             sys.exit("Oops! That was not a valid model type. Try again...")
 
     def set_learner(self):
-        logger.debug(
-            "Agent[{}] - Creating active model for the learner".format(self.rank)
-        )
-        # self.is_learner = True
-        # self.model = self._build_model()
-        # self.model.compile(loss=self.loss, optimizer=self.optimizer)
-        # self.model.summary()
+        logger.debug('Agent[{}] - Creating active model for the learner'.format(self.rank))
+        self.is_learner = True
+        self.model = self._build_model()
+        self.model.compile(loss=self.loss, optimizer=self.optimizer)
+        self.model.summary()
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
@@ -292,8 +268,7 @@ class DQN(erl.ExaAgent):
             if len(batch[0]) >= (self.batch_size):
                 # batch_states, batch_target = batch
                 start_time = time.time()
-                # with tf.device(self.device):
-                with self.mirrored_strategy.scope():
+                with tf.device(self.device):
                     history = self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
                 end_time = time.time()
                 self.training_time += end_time - start_time
@@ -304,10 +279,9 @@ class DQN(erl.ExaAgent):
                     )
                 )
                 start_time_episode = time.time()
-                logger.info(
-                    "Agent[%s] - Target update time: %s "
-                    % (str(self.rank), str(time.time() - start_time_episode))
-                )
+                logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
+
+                return history
         else:
             logger.warning(
                 "Training will not be done because this instance is not set to learn."

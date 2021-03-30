@@ -1,7 +1,7 @@
-from tensorflow.keras.models import Sequential, Model
-from tensorflow.keras.layers import Dense, Dropout, Input, GaussianNoise, BatchNormalization, LSTM
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.regularizers import l1, l2, l1_l2
+from keras.models import Sequential, Model
+from keras.layers import Dense, Dropout, Input, GaussianNoise, BatchNormalization, LSTM
+from keras.optimizers import Adam
+from keras.regularizers import l1, l2, l1_l2
 
 
 def build_model(self):

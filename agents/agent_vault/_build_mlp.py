@@ -1,6 +1,6 @@
-from tensorflow.keras.models import Sequential, Model
-from tensorflow.keras.layers import Dense, Dropout, Input, GaussianNoise, BatchNormalization, Flatten
-from tensorflow.keras.optimizers import Adam
+from keras.models import Sequential, Model
+from keras.layers import Dense, Dropout, Input, GaussianNoise, BatchNormalization, Flatten
+from keras.optimizers import Adam
 
 
 def build_model(self):
