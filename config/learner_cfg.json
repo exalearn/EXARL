@@ -1,5 +1,5 @@
 {
-    "agent": "DQN-v0",
+    "agent": "DDPG-v0",
     "env": "CartPole-v0",
     "workflow": "async",
     "n_episodes": 10,
