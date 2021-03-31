@@ -284,6 +284,7 @@ class WaterCluster(gym.Env):
         self.inital_state, self.state_order = get_state_embedding(self.schnet_model, self.current_ase) 
         self.initial_energy = read_energy(self.env_input)
         self.current_energy = self.initial_energy
+        self.lowest_energy = self.initial_energy
 
         # State of the current setup
         self.init_structure = self.env_input
@@ -390,8 +391,12 @@ class WaterCluster(gym.Env):
 
         logger.debug('lowest_energy:{}'.format(self.lowest_energy))
         logger.debug('energy:{}'.format(energy))
+
+        # Big reward and end episode if a lower energy is reached
         if  round(self.lowest_energy,4)>round(energy,4):
             self.lowest_energy=energy
+            done = True
+            reward = -energy
             lowest_energy_xyz = os.path.join(self.output_dir,'rotationz_rank{}_episode{}_steps{}_energy{}.xyz'.format(
                 mpi_settings.agent_comm.rank, self.episode, self.steps,round(self.lowest_energy,4)))
             logger.info("\t Found lower energy:{}".format(energy))
@@ -419,7 +424,7 @@ class WaterCluster(gym.Env):
         #    logger.debug('Large difference model predict and Schnet MAPE :{}'.format(energy_mape))
 
         # End episode if the same structure is found max_streak times in a row
-        if round(self.current_energy,4) == round(energy,4):
+        if False:# round(self.current_energy,4) == round(energy,4):
             # Return values
             self.streak += 1 
             if self.streak == self.max_streak:
@@ -430,10 +435,10 @@ class WaterCluster(gym.Env):
         else:
             self.streak = 0
             # only give reward if a different structure is found, else 0ish
-            reward = energy/self.initial_energy
+            #reward = self.current_energy - energy
 
         # Set reward to normalized SchNet energy (first value in state) 
-        # reward = energy/self.initial_energy#(self.current_energy - energy ) #/ self.initial_energy 
+        reward = self.current_energy - energy  #/ self.initial_energy 
 
         # Update current energy    
         self.current_energy = energy       
@@ -456,13 +461,14 @@ class WaterCluster(gym.Env):
         logger.info("Resetting the environemnts.")
         logger.info("Current lowest energy: {}".format(self.lowest_energy))
 
+        '''
         # delete all files from last episode of the rank (not lowest energy files)
         files_in_directory = os.listdir(self.output_dir)
         filtered_files = [file for file in files_in_directory if (file.endswith(".xyz")) and ('rank{}_'.format(mpi_settings.agent_comm.rank) in file) and ('-' not in file)]
         for file in filtered_files:
             path_to_file = os.path.join(self.output_dir, file)
             os.remove(path_to_file)
-
+        '''
         self.episode += 1
         self.steps = 0
         self.streak = 0
