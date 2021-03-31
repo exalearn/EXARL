@@ -39,12 +39,12 @@ class DDPG(erl.ExaAgent):
         logger.info('Env upper bounds: {}'.format(self.upper_bound))
         logger.info('Env lower bounds: {}'.format(self.lower_bound))
 
-        #self.gamma = 0.99
-        #self.tau = 0.005
+        # self.gamma = 0.99
+        # self.tau = 0.005
         self.gamma = cd.run_params['gamma']
         self.tau = cd.run_params['tau']
 
-        # model definitions 
+        # model definitions
         self.actor_dense = cd.run_params['actor_dense']
         self.actor_dense_act = cd.run_params['actor_dense_act']
         self.actor_out_act = cd.run_params['actor_out_act']
@@ -73,20 +73,20 @@ class DDPG(erl.ExaAgent):
         self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(std_dev) * np.ones(1))
 
         # Not used by agent but required by the learner class
-        #self.epsilon = 1.0
-        #self.epsilon_min = 0.01
-        #self.epsilon_decay = 0.999
+        # self.epsilon = 1.0
+        # self.epsilon_min = 0.01
+        # self.epsilon_decay = 0.999
         self.epsilon = cd.run_params['epsilon']
         self.epsilon_min = cd.run_params['epsilon_min']
         self.epsilon_decay = cd.run_params['epsilon_decay']
 
         # Experience data
-        #self.buffer_capacity = 5000
-        #self.batch_size = 64
+        # self.buffer_capacity = 5000
+        # self.batch_size = 64
         self.buffer_counter = 0
         self.buffer_capacity = cd.run_params['buffer_capacity']
         self.batch_size = cd.run_params['batch_size']
-        #self.buffer_counter = cd.run_params['buffer_counter']
+        # self.buffer_counter = cd.run_params['buffer_counter']
 
         self.state_buffer = np.zeros((self.buffer_capacity, self.num_states))
         self.action_buffer = np.zeros((self.buffer_capacity, self.num_actions))
@@ -123,8 +123,8 @@ class DDPG(erl.ExaAgent):
                 self.target_critic = self.get_critic()
 
         # Learning rate for actor-critic models
-        #critic_lr = 0.002
-        #actor_lr = 0.001
+        # critic_lr = 0.002
+        # actor_lr = 0.001
         self.critic_lr = cd.run_params['critic_lr']
         self.actor_lr = cd.run_params['actor_lr']
         self.critic_optimizer = tf.keras.optimizers.Adam(self.critic_lr)
@@ -145,18 +145,18 @@ class DDPG(erl.ExaAgent):
         # Training and updating Actor & Critic networks.
         with tf.GradientTape() as tape:
             target_actions = self.target_actor(next_state_batch, training=True)
-            #logger.warning('target action: {}'.format(target_actions))
-            #target_actions = np.array([np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,)) for i in next_state_batch])
-            #isValids = [ self.env.action_space.contains(i) for i in target_actions ]
-            #logger.warning('isValids: {}'.format(isValids))
+            # logger.warning('target action: {}'.format(target_actions))
+            # target_actions = np.array([np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,)) for i in next_state_batch])
+            # isValids = [ self.env.action_space.contains(i) for i in target_actions ]
+            # logger.warning('isValids: {}'.format(isValids))
             y = reward_batch + self.gamma * self.target_critic(
                 [next_state_batch, target_actions], training=True
             )
             critic_value = self.critic_model([state_batch, action_batch], training=True)
             critic_loss = tf.math.reduce_mean(tf.math.square(y - critic_value))
-            #if isValid==False:
-            #    logger.warning('Initial loss: {}'.format(critic_loss))
-            #    critic_loss += 100000
+            # if isValid==False:
+            #     logger.warning('Initial loss: {}'.format(critic_loss))
+            #     critic_loss += 100000
 
         logger.warning("Critic loss: {}".format(critic_loss))
         critic_grad = tape.gradient(critic_loss, self.critic_model.trainable_variables)
@@ -168,7 +168,7 @@ class DDPG(erl.ExaAgent):
             actions = self.actor_model(state_batch, training=True)
             critic_value = self.critic_model([state_batch, actions], training=True)
             actor_loss = -tf.math.reduce_mean(critic_value)
-            #actor_loss = tf.math.reduce_mean(critic_value)
+            # actor_loss = tf.math.reduce_mean(critic_value)
 
         logger.warning("Actor loss: {}".format(actor_loss))
         actor_grad = tape.gradient(actor_loss, self.actor_model.trainable_variables)
@@ -187,11 +187,11 @@ class DDPG(erl.ExaAgent):
         # output layer has dimension actions, separate activation setting
         out = layers.Dense(self.num_actions, activation=self.actor_out_act,
                            kernel_initializer=tf.random_uniform_initializer())(out)
-        #out = layers.Dense(self.num_actions, activation="tanh", kernel_initializer=tf.random_uniform_initializer())(out)
-        #out = layers.Dense(self.num_actions, activation="sigmoid", kernel_initializer=tf.random_uniform_initializer())(out)
+        # out = layers.Dense(self.num_actions, activation="tanh", kernel_initializer=tf.random_uniform_initializer())(out)
+        # out = layers.Dense(self.num_actions, activation="sigmoid", kernel_initializer=tf.random_uniform_initializer())(out)
         outputs = layers.Lambda(lambda i: i * self.upper_bound)(out)
         model = tf.keras.Model(inputs, outputs)
-        #model.summary()
+        # model.summary()
 
         return model
 
@@ -208,15 +208,15 @@ class DDPG(erl.ExaAgent):
 
         # Action as input
         action_input = layers.Input(shape=self.num_actions)
-        #action_out = layers.Dense(32, activation="relu")(action_input)
+        # action_out = layers.Dense(32, activation="relu")(action_input)
 
         # first layer takes inputs
         action_out = layers.Dense(self.critic_action_dense[0],
-                                 activation=self.critic_action_dense_act)(action_input)
+                                  activation=self.critic_action_dense_act)(action_input)
         # loop over remaining layers
         for i in range(1, len(self.critic_action_dense)):
             action_out = layers.Dense(self.critic_action_dense[i],
-                                     activation=self.critic_action_dense_act)(action_out)
+                                      activation=self.critic_action_dense_act)(action_out)
 
         # Both are passed through seperate layer before concatenating
         concat = layers.Concatenate()([state_out, action_out])
@@ -224,13 +224,13 @@ class DDPG(erl.ExaAgent):
         # assumes at least 2 post-concat layers
         # first layer takes concat layer as input
         concat_out = layers.Dense(self.critic_concat_dense[0],
-                                 activation=self.critic_concat_dense_act)(concat)
+                                  activation=self.critic_concat_dense_act)(concat)
         # loop over remaining inner layers
-        for i in range(1, len(self.critic_concat_dense)-1):
+        for i in range(1, len(self.critic_concat_dense) - 1):
             concat_out = layers.Dense(self.critic_concat_dense[i],
-                                     activation=self.critic_concat_dense_act)(concat_out)
+                                      activation=self.critic_concat_dense_act)(concat_out)
 
-        #concat_out = layers.Dense(256, activation="relu")(concat)
+        # concat_out = layers.Dense(256, activation="relu")(concat)
         # last layer has different activation
         concat_out = layers.Dense(self.critic_concat_dense[-1], activation=self.critic_out_act,
                                   kernel_initializer=tf.random_uniform_initializer())(concat_out)
@@ -238,7 +238,7 @@ class DDPG(erl.ExaAgent):
 
         # Outputs single value for give state-action
         model = tf.keras.Model([state_input, action_input], outputs)
-        #model.summary()
+        # model.summary()
 
         return model
 
@@ -264,7 +264,6 @@ class DDPG(erl.ExaAgent):
             logger.warning('Training...')
             self.update_grad(batch[0], batch[1], batch[2], batch[3])
 
-
     def target_train(self):
         # Update the target model
         # if self.buffer_counter >= self.batch_size:
@@ -285,17 +284,17 @@ class DDPG(erl.ExaAgent):
     def action(self, state):
         policy_type = 1
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
-        
+
         sampled_actions = tf.squeeze(self.target_actor(tf_state))
-        noise = self.ou_noise()  
+        noise = self.ou_noise()
         sampled_actions_wn = sampled_actions.numpy() + noise
         legal_action = sampled_actions_wn
         isValid = self.env.action_space.contains(sampled_actions_wn)
         if isValid == False:
             legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
             policy_type = 0
-            logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn,legal_action))
-            logger.warning('Policy action: {}; noise: {}'.format(sampled_actions,noise))
+            logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn, legal_action))
+            logger.warning('Policy action: {}; noise: {}'.format(sampled_actions, noise))
 
         return_action = [np.squeeze(legal_action)]
         logger.warning('Legal action:{}'.format(return_action))
