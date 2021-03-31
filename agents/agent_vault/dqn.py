@@ -130,6 +130,7 @@ class DQN(erl.ExaAgent):
             self.lstm_layers = cd.run_params['lstm_layers']
             self.gauss_noise = cd.run_params['gauss_noise']
             self.regularizer = cd.run_params['regularizer']
+            self.out_activation = cd.run_params['out_activation']
 
         # for both
         self.activation = cd.run_params['activation']
@@ -137,7 +138,6 @@ class DQN(erl.ExaAgent):
         self.loss = cd.run_params['loss']
 
         # these seem to be unused by either model
-        # self.out_activation = cd.run_params['out_activation']
         # self.clipnorm = cd.run_params['clipnorm']
         # self.clipvalue = cd.run_params['clipvalue']
 
