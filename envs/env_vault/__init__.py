@@ -7,6 +7,7 @@ if env == 'ExaTDLG-v0':
 elif env == 'ExaTDLG-v3':
     from envs.env_vault.exalearn_bcp_tdlg_v3 import BlockCoPolymerTDLGv3
 elif env == 'ExaCartPole-v0':
+#elif env.lower() == 'exacartpole-v0':
     from envs.env_vault.ExaCartpoleDynamic import ExaCartpoleDynamic
 elif env == 'ExaCartPole-v1':
     from envs.env_vault.ExaCartpoleStatic import ExaCartpoleStatic
