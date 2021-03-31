@@ -397,10 +397,12 @@ class WaterCluster(gym.Env):
             self.lowest_energy=energy
             done = True
             reward = -energy
+            self.current_state, self.state_order = get_state_embedding(self.schnet_model, self.current_ase)
             lowest_energy_xyz = os.path.join(self.output_dir,'rotationz_rank{}_episode{}_steps{}_energy{}.xyz'.format(
                 mpi_settings.agent_comm.rank, self.episode, self.steps,round(self.lowest_energy,4)))
             logger.info("\t Found lower energy:{}".format(energy))
             write_structure(lowest_energy_xyz, self.current_ase, self.current_energy)
+            return self.current_state, reward, done, {}
 
         #energy = round(energy, 6)
 
