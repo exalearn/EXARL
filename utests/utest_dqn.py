@@ -170,10 +170,11 @@ class TestClass:
             except ValueError:
                 pytest.fail('Bad loss function for TensorFlow Keras', pytrace=True)
 
-            assert test_agent.clipnorm == cd.run_params['clipnorm'] and \
-                isinstance(test_agent.clipnorm, float) is True
-            assert test_agent.clipvalue == cd.run_params['clipvalue'] and \
-                isinstance(test_agent.clipvalue, float) is True
+            # Currently unused
+            # assert test_agent.clipnorm == cd.run_params['clipnorm'] and \
+            #     isinstance(test_agent.clipnorm, float) is True
+            # assert test_agent.clipvalue == cd.run_params['clipvalue'] and \
+            #     isinstance(test_agent.clipvalue, float) is True
 
             assert test_agent.memory.maxlen == 1000
 
