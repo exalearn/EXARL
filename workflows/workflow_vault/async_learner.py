@@ -151,8 +151,6 @@ class ASYNC(erl.ExaWorkflow):
 
             start = MPI.Wtime()
             while episode != -1:
-                # Add start jitter to stagger the jobs [ 1-50 milliseconds]
-                # time.sleep(randint(0, 50) / 1000)
                 # Reset variables each episode
                 workflow.env.seed(0)
                 # TODO: optimize some of these variables out for env processes
