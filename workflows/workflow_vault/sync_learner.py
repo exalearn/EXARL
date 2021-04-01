@@ -108,8 +108,6 @@ class SYNC(erl.ExaWorkflow):
                 current_weights = comm.bcast(target_weights, root=0)
 
                 # Set the model weight for all the workers
-                # if comm.rank > 0:# and rank0_memories > 30:# and rank0_memories%(size)==0:
-                #    logger.info('## Rank[%s] - Updating weights ##' % str(comm.rank))
                 workflow.agent.set_weights(current_weights)
                 workflow.agent.epsilon = rank0_epsilon
 
