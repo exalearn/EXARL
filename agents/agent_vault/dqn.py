@@ -211,10 +211,10 @@ class DQN(erl.ExaAgent):
         # TODO: This method is the most expensive and takes 90% of the agent compute time
         # TODO: Reduce computational time
         # TODO: Revisit the shape (e.g. extra 1 for the LSTM)
-        # batch_states = np.empty((self.batch_size, 1, self.env.observation_space.shape[0]))
-        # batch_target = np.empty((self.batch_size, self.env.action_space.n))
-        batch_states = []
-        batch_target = []
+        batch_states = np.zeros((self.batch_size, 1, self.env.observation_space.shape[0]))
+        batch_target = np.zeros((self.batch_size, self.env.action_space.n))
+        # batch_states = []
+        # batch_target = []
         # Return empty batch
         if len(self.memory) < self.batch_size:
             yield batch_states, batch_target
