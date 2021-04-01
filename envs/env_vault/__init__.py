@@ -11,7 +11,7 @@ elif env == 'ExaCH-v0':
 elif env == 'ExaCovid-v0':
     from envs.env_vault.ExaCOVID import ExaCOVID
 elif env == 'ExaBooster-v1':
-    from envs.env_vault.ExaBooster-v1 import ExaBooster_v1 as ExaBooster
+    from envs.env_vault.ExaBoosterDiscrete import ExaBooster_v1 as ExaBooster
 elif env == 'ExaBoosterContinuous-v1':
     from envs.env_vault.surrogate_accelerator_v2 import Surrogate_Accelerator_v2 as ExaBoosterContinuous
 elif env == 'ExaLAMMPS-v0':

@@ -131,7 +131,7 @@ class DQN(erl.ExaAgent):
                 self.model = self._build_model()
                 self.model.compile(loss=self.loss, optimizer=self.optimizer)
                 self.model.summary()
-                
+
         with tf.device('/CPU:0'):
             self.target_model = self._build_model()
             self.target_model.compile(loss=self.loss, optimizer=self.optimizer)
