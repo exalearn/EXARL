@@ -59,8 +59,6 @@ class DDPG(erl.ExaAgent):
         logger.info('Env upper bounds: {}'.format(self.upper_bound))
         logger.info('Env lower bounds: {}'.format(self.lower_bound))
 
-        # self.gamma = 0.99
-        # self.tau = 0.005
         self.gamma = cd.run_params['gamma']
         self.tau = cd.run_params['tau']
 
@@ -78,14 +76,7 @@ class DDPG(erl.ExaAgent):
         self.critic_out_act = cd.run_params['critic_out_act']
         self.critic_optimizer = cd.run_params['critic_optimizer']
         self.tau = cd.run_params['tau']
-        self.tau = cd.run_params['tau']
 
-        # start_std = self.upper_bound - self.lower_bound
-        # stop_std = 0.05*start_std
-        # self.ou_noise = OUActionNoise2(mean=float(0) * np.ones(1),
-        #                               start_std=float(start_std) * np.ones(1),
-        #                               stop_std=float(stop_std) * np.ones(1),
-        #                               damping=0.0005)
 
         std_dev = 0.2
         ave_bound = (self.upper_bound + self.lower_bound) / 2
@@ -93,16 +84,11 @@ class DDPG(erl.ExaAgent):
         self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(std_dev) * np.ones(1))
 
         # Not used by agent but required by the learner class
-        # self.epsilon = 1.0
-        # self.epsilon_min = 0.01
-        # self.epsilon_decay = 0.999
         self.epsilon = cd.run_params['epsilon']
         self.epsilon_min = cd.run_params['epsilon_min']
         self.epsilon_decay = cd.run_params['epsilon_decay']
 
         # Experience data
-        # self.buffer_capacity = 5000
-        # self.batch_size = 64
         self.buffer_counter = 0
         self.buffer_capacity = cd.run_params['buffer_capacity']
         self.batch_size = cd.run_params['batch_size']
@@ -116,7 +102,7 @@ class DDPG(erl.ExaAgent):
         self.memory = self.state_buffer  # BAD
 
         # Setup TF configuration to allow memory growth
-#        tf.keras.backend.set_floatx('float64')
+        # tf.keras.backend.set_floatx('float64')
         config = tf.compat.v1.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.compat.v1.Session(config=config)
@@ -143,8 +129,6 @@ class DDPG(erl.ExaAgent):
                 self.target_critic = self.get_critic()
 
         # Learning rate for actor-critic models
-        # critic_lr = 0.002
-        # actor_lr = 0.001
         self.critic_lr = cd.run_params['critic_lr']
         self.actor_lr = cd.run_params['actor_lr']
         self.critic_optimizer = tf.keras.optimizers.Adam(self.critic_lr)
@@ -165,18 +149,11 @@ class DDPG(erl.ExaAgent):
         # Training and updating Actor & Critic networks.
         with tf.GradientTape() as tape:
             target_actions = self.target_actor(next_state_batch, training=True)
-            # logger.warning('target action: {}'.format(target_actions))
-            # target_actions = np.array([np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,)) for i in next_state_batch])
-            # isValids = [ self.env.action_space.contains(i) for i in target_actions ]
-            # logger.warning('isValids: {}'.format(isValids))
             y = reward_batch + self.gamma * self.target_critic(
                 [next_state_batch, target_actions], training=True
             )
             critic_value = self.critic_model([state_batch, action_batch], training=True)
             critic_loss = tf.math.reduce_mean(tf.math.square(y - critic_value))
-            # if isValid==False:
-            #     logger.warning('Initial loss: {}'.format(critic_loss))
-            #     critic_loss += 100000
 
         logger.warning("Critic loss: {}".format(critic_loss))
         critic_grad = tape.gradient(critic_loss, self.critic_model.trainable_variables)
@@ -207,8 +184,6 @@ class DDPG(erl.ExaAgent):
         # output layer has dimension actions, separate activation setting
         out = layers.Dense(self.num_actions, activation=self.actor_out_act,
                            kernel_initializer=tf.random_uniform_initializer())(out)
-        # out = layers.Dense(self.num_actions, activation="tanh", kernel_initializer=tf.random_uniform_initializer())(out)
-        # out = layers.Dense(self.num_actions, activation="sigmoid", kernel_initializer=tf.random_uniform_initializer())(out)
         outputs = layers.Lambda(lambda i: i * self.upper_bound)(out)
         model = tf.keras.Model(inputs, outputs)
         # model.summary()
@@ -228,7 +203,6 @@ class DDPG(erl.ExaAgent):
 
         # Action as input
         action_input = layers.Input(shape=self.num_actions)
-        # action_out = layers.Dense(32, activation="relu")(action_input)
 
         # first layer takes inputs
         action_out = layers.Dense(self.critic_action_dense[0],
@@ -250,7 +224,6 @@ class DDPG(erl.ExaAgent):
             concat_out = layers.Dense(self.critic_concat_dense[i],
                                       activation=self.critic_concat_dense_act)(concat_out)
 
-        # concat_out = layers.Dense(256, activation="relu")(concat)
         # last layer has different activation
         concat_out = layers.Dense(self.critic_concat_dense[-1], activation=self.critic_out_act,
                                   kernel_initializer=tf.random_uniform_initializer())(concat_out)
@@ -277,18 +250,12 @@ class DDPG(erl.ExaAgent):
         yield state_batch, action_batch, reward_batch, next_state_batch
 
     def train(self, batch):
-        # self.epsilon_adj()
-        # if len(batch[0]) >= self.batch_size:
-        #     logger.info('Training...')
         if self.is_learner:
             logger.warning('Training...')
             self.update_grad(batch[0], batch[1], batch[2], batch[3])
 
     def target_train(self):
         # Update the target model
-        # if self.buffer_counter >= self.batch_size:
-        # update_target(self.target_actor.variables, self.actor_model.variables, self.tau)
-        # update_target(self.target_critic.variables, self.critic_model.variables, self.tau)
         model_weights = self.actor_model.get_weights()
         target_weights = self.target_actor.get_weights()
         for i in range(len(target_weights)):
