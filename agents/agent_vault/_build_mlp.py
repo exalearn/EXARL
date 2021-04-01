@@ -41,6 +41,4 @@ def build_model(self):
     model.summary()
     print('', flush=True)
 
-    # optimizer = self.candle.build_optimizer(self.optimizer, self.learning_rate, self.candle.keras_default_config())
-    # model.compile(loss=self._huber_loss, optimizer=optimizer)
     return model
