@@ -179,15 +179,15 @@ class TestClass:
             assert test_agent.memory.maxlen == 1000
 
             # test model.compile()
-            gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
-            if len(gpu_names) > 0:
-                self.device = 'GPU'
-                assert self._peek_layers_attribute() is True
+            # gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
+            # if len(gpu_names) > 0:
+            #     self.device = 'GPU'
+            #     assert self._peek_layers_attribute() is True
 
             # on device /CPU:0
-            self.device = 'CPU'
-            assert isinstance(test_agent.target_model.layers, list) is True and \
-                self._peek_layers_attribute() is True
+            # self.device = 'CPU'
+            # assert isinstance(test_agent.target_model.layers, list) is True and \
+            #     self._peek_layers_attribute() is True
 
         except ValueError:
             pytest.fail('Invalid Arguments in model.compile() for optimizer, loss, or metrics', pytrace=True)
