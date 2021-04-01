@@ -63,9 +63,7 @@ class DQN(erl.ExaAgent):
         self.size = self.agent_comm.size
 
         self._get_device()
-        # self.device = '/CPU:0'
         logger.info('Using device: {}'.format(self.device))
-        # tf.config.experimental.set_memory_growth(self.device, True)
 
         # Timers
         self.training_time = 0
@@ -100,16 +98,6 @@ class DQN(erl.ExaAgent):
             sess = tf.compat.v1.Session(config=config)
             tf.compat.v1.keras.backend.set_session(sess)
 
-        # Optimization using XLA (1.1x speedup)
-        # tf.config.optimizer.set_jit(True)
-
-        # Optimization using mixed precision (1.5x speedup)
-        # Layers use float16 computations and float32 variables
-        # from tensorflow.keras.mixed_precision import experimental as mixed_precision
-        # policy = mixed_precision.Policy('mixed_float16')
-        # git diff
-        # mixed_precision.set_policy(policy)
-
         # dqn intrinsic variables
         self.results_dir = cd.run_params['output_dir']
         self.gamma = cd.run_params['gamma']
@@ -137,18 +125,13 @@ class DQN(erl.ExaAgent):
         self.optimizer = cd.run_params['optimizer']
         self.loss = cd.run_params['loss']
 
-        # these seem to be unused by either model
-        # self.clipnorm = cd.run_params['clipnorm']
-        # self.clipvalue = cd.run_params['clipvalue']
-
         # Build network model
         with tf.device(self.device):
             if self.is_learner:
                 self.model = self._build_model()
                 self.model.compile(loss=self.loss, optimizer=self.optimizer)
                 self.model.summary()
-        # with tf.device('/CPU:0'):
-            # self.target_model = self._build_model()
+                
         with tf.device('/CPU:0'):
             self.target_model = self._build_model()
             self.target_model.compile(loss=self.loss, optimizer=self.optimizer)
@@ -159,14 +142,12 @@ class DQN(erl.ExaAgent):
         self.memory = deque(maxlen=1000)
 
     def _get_device(self):
-        # cpus = tf.config.experimental.list_physical_devices('CPU')
         gpus = tf.config.experimental.list_physical_devices('GPU')
         ngpus = len(gpus)
         logger.info('Number of available GPUs: {}'.format(ngpus))
         if ngpus > 0:
             gpu_id = self.rank % ngpus
             self.device = '/GPU:{}'.format(gpu_id)
-            # tf.config.experimental.set_memory_growth(gpus[gpu_id], True)
         else:
             self.device = '/CPU:0'
 
@@ -251,9 +232,7 @@ class DQN(erl.ExaAgent):
 
     def train(self, batch):
         if self.is_learner:
-            # if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
             if len(batch) > 0 and len(batch[0]) >= (self.batch_size):
-                # batch_states, batch_target = batch
                 start_time = time.time()
                 with tf.device(self.device):
                     history = self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
