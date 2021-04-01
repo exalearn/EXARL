@@ -48,7 +48,7 @@ def build_model(self):
                    ))
     model.add(Dropout(self.gauss_noise[l]))
     model.add(Dense(self.env.action_space.n, activation=self.out_activation))
-    opt = Adam(lr=self.learning_rate)
     
-    # model.summary()
+    model.summary()
+    print('', flush=True)
     return model
