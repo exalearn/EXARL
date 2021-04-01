@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # This material was prepared as an account of work sponsored by an agency of the
 # United States Government.  Neither the United States Government nor the United
 # States Department of Energy, nor Battelle, nor any of their employees, nor any
