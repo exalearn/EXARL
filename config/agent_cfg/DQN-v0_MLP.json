@@ -9,5 +9,6 @@
     "dense" : [64, 128],
     "activation" : "relu",
     "optimizer" : "adam",
+    "out_activation":"sigmoid",
     "loss" : "mse"
 }
