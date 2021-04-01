@@ -79,7 +79,7 @@ def get_dataset(df, variable='B:VIMIN'):
     return scaler, X_train, Y_train
 
 
-class Surrogate_Accelerator_v1(gym.Env):
+class ExaBooster_v1(gym.Env):
     def __init__(self):
 
         # Environment is based on the "BOOSTR: A Dataset for Accelerator Reinforcement Learning Control"
