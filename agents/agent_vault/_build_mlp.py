@@ -34,7 +34,7 @@ def build_model(self):
         layer_width = self.dense[i]
         layers.append(Dense(layer_width, activation=self.activation)(layers[-1]))
     # output layer
-    layers.append(Dense(self.env.action_space.n, activation=self.activation)(layers[-1]))
+    layers.append(Dense(self.env.action_space.n, activation=self.out_activation)(layers[-1]))
     layers.append(Flatten()(layers[-1]))
 
     model = Model(inputs=layers[0], outputs=layers[-1])
