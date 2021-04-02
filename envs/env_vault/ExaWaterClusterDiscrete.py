@@ -241,7 +241,7 @@ def read_energy(xyz):
 
 
 
-class WaterCluster(gym.Env):
+class ExaWaterClusterDiscrete(gym.Env):
     metadata = {'render.modes': ['human']}
 
     def __init__(self):
