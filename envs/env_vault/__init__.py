@@ -2,11 +2,7 @@ import utils.candleDriver as cd
 
 env = cd.run_params['env']
 
-if env == 'ExaTDLG-v0':
-    from envs.env_vault.exalearn_bcp_tdlg import BlockCoPolymerTDLG
-elif env == 'ExaTDLG-v3':
-    from envs.env_vault.exalearn_bcp_tdlg_v3 import BlockCoPolymerTDLGv3
-elif env == 'ExaCartPole-v0':
+if env == 'ExaCartPole-v0':
     from envs.env_vault.ExaCartpoleDynamic import ExaCartpoleDynamic
 elif env == 'ExaCartPole-v1':
     from envs.env_vault.ExaCartpoleStatic import ExaCartpoleStatic
@@ -15,7 +11,7 @@ elif env == 'ExaCH-v0':
 elif env == 'ExaCovid-v0':
     from envs.env_vault.ExaCOVID import ExaCOVID
 elif env == 'ExaBooster-v1':
-    from envs.env_vault.surrogate_accelerator_v1 import Surrogate_Accelerator_v1 as ExaBooster
+    from envs.env_vault.ExaBoosterDiscrete import ExaBooster_v1 as ExaBooster
 elif env == 'ExaBoosterContinuous-v1':
     from envs.env_vault.surrogate_accelerator_v2 import Surrogate_Accelerator_v2 as ExaBoosterContinuous
 elif env == 'ExaLAMMPS-v0':

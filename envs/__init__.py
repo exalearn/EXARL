@@ -26,7 +26,7 @@ elif env == 'ExaTDLG-v3':
 
 elif env == 'ExaCartPole-v0':
     register(
-        id=env,
+        id=env.lower(),
         entry_point='envs.env_vault:ExaCartpoleDynamic'
     )
 
