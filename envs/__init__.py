@@ -11,12 +11,6 @@ if env == 'ExaCH-v0':
         entry_point='envs.env_vault:CahnHilliardEnv',
     )
 
-elif env == 'ExaCartPole-v0':
-    register(
-        id=env.lower(),
-        entry_point='envs.env_vault:ExaCartpoleDynamic'
-    )
-
 elif env == 'ExaCartPole-v1':
     register(
         id=env,
