@@ -112,6 +112,7 @@ class DQN(erl.ExaAgent):
         # for mlp
         if self.model_type == 'MLP':
             self.dense = cd.run_params['dense']
+            self.out_activation = cd.run_params['out_activation']
 
         # for lstm
         elif self.model_type == 'LSTM':

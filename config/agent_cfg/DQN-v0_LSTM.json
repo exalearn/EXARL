@@ -12,7 +12,7 @@
     "lstm_layers":[56, 56, 56],
     "activation":"tanh",
     "gauss_noise":[0.1, 0.1,0.1],
-    "out_activation" : "sigmoid",
+    "out_activation" : "linear",
     "regularizer":[0.001, 0.001],
     "clipnorm":1.0,
     "clipvalue":0.5
