@@ -17,4 +17,4 @@ elif env == 'ExaBoosterContinuous-v1':
 elif env == 'ExaLAMMPS-v0':
     from envs.env_vault.exalearn_lammps_ex1 import ExaLammpsEx1 as ExaLAMMPS
 elif env == 'ExaWaterCluster-v0':
-    from envs.env_vault.ExaWaterClusterDiscrete import WaterCluster
+    from envs.env_vault.ExaWaterClusterDiscrete import ExaWaterClusterDiscrete
