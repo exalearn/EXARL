@@ -263,17 +263,17 @@ class ExaWaterClusterDiscrete(gym.Env):
         self.streak = 0
         self.max_streak = 10
 
-        #############################################################
         # Setup water molecule application (should be configurable)
-        #############################################################
+        self.file_dir = os.path.dirname(__file__)
         self.env_input_name = cd.run_params['env_input_name']
-        self.env_input_dir = cd.run_params['env_input_dir']
+        self.env_input_dir = os.path.join(self.file_dir, 'env_data/water_cluster_data')
         self.env_input = os.path.join(self.env_input_dir, self.env_input_name)
         self.output_dir = cd.run_params['output_dir']
         self.calc = TTMCalculator()
 
         # Schnet encodering model
-        self.schnet_model_pfn = cd.run_params['schnet_model_pfn']
+        self.schnet_model_name = cd.run_params['env_schnet_model_name']
+        self.schnet_model_pfn = os.path.join(self.env_input_dir,self.schnet_model_name )
         model = torch.load(self.schnet_model_pfn, map_location='cpu')
         self.schnet_model =  torch.nn.DataParallel(model.module)
 
