@@ -7,7 +7,7 @@ if env == 'ExaCartPole-v0':
 elif env == 'ExaCartPole-v1':
     from envs.env_vault.ExaCartpoleStatic import ExaCartpoleStatic
 elif env == 'ExaCH-v0':
-    from envs.env_vault.env_ch import CahnHilliardEnv
+    from envs.env_vault.ExaCH import CahnHilliardEnv
 elif env == 'ExaCovid-v0':
     from envs.env_vault.ExaCOVID import ExaCOVID
 elif env == 'ExaBoosterDiscrete-v0':

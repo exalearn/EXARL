@@ -17,3 +17,7 @@
 [submodule "envs/env_vault/ttm"]
 	path = envs/env_vault/ttm
 	url = https://github.com/exalearn/hydronet.git
+[submodule "envs/env_vault/molecular-graph-descriptors"]
+	path = envs/env_vault/molecular-graph-descriptors
+	url = https://github.com/exalearn/molecular-graph-descriptors.git
+	branch = eval_only
