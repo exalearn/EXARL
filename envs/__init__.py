@@ -47,7 +47,7 @@ elif env == 'ExaBoosterDiscrete-v0':
         id=env,
         entry_point='envs.env_vault:ExaBooster'
     )
-    
+
 elif env == 'ExaWaterClusterDiscrete-v0':
     register(
         id=env,
