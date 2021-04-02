@@ -88,7 +88,7 @@ class ExaBooster_v1(gym.Env):
         booster_dir = cd.run_params['model_dir']
         if booster_dir == 'None':
             self.file_dir = os.path.dirname(__file__)
-            booster_dir = os.path.join(self.file_dir, 'booster')
+            booster_dir = os.path.join(self.file_dir, 'env_data/booster_data')
         logger.info('booster related directory: '.format(booster_dir))
         try:
             os.mkdir(booster_dir)
