@@ -12,18 +12,14 @@ logger = log.setup_logger(__name__, cd.run_params['log_level'])
 from ase.io import read, write
 from ase import Atom, Atoms
 
-from math import log10
-import subprocess
 import os
 import math
-import tempfile
-from shutil import copyfile
 import torch
 import itertools
 
+# schnet dependencies
 from schnetpack import AtomsData
 from schnetpack import AtomsLoader
-
 from schnetpack.environment import SimpleEnvironmentProvider
 from schnetpack import AtomsLoader
 
@@ -39,10 +35,8 @@ from ttm.ase import TTMCalculator
 class Converged(Exception):
     pass
 
-
 class OptimizerConvergenceError(Exception):
     pass
-
 
 class SciPyOptimizer(Optimizer):
     def __init__(self, atoms, logfile='-', trajectory=None,
@@ -54,7 +48,6 @@ class SciPyOptimizer(Optimizer):
         self.force_calls = 0
         self.callback_always = callback_always
         self.H0 = alpha
-
         self.pot_function = ttm_from_f2py
         self.model = 21
 
@@ -119,10 +112,8 @@ class SciPyOptimizer(Optimizer):
         gradients, self.energy = self.pot_function(self.model, np.asarray(coords).T)
         self.gradients = self.normal_water_ordering(gradients.T).reshape(-1)
 
-
     def TTM_grad(self, *args):
         return self.gradients
-
 
     def dump(self, data):
         pass
@@ -137,7 +128,6 @@ class SciPyFminLBFGSB(SciPyOptimizer):
     """Quasi-Newton method (Broydon-Fletcher-Goldfarb-Shanno)"""
     def call_fmin(self, fmax, steps):
         output = opt.minimize(self.f, self.x0(), method='L-BFGS-B', jac=self.TTM_grad, options={'maxiter':1000, 'ftol':1e-8, 'gtol':1e-8})
-
 
 # SchNet
 def load_data(atoms, idx=0):
@@ -154,7 +144,6 @@ def load_data(atoms, idx=0):
     new_dataset['_cell_offset'] = torch.FloatTensor(offsets.astype(np.float32))
     new_dataset['_idx'] = torch.LongTensor(np.array([idx], dtype=np.int))
     return AtomsLoader([new_dataset], batch_size=1)
-
 
 def get_activation(name, activation={}):
     def hook(model, input, output):
@@ -225,7 +214,6 @@ def write_csv(path, rank, data):
     with open(os.path.join(path,'rank{}.csv'.format(rank)), 'a') as f:
         f.writelines(data+'\n')
 
-
 def read_energy(xyz):
     with open(xyz, "r") as f:
         lines=f.readlines()
@@ -233,16 +221,11 @@ def read_energy(xyz):
 
 
 
-
 class WaterCluster(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self):#, cfg='envs/env_vault/env_cfg/env_setup.json'):
+    def __init__(self):
         super().__init__()
-        """
-        Description:
-        Toy environment used to test new agents
-        """
 
         # Default
         natoms = 3
@@ -263,10 +246,6 @@ class WaterCluster(gym.Env):
         #############################################################
         # Setup water molecule application (should be configurable)
         #############################################################
-        self.app_dir = cd.run_params['app_dir']
-        logger.debug('Using app_dir: {}'.format(self.app_dir))
-        self.app_name = 'main.x'
-        self.app = os.path.join(self.app_dir, self.app_name)
         self.env_input_name = cd.run_params['env_input_name']
         self.env_input_dir = cd.run_params['env_input_dir']
         self.env_input = os.path.join(self.env_input_dir, self.env_input_name)
@@ -320,8 +299,6 @@ class WaterCluster(gym.Env):
         logger.debug('Env::step(); steps[{0:3d}]'.format(self.steps))
         logger.debug('Current energy:{}'.format(self.current_energy))
         logger.debug('Action Choice:{}'.format(action))
-        action = self.action_map[action]
-        logger.debug('Action:{}'.format(action))
 
         # Initialize outut
         done = False
@@ -330,55 +307,23 @@ class WaterCluster(gym.Env):
 
         natoms = 3
         # Extract actions
+        action = self.action_map[action]
+        logger.debug('Action:{}'.format(action))
         cluster_id = action[0]
         cluster_id = self.state_order[cluster_id]
         rotation_z = action[1]
         translation = action[2]
         actions = [cluster_id, rotation_z, translation]
 
-        # read in structure as ase atom object
-        '''try:
-            current_ase = read(self.current_structure, parallel=False)
-        except:
-            done = True
-            self.current_state = np.zeros(self.embedded_state_size)
-            write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, self.current_energy, self.current_state[0], reward, done])
-            return self.current_state, reward, done, {}
-        '''
         # take actions
         self.current_ase = update_cluster(self.current_ase, actions)
 
-        # Save structure in xyz format
-        #self.current_structure = os.path.join(self.output_dir,'rotationz_rank{}_episode{}_steps{}.xyz'.format(mpi_settings.agent_comm.rank, self.episode, self.steps))
-        #write_structure(self.current_structure, current_ase)
-        #fix_structure_file(self.current_structure)
-        '''
-        # Run the process
-        min_xyz = os.path.join(self.output_dir,'minimum_rank{}.xyz'.format(mpi_settings.agent_comm.rank))
-        env_out = subprocess.Popen([self.app, self.current_structure, min_xyz], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        stdout, stderr = env_out.communicate()
-        stdout = stdout.decode('latin-1').splitlines()
-
-        # Check for clear problems
-        if any("Error in the det" in s for s in stdout):
-            logger.debug("\tEnv::step(); !!! Error in the det !!!")
-            os.remove(self.current_structure)
-            done = True
-            self.current_state = np.zeros(self.embedded_state_size)
-            #reward = 0
-            #self.current_energy = -2
-            write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, self.current_energy, self.current_state[0], reward, done])
-            return self.current_state, reward, done, {}
-        '''
-
         try:
-            #self.current_ase.calc = self.calc
             dyn = SciPyFminLBFGSB(self.current_ase)
             dyn.run(fmax=1e-2)
             energy = self.calc.get_potential_energy(self.current_ase)
             logger.debug('energy from ttm {}'.format(energy))
         except:
-            #os.remove(self.current_structure)
             done = True
             self.current_state = np.zeros(self.embedded_state_size)
             write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, self.current_energy, self.current_state[0], reward, done])
@@ -387,24 +332,24 @@ class WaterCluster(gym.Env):
 
         # Reward is currently based on the potential energy
         lowest_energy_xyz = ''
-        #current_ase = read(min_xyz, parallel=False)
 
         logger.debug('lowest_energy:{}'.format(self.lowest_energy))
         logger.debug('energy:{}'.format(energy))
 
         # Big reward and end episode if a lower energy is reached
-        if  round(self.lowest_energy,4)>round(energy,4):
+        if  round(self.lowest_energy,3)>round(energy,3):
             self.lowest_energy=energy
-            done = True
-            reward = -energy
-            self.current_state, self.state_order = get_state_embedding(self.schnet_model, self.current_ase)
+            #done = True
+            # bias by episode
+            #reward = (2*(self.current_energy - energy))*self.episode
+            logger.debug('Lowest energy found. status {}, reward {}'.format(done,reward))
+            #self.current_state, self.state_order = get_state_embedding(self.schnet_model, self.current_ase)
             lowest_energy_xyz = os.path.join(self.output_dir,'rotationz_rank{}_episode{}_steps{}_energy{}.xyz'.format(
                 mpi_settings.agent_comm.rank, self.episode, self.steps,round(self.lowest_energy,4)))
             logger.info("\t Found lower energy:{}".format(energy))
             write_structure(lowest_energy_xyz, self.current_ase, self.current_energy)
-            return self.current_state, reward, done, {}
-
-        #energy = round(energy, 6)
+            #write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, self.current_energy, self.current_state[0], reward, done])
+            #return self.current_state, reward, done, {}
 
         # End episode if the structure is unstable
         if energy > self.initial_energy * 0.95:
@@ -426,7 +371,7 @@ class WaterCluster(gym.Env):
         #    logger.debug('Large difference model predict and Schnet MAPE :{}'.format(energy_mape))
 
         # End episode if the same structure is found max_streak times in a row
-        if False:# round(self.current_energy,4) == round(energy,4):
+        if False:#round(self.current_energy,3) == round(energy,3):
             # Return values
             self.streak += 1 
             if self.streak == self.max_streak:
@@ -440,18 +385,10 @@ class WaterCluster(gym.Env):
             #reward = self.current_energy - energy
 
         # Set reward to normalized SchNet energy (first value in state) 
-        reward = self.current_energy - energy  #/ self.initial_energy 
+        reward = (self.current_energy - energy)#*(self.steps/2)  #/ self.initial_energy 
 
         # Update current energy    
         self.current_energy = energy       
-
-        #write_structure(self.current_structure, self.current_ase, self.current_energy)
-        #fix_structure_file(self.current_structure)
-
-        #if lowest_energy_xyz!='':
-            #copyfile(self.current_structure,lowest_energy_xyz)
-            #write_structure(lowest_energy_xyz, self.current_ase, self.current_energy)
-
 
         write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, self.current_energy, self.current_state[0], reward, done])
 
@@ -463,14 +400,6 @@ class WaterCluster(gym.Env):
         logger.info("Resetting the environemnts.")
         logger.info("Current lowest energy: {}".format(self.lowest_energy))
 
-        '''
-        # delete all files from last episode of the rank (not lowest energy files)
-        files_in_directory = os.listdir(self.output_dir)
-        filtered_files = [file for file in files_in_directory if (file.endswith(".xyz")) and ('rank{}_'.format(mpi_settings.agent_comm.rank) in file) and ('-' not in file)]
-        for file in filtered_files:
-            path_to_file = os.path.join(self.output_dir, file)
-            os.remove(path_to_file)
-        '''
         self.episode += 1
         self.steps = 0
         self.streak = 0
