@@ -11,19 +11,6 @@ if env == 'ExaCH-v0':
         entry_point='envs.env_vault:CahnHilliardEnv',
     )
 
-elif env == 'ExaTDLG-v0':
-    register(
-        id=env,
-        entry_point='envs.env_vault:BlockCoPolymerTDLG',
-    )
-
-elif env == 'ExaTDLG-v3':
-    register(
-        id=env,
-        entry_point='envs.env_vault:BlockCoPolymerTDLGv3',
-        kwargs={"app_dir": './envs/env_vault/LibTDLG'},
-    )
-
 elif env == 'ExaCartPole-v0':
     register(
         id=env.lower(),
