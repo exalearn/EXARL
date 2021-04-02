@@ -1,0 +1,6 @@
+{
+    "app_dir": "/gpfs/alpine/ast153/proj-shared/pot_ttm_mod2/",
+    "env_input_name": "W12_geoms_highestE.xyz",
+    "env_input_dir": "/gpfs/alpine/ast153/proj-shared/water_cluster_data/",
+    "schnet_model_pfn": "/gpfs/alpine/ast153/proj-shared/schnet_encoder/best_model"
+}
