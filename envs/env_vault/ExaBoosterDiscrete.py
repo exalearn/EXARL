@@ -19,6 +19,7 @@
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
 import gym
+import sys
 import os
 import errno
 import math
@@ -85,6 +86,10 @@ class ExaBooster_v1(gym.Env):
         # Environment is based on the "BOOSTR: A Dataset for Accelerator Reinforcement Learning Control"
         # https://zenodo.org/record/4088982#.X4836kJKhTY
 
+        try:
+            booster_data_dir = cd.run_params['booster_data_dir']
+        except:
+            sys.exit("Must set booster_data_dir")
         booster_dir = cd.run_params['model_dir']
         if booster_dir == 'None':
             self.file_dir = os.path.dirname(__file__)
@@ -114,7 +119,7 @@ class ExaBooster_v1(gym.Env):
         # Check if data is available
         # booster_data_file = 'BOOSTR.cvs'
         booster_data_file = cd.run_params['data_file']
-        booster_file_pfn = os.path.join(booster_dir, booster_data_file)
+        booster_file_pfn = os.path.join(booster_data_dir, booster_data_file)
         logger.info('Booster data file pfn:{}'.format(booster_file_pfn))
         if not os.path.exists(booster_file_pfn):
             logger.info('No cached file. Downloading...')
