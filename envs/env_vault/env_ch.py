@@ -70,11 +70,11 @@ class CahnHilliardEnv(gym.Env):
         self.output_dir = cd.run_params['output_dir']
         self.target_dir = cd.run_params['target_dir']   # './data/ch/'
         self.target_file = cd.run_params['target_file']  # 'target.out'
-        self.notPlotRL = cd.run_params['initT']        # False
-        self.length = cd.run_params['notPlotRL']    # 100
+        self.notPlotRL = cd.run_params['notPlotRL']        # False
+        self.length = cd.run_params['length']    # 100
         self.genTarget = cd.run_params['genTarget']    # True
         self.randInitial = cd.run_params['randInitial']  # False
-        # self.steps           = 0
+        self.steps = cd.run_params['n_steps'] # TODO: this number should came from the main rl config!!! 
         # self.episodes        = 0
 
         # self.args = args
@@ -482,7 +482,7 @@ class CahnHilliardEnv(gym.Env):
         n_dt = self.length  # 2000
         # TODO: THIS DOES NOT WORK ANYMORE if the setTargetState is called in
         # the constructor!
-        n_tsteps = self._max_episode_steps  # self.steps  # 100
+        n_tsteps = self.steps # self._max_episode_steps
         self.info.t0 = 0
         self.info.iter = 0
         stiff_dt = np.min([self.biharm_dt, self.diff_dt, self.lin_dt])
