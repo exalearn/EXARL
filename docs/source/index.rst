@@ -25,6 +25,7 @@ for reinforcement learning agents, environments, and workflows used for the Desi
    base
    utils
    utests
+   tutorial
 
 Cite this software
 ==================
