@@ -25,7 +25,7 @@ shifter \
 python \
   driver/driver.py \
   --output_dir ${output_dir} \
-  --env ExaCartPole-v1 --agent DQN-v0 --n_episodes 100 --n_steps 100 \
+  --env ExaCartPole-v1 --agent DQN-v0 --n_episodes 10 --n_steps 10 \
   --workflow async \
   --batch_size 32 \
   --learning_rate 0.005
