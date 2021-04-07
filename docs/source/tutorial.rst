@@ -38,8 +38,10 @@ Installation on NERSC Cori
 
 .. code-block:: bash
 
-    $ git clone https://github.com/exalearn/ExaRL.git
+    $ git clone --recursive https://github.com/exalearn/ExaRL.git
     $ cd ExaRL
+    $ git lfs fetch
+    $ git lfs pull
 
 - Start Shifter image
 
