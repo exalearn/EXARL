@@ -117,7 +117,7 @@ class ExaBooster_v1(gym.Env):
             self.booster_model = keras.models.load_model(booster_model_pfn)
 
         # Check if data is available
-        # booster_data_file = 'BOOSTR.cvs'
+        # booster_data_file = 'BOOSTR.csv'
         booster_data_file = cd.run_params['data_file']
         booster_file_pfn = os.path.join(booster_data_dir, booster_data_file)
         logger.info('Booster data file pfn:{}'.format(booster_file_pfn))
