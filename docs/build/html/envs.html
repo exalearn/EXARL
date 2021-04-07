@@ -1,0 +1,350 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>EXARL Environments &mdash; EXARL  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="EXARL Agents" href="agents.html" />
+    <link rel="prev" title="Running EXARL using MPI" href="run.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> EXARL
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="requirements.html">Software Requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="directory.html">Directory Organization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="candle.html">CANDLE Integration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="run.html">Running EXARL using MPI</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">EXARL Environments</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#creating-custom-environments">Creating Custom Environments</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#using-environment-written-in-a-lower-level-language">Using Environment Written in a Lower Level Language</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="agents.html">EXARL Agents</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workflows.html">EXARL Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="base.html">Base Classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">EXARL Utils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utests.html">EXARL Unit Tests</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">ECP Annual Meeting 21 - EXARL Tutorial</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">EXARL</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>EXARL Environments</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/envs.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="exarl-environments">
+<h1>EXARL Environments<a class="headerlink" href="#exarl-environments" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="creating-custom-environments">
+<h2>Creating Custom Environments<a class="headerlink" href="#creating-custom-environments" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>ExaRL uses OpenAI gym environments</p></li>
+<li><p>The ExaEnv class in <code class="docutils literal notranslate"><span class="pre">ExaRL/exarl/env_base.py</span></code> inherits from OpenAI GYM Wrapper class for including added functionality.</p></li>
+<li><p>Environments inherit from gym.Env</p></li>
+</ul>
+<p>Example:-</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">envName</span><span class="p">(</span><span class="n">gym</span><span class="o">.</span><span class="n">Env</span><span class="p">):</span>
+   <span class="o">...</span>
+</pre></div>
+</div>
+<p>Register the environment in <code class="docutils literal notranslate"><span class="pre">ExaRl/envs/__init__.py</span></code></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">gym.envs.registration</span> <span class="kn">import</span> <span class="n">register</span>
+
+<span class="n">register</span><span class="p">(</span>
+   <span class="nb">id</span><span class="o">=</span><span class="s1">&#39;fooEnv-v0&#39;</span><span class="p">,</span>
+   <span class="n">entry_point</span><span class="o">=</span><span class="s1">&#39;envs.env_vault:FooEnv&#39;</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>The ID variable will be passed to exarl.make() to call the environment.</p>
+<p>The file <code class="docutils literal notranslate"><span class="pre">ExaRL/env/env_vault/__init__.py</span></code> should include:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">envs.env_vault.foo_env</span> <span class="kn">import</span> <span class="n">FooEnv</span>
+</pre></div>
+</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">ExaRL/envs/env_vault/foo_env.py</span></code> is the file containing your envirnoment</p>
+</div>
+<div class="section" id="using-environment-written-in-a-lower-level-language">
+<h2>Using Environment Written in a Lower Level Language<a class="headerlink" href="#using-environment-written-in-a-lower-level-language" title="Permalink to this headline">¶</a></h2>
+<p>The following example illustrates using the C function of computing the value of PI in EXARL.</p>
+<p><strong>computePI.h:</strong></p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="cp">#define MPICH_SKIP_MPICXX 1</span>
+<span class="cp">#define OMPI_SKIP_MPICXX 1</span>
+<span class="cp">#include</span> <span class="cpf">&lt;mpi.h&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp"></span>
+
+<span class="cp">#ifdef __cplusplus</span>
+<span class="k">extern</span> <span class="s">&quot;C&quot;</span> <span class="p">{</span>
+<span class="cp">#endif</span>
+   <span class="k">extern</span> <span class="kt">void</span> <span class="n">compute_pi</span><span class="p">(</span><span class="kt">int</span><span class="p">,</span> <span class="n">MPI_Comm</span><span class="p">);</span>
+<span class="cp">#ifdef __cplusplus</span>
+<span class="p">}</span>
+<span class="cp">#endif</span>
+</pre></div>
+</div>
+<p><strong>computePI.c:</strong></p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;mpi.h&gt;</span><span class="cp"></span>
+
+<span class="kt">double</span> <span class="nf">compute_pi</span><span class="p">(</span><span class="kt">int</span> <span class="n">N</span><span class="p">,</span> <span class="n">MPI_Comm</span> <span class="n">new_comm</span><span class="p">)</span>
+<span class="p">{</span>
+   <span class="kt">int</span> <span class="n">rank</span><span class="p">,</span> <span class="n">size</span><span class="p">;</span>
+   <span class="n">MPI_Comm_rank</span><span class="p">(</span><span class="n">new_comm</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">rank</span><span class="p">);</span>
+   <span class="n">MPI_Comm_size</span><span class="p">(</span><span class="n">new_comm</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">size</span><span class="p">);</span>
+
+   <span class="kt">double</span> <span class="n">h</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">x</span><span class="p">;</span>
+   <span class="n">h</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="kt">double</span><span class="p">)</span> <span class="n">N</span><span class="p">;</span>
+   <span class="n">s</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">;</span>
+   <span class="k">for</span><span class="p">(</span><span class="kt">int</span> <span class="n">i</span><span class="o">=</span><span class="n">rank</span><span class="p">;</span> <span class="n">i</span><span class="o">&lt;</span><span class="n">N</span><span class="p">;</span> <span class="n">i</span><span class="o">+=</span><span class="n">size</span><span class="p">)</span>
+   <span class="p">{</span>
+      <span class="n">x</span> <span class="o">=</span> <span class="n">h</span> <span class="o">*</span> <span class="p">((</span><span class="kt">double</span><span class="p">)</span><span class="n">i</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">);</span>
+      <span class="n">s</span> <span class="o">+=</span> <span class="mf">4.0</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">x</span><span class="o">*</span><span class="n">x</span><span class="p">);</span>
+   <span class="p">}</span>
+   <span class="k">return</span> <span class="p">(</span><span class="n">s</span> <span class="o">*</span> <span class="n">h</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Compile the C/C++ code and create a shared object (<a href="#id1"><span class="problematic" id="id2">*</span></a>.so file).
+Create a python wrapper (Ctypes wrapper is shown).</p>
+<p><strong>computePI.py:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mpi4py</span> <span class="kn">import</span> <span class="n">MPI</span>
+<span class="kn">import</span> <span class="nn">ctypes</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="n">_libdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">MPI</span><span class="o">.</span><span class="n">_sizeof</span><span class="p">(</span><span class="n">MPI</span><span class="o">.</span><span class="n">Comm</span><span class="p">)</span> <span class="o">==</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">sizeof</span><span class="p">(</span><span class="n">ctypes</span><span class="o">.</span><span class="n">c_int</span><span class="p">):</span>
+   <span class="n">MPI_Comm</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_int</span>
+<span class="k">else</span><span class="p">:</span>
+   <span class="n">MPI_Comm</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_void_p</span>
+<span class="n">_lib</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">CDLL</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_libdir</span><span class="p">,</span> <span class="s2">&quot;libcomputePI.so&quot;</span><span class="p">))</span>
+<span class="n">_lib</span><span class="o">.</span><span class="n">compute_pi</span><span class="o">.</span><span class="n">restype</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_double</span>
+<span class="n">_lib</span><span class="o">.</span><span class="n">compute_pi</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ctypes</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span> <span class="n">MPI_Comm</span><span class="p">]</span>
+
+<span class="k">def</span> <span class="nf">compute_pi</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">comm</span><span class="p">):</span>
+   <span class="n">comm_ptr</span> <span class="o">=</span> <span class="n">MPI</span><span class="o">.</span><span class="n">_addressof</span><span class="p">(</span><span class="n">comm</span><span class="p">)</span>
+   <span class="n">comm_val</span> <span class="o">=</span> <span class="n">MPI_Comm</span><span class="o">.</span><span class="n">from_address</span><span class="p">(</span><span class="n">comm_ptr</span><span class="p">)</span>
+   <span class="n">myPI</span> <span class="o">=</span> <span class="n">_lib</span><span class="o">.</span><span class="n">compute_pi</span><span class="p">(</span><span class="n">ctypes</span><span class="o">.</span><span class="n">c_int</span><span class="p">(</span><span class="n">N</span><span class="p">),</span> <span class="n">comm_val</span><span class="p">)</span>
+   <span class="k">return</span> <span class="n">myPI</span>
+</pre></div>
+</div>
+<p>In your environment code, just import the function and use it regularly.</p>
+<p><strong>test_computePI.py:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mpi4py</span> <span class="kn">import</span> <span class="n">MPI</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pdb</span>
+<span class="kn">import</span> <span class="nn">computePI</span> <span class="k">as</span> <span class="nn">cp</span>
+
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+   <span class="n">comm</span> <span class="o">=</span> <span class="n">MPI</span><span class="o">.</span><span class="n">COMM_WORLD</span>
+   <span class="n">myrank</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">Get_rank</span><span class="p">()</span>
+   <span class="n">nprocs</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">Get_size</span><span class="p">()</span>
+
+   <span class="k">if</span> <span class="n">myrank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">N</span> <span class="o">=</span> <span class="mi">100</span>
+   <span class="k">else</span><span class="p">:</span>
+      <span class="n">N</span> <span class="o">=</span> <span class="kc">None</span>
+
+   <span class="n">N</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">bcast</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+   <span class="n">num</span> <span class="o">=</span> <span class="mi">4</span>
+   <span class="n">color</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">myrank</span><span class="o">/</span><span class="n">num</span><span class="p">)</span>
+   <span class="n">newcomm</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">Split</span><span class="p">(</span><span class="n">color</span><span class="p">,</span> <span class="n">myrank</span><span class="p">)</span>
+
+   <span class="n">mypi</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">compute_pi</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">newcomm</span><span class="p">)</span>
+   <span class="n">pi</span> <span class="o">=</span> <span class="n">newcomm</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span><span class="n">mypi</span><span class="p">,</span> <span class="n">op</span><span class="o">=</span><span class="n">MPI</span><span class="o">.</span><span class="n">SUM</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+   <span class="n">newrank</span> <span class="o">=</span> <span class="n">newcomm</span><span class="o">.</span><span class="n">rank</span>
+   <span class="k">if</span> <span class="n">newrank</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+      <span class="nb">print</span><span class="p">(</span><span class="n">pi</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+   <span class="n">main</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="agents.html" class="btn btn-neutral float-right" title="EXARL Agents" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="run.html" class="btn btn-neutral float-left" title="Running EXARL using MPI" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Vinay Ramakrishnaiah.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
