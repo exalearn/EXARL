@@ -57,7 +57,10 @@ class ExaLearner():
         if (self.global_size - 1) % self.process_per_env != 0:
             sys.exit('EXARL::ERROR Uneven number of processes.')
         if self.global_size < 2 and self.workflow_id == 'workflows:async':
-            print('\n################\nNot enough processes, running synchronous single learner ...\n################\n')
+            print('')
+            print('################')
+            print('Not enough processes, running synchronous single learner ...')
+            print('################', flush=True)
             self.workflow_id = 'workflows:' + 'sync'
 
         # Setup MPI
