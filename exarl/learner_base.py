@@ -66,10 +66,6 @@ class ExaLearner():
         # Setup MPI
         mpi_settings.init(self.global_comm, self.process_per_env)
         self.agent, self.env, self.workflow = self.make()
-        if mpi_settings.is_learner():
-            print('_________________________________________________________________')
-            print("Running - {}, {}, and {}".format(self.agent_id, self.env_id, self.workflow_id))
-            print('_________________________________________________________________', flush=True)
         self.env.unwrapped.spec.max_episode_steps  = self.nsteps
         self.env.unwrapped._max_episode_steps = self.nsteps
 
