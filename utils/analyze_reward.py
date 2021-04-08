@@ -57,8 +57,9 @@ def save_reward_plot():
     df_merged = df_merged.dropna()
     time_min = df_merged.time.min()
     time_max = df_merged.time.max()
-    logger.info('time_min', time_min)
-    logger.info('time_diff', time_max - time_min)
+    time_diff = time_max - time_min
+    logger.info('time_min:{}'.format(time_min))
+    logger.info('time_diff:{}'.format(time_diff))
     df_merged['rel_time'] = [idx - time_min for idx in df_merged.time]
     df_merged.sort_values(by=['rel_time'], inplace=True)
 

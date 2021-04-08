@@ -142,6 +142,9 @@ def get_driver_params():
     print('Learner parameters from ', learner_cfg)
     params = json.load(open(learner_cfg))
     params = base_parser(params)
+    print('_________________________________________________________________')
+    print("Running - {}, {}, and {}".format(params['agent'], params['env'], params['workflow']))
+    print('_________________________________________________________________', flush=True)
     try:
         agent_cfg = resolve_path('agent_cfg',
                                  params['agent'] + '_' + params['model_type'] + '.json')
