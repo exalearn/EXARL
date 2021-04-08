@@ -9,7 +9,9 @@ from collections import namedtuple
 import gym
 from gym import spaces
 
-from exarl.comm_base import ExaComm
+# from exarl.comm_base import ExaComm
+import exarl as erl
+import exarl.mpi_settings as mpi_settings
 
 import image_structure
 
@@ -74,12 +76,13 @@ class CahnHilliardEnv(gym.Env):
         self.length = cd.run_params['length']            # 100
         self.genTarget = cd.run_params['genTarget']      # True
         self.randInitial = cd.run_params['randInitial']  # False
-        self.steps = cd.run_params['n_steps'] 
+        self.steps = cd.run_params['n_steps']
 
         # self.args = args
-        self.comm = ExaComm.global_comm      # mpi_settings.env_comm
-        # self.comm.Get_rank() if self.comm else 0
-        self.comm_rank = ExaComm.global_comm.size
+        # self.comm = ExaComm.global_comm      # mpi_settings.env_comm
+        self.comm = mpi_settings.env_comm        
+        self.comm_rank = self.comm.Get_rank() if self.comm else 0
+        # self.comm_rank = ExaComm.global_comm.size
 
         # These are problem dependent and must be available during environment
         # object creation time: cannot be set by CANDLE

@@ -4,7 +4,6 @@
     "initT"           : 0.5,
     "targetT"         : 0.5,
     "notTrain"        : "False",
-    "output_dir"      : "./results",
     "target_dir"      : "./data/ch/",
     "target_file"     : "target.out",
     "notPlotRL"       : "False",
