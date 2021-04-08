@@ -74,7 +74,7 @@ class CahnHilliardEnv(gym.Env):
         self.length = cd.run_params['length']            # 100
         self.genTarget = cd.run_params['genTarget']      # True
         self.randInitial = cd.run_params['randInitial']  # False
-        self.steps = cd.run_params['n_steps'] 
+        self.steps = cd.run_params['n_steps']
         # self.episodes        = 0
 
         # self.args = args
@@ -90,7 +90,7 @@ class CahnHilliardEnv(gym.Env):
         # spaces from gym
         self.action_space = spaces.Discrete(self.getActionSize())
 
-        # TODO: fix the high values later 
+        # TODO: fix the high values later
         #       since I do not know the maximum values
         self.observation_space = spaces.Box(
             low=np.append(
@@ -163,7 +163,7 @@ class CahnHilliardEnv(gym.Env):
         self.time_step = -1
 
         # self.setTargetState()   TODO: this is not efficient
-        self.setInitSimParams()  
+        self.setInitSimParams()
         # TODO: I do not have to initialze all parameter at each episode
 
         if self.randInitial:
