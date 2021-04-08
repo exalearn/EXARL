@@ -4,12 +4,11 @@
     "initT"           : 0.5,
     "targetT"         : 0.5,
     "notTrain"        : "False",
-		"output_dir"      : "./results",
-		"target_dir"      : "./data/ch/",
+    "output_dir"      : "./results",
+    "target_dir"      : "./data/ch/",
     "target_file"     : "target.out",
     "notPlotRL"       : "False",
     "length"          : 100,
     "genTarget"       : "True",
-    "randInitial"     : "False",
-		"steps"           : 100
+    "randInitial"     : "False"
 }

@@ -8,7 +8,7 @@ env = cd.run_params['env']
 if env == 'ExaCH-v0':
     register(
         id=env,
-        entry_point='envs.env_vault:CahnHilliardEnv',
+        entry_point='envs.env_vault:env_ch',
     )
 
 elif env == 'ExaTDLG-v0':
