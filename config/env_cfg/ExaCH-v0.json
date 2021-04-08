@@ -10,5 +10,6 @@
     "notPlotRL"       : "False",
     "length"          : 100,
     "genTarget"       : "True",
-    "randInitial"     : "False"
+    "randInitial"     : "False",
+    "steps"           : 30
 }
