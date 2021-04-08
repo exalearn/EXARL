@@ -18,11 +18,6 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-from pydemic.data.united_states import nyt, get_population, get_age_distribution
-from pydemic import MitigationModel
-from pydemic.models.seirpp import SimulationResult
-from pydemic.models import SEIRPlusPlusSimulation
-import gym
 from gym import spaces
 import numpy as np
 import pandas as pd
@@ -30,6 +25,11 @@ import os
 import sys
 
 sys.path.append(os.path.dirname(__file__) + '/pydemic/')
+from pydemic.data.united_states import nyt, get_population, get_age_distribution
+from pydemic import MitigationModel
+from pydemic.models.seirpp import SimulationResult
+from pydemic.models import SEIRPlusPlusSimulation
+import gym
 
 
 class ExaCOVID(gym.Env):
