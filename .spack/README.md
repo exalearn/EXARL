@@ -37,9 +37,9 @@ Example usage:
 $ ssh login1.ascent.olcf.ornl.gov
 $ git clone https://github.com/spack/spack.git
 $ source ./spack/share/spack/setup-env.sh
-$ git clone https://github.com/ashermancinelli/ExaLearn_Spack.git
-$ spack repo add ./ExaLearn_Spack
-$ spack env create ascent-exarl ./ExaLearn_Spack/environments/ascent/exarl.yaml
+$ git clone https://github.com/exalearn/ExaRL.git
+$ spack repo add ./ExaRL/.spack
+$ spack env create ascent-exarl ./ExaRL/.spack/environments/ascent/exarl.yaml
 $ spack install
 ```
 
