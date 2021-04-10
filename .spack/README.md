@@ -1,5 +1,7 @@
 # ExaRL Spack Repository
 
+***NOTE: This is still a WIP.***
+
 This repository contains the spack package for ExaRL, as well as environments
 to build ExaRL on target platforms.
 
