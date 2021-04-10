@@ -1,0 +1,62 @@
+spack:
+  specs:
+  - exarl.py-exarl@0.6.0 
+  view: true 
+  packages:
+    spectrum-mpi:
+      externals:
+      - spec: spectrum-mpi
+        modules: [spectrum-mpi/10.3.1.2-20200121]
+    python:
+      externals:
+      - spec: python@3.7.0
+        modules:
+        - python/3.7.0-anaconda3-5.3.0
+        - gcc/4.8.5
+        - spectrum-mpi/10.3.1.2-20200121
+    py-mpi4py:
+      externals:
+      - spec: py-mpi4py
+        modules: [py-mpi4py/3.0.0-py3]
+      buildable: false
+    cuda:
+      externals:
+      - spec: cuda@10.1.243
+        modules: [cuda/10.1.243]
+      buildable: false
+    py-numpy:
+      externals:
+      - spec: py-numpy@1.18.5
+        prefix: $CONDA_PREFIX/lib/python3.7/site-packages/numpy
+      buildable: false
+    py-dask:
+      externals:
+      - spec: py-dask
+        modules:
+        - ibm-wml-ce/1.7.0-0
+      buildable: false
+    py-torch:
+      externals:
+      - spec: py-torch
+        prefix: $CONDA_PREFIX/lib/python3.7/site-packages/torch
+      buildable: false
+    py-scikit-learn:
+      externals:
+      - spec: py-scikit-learn
+        prefix: $CONDA_PREFIX/lib/python3.7/site-packages/sklearn
+      buildable: false
+    py-pip:
+      externals:
+      - spec: py-pip@10.0.1
+        modules: [py-pip/10.0.1-py3]
+      buildable: false
+    py-pigments:
+      externals:
+      - spec: py-pygments@2.2.0
+        modules: [py-pygments/2.2.0]
+      buildable: false
+    py-virtualenv:
+      externals:
+      - spec: py-virtualenv@16.0.0
+        modules: [py-virtualenv/16.0.0]
+      buildable: false

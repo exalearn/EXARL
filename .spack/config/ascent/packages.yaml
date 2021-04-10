@@ -1,0 +1,31 @@
+packages:
+  python:
+    externals:
+    - spec: python@3.7.0
+      modules: [python/3.7.0-anaconda3-5.3.0]
+    buildable: false
+  py-pip:
+    externals:
+    - spec: py-pip@10.0.1
+      modules: [py-pip/10.0.1-py3]
+    buildable: false
+  py-certifi:
+    externals:
+    - spec: py-certifi@2017.1.23
+      modules: [py-certifi/2017.1.23-py3]
+    buildable: false
+  py-setuptools:
+    externals:
+    - spec: py-setuptools@40.4.3
+      modules: [py-setuptools/40.4.3-py3]
+    buildable: false
+  py-pigments:
+    externals:
+    - spec: py-pygments@2.2.0
+      modules: [py-pygments/2.2.0]
+    buildable: false
+  py-virtualenv:
+    externals:
+    - spec: py-virtualenv@16.0.0
+      modules: [py-virtualenv/16.0.0]
+    buildable: false
