@@ -29,7 +29,6 @@ import utils.log as log
 import utils.candleDriver as cd
 from exarl.comm_base import ExaComm
 from mpi4py import MPI
-from utils.trace_win import Trace_Win
 
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
