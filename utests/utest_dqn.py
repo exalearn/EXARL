@@ -4,7 +4,7 @@ import numpy as np
 import exarl as erl
 import pytest
 import utils.candleDriver as cd
-import exarl.mpi_settings as mpi_settings
+from exarl.comm_base import ExaComm
 
 from keras.layers import Dense, GaussianNoise, BatchNormalization, LSTM
 from tensorflow.python.client import device_lib
@@ -233,7 +233,7 @@ class TestClass:
     # 6: test set_weight() for agent
     def test_set_weights(self):
 
-        test_agent_comm = mpi_settings.agent_comm
+        test_agent_comm = ExaComm.agent_comm
         test_target_weights = test_agent.get_weights()
         test_current_weights = test_agent_comm.bcast(test_target_weights, root=0)
 

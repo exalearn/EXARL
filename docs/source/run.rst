@@ -48,13 +48,3 @@ Run the following command:
 .. code-block:: bash
 
     mpiexec -np <num_parent_processes> python driver/driver.py --<run_params>=<param_value>
-
-If running a multi-process environment or agent, the communicators are available in ``exarl/mpi_settings.py``. 
-
-E.g.:-
-
-.. code-block:: python
-
-    import exarl.mpi_settings as mpi_settings
-    self.env_comm = mpi_settings.env_comm
-    self.agent_comm = mpi_settings.agent_comm

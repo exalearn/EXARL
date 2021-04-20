@@ -22,7 +22,7 @@ import time
 import csv
 from mpi4py import MPI
 import exarl as erl
-import exarl.mpi_settings as mpi_settings
+from exarl.comm_base import ExaComm
 import utils.log as log
 import utils.candleDriver as cd
 from utils.profile import *
@@ -46,7 +46,7 @@ class SYNC(erl.ExaWorkflow):
         # Set target model the sample for all
         target_weights = None
 
-        if mpi_settings.is_learner():
+        if ExaComm.is_learner():
             workflow.agent.set_learner()
             target_weights = workflow.agent.get_weights()
 
@@ -93,7 +93,7 @@ class SYNC(erl.ExaWorkflow):
                 new_batch = comm.gather(batch_data, root=0)
 
                 # Learner
-                if mpi_settings.is_learner():
+                if ExaComm.is_learner():
                     # Push memories to learner
                     for batch in new_batch:
                         workflow.agent.train(batch)
@@ -117,7 +117,7 @@ class SYNC(erl.ExaWorkflow):
                             (str(comm.rank), str(total_reward)))
 
                 # Save Learning target model
-                if mpi_settings.is_learner():
+                if ExaComm.is_learner():
                     workflow.agent.save(workflow.results_dir + '/' + filename_prefix + '.h5')
 
                 steps += 1

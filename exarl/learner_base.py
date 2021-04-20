@@ -9,33 +9,30 @@
 # derivative works, distribute copies to the public, perform publicly and display publicly, and
 # to permit others to do so.
 
-
-import exarl.mpi_settings as mpi_settings
 import time
 import gym
 import envs
 import agents
 import workflows
 
+from network.simple_comm import ExaSimple
+# from network.mpi_comm import ExaMPI
+from exarl.comm_base import ExaComm
 from exarl.env_base import ExaEnv
 
 import os
 import csv
 import sys
-from mpi4py import MPI
 import json
 
 import utils.log as log
 import utils.candleDriver as cd
+
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 
-class ExaLearner():
-
-    def __init__(self, comm):
-        # Global communicator
-        self.global_comm = comm
-        self.global_size = self.global_comm.size
+class ExaLearner:
+    def __init__(self, comm=None):
 
         # Default training
         self.nepisodes = 1
@@ -48,8 +45,15 @@ class ExaLearner():
 
         # Setup agent and environments
         self.agent_id = 'agents:' + cd.run_params['agent']
-        self.env_id   = 'envs:' + cd.run_params['env']
+        self.env_id = 'envs:' + cd.run_params['env']
         self.workflow_id = 'workflows:' + cd.run_params['workflow']
+
+        # Setup MPI
+        # Global communicator
+        # ExaMPI(comm, self.process_per_env)
+        ExaSimple(comm, self.process_per_env)
+        self.global_comm = ExaComm.global_comm
+        self.global_size = ExaComm.global_comm.size
 
         # Sanity check before we actually allocate resources
         if self.global_size < self.process_per_env:
@@ -63,13 +67,11 @@ class ExaLearner():
             print('_________________________________________________________________', flush=True)
             self.workflow_id = 'workflows:' + 'sync'
 
-        # Setup MPI
-        mpi_settings.init(self.global_comm, self.process_per_env)
         self.agent, self.env, self.workflow = self.make()
-        self.env.unwrapped.spec.max_episode_steps  = self.nsteps
+        self.env.unwrapped.spec.max_episode_steps = self.nsteps
         self.env.unwrapped._max_episode_steps = self.nsteps
 
-        self.env.spec.max_episode_steps  = self.nsteps
+        self.env.spec.max_episode_steps = self.nsteps
         self.env._max_episode_steps = self.nsteps
         self.set_config()
         # self.env.set_env()
@@ -82,7 +84,7 @@ class ExaLearner():
         # Create agent object
         agent = None
         # Only agent_comm processes will create agents
-        if mpi_settings.is_agent():
+        if ExaComm.is_agent():
             agent = agents.make(self.agent_id, env=env)
         else:
             logger.debug('Does not contain an agent')
@@ -92,13 +94,14 @@ class ExaLearner():
 
     def set_training(self, nepisodes, nsteps):
         self.nepisodes = nepisodes
-        self.nsteps    = nsteps
+        self.nsteps = nsteps
         if self.global_size > self.nepisodes:
             sys.exit(
-                'EXARL::ERROR There is more resources allocated for the number of episodes.\nnprocs should be less than nepisodes.')
+                'EXARL::ERROR There is more resources allocated for the number of episodes.\nnprocs should be less than nepisodes.'
+            )
         self.env.unwrapped._max_episode_steps = self.nsteps
-        self.env.unwrapped.spec.max_episode_steps  = self.nsteps
-        self.env.spec.max_episode_steps  = self.nsteps
+        self.env.unwrapped.spec.max_episode_steps = self.nsteps
+        self.env.spec.max_episode_steps = self.nsteps
         self.env._max_episode_steps = self.nsteps
 
     # Use with CANDLE
@@ -107,7 +110,7 @@ class ExaLearner():
         self.set_training(int(params['n_episodes']), int(params['n_steps']))
         self.results_dir = params['output_dir']
         if not os.path.exists(self.results_dir):
-            if (self.global_comm.rank == 0):
+            if self.global_comm.rank == 0:
                 os.makedirs(self.results_dir)
 
     def render_env(self):

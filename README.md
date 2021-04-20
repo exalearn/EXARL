@@ -33,7 +33,6 @@ A scalable software framework for reinforcement learning environments and agents
     └── env_base.py                   : environment base class
     └── workflow_base.py              : workflow base class
     └── learner_base.py               : learner base class
-    └── mpi_settings.py               : MPI settings
 ├── agents         	                  : folder containing ExaRL agents and registration scripts
     └── __init__.py                   : agent registry
     └── registration.py               : script to handle registration
@@ -181,15 +180,6 @@ if rank == 0:
 
 ```
 mpiexec -np <num_parent_processes> python driver/driver.py --<run_params>=<param_value>
-```
-
-- If running a multi-process environment or agent, the communicators are available in `exarl/mpi_settings.py`.
-  E.g.:-
-
-```
-import exarl.mpi_settings as mpi_settings
-self.env_comm = mpi_settings.env_comm
-self.agent_comm = mpi_settings.agent_comm
 ```
 
 ### Using parameters set in CANDLE configuration/get parameters from terminal

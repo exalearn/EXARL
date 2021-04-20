@@ -9,9 +9,8 @@ from collections import namedtuple
 import gym
 from gym import spaces
 
-# from exarl.comm_base import ExaComm
+from exarl.comm_base import ExaComm
 import exarl as erl
-import exarl.mpi_settings as mpi_settings
 import utils.candleDriver as cd
 
 sys.path.append('envs/env_vault/CahnHilliard2D/cpp/python')
@@ -76,10 +75,8 @@ class CahnHilliardEnv(gym.Env):
         self.steps = cd.run_params['n_steps']
 
         # self.args = args
-        # self.comm = ExaComm.global_comm      # mpi_settings.env_comm
-        self.comm = mpi_settings.env_comm
-        self.comm_rank = self.comm.Get_rank() if self.comm else 0
-        # self.comm_rank = ExaComm.global_comm.size
+        self.comm      = ExaComm.global_comm
+        self.comm_rank = ExaComm.global_comm.size
 
         # These are problem dependent and must be available during environment
         # object creation time: cannot be set by CANDLE

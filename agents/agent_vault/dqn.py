@@ -26,20 +26,19 @@ import csv
 import random
 import tensorflow as tf
 import sys
-import exarl.mpi_settings as mpi_settings
 import pickle
 import exarl as erl
+from exarl.comm_base import ExaComm
 from keras import backend as K
 from tensorflow.python.client import device_lib
 from collections import deque
 from datetime import datetime
 import numpy as np
-from mpi4py import MPI
 import utils.candleDriver as cd
 import utils.log as log
+from utils.introspect import introspectTrace
 from tensorflow.compat.v1.keras.backend import set_session
-import mpi4py.rc
-mpi4py.rc.threads = False
+
 tf_version = int((tf.__version__)[0])
 
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
@@ -56,7 +55,7 @@ class DQN(erl.ExaAgent):
         self.target_weights = None
 
         self.env = env
-        self.agent_comm = mpi_settings.agent_comm
+        self.agent_comm = ExaComm.agent_comm
 
         # MPI
         self.rank = self.agent_comm.rank
@@ -172,6 +171,7 @@ class DQN(erl.ExaAgent):
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
+    @introspectTrace()
     def action(self, state):
         random.seed(datetime.now())
         random_data = os.urandom(4)
@@ -193,6 +193,7 @@ class DQN(erl.ExaAgent):
             act_values = self.target_model.predict(state)
         return np.argmax(act_values[0])
 
+    @introspectTrace()
     def calc_target_f(self, exp):
         state, action, reward, next_state, done = exp
         np_state = np.array(state).reshape(1, 1, len(state))
@@ -207,6 +208,7 @@ class DQN(erl.ExaAgent):
         target_f[0][action] = target
         return target_f[0]
 
+    @introspectTrace()
     def generate_data(self):
         # Worker method to create samples for training
         # TODO: This method is the most expensive and takes 90% of the agent compute time
@@ -223,14 +225,15 @@ class DQN(erl.ExaAgent):
         minibatch = random.sample(self.memory, self.batch_size)
         batch_target = list(map(self.calc_target_f, minibatch))
         batch_states = [np.array(exp[0]).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
-        batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
-        batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
+        batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])]).astype("float64")
+        batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n]).astype("float64")
         end_time = time.time()
         self.dataprep_time += (end_time - start_time)
         self.ndataprep_time += 1
         logger.debug('Agent[{}] - Minibatch time: {} '.format(self.rank, (end_time - start_time)))
         yield batch_states, batch_target
 
+    @introspectTrace()
     def train(self, batch):
         if self.is_learner:
             if len(batch) > 0 and len(batch[0]) >= (self.batch_size):
