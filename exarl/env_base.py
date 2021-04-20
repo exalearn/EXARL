@@ -16,7 +16,9 @@ import sys
 import gym
 import time
 from gym import Wrapper
-from exarl.comm_base import ExaComm
+from mpi4py import MPI
+import exarl.mpi_settings as mpi_settings
+
 
 class ExaEnv(Wrapper):
     def __init__(self, env, **kwargs):
@@ -26,7 +28,7 @@ class ExaEnv(Wrapper):
         # Use relative path not absolute
         self.base_dir = os.path.dirname(__file__)
         print(self.base_dir)
-        self.env_comm = ExaComm.env_comm
+        self.env_comm = mpi_settings.env_comm
 
     def set_results_dir(self, results_dir):
         '''

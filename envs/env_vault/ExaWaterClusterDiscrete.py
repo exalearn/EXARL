@@ -18,9 +18,10 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-from exarl.comm_base import ExaComm
+import exarl.mpi_settings as mpi_settings
 import gym
 import time
+from mpi4py import MPI
 import numpy as np
 from gym import error, spaces, utils
 from gym.utils import seeding
@@ -344,11 +345,9 @@ class ExaWaterClusterDiscrete(gym.Env):
         except:
             done = True
             self.current_state = np.zeros(self.embedded_state_size)
-            write_csv(self.output_dir, ExaComm.agent_comm.rank,
-                      [self.nclusters, ExaComm.agent_comm.rank,
-                       self.episode, self.steps, cluster_id,
-                       rotation_z, translation, self.current_energy,
-                       self.current_state[0], reward, done])
+            write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode,
+                                                                      self.steps, cluster_id, rotation_z, translation, self.current_energy,
+                                                                      self.current_state[0], reward, done])
             return self.current_state, reward, done, {}
 
         # Reward is currently based on the potential energy
@@ -366,7 +365,7 @@ class ExaWaterClusterDiscrete(gym.Env):
             logger.debug('Lowest energy found. status {}, reward {}'.format(done, reward))
             # self.current_state, self.state_order = get_state_embedding(self.schnet_model, self.current_ase)
             lowest_energy_xyz = os.path.join(self.output_dir, 'rotationz_rank{}_episode{}_steps{}_energy{}.xyz'.format(
-                ExaComm.agent_comm.rank, self.episode, self.steps, round(self.lowest_energy, 4)))
+                mpi_settings.agent_comm.rank, self.episode, self.steps, round(self.lowest_energy, 4)))
             logger.info("\t Found lower energy:{}".format(energy))
             write_structure(lowest_energy_xyz, self.current_ase, self.current_energy)
             # return self.current_state, reward, done, {}
@@ -375,11 +374,9 @@ class ExaWaterClusterDiscrete(gym.Env):
         if energy > self.initial_energy * 0.95:
             done = True
             self.current_state = np.zeros(self.embedded_state_size)
-            write_csv(self.output_dir, ExaComm.agent_comm.rank,
-                      [self.nclusters, ExaComm.agent_comm.rank,
-                       self.episode, self.steps, cluster_id, rotation_z,
-                       translation, self.current_energy, self.current_state[0],
-                       reward, done])
+            write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode,
+                                                                      self.steps, cluster_id, rotation_z, translation, self.current_energy,
+                                                                      self.current_state[0], reward, done])
             return self.current_state, reward, done, {}
 
         logger.debug('Pre-step current energy:{}'.format(self.current_energy))
@@ -411,11 +408,9 @@ class ExaWaterClusterDiscrete(gym.Env):
         # Update current energy
         self.current_energy = energy
 
-        write_csv(self.output_dir, ExaComm.agent_comm.rank,
-                  [self.nclusters, ExaComm.agent_comm.rank,
-                   self.episode, self.steps, cluster_id, rotation_z,
-                   translation, self.current_energy, self.current_state[0],
-                   reward, done])
+        write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters, mpi_settings.agent_comm.rank, self.episode,
+                                                                  self.steps, cluster_id, rotation_z, translation, self.current_energy,
+                                                                  self.current_state[0], reward, done])
 
         logger.debug('Reward:{}'.format(reward))
         logger.debug('Energy:{}'.format(energy))

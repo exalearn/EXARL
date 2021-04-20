@@ -18,33 +18,51 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-import mpi4py
-mpi4py.rc.threads = False
-mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
-import utils.analyze_reward as ar
-import time
-import exarl as erl
+import mpi4py.rc
+mpi4py.rc.threads = False
 
-# MPI communicator
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
 
-# Create learner object and run
-exa_learner = erl.ExaLearner(comm)
+def init(comm, procs_per_env):
+    # global communicator
+    global global_comm
+    global_comm = comm
+    global_rank = global_comm.rank
 
-# Run the learner, measure time
-start = time.time()
-exa_learner.run()
-elapse = time.time() - start
+    # Agent communicator
+    global agent_comm
+    agent_color = MPI.UNDEFINED
+    if (global_rank == 0) or ((global_rank + procs_per_env - 1) % procs_per_env == 0):
+        agent_color = 0
+    agent_comm = global_comm.Split(agent_color, global_rank)
 
-# Compute and print average time
-max_elapse = comm.reduce(elapse, op=MPI.MAX, root=0)
-elapse = comm.reduce(elapse, op=MPI.SUM, root=0)
+    # Environment communicator
+    if global_rank == 0:
+        env_color = 0
+    else:
+        env_color = (int((global_rank - 1) / procs_per_env)) + 1
+    global env_comm
+    env_comm = global_comm.Split(env_color, global_rank)
 
-if rank == 0:
-    print("Average elapsed time = ", elapse / size)
-    print("Maximum elapsed time = ", max_elapse)
-    # Save rewards vs. episodes plot
-    ar.save_reward_plot()
+# Function to test if a process is a learner
+def is_learner():
+    try:
+        if agent_comm.rank == 0:
+            return True
+    except:
+        return False
+
+# Function to test if a process is an actor
+def is_actor():
+    try:
+        if agent_comm.rank > 0:
+            return True
+    except:
+        return False
+
+# Function to test if a process is an agent
+def is_agent():
+    if is_learner() or is_actor():
+        return True
+    else:
+        return False

@@ -13,6 +13,7 @@ Directory Organization
 |     └── env_base.py                   : environment base class
 |     └── workflow_base.py              : workflow base class
 |     └── learner_base.py               : learner base class
+|     └── mpi_settings.py               : MPI settings
 | ├── agents         	                : folder containing ExaRL agents and registration scripts
 |     └── __init__.py                   : agent registry
 |     └── registration.py               : script to handle registration

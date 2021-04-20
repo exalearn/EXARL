@@ -18,33 +18,43 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-import mpi4py
-mpi4py.rc.threads = False
-mpi4py.rc.recv_mprobe = False
-from mpi4py import MPI
-import utils.analyze_reward as ar
+from numpy.core.arrayprint import _none_or_positive_arg
+import tensorflow as tf
+import numpy as np
+import exarl.mpi_settings as mpi_settings
 import time
-import exarl as erl
 
-# MPI communicator
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
+class BufferDataset(tf.data.Dataset):
+    def _generator(data_buffer, data_win):
+        # actor_idx = np.random.randint(low=1, high=mpi_settings.agent_comm.size, size=1)
+        # # Get data buffer from RMA window
+        # data_win.Lock(actor_idx)
+        # data_win.Get(data_buffer, target_rank=actor_idx)
+        # data_win.Unlock(actor_idx)
+        data_buffer += 1
+        yield (data_buffer,)
 
-# Create learner object and run
-exa_learner = erl.ExaLearner(comm)
+    def __new__(cls, data_buffer, data_win):
+        return tf.data.Dataset.from_generator(
+            cls._generator,
+            output_types=tf.float32,
+            output_shapes=(None, None),
+            args=(data_buffer, data_win,)
+        )
 
-# Run the learner, measure time
-start = time.time()
-exa_learner.run()
-elapse = time.time() - start
+def benchmark(dataset, num_epochs=2):
+    start_time = time.perf_counter()
+    for epoch_num in range(num_epochs):
+        for sample in dataset:
+            # Performing a training step
+            time.sleep(0.01)
+    print("Execution time:", time.perf_counter() - start_time)
 
-# Compute and print average time
-max_elapse = comm.reduce(elapse, op=MPI.MAX, root=0)
-elapse = comm.reduce(elapse, op=MPI.SUM, root=0)
+def bellman_equation(raw_data):
+    return raw_data + 1
 
-if rank == 0:
-    print("Average elapsed time = ", elapse / size)
-    print("Maximum elapsed time = ", max_elapse)
-    # Save rewards vs. episodes plot
-    ar.save_reward_plot()
+
+data_buffer = np.arange(10)
+data_win = 0
+benchmark(BufferDataset(data_buffer, data_win).map(bellman_equation))
+benchmark(BufferDataset(data_buffer, data_win).prefetch(-1).cache().batch(256).map(bellman_equation))
