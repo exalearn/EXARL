@@ -81,7 +81,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
             serial_agent_batch = (MPI.pickle.dumps(agent_batch))
             serial_agent_batch_size = len(serial_agent_batch)
             nserial_agent_batch = 0
-            if ExaComm.is_actor():
+            if mpi_settings.is_actor():
                 nserial_agent_batch = serial_agent_batch_size
             # Allocate data window
             data_win = MPI.Win.Allocate(nserial_agent_batch, 1, comm=agent_comm)
