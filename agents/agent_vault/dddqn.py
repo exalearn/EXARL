@@ -35,6 +35,7 @@ from tensorflow.python.client import device_lib
 from collections import deque
 from datetime import datetime
 import numpy as np
+from agents.agent_vault._prioritized_replay import PrioritizedReplayBuffer
 from mpi4py import MPI
 import utils.candleDriver as cd
 import utils.log as log
@@ -45,7 +46,7 @@ tf_version = int((tf.__version__)[0])
 
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
-# The Deep Q-Network (DQN)
+# The Discrete Double Deep Q-Network (DDDQN)
 
 
 class DDDQN(erl.ExaAgent):
@@ -147,7 +148,8 @@ class DDDQN(erl.ExaAgent):
             self.target_weights = self.target_model.get_weights()
 
         # TODO: make configurable
-        self.memory = deque(maxlen=1000)
+        # self.memory = deque(maxlen=1000)
+        self.replay_buffer = PrioritizedReplayBuffer(maxlen=100000)
 
     def _get_device(self):
         gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -177,7 +179,8 @@ class DDDQN(erl.ExaAgent):
         self.model.summary()
 
     def remember(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
+        # self.memory.append((state, action, reward, next_state, done))
+        self.replay_buffer.add((state, action, reward, next_state, done))
 
     def get_action(self, state):
         random.seed(datetime.now())
@@ -229,13 +232,18 @@ class DDDQN(erl.ExaAgent):
         # TODO: Revisit the shape (e.g. extra 1 for the LSTM)
         batch_states = np.zeros((self.batch_size, 1, self.env.observation_space.shape[0]))
         batch_target = np.zeros((self.batch_size, self.env.action_space.n))
+        indices = np.zeros(self.batch_size)
         # batch_states = []
         # batch_target = []
         # Return empty batch
-        if len(self.memory) < self.batch_size:
+        # if len(self.memory) < self.batch_size:
+        if self.replay_buffer.get_buffer_length() < self.batch_size:
             yield batch_states, batch_target
         start_time = time.time()
-        minibatch = random.sample(self.memory, self.batch_size)
+        # minibatch = random.sample(self.memory, self.batch_size)
+        # TODO: Make priority scale a candle parameter
+        # TODO: Use impotance while updating model
+        minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=0.0)
         batch_target = list(map(self.calc_target_f, minibatch))
         batch_states = [np.array(exp[0]).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
         batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
@@ -244,7 +252,7 @@ class DDDQN(erl.ExaAgent):
         self.dataprep_time += (end_time - start_time)
         self.ndataprep_time += 1
         logger.debug('Agent[{}] - Minibatch time: {} '.format(self.rank, (end_time - start_time)))
-        yield batch_states, batch_target
+        yield batch_states, batch_target, indices
 
     def train(self, batch):
         if self.is_learner:
@@ -258,7 +266,9 @@ class DDDQN(erl.ExaAgent):
                 logger.info('Agent[{}]- Training: {} '.format(self.rank, (end_time - start_time)))
                 start_time_episode = time.time()
                 logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
-
+                print("indices = ", batch[2])
+                print("loss = ", history.history['loss'])
+                self.replay_buffer.set_priorities(batch[2], history.history['loss'])
                 return history
         else:
             logger.warning('Training will not be done because this instance is not set to learn.')

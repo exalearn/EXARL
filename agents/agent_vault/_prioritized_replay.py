@@ -34,3 +34,6 @@ class PrioritizedReplayBuffer():
     def set_priorities(self, indices, errors, offset=0.1):
         for i, e in zip(indices, errors):
             self.priorities[i] = abs(e) + offset
+
+    def get_buffer_length(self):
+        return len(self.buffer)

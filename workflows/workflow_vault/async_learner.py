@@ -207,7 +207,7 @@ class ASYNC(erl.ExaWorkflow):
                         logger.info(
                             'Rank[{}] - Generated data: {}'.format(agent_comm.rank, len(batch_data[0])))
                         logger.info(
-                            'Rank[{}] - Memories: {}'.format(agent_comm.rank, len(workflow.agent.memory)))
+                            'Rank[{}] - Memories: {}'.format(agent_comm.rank, workflow.agent.replay_buffer.get_buffer_length()))
 
                     if steps >= workflow.nsteps - 1:
                         done = True
