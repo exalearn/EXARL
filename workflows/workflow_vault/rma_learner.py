@@ -67,7 +67,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
             # The counter needs to be 64 bit value
             # Otherwise dumps only gives it 1 byte which will overflow at 256
             # Causing put/get to fail
-            target_weights = (workflow.agent.get_weights(), np.int64(0))
+            target_weights = workflow.agent.get_weights()
             serial_target_weights = MPI.pickle.dumps(target_weights)
             serial_target_weights_size = len(serial_target_weights)
             target_weights_size = 0
