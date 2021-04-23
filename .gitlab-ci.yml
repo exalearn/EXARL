@@ -41,6 +41,7 @@ cori_benchmarks:
       rm -rf $WORKDIR
 
 integration:
+  <<:  *ornl-test-template
   script:
     - |
       set -xv
@@ -73,6 +74,7 @@ integration:
       exit $res
 
 unit:
+  <<:  *ornl-test-template
   script:
     - |
       set -xv
