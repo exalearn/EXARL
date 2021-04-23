@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-from file_utils import get_file
+from exarl.candlelib.file_utils import get_file
 
 import numpy as np
 import random

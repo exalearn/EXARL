@@ -6,7 +6,7 @@ import torch.nn.init
 import torch.optim
 import torch.nn.functional as F
 
-from default_utils import set_seed as set_seed_defaultUtils
+from exarl.candlelib.default_utils import set_seed as set_seed_defaultUtils
 
 
 def set_parallelism_threads():  # for compatibility

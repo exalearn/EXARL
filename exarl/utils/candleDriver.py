@@ -27,9 +27,7 @@ import os
 import sys
 import site
 file_path = os.path.dirname(os.path.realpath(__file__))
-lib_path2 = os.path.abspath(os.path.join(file_path, '..', 'candlelib'))
-sys.path.append(lib_path2)
-import candle
+import exarl.candlelib.candle as candle
 # from pprint import pprint
 
 

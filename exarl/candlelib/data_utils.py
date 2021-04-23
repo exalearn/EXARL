@@ -14,8 +14,8 @@ except ImportError:
     from sklearn.preprocessing import Imputer
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, MaxAbsScaler
 
-from default_utils import DEFAULT_SEED
-from default_utils import DEFAULT_DATATYPE
+from exarl.candlelib.default_utils import DEFAULT_SEED
+from exarl.candlelib.default_utils import DEFAULT_DATATYPE
 
 
 # TAKEN from tensorflow

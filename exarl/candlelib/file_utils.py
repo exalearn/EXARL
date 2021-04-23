@@ -9,7 +9,7 @@ import hashlib
 from six.moves.urllib.request import urlopen
 from six.moves.urllib.error import URLError, HTTPError
 
-from generic_utils import Progbar
+from exarl.candlelib.generic_utils import Progbar
 
 
 # Under Python 2, 'urlretrieve' relies on FancyURLopener from legacy

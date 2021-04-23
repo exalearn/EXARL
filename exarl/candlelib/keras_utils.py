@@ -13,7 +13,7 @@ from keras.models import Model
 
 from scipy.stats.stats import pearsonr
 
-from default_utils import set_seed as set_seed_defaultUtils
+from exarl.candlelib.default_utils import set_seed as set_seed_defaultUtils
 
 import warnings
 with warnings.catch_warnings():
