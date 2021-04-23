@@ -27,7 +27,7 @@ cori_benchmarks:
   variables:
     SCHEDULER_PARAMETERS: "-C gpu -M escori -t 10 -n 2 --ntasks-per-node=2 -c 10 --gpus-per-task=1 --gpu-bind=map_gpu:0,1 -J ExaRL-ExaBooster-v1-2g-cgpu -L SCRATCH,cfs --image=registry.nersc.gov/apg/exarl-ngc:0.1"
 
-test_on_compute_node:
+.ornl-test-template: &ornl-test-template
   stage: ornl-test
   tags:
     - batch
@@ -36,6 +36,11 @@ test_on_compute_node:
     WORKDIR: /gpfs/wolf/proj-shared/ast153/ci/${CI_PIPELINE_ID}
   rules:
     - if: '$CI_PROJECT_PATH == "ecpcitest/ast153/ExaRL"'
+  after_script:
+    - |
+      rm -rf $WORKDIR
+
+integration:
   script:
     - |
       set -xv
@@ -66,7 +71,29 @@ test_on_compute_node:
 
       echo "Exiting with code $res"
       exit $res
-  after_script:
-    - |
-      rm -rf $WORKDIR
 
+unit:
+  script:
+    - |
+      set -xv
+      module load gcc/7.4.0
+      module load spectrum-mpi/10.3.1.2-20200121
+      module load cuda/10.1.243
+      module load ibm-wml-ce/1.7.0-0
+      export PYTHONPATH=$PROJWORK/ast153/src/install-mpi4py/gcc740/lib/python3.6/site-packages
+
+      mkdir -p "$WORKDIR"
+      cp -R ./* "$WORKDIR"
+      cd "$WORKDIR"
+      pip install -e .
+
+      echo 'mpi4py sanity check:'
+      python -c 'import mpi4py; print(mpi4py.__path__)'
+      jsrun -n 4 python -c 'from mpi4py import MPI; print(MPI.COMM_WORLD.Get_rank())'
+
+      pytest
+
+      res=$?
+
+      echo "Exiting with code $res"
+      exit $res
