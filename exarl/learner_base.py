@@ -13,7 +13,7 @@
 import exarl.mpi_settings as mpi_settings
 import time
 import gym
-import envs
+import exarl.envs
 import exarl.agents
 import workflows
 
@@ -48,7 +48,7 @@ class ExaLearner():
 
         # Setup agent and environments
         self.agent_id = 'exarl.agents:' + cd.run_params['agent']
-        self.env_id   = 'envs:' + cd.run_params['env']
+        self.env_id   = 'exarl.envs:' + cd.run_params['env']
         self.workflow_id = 'workflows:' + cd.run_params['workflow']
 
         # Sanity check before we actually allocate resources
