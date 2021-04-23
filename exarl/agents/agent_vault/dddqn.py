@@ -35,7 +35,7 @@ from tensorflow.python.client import device_lib
 from collections import deque
 from datetime import datetime
 import numpy as np
-from agents.agent_vault._prioritized_replay import PrioritizedReplayBuffer
+from exarl.agents.agent_vault._prioritized_replay import PrioritizedReplayBuffer
 from mpi4py import MPI
 import utils.candleDriver as cd
 import utils.log as log
@@ -163,10 +163,10 @@ class DDDQN(erl.ExaAgent):
 
     def _build_model(self):
         if self.model_type == 'MLP':
-            from agents.agent_vault._build_mlp import build_model
+            from exarl.agents.agent_vault._build_mlp import build_model
             return build_model(self)
         elif self.model_type == 'LSTM':
-            from agents.agent_vault._build_lstm import build_model
+            from exarl.agents.agent_vault._build_lstm import build_model
             return build_model(self)
         else:
             sys.exit("Oops! That was not a valid model type. Try again...")

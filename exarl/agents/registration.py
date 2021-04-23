@@ -12,10 +12,12 @@
 
 import importlib
 from gym import error, logger
+import exarl.agents
 
 
 def load(name):
     mod_name, attr_name = name.split(":")
+    print(f'Attempting to load {mod_name} with {attr_name}')
     mod = importlib.import_module(mod_name)
     fn = getattr(mod, attr_name)
     return fn

@@ -154,10 +154,10 @@ class DQN(erl.ExaAgent):
 
     def _build_model(self):
         if self.model_type == 'MLP':
-            from agents.agent_vault._build_mlp import build_model
+            from exarl.agents.agent_vault._build_mlp import build_model
             return build_model(self)
         elif self.model_type == 'LSTM':
-            from agents.agent_vault._build_lstm import build_model
+            from exarl.agents.agent_vault._build_lstm import build_model
             return build_model(self)
         else:
             sys.exit("Oops! That was not a valid model type. Try again...")

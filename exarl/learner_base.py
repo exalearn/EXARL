@@ -14,7 +14,7 @@ import exarl.mpi_settings as mpi_settings
 import time
 import gym
 import envs
-import agents
+import exarl.agents
 import workflows
 
 from exarl.env_base import ExaEnv
@@ -47,7 +47,7 @@ class ExaLearner():
         self.action_type = cd.run_params['action_type']
 
         # Setup agent and environments
-        self.agent_id = 'agents:' + cd.run_params['agent']
+        self.agent_id = 'exarl.agents:' + cd.run_params['agent']
         self.env_id   = 'envs:' + cd.run_params['env']
         self.workflow_id = 'workflows:' + cd.run_params['workflow']
 
@@ -83,7 +83,7 @@ class ExaLearner():
         agent = None
         # Only agent_comm processes will create agents
         if mpi_settings.is_agent():
-            agent = agents.make(self.agent_id, env=env)
+            agent = exarl.agents.make(self.agent_id, env=env)
         else:
             logger.debug('Does not contain an agent')
         # Create workflow object
