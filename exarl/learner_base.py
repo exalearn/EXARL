@@ -15,7 +15,7 @@ import time
 import gym
 import exarl.envs
 import exarl.agents
-import workflows
+import exarl.workflows
 
 from exarl.env_base import ExaEnv
 
@@ -49,19 +49,19 @@ class ExaLearner():
         # Setup agent and environments
         self.agent_id = 'exarl.agents:' + cd.run_params['agent']
         self.env_id   = 'exarl.envs:' + cd.run_params['env']
-        self.workflow_id = 'workflows:' + cd.run_params['workflow']
+        self.workflow_id = 'exarl.workflows:' + cd.run_params['workflow']
 
         # Sanity check before we actually allocate resources
         if self.global_size < self.process_per_env:
             sys.exit('EXARL::ERROR Not enough processes.')
         if (self.global_size - 1) % self.process_per_env != 0:
             sys.exit('EXARL::ERROR Uneven number of processes.')
-        if self.global_size < 2 and self.workflow_id == 'workflows:async':
+        if self.global_size < 2 and self.workflow_id == 'exarl.workflows:async':
             print('')
             print('_________________________________________________________________')
             print('Not enough processes, running synchronous single learner ...')
             print('_________________________________________________________________', flush=True)
-            self.workflow_id = 'workflows:' + 'sync'
+            self.workflow_id = 'exarl.workflows:' + 'sync'
 
         # Setup MPI
         mpi_settings.init(self.global_comm, self.process_per_env)
@@ -87,7 +87,7 @@ class ExaLearner():
         else:
             logger.debug('Does not contain an agent')
         # Create workflow object
-        workflow = workflows.make(self.workflow_id)
+        workflow = exarl.workflows.make(self.workflow_id)
         return agent, env, workflow
 
     def set_training(self, nepisodes, nsteps):
