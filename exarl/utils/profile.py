@@ -19,7 +19,7 @@
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
 import atexit
-import utils.candleDriver as cd
+import exarl.utils.candleDriver as cd
 import os
 import functools
 import time

@@ -25,8 +25,8 @@ from mpi4py import MPI
 import numpy as np
 from gym import error, spaces, utils
 from gym.utils import seeding
-import utils.log as log
-import utils.candleDriver as cd
+import exarl.utils.log as log
+import exarl.utils.candleDriver as cd
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 from ase.io import read, write

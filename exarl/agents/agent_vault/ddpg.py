@@ -24,13 +24,13 @@ from tensorflow.keras import layers
 import random
 import os
 from datetime import datetime
-from utils.OUActionNoise import OUActionNoise
-from utils.OUActionNoise import OUActionNoise2
+from exarl.utils.OUActionNoise import OUActionNoise
+from exarl.utils.OUActionNoise import OUActionNoise2
 
 import exarl as erl
 
-import utils.log as log
-import utils.candleDriver as cd
+import exarl.utils.log as log
+import exarl.utils.candleDriver as cd
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 

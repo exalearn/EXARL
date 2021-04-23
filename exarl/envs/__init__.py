@@ -1,6 +1,6 @@
 from gym.envs import registration
 from gym.envs.registration import register
-import utils.candleDriver as cd
+import exarl.utils.candleDriver as cd
 
 
 env = cd.run_params['env']

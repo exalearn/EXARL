@@ -37,8 +37,8 @@ from datetime import datetime
 import numpy as np
 from exarl.agents.agent_vault._prioritized_replay import PrioritizedReplayBuffer
 from mpi4py import MPI
-import utils.candleDriver as cd
-import utils.log as log
+import exarl.utils.candleDriver as cd
+import exarl.utils.log as log
 from tensorflow.compat.v1.keras.backend import set_session
 import mpi4py.rc
 mpi4py.rc.threads = False

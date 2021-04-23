@@ -22,7 +22,7 @@ import mpi4py
 mpi4py.rc.threads = False
 mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
-import utils.analyze_reward as ar
+import exarl.utils.analyze_reward as ar
 import time
 import exarl as erl
 

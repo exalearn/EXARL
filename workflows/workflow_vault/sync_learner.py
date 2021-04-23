@@ -23,9 +23,9 @@ import csv
 from mpi4py import MPI
 import exarl as erl
 import exarl.mpi_settings as mpi_settings
-import utils.log as log
-import utils.candleDriver as cd
-from utils.profile import *
+import exarl.utils.log as log
+import exarl.utils.candleDriver as cd
+from exarl.utils.profile import *
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 

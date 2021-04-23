@@ -12,7 +12,7 @@ from gym import spaces
 # from exarl.comm_base import ExaComm
 import exarl as erl
 import exarl.mpi_settings as mpi_settings
-import utils.candleDriver as cd
+import exarl.utils.candleDriver as cd
 
 sys.path.append('envs/env_vault/CahnHilliard2D/cpp/python')
 sys.path.append('envs/env_vault/ImageStructure')
