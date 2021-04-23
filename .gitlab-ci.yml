@@ -72,30 +72,3 @@ integration:
 
       echo "Exiting with code $res"
       exit $res
-
-unit:
-  <<:  *ornl-test-template
-  script:
-    - |
-      set -xv
-      module load gcc/7.4.0
-      module load spectrum-mpi/10.3.1.2-20200121
-      module load cuda/10.1.243
-      module load ibm-wml-ce/1.7.0-0
-      export PYTHONPATH=$PROJWORK/ast153/src/install-mpi4py/gcc740/lib/python3.6/site-packages
-
-      mkdir -p "$WORKDIR"
-      cp -R ./* "$WORKDIR"
-      cd "$WORKDIR"
-      pip install -e .
-
-      echo 'mpi4py sanity check:'
-      python -c 'import mpi4py; print(mpi4py.__path__)'
-      jsrun -n 4 python -c 'from mpi4py import MPI; print(MPI.COMM_WORLD.Get_rank())'
-
-      pytest
-
-      res=$?
-
-      echo "Exiting with code $res"
-      exit $res
