@@ -1,0 +1,15 @@
+{
+    "debug"           : 0,
+    "changeT"         : 0.1,
+    "initT"           : 0.5,
+    "targetT"         : 0.5,
+    "notTrain"        : "False",
+    "output_dir"      : "./results_dir/",
+    "target_dir"      : "./envs/env_vault/env_data/ch/",
+    "target_file"     : "target.out",
+    "notPlotRL"       : "False",
+    "length"          : 100,
+    "genTarget"       : "True",
+    "randInitial"     : "False",
+    "steps"           : 30
+}

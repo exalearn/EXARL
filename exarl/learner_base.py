@@ -4,7 +4,7 @@
 # National Laboratory (LANL), which is operated by Triad National Security, LLC for the U.S.
 # Department of Energy/National Nuclear Security Administration. All rights in the program are
 # reserved by Triad National Security, LLC, and the U.S. Department of Energy/National Nuclear
-# 1;95;0c Security Administration. The Government is granted for itself and others acting on its behalf a
+# Security Administration. The Government is granted for itself and others acting on its behalf a
 # nonexclusive, paid-up, irrevocable globalwide license in this material to reproduce, prepare
 # derivative works, distribute copies to the public, perform publicly and display publicly, and
 # to permit others to do so.
@@ -57,7 +57,10 @@ class ExaLearner():
         if (self.global_size - 1) % self.process_per_env != 0:
             sys.exit('EXARL::ERROR Uneven number of processes.')
         if self.global_size < 2 and self.workflow_id == 'workflows:async':
-            print('\n################\nNot enough processes, running synchronous single learner ...\n################\n')
+            print('')
+            print('_________________________________________________________________')
+            print('Not enough processes, running synchronous single learner ...')
+            print('_________________________________________________________________', flush=True)
             self.workflow_id = 'workflows:' + 'sync'
 
         # Setup MPI

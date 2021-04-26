@@ -170,23 +170,24 @@ class TestClass:
             except ValueError:
                 pytest.fail('Bad loss function for TensorFlow Keras', pytrace=True)
 
-            assert test_agent.clipnorm == cd.run_params['clipnorm'] and \
-                isinstance(test_agent.clipnorm, float) is True
-            assert test_agent.clipvalue == cd.run_params['clipvalue'] and \
-                isinstance(test_agent.clipvalue, float) is True
+            # Currently unused
+            # assert test_agent.clipnorm == cd.run_params['clipnorm'] and \
+            #     isinstance(test_agent.clipnorm, float) is True
+            # assert test_agent.clipvalue == cd.run_params['clipvalue'] and \
+            #     isinstance(test_agent.clipvalue, float) is True
 
             assert test_agent.memory.maxlen == 1000
 
             # test model.compile()
-            gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
-            if len(gpu_names) > 0:
-                self.device = 'GPU'
-                assert self._peek_layers_attribute() is True
+            # gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
+            # if len(gpu_names) > 0:
+            #     self.device = 'GPU'
+            #     assert self._peek_layers_attribute() is True
 
             # on device /CPU:0
-            self.device = 'CPU'
-            assert isinstance(test_agent.target_model.layers, list) is True and \
-                self._peek_layers_attribute() is True
+            # self.device = 'CPU'
+            # assert isinstance(test_agent.target_model.layers, list) is True and \
+            #     self._peek_layers_attribute() is True
 
         except ValueError:
             pytest.fail('Invalid Arguments in model.compile() for optimizer, loss, or metrics', pytrace=True)
@@ -333,21 +334,3 @@ class TestClass:
             assert callable(method)
         except AttributeError:
             pytest.fail('Must implement abstractmethod save()', pytrace=True)
-
-    # 13 test update() for agents
-    def test_update(self):
-        # checking if abstractmethod update() is in agent (DQN) class
-        try:
-            method = getattr(test_agent, 'update')
-            assert callable(method)
-        except AttributeError:
-            pytest.fail('Must implement abstractmethod update()', pytrace=True)
-
-    # 14 test monitor() for agents
-    def test_monitor(self):
-        # checking if abstractmethod monitor() is in agent (DQN) class
-        try:
-            method = getattr(test_agent, 'monitor')
-            assert callable(method)
-        except AttributeError:
-            pytest.fail('Must implement abstractmethod monitor()', pytrace=True)

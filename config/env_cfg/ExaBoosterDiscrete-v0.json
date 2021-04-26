@@ -1,0 +1,11 @@
+{
+    "model_file"      : "fullbooster_noshift_e250_bs99_nsteps250k_invar5_outvar3_axis1_mmscaler_t0_D10122020-T175237_kfold2__e16_vl0.00038.h5",
+    "model_dir"       : "None",
+    "booster_data_dir": "./envs/env_vault/env_data/booster_data",
+    "data_file"       : "BOOSTR.csv",
+    "url"             : "https://zenodo.org/record/4088982/files/data%20release.csv?download=1",
+    "max_steps"       : 100,
+    "min_BIMIN"       : 103.1,
+    "max_BIMIN"       : 103.6,
+    "nactions"        : 15
+}

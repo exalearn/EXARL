@@ -1,0 +1,23 @@
+{
+    "gamma": 0.95,
+    "epsilon": 1.0,
+    "epsilon_min" : 0.01,
+    "epsilon_decay" : 0.9999,
+    "learning_rate" : 0.001,
+    "batch_size" : 5,
+    "tau" : 0.05,
+    "dense" : [64, 128],
+    "optimizer" : "adam",
+    "loss" : "mse",
+    "lstm_layers":[56, 56, 56],
+    "activation":"tanh",
+    "gauss_noise":[0.1, 0.1,0.1],
+<<<<<<< HEAD:agents/agent_vault/agent_cfg/DQN-v0_LSTM.json
+    "out_activation":"sigmoid",
+=======
+    "out_activation" : "linear",
+>>>>>>> 201e3962c07b29dd132565f115b53932bdabdce1:config/agent_cfg/DQN-v0_LSTM.json
+    "regularizer":[0.001, 0.001],
+    "clipnorm":1.0,
+    "clipvalue":0.5
+}
