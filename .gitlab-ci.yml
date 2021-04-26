@@ -19,7 +19,7 @@ cori_benchmarks:
     - shifter pip install -e . --user
     - output_dir="${SCRATCH}/exarl-ci/output-${hash}"
     - mkdir -p "${output_dir}"
-    - srun shifter python driver/driver.py --output_dir ${output_dir} --env ExaBooster-v1 --n_episodes 50 --n_steps 5 --workflow async --agent DQN-v0
+    - srun shifter python exarl/driver --output_dir ${output_dir} --env ExaBooster-v1 --n_episodes 50 --n_steps 5 --workflow async --agent DQN-v0
   tags:
     - cori
   rules:
@@ -60,7 +60,7 @@ test_on_compute_node:
         --rs_per_host 6 --latency_priority CPU-CPU \
         --launch_distribution packed \
         --bind packed:7 \
-        python driver/driver.py
+        python exarl/driver
 
       res=$?
 
