@@ -218,7 +218,6 @@ class DDDQN(erl.ExaAgent):
         np_state = np.array(state).reshape(1, 1, len(state))
         np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
         expectedQ = 0
-        print("DONE:", done, flush=True)
         if not done:
             with tf.device(self.device):
                 expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
@@ -262,7 +261,6 @@ class DDDQN(erl.ExaAgent):
         yield batch_states, batch_target, indices, importance
 
     def train(self, batch):
-        print(len(batch))
         if self.is_learner:
             if batch[2][0] != -1:
                 start_time = time.time()
@@ -278,7 +276,7 @@ class DDDQN(erl.ExaAgent):
                 # print("indices = ", batch[2])
                 # print("loss = ", loss.loss)
                 # self.replay_buffer.set_priorities(batch[2], loss.loss)
-                return batch[2], loss.loss
+                return batch[2], np.ones(self.batch_size)  # loss.loss
         else:
             logger.warning('Training will not be done because this instance is not set to learn.')
 
