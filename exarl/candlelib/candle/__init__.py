@@ -58,7 +58,7 @@ from exarl.candlelib.exarl_utils import get_default_exarl_parser
 
 # import benchmark-dependent utils
 import sys
-if 'keras' in sys.modules:
+if 'keras' in sys.modules or 'tensorflow.keras' in sys.modules:
     print('Importing candle utils for keras')
 
     # import from keras_utils

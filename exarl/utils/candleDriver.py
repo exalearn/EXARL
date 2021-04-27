@@ -22,7 +22,7 @@ import argparse
 import json
 import exarl.utils.log as log
 from pprint import pformat
-import keras
+from tensorflow import keras
 import os
 import sys
 import site

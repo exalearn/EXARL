@@ -29,7 +29,7 @@ import sys
 import exarl.mpi_settings as mpi_settings
 import pickle
 import exarl as erl
-from keras import backend as K
+# from tensorflow.keras import backend as K
 from tensorflow.python.client import device_lib
 from collections import deque
 from datetime import datetime
