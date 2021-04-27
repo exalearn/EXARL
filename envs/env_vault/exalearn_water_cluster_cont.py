@@ -468,7 +468,7 @@ class WaterCluster(gym.Env):
             #reward = self.current_energy - energy
 
         # Set reward to normalized SchNet energy (first value in state) 
-        reward = (self.current_energy - energy)#*(1+self.steps/100)  #/ self.initial_energy 
+        reward = (self.current_energy - energy)*(1+self.steps/100)  #/ self.initial_energy 
 
         # Update current energy    
         self.current_energy = energy       
