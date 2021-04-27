@@ -221,7 +221,6 @@ class DDDQN(erl.ExaAgent):
         np_state = np.array(state).reshape(1, 1, len(state))
         np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
         expectedQ = 0
-        print("DONE:", done, flush=True)
         if not done:
             with tf.device(self.device):
                 expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
@@ -241,12 +240,13 @@ class DDDQN(erl.ExaAgent):
         batch_states = np.zeros((self.batch_size, 1, self.env.observation_space.shape[0]))
         batch_target = np.zeros((self.batch_size, self.env.action_space.n))
         indices = -1 * np.ones(self.batch_size)
+        importance = np.ones(self.batch_size)
         # batch_states = []
         # batch_target = []
         # Return empty batch
         # if len(self.memory) < self.batch_size:
         if self.replay_buffer.get_buffer_length() < self.batch_size:
-            yield batch_states, batch_target, indices
+            yield batch_states, batch_target, indices, importance
         start_time = time.time()
         # minibatch = random.sample(self.memory, self.batch_size)
         # TODO: Make priority scale a candle parameter
@@ -260,26 +260,25 @@ class DDDQN(erl.ExaAgent):
         self.dataprep_time += (end_time - start_time)
         self.ndataprep_time += 1
         logger.debug('Agent[{}] - Minibatch time: {} '.format(self.rank, (end_time - start_time)))
-        yield batch_states, batch_target, indices
+        yield batch_states, batch_target, indices, importance
 
     def train(self, batch):
-        print(len(batch))
         if self.is_learner:
             if batch[2][0] != -1:
                 start_time = time.time()
                 with tf.device(self.device):
                     loss = LossHistory()
-                    self.model.fit(batch[0], batch[1], epochs=1, verbose=0, callbacks=loss)
+                    self.model.fit(batch[0], batch[1], epochs=1, batch_size=1, verbose=0, callbacks=loss) #, sample_weight=batch[3])
                 end_time = time.time()
                 self.training_time += (end_time - start_time)
                 self.ntraining_time += 1
                 logger.info('Agent[{}]- Training: {} '.format(self.rank, (end_time - start_time)))
                 start_time_episode = time.time()
                 logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
-                print("indices = ", batch[2])
-                print("loss = ", loss.loss)
+                # print("indices = ", batch[2])
+                # print("loss = ", loss.loss)
                 # self.replay_buffer.set_priorities(batch[2], loss.loss)
-                return batch[2], loss.loss
+                return batch[2], np.ones(self.batch_size) #loss.loss
         else:
             logger.warning('Training will not be done because this instance is not set to learn.')
 
