@@ -29,11 +29,12 @@ class PrioritizedReplayBuffer():
         sample_indices = random.choices(range(len(self.buffer)), k=sample_size, weights=sample_probs)
         samples = np.array(self.buffer)[sample_indices]
         importance = self.get_importance(sample_probs[sample_indices])
-        return map(list, zip(*samples)), importance, sample_indices
+        print("SAMPLES:", samples)
+        return samples, importance, sample_indices
 
     def set_priorities(self, indices, errors, offset=0.1):
         for i, e in zip(indices, errors):
-            self.priorities[i] = abs(e) + offset
+            self.priorities[int(i)] = abs(e) + offset
 
     def get_buffer_length(self):
         return len(self.buffer)
