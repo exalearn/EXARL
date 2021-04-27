@@ -65,7 +65,7 @@ class DDPG_Vtrace(erl.ExaAgent):
         self.memory = self.state_buffer  # BAD
 
         # Setup TF configuration to allow memory growth
-#        tf.keras.backend.set_floatx('float64')
+        # tf.keras.backend.set_floatx('float64')
         config = tf.compat.v1.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.compat.v1.Session(config=config)
@@ -98,12 +98,16 @@ class DDPG_Vtrace(erl.ExaAgent):
         self.actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
         # Vtrace
-        self.time_step   = -1
-        # self.nsteps      = cd.run_params["n_steps"] 
-        self.truncImpSampC    = np.zeros(self.nsteps)
-        self.truncImpSampR    = np.zeros(self.nsteps)
-        self.truncLevelC = 1
-        self.truncLevelR = 1
+        self.time_step     = -1
+        self.n_steps       = cd.run_params["n_steps"]
+        print("steps: ", self.n_steps)
+        self.truncImpSampC = np.zeros(self.n_steps)
+        self.truncImpSampR = np.zeros(self.n_steps)
+        self.truncLevelC   = 1
+        self.truncLevelR   = 1
+
+        # should this be called somewhere?
+        self.set_learner()
 
     def remember(self, state, action, reward, next_state, done):
         # If the counter exceeds the capacity then
@@ -127,7 +131,7 @@ class DDPG_Vtrace(erl.ExaAgent):
             # Vtace target
             # TODO: need to sum ...
             y = self.target_actor(state_batch, training=True) \
-                + self.gamma * prodC * truncImpSampR[self.time_step] \
+                + self.gamma * self.prodC * self.truncImpSampR[self.time_step] \
                 * ( reward_batch + self.gamma * \
                       self.target_actor(next_state_batch, training=True) \
                     - self.target_actor(state_batch,      training=True) )
@@ -244,6 +248,8 @@ class DDPG_Vtrace(erl.ExaAgent):
         
         sampled_actions = tf.squeeze(self.target_actor(tf_state))
         noise = self.ou_noise()  
+        # print("sampled_actions: ", sampled_actions)
+        
         sampled_actions_wn = sampled_actions.numpy() + noise
         legal_action = sampled_actions_wn
         isValid = self.env.action_space.contains(sampled_actions_wn)
@@ -258,9 +264,18 @@ class DDPG_Vtrace(erl.ExaAgent):
 
         # Vtrace
         self.time_step += 1
-        self.truncImpSampC[self.time_step] = min( self.truncLevelC, self.target_actor(return_action) / self.actor(return_action) )
-        self.truncImpSampR[self.time_step] = min( self.truncLevelR, self.target_actor(return_action) / self.actor(return_action) )
+        state_action = np.concatenate((state, return_action))
+        tf_state_action = tf.expand_dims(tf.convert_to_tensor(state_action), 0)
+        # print(self.target_actor(tf_state).numpy()[0][0])
+        # print(self.actor_model(tf_state).numpy()[0][0])
+        
+        self.truncImpSampC[self.time_step] = min( self.truncLevelC, self.target_actor(tf_state).numpy()[0][0] / self.target_actor(tf_state).numpy()[0][0] )
+        self.truncImpSampR[self.time_step] = min( self.truncLevelR, self.target_actor(tf_state).numpy()[0][0] / self.target_actor(tf_state).numpy()[0][0] )
+        # self.truncImpSampC[self.time_step] = min( self.truncLevelC, self.target_critic(tf_state_action) / self.critic(tf_state_action) )
+        # self.truncImpSampR[self.time_step] = min( self.truncLevelR, self.target_critic(tf_state_action) / self.critic(tf_state_action) )
 
+        if (self.time_step==self.n_steps - 1): self.time_step = -1
+        
         return return_action, policy_type
 
     # For distributed actors #
@@ -271,6 +286,9 @@ class DDPG_Vtrace(erl.ExaAgent):
         self.target_actor.set_weights(weights)
 
     def set_learner(self):
+        # print("##############")
+        # print("set_learner")
+        # print("##############")
         self.is_learner = True
         self.actor_model = self.get_actor()
         self.critic_model = self.get_critic()
