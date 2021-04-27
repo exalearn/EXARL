@@ -30,7 +30,7 @@ import gym
 import exarl.mpi_settings as mpi_settings
 import pickle
 import exarl as erl
-# from tensorflow.keras import backend as K
+from tensorflow import keras
 from tensorflow.python.client import device_lib
 from collections import deque
 from datetime import datetime
@@ -47,6 +47,13 @@ tf_version = int((tf.__version__)[0])
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 # The Discrete Double Deep Q-Network (DDDQN)
+
+class LossHistory(keras.callbacks.Callback):
+    def on_train_begin(self, logs={}):
+        self.loss = []
+    
+    def on_batch_end(self, batch, logs={}):
+        self.loss.append(logs.get('loss'))
 
 
 class DDDQN(erl.ExaAgent):
@@ -214,6 +221,7 @@ class DDDQN(erl.ExaAgent):
         np_state = np.array(state).reshape(1, 1, len(state))
         np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
         expectedQ = 0
+        print("DONE:", done, flush=True)
         if not done:
             with tf.device(self.device):
                 expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
@@ -232,13 +240,13 @@ class DDDQN(erl.ExaAgent):
         # TODO: Revisit the shape (e.g. extra 1 for the LSTM)
         batch_states = np.zeros((self.batch_size, 1, self.env.observation_space.shape[0]))
         batch_target = np.zeros((self.batch_size, self.env.action_space.n))
-        indices = np.zeros(self.batch_size)
+        indices = -1 * np.ones(self.batch_size)
         # batch_states = []
         # batch_target = []
         # Return empty batch
         # if len(self.memory) < self.batch_size:
         if self.replay_buffer.get_buffer_length() < self.batch_size:
-            yield batch_states, batch_target
+            yield batch_states, batch_target, indices
         start_time = time.time()
         # minibatch = random.sample(self.memory, self.batch_size)
         # TODO: Make priority scale a candle parameter
@@ -255,11 +263,13 @@ class DDDQN(erl.ExaAgent):
         yield batch_states, batch_target, indices
 
     def train(self, batch):
+        print(len(batch))
         if self.is_learner:
-            if len(batch) > 0 and len(batch[0]) >= (self.batch_size):
+            if batch[2][0] != -1:
                 start_time = time.time()
                 with tf.device(self.device):
-                    history = self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
+                    loss = LossHistory()
+                    self.model.fit(batch[0], batch[1], epochs=1, verbose=0, callbacks=loss)
                 end_time = time.time()
                 self.training_time += (end_time - start_time)
                 self.ntraining_time += 1
@@ -267,11 +277,16 @@ class DDDQN(erl.ExaAgent):
                 start_time_episode = time.time()
                 logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
                 print("indices = ", batch[2])
-                print("loss = ", history.history['loss'])
-                self.replay_buffer.set_priorities(batch[2], history.history['loss'])
-                return history
+                print("loss = ", loss.loss)
+                # self.replay_buffer.set_priorities(batch[2], loss.loss)
+                return batch[2], loss.loss
         else:
             logger.warning('Training will not be done because this instance is not set to learn.')
+        
+        return -1 * np.ones(self.batch_size), -1 * np.ones(self.batch_size)
+
+    def set_priorities(self, indicies, loss):
+        self.replay_buffer.set_priorities(indicies, loss)
 
     def get_weights(self):
         logger.debug('Agent[%s] - get target weight.' % str(self.rank))

@@ -94,7 +94,9 @@ class ASYNC(erl.ExaWorkflow):
                 logger.debug('step:{}'.format(step))
                 logger.debug('done:{}'.format(done))
                 # Train
-                workflow.agent.train(batch)
+                indicies, loss = workflow.agent.train(batch)
+                agent_comm.send([indicies, loss], dest=whofrom)
+
                 # TODO: Double check if this is already in the DQN code
                 workflow.agent.target_train()
                 if policy_type == 0:
@@ -133,11 +135,12 @@ class ASYNC(erl.ExaWorkflow):
                 logger.debug('step:{}'.format(step))
                 logger.debug('done:{}'.format(done))
                 # Train
-                workflow.agent.train(batch)
+                indicies, loss = workflow.agent.train(batch)
+                agent_comm.send([indicies, loss], dest=s)
                 # TODO: Double check if this is already in the DQN code
                 workflow.agent.target_train()
                 agent_comm.send([episode, 0, 0], dest=s)
-
+                
             logger.info('Learner time: {}'.format(MPI.Wtime() - start))
 
         else:
@@ -220,7 +223,8 @@ class ASYNC(erl.ExaWorkflow):
                         # Send batched memories
                         agent_comm.send(
                             [agent_comm.rank, steps, batch_data, policy_type, done], dest=0)
-
+                        indices, loss = agent_comm.recv(source=MPI.ANY_SOURCE)
+                        workflow.agent.set_priorities(indices, loss)
                         logger.info('Rank[%s] - Total Reward:%s' %
                                     (str(agent_comm.rank), str(total_reward)))
                         logger.info(
