@@ -4,7 +4,7 @@
 
 A scalable software framework for reinforcement learning environments and agents/policies used for the Design and Control applications
 
-[![Build Status](https://travis-ci.com/exalearn/ExaRL.svg?token=nVtzNrBfRo4qpVpEQP21&branch=develop)](https://travis-ci.com/exalearn/ExaRL)
+[![Build Status](https://travis-ci.com/exalearn/EXARL.svg?token=nVtzNrBfRo4qpVpEQP21&branch=develop)](https://travis-ci.com/exalearn/EXARL)
 
 ## Software Requirement
 
@@ -20,31 +20,34 @@ A scalable software framework for reinforcement learning environments and agents
 ├── scripts                           : folder containing RL steering scripts
 ├── config                	          : folder containing configurations
     └── agent_cfg                     : agent configuration folder
+    └── model_cfg                     : model configuration folder
     └── env_cfg                       : env configuration folder
     └── workflow_cfg                  : workflow configuration folder
     └── learner_cfg.json              : learner configuration
-├── exarl                	          : folder containing base classes
+├── exarl                	            : folder with EXARL code
     └── __init__.py                   : make base classes visible
-    └── agent_base.py                 : agent base class
-    └── env_base.py                   : environment base class
-    └── workflow_base.py              : workflow base class
-    └── learner_base.py               : learner base class
     └── mpi_settings.py               : MPI settings
+    ├── base         	                : folder containing EXARL base classes
+        └── __init__.py               : make base classes visible
+        └── agent_base.py             : agent base class
+        └── env_base.py               : environment base class
+        └── workflow_base.py          : workflow base class
+        └── learner_base.py           : learner base class
     ├── driver                        : folder containing RL MPI steering scripts
         └── driver.py                 : Run scipt
     ├── candlelib                     : folder containing library for CANDLE functionality
-    ├── agents         	              : folder containing ExaRL agents and registration scripts
+    ├── agents         	              : folder containing EXARL agents and registration scripts
         └── __init__.py               : agent registry
         └── registration.py           : script to handle registration
         ├── agent_vault               : folder containing agents
             └── __init__.py           : script to make agents visible
             └── <RLagent>.py          : RL agents (such as DQN, DDPG, etc.)
-    ├── envs         	                : folder containing ExaRL environments
+    ├── envs         	                : folder containing EXARL environments
         └── __init__.py               : environment registry
         ├── env_vault                 : folder containing environments
         └── __init__.py               : script to make environments visible
             └── <RLenv>.py            : RL environments (physics simulations, interfaces to experiments, etc.)
-    ├── workflows      	              : folder containing ExaRL workflows and registration scripts
+    ├── workflows      	              : folder containing EXARL workflows and registration scripts
         └── __init__.py               : workflow registry
         └── registration.py           : script to handle registration
         ├── workflow_vault            : folder containing workflows
@@ -63,13 +66,13 @@ A scalable software framework for reinforcement learning environments and agents
 - Pull code from repo
 
 ```
-git clone --recursive https://github.com/exalearn/ExaRL.git
-cd ExaRL
+git clone --recursive https://github.com/exalearn/EXARL.git
+cd EXARL
 git lfs fetch
 git lfs pull
 ```
 
-- Install dependencies for ExaRL:
+- Install dependencies for EXARL:
 
 ```
 pip install -e . --user
@@ -84,19 +87,19 @@ following directories:
 2. ~/.exarl/config
 3. <site-packages dir>/exarl/config
 
-If you would like to run ExaRL from outside the source directory, you may
-install the config files with exarl or copy them into ExaRL's config directory
+If you would like to run EXARL from outside the source directory, you may
+install the config files with exarl or copy them into EXARL's config directory
 in your home directory like so:
 
 ```console
 $ mkdir -p ~/.exarl/config
-$ cd ExaRL
+$ cd EXARL
 $ cp config/* ~/.exarl/config
 ```
 
 ## [CANDLE](https://github.com/ECP-CANDLE/Candle) functionality is built into EXARL
 
-- Add/modify the learner parameters in `ExaRL/learner_cfg.json`\
+- Add/modify the learner parameters in `EXARL/config/learner_cfg.json`\
   E.g.:-
 
 ```
@@ -110,7 +113,7 @@ $ cp config/* ~/.exarl/config
 }
 ```
 
-- Add/modify the agent parameters in `ExaRL/exarl/agents/agent_vault/agent_cfg/<AgentName>_<model_type>.json`\
+- Add/modify the agent parameters in `EXARL/config/agent_cfg/<AgentName>.json`\
   E.g.:-
 
 ```
@@ -120,19 +123,27 @@ $ cp config/* ~/.exarl/config
     "epsilon_min" : 0.01,
     "epsilon_decay" : 0.999,
     "learning_rate" : 0.001,
-    "batch_size" : 32,
-    "tau" : 0.5,
-    "model_type" : "MLP",
-    "dense" : [64, 128],
-    "activation" : "relu",
-    "optimizer" : "adam",
-    "loss" : "mse"
+    "batch_size" : 5,
+    "tau" : 0.5
 }
 ```
 
 Currently, DQN agent takes either MLP or LSTM as model_type.
 
-- Add/modify the environment parameters in `ExaRL/exarl/envs/env_vault/env_cfg/<EnvName>.json`\
+- Add/modify the model parameters in `EXARL/config/model_cfg/<ModelName>.json`\
+  E.g.:-
+
+```
+{
+    "dense" : [64, 128],
+    "activation" : "relu",
+    "optimizer" : "adam",
+    "out_activation" : "linear",
+    "loss" : "mse"
+}
+```
+
+- Add/modify the environment parameters in `EXARL/config/env_cfg/<EnvName>.json`\
   E.g.:-
 
 ```
@@ -141,7 +152,7 @@ Currently, DQN agent takes either MLP or LSTM as model_type.
 }
 ```
 
-- Add/modify the workflow parameters in `ExaRL/exarl/workflows/workflow_vault/workflow_cfg/<WorkflowName>.json`\
+- Add/modify the workflow parameters in `EXARL/config/workflow_cfg/<WorkflowName>.json`\
   E.g.:-
 
 ```
@@ -150,13 +161,13 @@ Currently, DQN agent takes either MLP or LSTM as model_type.
 }
 ```
 
-- Please note the agent, environment, and workflow configuration file (json file) name must match the agent, environment, and workflow ID specified in `ExaRL/config/learner_cfg.json`. \
-  E.g.:- `ExaRL/exarl/agents/agent_vault/agent_cfg/DQN-v0_LSTM.json`, `ExaRL/exarl/envs/env_vault/env_cfg/ExaCartPole-v1.json`, and `ExaRL/exarl/workflows/workflow_vault/workflow_cfg/async.json`
+- Please note the agent, model, environment, and workflow configuration file (json file) name must match the agent, model, environment, and workflow ID specified in `EXARL/config/learner_cfg.json`. \
+  E.g.:- `EXARL/config/agent_cfg/DQN-v0.json`, `EXARL/config/model_cfg/MLP.json`, `EXARL/config/env_cfg/ExaCartPole-v1.json`, and `EXARL/config/workflow_cfg/async.json`
 
 ## Running EXARL using MPI
 
 - Existing environment can be paired with an available agent
-- The following script is provided for convenience: `ExaRL/exarl/driver/__main__.py`
+- The following script is provided for convenience: `EXARL/exarl/driver/__main__.py`
 
 ```
 from mpi4py import MPI
@@ -230,8 +241,8 @@ self.gamma =  cd.run_params['gamma']
 
 ## Creating custom environments
 
-- ExaRL uses OpenAI gym environments
-- The ExaEnv class in `ExaRL/exarl/env_base.py` inherits from OpenAI GYM Wrapper class for including added functionality.
+- EXARL uses OpenAI gym environments
+- The ExaEnv class in `EXARL/exarl/env_base.py` inherits from OpenAI GYM Wrapper class for including added functionality.
 - Environments inherit from gym.Env
 
 ```
@@ -240,7 +251,7 @@ Example:-
         ...
 ```
 
-- Register the environment in `ExaRl/exarl/envs/__init__.py`
+- Register the environment in `EXARL/exarl/envs/__init__.py`
 
 ```
 from gym.envs.registration import register
@@ -253,13 +264,13 @@ register(
 
 - The id variable will be passed to exarl.make() to call the environment
 
-- The file `ExaRL/env/env_vault/__init__.py` should include
+- The file `EXARL/env/env_vault/__init__.py` should include
 
 ```
 from exarl.envs.env_vault.foo_env import FooEnv
 ```
 
-where ExaRL/envs/env_vault/foo_env.py is the file containing your envirnoment
+where EXARL/envs/env_vault/foo_env.py is the file containing your envirnoment
 
 ### Using environment written in a lower level language
 
@@ -392,7 +403,7 @@ save()          # save weights to memory
 monitor()       # monitor progress of learning
 ```
 
-- Register the agent in `ExaRL/exarl/agents/__init__.py`
+- Register the agent in `EXARL/exarl/agents/__init__.py`
 
 ```
 from exarl.agents.registration import register, make
@@ -405,13 +416,13 @@ register(
 
 - The id variable will be passed to exarl.make() to call the agent
 
-- The file `ExaRL/exarl/agents/agent_vault/__init__.py` should include
+- The file `EXARL/exarl/agents/agent_vault/__init__.py` should include
 
 ```
 from exarl.agents.agent_vault.foo_agent import FooAgent
 ```
 
-where ExaRL/agents/agent_vault/foo_agent.py is the file containing your agent
+where EXARL/agents/agent_vault/foo_agent.py is the file containing your agent
 
 ## Creating custom workflows
 
@@ -430,7 +441,7 @@ Example:-
 run()   # run the workflow
 ```
 
-- Register the workflow in `ExaRL/exarl/workflows/__init__.py`
+- Register the workflow in `EXARL/exarl/workflows/__init__.py`
 
 ```
 from exarl.agents.registration import register, make
@@ -443,17 +454,17 @@ register(
 
 - The id variable will be passed to exarl.make() to call the agent
 
-- The file `ExaRL/exarl/workflows/workflow_vault/__init__.py` should include
+- The file `EXARL/exarl/workflows/workflow_vault/__init__.py` should include
 
 ```
 from exarl.workflows.workflow_vault.foo_workflow import FooWorkflow
 ```
 
-where ExaRL/workflows/workflow_vault/foo_workflow.py is the file containing your workflow
+where EXARL/workflows/workflow_vault/foo_workflow.py is the file containing your workflow
 
 ## Base classes
 
-- Base classes are provided for agents, environments, workflows, and learner in the directory `ExaRL/exarl/`
+- Base classes are provided for agents, environments, workflows, and learner in the directory `EXARL/exarl/`
 - Users can inherit from the correspoding agent, environment, and workflow base classes
 
 ## Debugging, Timing, and Profiling
@@ -493,7 +504,7 @@ def my_func(*args, **kwargs):
   year = {2020},
   publisher = {GitHub},
   journal = {GitHub repository},
-  howpublished = {\url{https://github.com/exalearn/ExaRL}},
+  howpublished = {\url{https://github.com/exalearn/EXARL}},
 }
 ```
 
