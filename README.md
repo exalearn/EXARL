@@ -83,9 +83,9 @@ pip install -e . --user
 Configuration files such as `config/learner_cfg.json` are searched for in the
 following directories:
 
-1. <current working directory>/config
+1. (current working directory)/config
 2. ~/.exarl/config
-3. <site-packages dir>/exarl/config
+3. (site-packages dir)/exarl/config
 
 If you would like to run EXARL from outside the source directory, you may
 install the config files with exarl or copy them into EXARL's config directory
