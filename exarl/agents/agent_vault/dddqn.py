@@ -276,14 +276,9 @@ class DDDQN(erl.ExaAgent):
                 # print("indices = ", batch[2])
                 # print("loss = ", loss.loss)
                 # self.replay_buffer.set_priorities(batch[2], loss.loss)
-                return batch[2], np.ones(self.batch_size)  # loss.loss
+                return batch[2], loss.loss
         else:
             logger.warning('Training will not be done because this instance is not set to learn.')
-
-        return -1 * np.ones(self.batch_size), -1 * np.ones(self.batch_size)
-
-    def set_priorities(self, indicies, loss):
-        self.replay_buffer.set_priorities(indicies, loss)
 
         return -1 * np.ones(self.batch_size), -1 * np.ones(self.batch_size)
 
