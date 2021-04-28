@@ -5,10 +5,5 @@
     "epsilon_decay" : 0.999,
     "learning_rate" : 0.001,
     "batch_size" : 5,
-    "tau" : 0.5,
-    "dense" : [64, 128],
-    "activation" : "relu",
-    "optimizer" : "adam",
-    "out_activation" : "linear",
-    "loss" : "mse"
+    "tau" : 0.5
 }

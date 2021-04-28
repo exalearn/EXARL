@@ -145,12 +145,21 @@ def get_driver_params():
     print('_________________________________________________________________', flush=True)
     try:
         agent_cfg = resolve_path('agent_cfg',
-                                 params['agent'] + '_' + params['model_type'] + '.json')
+                                 params['agent'] + '.json')
         print('Agent parameters from ', agent_cfg)
     except FileNotFoundError:
         agent_cfg = resolve_path('agent_cfg', 'default_agent_cfg.json')
         print('Agent configuration does not exist, using default configuration')
     agent_defs = parser_from_json(agent_cfg)
+
+    try:
+        model_cfg = resolve_path('model_cfg',
+                                 params['model_type'] + '.json')
+        print('Model parameters from ', model_cfg)
+    except FileNotFoundError:
+        model_cfg = resolve_path('model_cfg', 'default_model_cfg.json')
+        print('Model configuration does not exist, using default configuration')
+    model_defs = parser_from_json(model_cfg)
 
     try:
         env_cfg = resolve_path('env_cfg', params['env'] + '.json')
@@ -168,4 +177,4 @@ def get_driver_params():
         print('Workflow configuration does not exist, using default configuration')
     workflow_defs = parser_from_json(workflow_cfg)
 
-    return learner_defs + agent_defs + env_defs + workflow_defs
+    return learner_defs + agent_defs + model_defs + env_defs + workflow_defs
