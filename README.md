@@ -17,7 +17,6 @@ A scalable software framework for reinforcement learning environments and agents
 
 ```
 ├── setup.py                          : Python setup file with requirements files
-├── learner_cfg.json                  : Learner configuration file
 ├── scripts                           : folder containing RL steering scripts
 ├── config                	          : folder containing configurations
     └── agent_cfg                     : agent configuration folder
@@ -76,6 +75,25 @@ git lfs pull
 pip install -e . --user
 ```
 
+## Configuration Files
+
+Configuration files such as `config/learner_cfg.json` are searched for in the
+following directories:
+
+1. <current working directory>/config
+2. ~/.exarl/config
+3. <site-packages dir>/exarl/config
+
+If you would like to run ExaRL from outside the source directory, you may
+install the config files with exarl or copy them into ExaRL's config directory
+in your home directory like so:
+
+```console
+$ mkdir -p ~/.exarl/config
+$ cd ExaRL
+$ cp config/* ~/.exarl/config
+```
+
 ## [CANDLE](https://github.com/ECP-CANDLE/Candle) functionality is built into EXARL
 
 - Add/modify the learner parameters in `ExaRL/learner_cfg.json`\
@@ -132,7 +150,7 @@ Currently, DQN agent takes either MLP or LSTM as model_type.
 }
 ```
 
-- Please note the agent, environment, and workflow configuration file (json file) name must match the agent, environment, and workflow ID specified in `ExaRL/learner_cfg.json`. \
+- Please note the agent, environment, and workflow configuration file (json file) name must match the agent, environment, and workflow ID specified in `ExaRL/config/learner_cfg.json`. \
   E.g.:- `ExaRL/exarl/agents/agent_vault/agent_cfg/DQN-v0_LSTM.json`, `ExaRL/exarl/envs/env_vault/env_cfg/ExaCartPole-v1.json`, and `ExaRL/exarl/workflows/workflow_vault/workflow_cfg/async.json`
 
 ## Running EXARL using MPI
