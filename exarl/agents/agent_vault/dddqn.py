@@ -36,12 +36,9 @@ from collections import deque
 from datetime import datetime
 import numpy as np
 from exarl.agents.agent_vault._prioritized_replay import PrioritizedReplayBuffer
-from mpi4py import MPI
 import exarl.utils.candleDriver as cd
 import exarl.utils.log as log
 from tensorflow.compat.v1.keras.backend import set_session
-import mpi4py.rc
-mpi4py.rc.threads = False
 tf_version = int((tf.__version__)[0])
 
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
@@ -251,7 +248,8 @@ class DDDQN(erl.ExaAgent):
         # minibatch = random.sample(self.memory, self.batch_size)
         # TODO: Make priority scale a candle parameter
         # TODO: Use impotance while updating model
-        minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=0.0)
+        priority_scale = cd.run_params['priority_scale']
+        minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=priority_scale)
         batch_target = list(map(self.calc_target_f, minibatch))
         batch_states = [np.array(exp[0]).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
         batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
