@@ -57,6 +57,8 @@ $ module load cuda/10.1.243
 $ conda create --name exarl --clone /sw/summit/ibm-wml-ce/anaconda-base/envs/ibm-wml-ce-1.7.0-3
 
 $ # Install mpi4py into conda installation
+$ # Note that you could also just let spack install this for you, however I chose
+$ # to install this particular dependency by-hand at the time of writing.
 $ wget https://github.com/mpi4py/mpi4py/archive/3.0.3.tar.gz
 $ tar -xvzf 3.0.3.tar.gz
 $ python setup.py build --mpicc=`which mpicc`
