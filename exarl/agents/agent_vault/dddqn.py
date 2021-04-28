@@ -268,7 +268,7 @@ class DDDQN(erl.ExaAgent):
                 start_time = time.time()
                 with tf.device(self.device):
                     loss = LossHistory()
-                    self.model.fit(batch[0], batch[1], epochs=1, batch_size=1, verbose=0, callbacks=loss) #, sample_weight=batch[3])
+                    self.model.fit(batch[0], batch[1], epochs=1, batch_size=1, verbose=0, callbacks=loss, sample_weight=batch[3] * (1 - self.epsilon))
                 end_time = time.time()
                 self.training_time += (end_time - start_time)
                 self.ntraining_time += 1
@@ -278,7 +278,7 @@ class DDDQN(erl.ExaAgent):
                 # print("indices = ", batch[2])
                 # print("loss = ", loss.loss)
                 # self.replay_buffer.set_priorities(batch[2], loss.loss)
-                return batch[2], np.ones(self.batch_size) #loss.loss
+                return batch[2], loss.loss
         else:
             logger.warning('Training will not be done because this instance is not set to learn.')
 
