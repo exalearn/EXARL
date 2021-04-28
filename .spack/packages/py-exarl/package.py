@@ -12,8 +12,8 @@ class PyExarl(PythonPackage):
     """A scalable software framework for reinforcement learning environments
     and agents/policies used for the Design and Control applications"""
 
-    homepage  = 'https://github.com/exalearn/ExaRL'
-    git = 'https://github.com/exalearn/ExaRL.git'
+    homepage  = 'https://github.com/exalearn/EXARL'
+    git = 'https://github.com/exalearn/EXARL.git'
 
     version('master', branch='master')
     version('develop', branch='develop')
