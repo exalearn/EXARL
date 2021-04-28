@@ -17,7 +17,7 @@ import exarl.envs
 import exarl.agents
 import exarl.workflows
 
-from exarl.env_base import ExaEnv
+from exarl.base.env_base import ExaEnv
 
 import os
 import csv
