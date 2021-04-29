@@ -6,22 +6,22 @@ class State(object):
 
     def __init__(self, dim_arr):
 
-        self.arr_state = []       # 1D array contains all elements of
+        self.arr_state = []          # 1D array contains all elements of
         # multi-dimensional state
 
         self.arr_each_dim = dim_arr  # 1D arry containts size of each dimension
 
         self.dim_state = 0
-        self.num_elem_state = 1        # the # of total elements for each state
+        self.num_elem_state = 1      # the # of total elements for each state
 
-        self.size_arr = []       # 1D helper array to get an get an index
+        self.size_arr = []           # 1D utility array to get an index
 
-        self.debug = 0                 # TODO: one can pass an argument
+        self.debug = 0               # TODO: one can pass an argument
 
-        self.set_dim_state()
-        self.set_num_elem_state()
-        self.allocate_state_space()
-        self.set_size_arr()
+        self.set_dim_state()         # set the dimension of state
+        self.set_num_elem_state()    # total # of elements for each state
+        self.allocate_state_space()  # allocate the state space
+        self.set_size_arr()          # set the utility array, size_arr
 
     # set the dimension of the state, dim_state
     def set_dim_state(self):
@@ -56,7 +56,7 @@ class State(object):
 
         self.size_arr = np.zeros(self.dim_state)
 
-        self.size_arr[self.dim_state - 1] = 0
+        self.size_arr[self.dim_state - 1] = 1
         if (self.dim_state <= 1):
             return
 
@@ -78,22 +78,23 @@ class State(object):
         if (self.debug >= 10):
             print("arr_idx: ", arr_idx)
 
+        # TODO: one can add try .. exception for each element of arr_each_dim
+        if (self.debug >= 1):
+            for i in range(self.dim_state):
+                if (arr_idx[i] < 0 or arr_idx[i] >= self.arr_each_dim[i]):
+                    print("ERROR: Each dimension's index has to be >=0 and "
+                          "< elf.arr_each_dim[i]-1 !")
+                    sys.exit()
+
         # TODO: one can add try .. exception for the input of arr_idx
         if self.dim_state != len(arr_idx):
-            print(
-                "ERROR: The dimension of the idex array should be the same as"
-                " the dimension of the state size!")
+            print("ERROR: The dimension of the idex array should be the same "
+                  "as the dimension of the state size!")
             sys.exit()
 
-        if (len(arr_idx) == 1):
-            index = self.arr_idx[0]
-        else:
-            index = 0
-            for i in range(self.dim_state):
-                if (i < self.dim_state - 1):
-                    index += self.size_arr[i] * arr_idx[i]
-                elif (i == self.dim_state - 1):
-                    index += arr_idx[i]
+        index = 0
+        for i in range(self.dim_state):
+            index += self.size_arr[i] * arr_idx[i]
 
         if (self.debug >= 10):
             print("index: ", int(index))
