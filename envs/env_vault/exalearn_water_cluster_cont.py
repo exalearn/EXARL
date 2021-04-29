@@ -224,10 +224,11 @@ def write_structure(PATH, structure, energy=0.0):
         f.writelines(pos)
 
 def write_csv(path, rank, data):
-    data = [str(x) for x in data]
-    data = ','.join(data)
-    with open(os.path.join(path,'rank{}.csv'.format(rank)), 'a') as f:
-        f.writelines(data+'\n')
+    if rank > 0:
+        data = [str(x) for x in data]
+        data = ','.join(data)
+        with open(os.path.join(path,'rank{}.csv'.format(rank)), 'a') as f:
+            f.writelines(data+'\n')
 
 
 def get_dataset_info(xyz):
@@ -260,7 +261,7 @@ class WaterCluster(gym.Env):
         self.steps = 0
         self.lowest_energy = 0
         self.streak = 0
-        self.max_streak = 5 
+        self.max_streak = 1 
         self.nstructures = 0
         self.energies = []
         self.episode_energies = []
@@ -304,14 +305,7 @@ class WaterCluster(gym.Env):
         self.observation_space = spaces.Box(low=-500*np.ones(self.embedded_state_size),
                                             high=np.zeros(self.embedded_state_size), dtype=np.float64)
 
-        # Actions per cluster: cluster id, rotation angle, translation
-        #self.rotation_map = list(range(80,121,10)) # jumps of 10 deg
-        #self.translation_map = [x/100 for x in range(50,71)][::5] # steps of 0.05 A
-        #self.cluster_map = list(range(self.nclusters+1)) 
-        #a =[self.cluster_map, self.rotation_map, self.translation_map]                                              
-        #self.action_map = list(itertools.product(*a))
-
-        #self.action_space = spaces.Discrete(len(self.action_map))
+        # Actions
         self.rot_min = 80
         self.rot_max = 120
         self.rot_mean = (self.rot_max + self.rot_min)/2
@@ -342,9 +336,6 @@ class WaterCluster(gym.Env):
         self.steps += 1
         logger.debug('Env::step(); steps[{0:3d}]'.format(self.steps))
         logger.debug('Current energy:{}'.format(self.current_energy))
-        #logger.debug('Action Choice:{}'.format(action))
-        #action = self.action_map[action]
-        #logger.debug('Action:{}'.format(action))
         logger.debug('Current energy:{}'.format(self.current_energy))
         action = action[0]
         logger.debug('Action:{}'.format(action))
@@ -352,21 +343,19 @@ class WaterCluster(gym.Env):
         # Initialize outut
         done = False
         #energy = np.random.normal(self.current_energy, 0.01)  # Default energy
-        reward = np.random.normal(0.0, 0.05)  # Default penalty
+        reward = round(np.random.normal(0.0, 0.05),4)  # Default penalty
 
         # Extract actions
         natoms = 3
         cluster_id = math.floor(action[0]+self.nclusters/2+0.5)
         cluster_id = self.state_order[cluster_id]
-        #rotation_z = self.rotation_map[action[1]]
-        #translation = self.translation_map[action[2]]
         rotation_z = round(float(action[1])+self.rot_mean,2)
         translation = round(float(action[2]+self.trans_mean ),4)  # (x,y,z)
         actions = [cluster_id, rotation_z, translation]
         
         # read in structure as ase atom object
         try:
-            current_ase = read(self.current_structure, parallel=False)
+            self.current_ase = read(self.current_structure, parallel=False)
         except:
             logger.warning("couldn't read structure as ase atoms object")
             done = True
@@ -380,7 +369,7 @@ class WaterCluster(gym.Env):
 
         # Save structure in xyz format
         self.current_structure = os.path.join(self.output_dir,'rotationz_rank{}_episode{}_steps{}.xyz'.format(mpi_settings.agent_comm.rank, self.episode, self.steps))
-        write_structure(self.current_structure, current_ase)
+        write_structure(self.current_structure, self.current_ase)
         #fix_structure_file(self.current_structure)
 
         # Run the process
@@ -395,7 +384,7 @@ class WaterCluster(gym.Env):
             os.remove(self.current_structure)
             done = True
             self.current_state = np.zeros(self.embedded_state_size)
-            reward = np.random.normal(-1.0, 1.0)
+            reward = round(np.random.normal(-1.0, 1.0),4)
             #reward = 0
             self.current_energy = 0 
             write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters+1, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, 0, 0, reward, done])
@@ -417,10 +406,11 @@ class WaterCluster(gym.Env):
         '''
 
         # Reward is currently based on the potential energy
-        lowest_energy_xyz = ''
+        #lowest_energy_xyz = ''
         self.current_ase = read(min_xyz, parallel=False)
-        energy = float(stdout[-1].split()[-1])
+        energy = round(float(stdout[-1].split()[-1]),4)
         self.current_state, self.state_order, schnet_energy = get_state_embedding(self.schnet_model, self.current_ase)
+        schnet_energy = round(schnet_energy, 4)
 
         logger.debug('lowest_energy:{}'.format(self.lowest_energy))
         logger.debug('energy:{}'.format(energy))
@@ -429,17 +419,17 @@ class WaterCluster(gym.Env):
             self.lowest_energy=energy
         #    done = True
         #    reward = (self.current_energy - energy)*self.episodes
-            lowest_energy_xyz = os.path.join(self.output_dir,'rotationz_rank{}_episode{}_steps{}_energy{}.xyz'.format(
-                mpi_settings.agent_comm.rank, self.episode, self.steps,round(self.lowest_energy,4)))
+            #lowest_energy_xyz = os.path.join(self.output_dir,'rotationz_rank{}_episode{}_steps{}_energy{}.xyz'.format(
+            #    mpi_settings.agent_comm.rank, self.episode, self.steps,round(self.lowest_energy,4)))
             logger.info("\t Found lower energy:{}".format(energy))
-            write_structure(lowest_energy_xyz, self.current_ase, self.current_energy)
+            #write_structure(lowest_energy_xyz, self.current_ase, self.current_energy)
         #    return self.current_state, reward, done, {}
 
         # End episode if the structure is unstable
         if energy > self.initial_energy * 0.95:
             logger.warning('energy too high {}'.format(energy))
             done = True
-            reward = (self.current_energy - energy)
+            reward = round((self.current_energy - energy),4)
             self.current_state = np.zeros(self.embedded_state_size)
             write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters+1, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, energy, schnet_energy, reward, done])
             return self.current_state, reward, done, {}
@@ -456,13 +446,13 @@ class WaterCluster(gym.Env):
 
         # End episode if the same structure is found max_streak times in a row
         if round(self.current_energy,3) == round(energy,3):
-            logger.warning('episode {} step {}: max streak reached {}'.format(self.episode, self.steps, self.max_streak))
             # Return values
             self.streak += 1 
             if self.streak == self.max_streak:
+                logger.warning('episode {} step {}: max streak reached {}'.format(self.episode, self.steps, self.max_streak))
                 done = True
                 self.current_state = np.zeros(self.embedded_state_size)
-                reward = np.random.normal(-1.0, 1.0) 
+                reward = round(np.random.normal(-5.0, 0.1),4) 
                 write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters+1, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, energy, schnet_energy, reward, done])
                 return self.current_state, reward, done, {}
             
@@ -472,8 +462,8 @@ class WaterCluster(gym.Env):
             #reward = self.current_energy - energy
 
         # Set reward to normalized SchNet energy (first value in state) 
-        reward = (self.current_energy - energy)*(1+self.steps/100)  #/ self.initial_energy 
-
+        reward = (self.current_energy - energy)#*(1+self.steps/100)  #/ self.initial_energy 
+        reward = round(reward,4)
         # Update current energy    
         self.current_energy = energy       
         self.episode_energies += [self.current_energy]
@@ -503,14 +493,15 @@ class WaterCluster(gym.Env):
         self.streak = 0
         logger.debug('Env::reset(); episode[{0:4d}]'.format(self.episode, self.steps))
         n = random.randint(0, self.nstructures)
-        logger.warning('Restart episode {}: start from {} with energy {}'.format(self.episode, n, self.energies[0]))
+        logger.warning('Restart episode {}: start from {} with energy {}'.format(self.episode, n, self.energies[n]))
         (self.current_ase, self.nclusters) = self._load_structure(self.env_input, n=n)
         self.current_ase.calc = self.calc
         #self.current_structure = self.init_structure
         self.current_structure = os.path.join(self.output_dir,'rotationz_rank{}_episode{}_steps{}.xyz'.format(mpi_settings.agent_comm.rank, self.episode, self.steps))
 
         self.current_state, self.state_order, schnet_energy = get_state_embedding(self.schnet_model, self.current_ase)
-        self.initial_energy = self.energies[n] 
+        schnet_energy = round(schnet_energy, 4)
+        self.initial_energy = round(self.energies[n], 4) 
         self.current_energy = self.initial_energy
         self.episode_energies = [self.current_energy]
 
