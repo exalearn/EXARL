@@ -90,3 +90,26 @@ in `EXARL/spack/packages/py-exarl/package.py`) for
 whatever branch you're working on and changing the spack environment with
 `spack config edit` and replacing the `exarl.py-exaxrl@develop` with
 `exarl.py-exarl@your-branch-here`.
+
+## Installing on Ascent
+
+Installing on Ascent is almost identical to installing on Summit:
+
+```console
+$ # Load modules and clone IBM ml module (this is laid out in the EXARL wiki)
+$ module load spectrum-mpi/10.3.1.2-20200121
+$ module load gcc/6.4.0
+$ module load ibm-wml-ce/1.7.0-0
+$ module load cuda/10.1.243
+
+$ cd EXARL
+$ spack env create exarl ./spack/environments/ascent/exarl-conda.yaml
+$ spack env activate exarl
+$ spack install
+```
+
+Note that the spack environments look in your anaconda environment for many of
+the python packages, since the more complicated packages are already installed
+in the IBM module. If you would like to use an alternate installation for any
+python package in particular, just specify the location or module of that
+package in the environment file.
