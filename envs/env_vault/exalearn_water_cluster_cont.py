@@ -314,8 +314,8 @@ class WaterCluster(gym.Env):
         self.trans_max = 0.7
         self.trans_mean = (self.trans_max + self.trans_min)/2
         trans_width = self.trans_max - self.trans_min
-        self.action_space = spaces.Box(low=np.array([-self.nclusters/2, -rot_width/2, -trans_width/2]),
-                                       high=np.array([self.nclusters/2, +rot_width/2, +trans_width/2]), dtype=np.float64)
+        self.action_space = spaces.Box(low=np.array([-(self.nclusters)/2, -rot_width/2, -trans_width/2]),
+                                       high=np.array([(self.nclusters)/2, +rot_width/2, +trans_width/2]), dtype=np.float64)
 
     def _load_structure(self, env_input, n):
         # Read initial XYZ file
@@ -344,6 +344,7 @@ class WaterCluster(gym.Env):
         done = False
         #energy = np.random.normal(self.current_energy, 0.01)  # Default energy
         reward = round(np.random.normal(0.0, 0.05),4)  # Default penalty
+        bad_reward = round(np.random.normal(-5.0, 0.1),4) # Negative penalty
 
         # Extract actions
         natoms = 3
@@ -384,8 +385,7 @@ class WaterCluster(gym.Env):
             os.remove(self.current_structure)
             done = True
             self.current_state = np.zeros(self.embedded_state_size)
-            reward = round(np.random.normal(-1.0, 1.0),4)
-            #reward = 0
+            reward = bad_reward
             self.current_energy = 0 
             write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters+1, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, 0, 0, reward, done])
             return self.current_state, reward, done, {}
@@ -426,11 +426,11 @@ class WaterCluster(gym.Env):
         #    return self.current_state, reward, done, {}
 
         # End episode if the structure is unstable
-        if energy > self.initial_energy * 0.95:
+        if energy > max(self.energies) * 0.95:
             logger.warning('energy too high {}'.format(energy))
             done = True
-            reward = round((self.current_energy - energy),4)
-            self.current_state = np.zeros(self.embedded_state_size)
+            reward = bad_reward
+            #self.current_state = np.zeros(self.embedded_state_size)
             write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters+1, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, energy, schnet_energy, reward, done])
             return self.current_state, reward, done, {}
 
@@ -451,8 +451,8 @@ class WaterCluster(gym.Env):
             if self.streak == self.max_streak:
                 logger.warning('episode {} step {}: max streak reached {}'.format(self.episode, self.steps, self.max_streak))
                 done = True
-                self.current_state = np.zeros(self.embedded_state_size)
-                reward = round(np.random.normal(-5.0, 0.1),4) 
+                #self.current_state = np.zeros(self.embedded_state_size)
+                reward = bad_reward
                 write_csv(self.output_dir, mpi_settings.agent_comm.rank, [self.nclusters+1, mpi_settings.agent_comm.rank, self.episode, self.steps, cluster_id, rotation_z, translation, energy, schnet_energy, reward, done])
                 return self.current_state, reward, done, {}
             
