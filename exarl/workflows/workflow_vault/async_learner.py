@@ -143,7 +143,7 @@ class ASYNC(erl.ExaWorkflow):
                     indices, loss = train_return
                 workflow.agent.target_train()
                 agent_comm.send([episode, 0, 0, indices, loss], dest=s)
-                
+
             logger.info('Learner time: {}'.format(MPI.Wtime() - start))
 
         else:
