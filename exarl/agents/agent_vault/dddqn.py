@@ -39,11 +39,9 @@ from exarl.agents.agent_vault._prioritized_replay import PrioritizedReplayBuffer
 import exarl.utils.candleDriver as cd
 import exarl.utils.log as log
 from tensorflow.compat.v1.keras.backend import set_session
+
 tf_version = int((tf.__version__)[0])
-
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
-
-# The Discrete Double Deep Q-Network (DDDQN)
 
 class LossHistory(keras.callbacks.Callback):
     def on_train_begin(self, logs={}):
@@ -52,7 +50,7 @@ class LossHistory(keras.callbacks.Callback):
     def on_batch_end(self, batch, logs={}):
         self.loss.append(logs.get('loss'))
 
-
+# The Discrete Double Deep Q-Network (DDDQN)
 class DDDQN(erl.ExaAgent):
     def __init__(self, env):
         #
@@ -151,9 +149,8 @@ class DDDQN(erl.ExaAgent):
             self.target_model.summary()
             self.target_weights = self.target_model.get_weights()
 
-        # TODO: make configurable
-        # self.memory = deque(maxlen=1000)
-        self.replay_buffer = PrioritizedReplayBuffer(maxlen=100000)
+        self.maxlen = cd.run_params['mem_length']
+        self.replay_buffer = PrioritizedReplayBuffer(maxlen=self.maxlen)
 
     def _get_device(self):
         gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -231,23 +228,13 @@ class DDDQN(erl.ExaAgent):
 
     def generate_data(self):
         # Worker method to create samples for training
-        # TODO: This method is the most expensive and takes 90% of the agent compute time
-        # TODO: Reduce computational time
-        # TODO: Revisit the shape (e.g. extra 1 for the LSTM)
         batch_states = np.zeros((self.batch_size, 1, self.env.observation_space.shape[0]))
         batch_target = np.zeros((self.batch_size, self.env.action_space.n))
         indices = -1 * np.ones(self.batch_size)
         importance = np.ones(self.batch_size)
-        # batch_states = []
-        # batch_target = []
-        # Return empty batch
-        # if len(self.memory) < self.batch_size:
         if self.replay_buffer.get_buffer_length() < self.batch_size:
             yield batch_states, batch_target, indices, importance
         start_time = time.time()
-        # minibatch = random.sample(self.memory, self.batch_size)
-        # TODO: Make priority scale a candle parameter
-        # TODO: Use impotance while updating model
         priority_scale = cd.run_params['priority_scale']
         minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=priority_scale)
         batch_target = list(map(self.calc_target_f, minibatch))
@@ -273,9 +260,6 @@ class DDDQN(erl.ExaAgent):
                 logger.info('Agent[{}]- Training: {} '.format(self.rank, (end_time - start_time)))
                 start_time_episode = time.time()
                 logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
-                # print("indices = ", batch[2])
-                # print("loss = ", loss.loss)
-                # self.replay_buffer.set_priorities(batch[2], loss.loss)
                 return batch[2], loss.loss
         else:
             logger.warning('Training will not be done because this instance is not set to learn.')
