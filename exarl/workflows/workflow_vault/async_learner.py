@@ -70,11 +70,12 @@ class ASYNC(erl.ExaWorkflow):
             logger.info("Initializing ...\n")
             for s in range(1, agent_comm.size):
                 # Send target weights
+                indices, loss = None, None
                 rank0_epsilon = workflow.agent.epsilon
                 target_weights = workflow.agent.get_weights()
                 episode = worker_episodes[s - 1]
                 agent_comm.send(
-                    [episode, rank0_epsilon, target_weights], dest=s)
+                    [episode, rank0_epsilon, target_weights, indices, loss], dest=s)
 
             init_nepisodes = episode
             logger.debug('init_nepisodes:{}'.format(init_nepisodes))
@@ -94,8 +95,10 @@ class ASYNC(erl.ExaWorkflow):
                 logger.debug('step:{}'.format(step))
                 logger.debug('done:{}'.format(done))
                 # Train
-                indicies, loss = workflow.agent.train(batch)
-                agent_comm.send([indicies, loss], dest=whofrom)
+                train_return = workflow.agent.train(batch)
+                if train_return is not None:
+                    indices, loss = train_return
+                # agent_comm.send([indicies, loss], dest=whofrom)
 
                 # TODO: Double check if this is already in the DQN code
                 workflow.agent.target_train()
@@ -121,7 +124,7 @@ class ASYNC(erl.ExaWorkflow):
                     logger.debug('episode_done:{}'.format(episode_done))
 
                 agent_comm.send([worker_episodes[whofrom - 1],
-                                 epsilon, target_weights], dest=whofrom)
+                                 epsilon, target_weights, indices, loss], dest=whofrom)
 
             logger.info("Finishing up ...\n")
             episode = -1
@@ -135,11 +138,11 @@ class ASYNC(erl.ExaWorkflow):
                 logger.debug('step:{}'.format(step))
                 logger.debug('done:{}'.format(done))
                 # Train
-                indicies, loss = workflow.agent.train(batch)
-                agent_comm.send([indicies, loss], dest=s)
-                # TODO: Double check if this is already in the DQN code
+                train_return = workflow.agent.train(batch)
+                if train_return is not None:
+                    indices, loss = train_return
                 workflow.agent.target_train()
-                agent_comm.send([episode, 0, 0], dest=s)
+                agent_comm.send([episode, 0, 0, indices, loss], dest=s)
                 
             logger.info('Learner time: {}'.format(MPI.Wtime() - start))
 
@@ -223,8 +226,10 @@ class ASYNC(erl.ExaWorkflow):
                         # Send batched memories
                         agent_comm.send(
                             [agent_comm.rank, steps, batch_data, policy_type, done], dest=0)
-                        indices, loss = agent_comm.recv(source=MPI.ANY_SOURCE)
-                        workflow.agent.set_priorities(indices, loss)
+                        # indices, loss = agent_comm.recv(source=MPI.ANY_SOURCE)
+                        indices, loss = recv_data[3:5]
+                        if indices is not None:
+                            workflow.agent.set_priorities(indices, loss)
                         logger.info('Rank[%s] - Total Reward:%s' %
                                     (str(agent_comm.rank), str(total_reward)))
                         logger.info(
