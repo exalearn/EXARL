@@ -1,4 +1,4 @@
-from mult_dim_state import State
+from state import State
 import random
 import numpy as np
 
