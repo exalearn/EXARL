@@ -1,0 +1,201 @@
+spack:
+  specs:
+  - exarl.py-exarl@develop%gcc@6.4.0 ^py-numpy@1.18.0
+  view: true
+  definitions:
+  - compilers: [gcc@6.4.0]
+  packages:
+    gcc:
+      externals:
+      - spec: gcc@6.4.0
+        modules: [gcc/6.4.0]
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+    spectrum-mpi:
+      externals:
+      - spec: spectrum-mpi
+        modules: [spectrum-mpi/10.3.1.2-20200121]
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+    python:
+      externals:
+      - spec: python@3.6.10
+        prefix: $CONDA_PREFIX
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+    py-keras:
+      externals:
+      - spec: py-keras
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/keras
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+    py-numba:
+      externals:
+      - spec: py-numba
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/numba
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+    py-ase:
+      externals:
+      - spec: py-ase
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/ase
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+    py-pandas:
+      externals:
+      - spec: py-pandas
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/pandas
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+    cuda:
+      externals:
+      - spec: cuda@10.1.243
+        prefix: $CONDA_PREFIX
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+    cudnn:
+      externals:
+      - spec: cudnn@7.6.5
+        prefix: $CONDA_PREFIX
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+    py-tensorflow:
+      externals:
+      - spec: py-tensorflow cuda_arch=70
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/tensorflow
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+    py-numpy:
+      externals:
+      - spec: py-numpy@1.18.0
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/numpy
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+    py-dask:
+      externals:
+      - spec: py-dask
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/dask
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+    py-h5py:
+      externals:
+      - spec: py-h5py@2.10.0
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/h5py
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+    py-torchvision:
+      externals:
+      - spec: py-torchvision
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/torchvision
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+    py-matplotlib:
+      externals:
+      - spec: py-matplotlib
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/matplotlib
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+    py-scipy:
+      externals:
+      - spec: py-scipy
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/scipy
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+    go-bootstrap:
+      externals:
+      - spec: go-bootstrap
+        modules: [go/1.11.5]
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+    py-torch:
+      externals:
+      - spec: py-torch
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/torch
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+    py-scikit-learn:
+      externals:
+      - spec: py-scikit-learn
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/sklearn
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+    py-pip:
+      externals:
+      - spec: py-pip@10.0.1
+        prefix: $CONDA_PREFIX
+      buildable: false
+      version: []
+      target: []
+      compiler: []
+      providers: {}
+  compilers:
+  - compiler:
+      spec: gcc@6.4.0
+      paths:
+        cc: /sw/ascent/gcc/6.4.0/bin/gcc
+        cxx: /sw/ascent/gcc/6.4.0/bin/g++
+        f77: /sw/ascent/gcc/6.4.0/bin/gfortran
+        fc: /sw/ascent/gcc/6.4.0/bin/gfortran
+      flags: {}
+      operating_system: rhel7
+      target: ppc64le
+      modules: []
+      environment: {unset: []}
+      extra_rpaths: []
