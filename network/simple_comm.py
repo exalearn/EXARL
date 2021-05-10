@@ -1,6 +1,7 @@
 from utils.introspect import ib
 from utils.introspect import introspectTrace
 from utils.typing import TypeUtils
+import os
 import numpy as np
 import exarl as erl
 
@@ -18,6 +19,8 @@ class ExaSimple(erl.ExaComm):
         self.comm = comm
         self.size = comm.Get_size()
         self.rank = comm.Get_rank()
+        if self.rank > 0:
+            os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
         self.buffers = {}
         super().__init__(self, procs_per_env)
 

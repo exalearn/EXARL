@@ -1,4 +1,5 @@
 import functools
+import traceback
 
 # Try to import introbind and replace if fail
 try:
@@ -35,6 +36,11 @@ def introspectTrace(position=None, keyword=None, default=0):
             result = func(*args, **kwargs)
             if flag:
                 ib.stopTrace()
+            #else:
+            #    print("---Start", func.__name__)    
+            #    for line in traceback.format_stack():
+            #        print(line.strip())
+            #    print("---End", func.__name__)
             return result
 
         return wrapper

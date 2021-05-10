@@ -91,8 +91,12 @@ class DQN(erl.ExaAgent):
             sess = tf.Session(config=config)
             set_session(sess)
         elif tf_version >= 2:
-
-            config = tf.compat.v1.ConfigProto()
+            if self.rank == 0:
+                print("Setting GPU rank", self.rank)
+                config = tf.compat.v1.ConfigProto(device_count={'GPU':0, 'CPU':1})
+            else:
+                print("Setting no GPU rank", self.rank)
+                config = tf.compat.v1.ConfigProto(device_count={'GPU':0, 'CPU':1})
             config.gpu_options.allow_growth = True
             sess = tf.compat.v1.Session(config=config)
             tf.compat.v1.keras.backend.set_session(sess)
@@ -126,17 +130,17 @@ class DQN(erl.ExaAgent):
         self.loss = cd.run_params['loss']
 
         # Build network model
-        with tf.device(self.device):
-            if self.is_learner:
+        if self.is_learner:
+            with tf.device(self.device):
                 self.model = self._build_model()
                 self.model.compile(loss=self.loss, optimizer=self.optimizer)
                 self.model.summary()
-
-        with tf.device('/CPU:0'):
-            self.target_model = self._build_model()
-            self.target_model.compile(loss=self.loss, optimizer=self.optimizer)
-            self.target_model.summary()
-            self.target_weights = self.target_model.get_weights()
+        else:
+            with tf.device('/CPU:0'):
+                self.target_model = self._build_model()
+                self.target_model.compile(loss=self.loss, optimizer=self.optimizer)
+                self.target_model.summary()
+                self.target_weights = self.target_model.get_weights()
 
         # TODO: make configurable
         self.memory = deque(maxlen=1000)
