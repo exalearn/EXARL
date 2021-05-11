@@ -1,9 +1,9 @@
 {
     "agent": "DQN-v0",
     "env": "ExaCartPole-v1",
-    "workflow": "async",
-    "n_episodes": 100,
-    "n_steps": 100,
+    "workflow": "rma",
+    "n_episodes": 10,
+    "n_steps": 10,
     "output_dir": "./results_dir/",
     "process_per_env": 1,
     "model_type": "LSTM",

@@ -1,6 +1,5 @@
 from utils.introspect import ib
 from utils.introspect import introspectTrace
-from utils.typing import TypeUtils
 import os
 import numpy as np
 import exarl as erl
@@ -11,8 +10,9 @@ mpi4py.rc.threads = False
 mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
 
-
 class ExaSimple(erl.ExaComm):
+    MPI = MPI
+
     def __init__(self, comm=MPI.COMM_WORLD, procs_per_env=1):
         if comm is None:
             comm = MPI.COMM_WORLD

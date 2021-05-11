@@ -3,7 +3,8 @@ import os
 import functools
 import numpy as np
 import tensorflow as tf
-from mpi4py import MPI
+from network.simple_comm import ExaSimple
+MPI = ExaSimple.MPI
 
 class TypeUtils:
 

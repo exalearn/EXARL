@@ -28,7 +28,9 @@ from utils.profile import *
 import utils.log as log
 import utils.candleDriver as cd
 from exarl.comm_base import ExaComm
-from mpi4py import MPI
+from network.data_structures import *
+from network.simple_comm import ExaSimple
+MPI = ExaSimple.MPI
 
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
@@ -67,7 +69,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
             # The counter needs to be 64 bit value
             # Otherwise dumps only gives it 1 byte which will overflow at 256
             # Causing put/get to fail
-            target_weights = workflow.agent.get_weights()
+            target_weights = (workflow.agent.get_weights(), np.int64(0))
             serial_target_weights = MPI.pickle.dumps(target_weights)
             serial_target_weights_size = len(serial_target_weights)
             target_weights_size = 0
@@ -77,14 +79,10 @@ class RMA_ASYNC(erl.ExaWorkflow):
             model_win = MPI.Win.Allocate(target_weights_size, 1, comm=agent_comm)
 
             # Get serialized batch data size
-            agent_batch = next(workflow.agent.generate_data())
-            serial_agent_batch = (MPI.pickle.dumps(agent_batch))
-            serial_agent_batch_size = len(serial_agent_batch)
-            nserial_agent_batch = 0
-            if ExaComm.is_actor():
-                nserial_agent_batch = serial_agent_batch_size
-            # Allocate data window
-            data_win = MPI.Win.Allocate(nserial_agent_batch, 1, comm=agent_comm)
+            agent_batch = (next(workflow.agent.generate_data()), np.int64(0))
+            # data_exchange = ExaMPIBuff(ExaComm.agent_comm, ExaComm.learner_rank(), data=agent_batch)
+            # data_exchange = ExaMPIStack(ExaComm.agent_comm, ExaComm.learner_rank(), data=agent_batch)
+            data_exchange = ExaMPIQueue(ExaComm.agent_comm, ExaComm.learner_rank(), data=agent_batch)
 
         if ExaComm.is_learner():
             # Write target weight to model window of learner
@@ -98,7 +96,6 @@ class RMA_ASYNC(erl.ExaWorkflow):
         # Learner
         if ExaComm.is_learner():
             # Initialize batch data buffer
-            data_buffer = bytearray(serial_agent_batch_size)
             episode_count_learner = np.zeros(1, dtype=np.float64)
             epsilon = np.array(workflow.agent.epsilon, dtype=np.float64)
             learner_counter = 0
@@ -116,34 +113,25 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 episode_win.Flush(0)
                 episode_win.Unlock(0)
 
-                # Go over all actors (actor processes start from rank 1)
-                s = (learner_counter % (agent_comm.size - 1)) + 1
-                # Get data
-                data_win.Lock(s)
-                data_win.Get(data_buffer, target_rank=s, target=None)
-                data_win.Unlock(s)
-
-                # Continue to the next actor if data_buffer is empty
-                try:
-                    agent_data = MPI.pickle.loads(data_buffer)
-                except:
-                    continue
-
+                # Get data from data exchange
+                batch_data, actor_counter = data_exchange.get_data(learner_counter)
+                learner_counter+=1
+                
                 # Train & Target train
-                workflow.agent.train(agent_data)
+                workflow.agent.train(batch_data)
                 ib.update("Async_Learner_Train", 1)
                 # TODO: Double check if this is already in the DQN code
                 workflow.agent.target_train()
                 ib.update("Async_Learner_Target_Train", 1)
 
                 # Share new model weights
-                target_weights = workflow.agent.get_weights()
+                target_weights = (workflow.agent.get_weights(), learner_counter)
                 serial_target_weights = MPI.pickle.dumps(target_weights)
                 model_win.Lock(0)
                 model_win.Put(serial_target_weights, target_rank=0)
                 model_win.Unlock(0)
-                learner_counter += 1
-
+                # ib.update("Async_Learner_Episode", 1)
+            BufferDataset.turn_off()
             logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_data))
 
         # Actors
@@ -160,6 +148,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 one = np.ones(1, dtype=np.float64)
                 epsilon_update = np.zeros(1, dtype=np.float64)
                 epsilon = np.zeros(1, dtype=np.float64)
+                count = 0
 
                 # Get initial value of episode counter
                 episode_win.Lock(0)
@@ -202,7 +191,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         model_win.Get(buff, target=0, target_rank=0)
                         model_win.Flush(0)
                         model_win.Unlock(0)
-                        target_weights = MPI.pickle.loads(buff)
+                        target_weights, learner_counter = MPI.pickle.loads(buff)
                         workflow.agent.set_weights(target_weights)
 
                         # Atomic Get_accumulate to get epsilon
@@ -242,19 +231,17 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         total_rewards += reward
                         memory = (current_state, action, reward, next_state, done, total_rewards)
                         workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
-                        batch_data = next(workflow.agent.generate_data())
+                        batch_data = (next(workflow.agent.generate_data()), learner_counter)
                         ib.update("Async_Env_Generate_Data", 1)
                         # Write to data window
-                        serial_agent_batch = (MPI.pickle.dumps(batch_data))
-                        data_win.Lock(agent_comm.rank)
-                        data_win.Put(serial_agent_batch, target_rank=agent_comm.rank)
-                        data_win.Unlock(agent_comm.rank)
+                        # Here is the PUSH
+                        agent_data = data_exchange.push(batch_data)
 
                         # Log state, action, reward, ...
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
                                                done, local_actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
                         train_file.flush()
+                    ib.update("Async_Env_Episode", 1)
 
         if ExaComm.is_agent():
             model_win.Free()
-            data_win.Free()

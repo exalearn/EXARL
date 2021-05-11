@@ -20,7 +20,6 @@
 #                    under Contract DE-AC05-76RL01830
 import time
 import csv
-from mpi4py import MPI
 import exarl as erl
 from exarl.comm_base import ExaComm
 import utils.log as log
@@ -35,7 +34,7 @@ class SYNC(erl.ExaWorkflow):
 
     @PROFILE
     def run(self, workflow):
-        comm = MPI.COMM_WORLD
+        comm = ExaComm.agent_comm()
 
         filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' % (
             str(workflow.nepisodes), str(workflow.nsteps), str(comm.rank))
@@ -51,7 +50,7 @@ class SYNC(erl.ExaWorkflow):
             target_weights = workflow.agent.get_weights()
 
         # Send and set to all other agents
-        current_weights = comm.bcast(target_weights, root=0)
+        current_weights = comm.bcast(target_weights, 0)
         workflow.agent.set_weights(current_weights)
 
         # Variables for all
@@ -104,8 +103,8 @@ class SYNC(erl.ExaWorkflow):
                     #    workflow.agent.save(workflow.results_dir+'/'+filename_prefix+'.h5')
 
                 # Broadcast the memory size and the model weights to the workers
-                rank0_epsilon = comm.bcast(rank0_epsilon, root=0)
-                current_weights = comm.bcast(target_weights, root=0)
+                rank0_epsilon = comm.bcast(rank0_epsilon, 0)
+                current_weights = comm.bcast(target_weights, 0)
 
                 # Set the model weight for all the workers
                 workflow.agent.set_weights(current_weights)
@@ -130,7 +129,7 @@ class SYNC(erl.ExaWorkflow):
                                            next_state, total_reward, done, e, steps, policy_type, rank0_epsilon])
                     train_file.flush()
 
-                all_done = comm.allreduce(done, op=MPI.LAND)
+                all_done = comm.allreduce(done)
 
             end_time_episode = time.time()
             logger.info('Rank[%s] run-time for episode %s: %s ' %
