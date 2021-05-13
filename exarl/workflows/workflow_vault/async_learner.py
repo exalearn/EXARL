@@ -28,6 +28,7 @@ from exarl.utils.profile import *
 import exarl.utils.log as log
 import exarl.utils.candleDriver as cd
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
+import pickle
 
 
 class ASYNC(erl.ExaWorkflow):
@@ -96,8 +97,9 @@ class ASYNC(erl.ExaWorkflow):
                 logger.debug('done:{}'.format(done))
                 # Train
                 train_return = workflow.agent.train(batch)
-                if train_return is not None:
+                if not np.array_equal(train_return[0], (-1*np.ones(workflow.agent.batch_size))):
                     indices, loss = train_return
+                   
                 # agent_comm.send([indicies, loss], dest=whofrom)
 
                 # TODO: Double check if this is already in the DQN code
@@ -110,6 +112,8 @@ class ASYNC(erl.ExaWorkflow):
                 logger.debug('rank0_epsilon:{}'.format(epsilon))
 
                 target_weights = workflow.agent.get_weights()
+                with open('target_weights.pkl', 'wb') as f:
+                    pickle.dump(target_weights, f)
 
                 # Increment episode when starting
                 if step == 0:
@@ -205,6 +209,8 @@ class ASYNC(erl.ExaWorkflow):
                         memory = (current_state, action, reward,
                                   next_state, done, total_reward)
 
+                        with open('experience.pkl', 'wb') as f:
+                            pickle.dump(memory, f)
                         # batch_data = []
                         workflow.agent.remember(
                             memory[0], memory[1], memory[2], memory[3], memory[4])
