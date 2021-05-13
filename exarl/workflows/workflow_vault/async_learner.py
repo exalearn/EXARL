@@ -97,9 +97,9 @@ class ASYNC(erl.ExaWorkflow):
                 logger.debug('done:{}'.format(done))
                 # Train
                 train_return = workflow.agent.train(batch)
-                if not np.array_equal(train_return[0], (-1*np.ones(workflow.agent.batch_size))):
+                if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
                     indices, loss = train_return
-                   
+
                 # agent_comm.send([indicies, loss], dest=whofrom)
 
                 # TODO: Double check if this is already in the DQN code
