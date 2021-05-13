@@ -257,7 +257,7 @@ class ExaMPIQueue(erl.ExaData):
     def push(self, data):
         rank = self.comm.rank
         toSend = MPI.pickle.dumps(data)
-        assert len(toSend) == self.dataSize
+        assert len(toSend) <= self.dataSize
 
         head = np.zeros(1, dtype=np.int64)
         tail = np.zeros(1, dtype=np.int64)

@@ -131,7 +131,6 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 model_win.Put(serial_target_weights, target_rank=0)
                 model_win.Unlock(0)
                 # ib.update("Async_Learner_Episode", 1)
-            BufferDataset.turn_off()
             logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_data))
 
         # Actors
