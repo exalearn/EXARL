@@ -142,10 +142,11 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
                 # Train & Target train
                 train_return = workflow.agent.train(agent_data)
-                if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
-                    indices, loss = train_return
-                    indices = np.array(indices, dtype=np.intc)
-                    loss = np.array(loss, dtype=np.float64)
+                if train_return is not None:
+                    if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
+                        indices, loss = train_return
+                        indices = np.array(indices, dtype=np.intc)
+                        loss = np.array(loss, dtype=np.float64)
 
                 # Write indices to memory pool
                 indices_win.Lock(0)
