@@ -142,7 +142,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
                 # Train & Target train
                 train_return = workflow.agent.train(agent_data)
-                if not np.array_equal(train_return[0], (-1*np.ones(workflow.agent.batch_size))):
+                if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
                     indices, loss = train_return
                     indices = np.array(indices, dtype=np.intc)
                     loss = np.array(loss, dtype=np.float64)
@@ -250,7 +250,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         loss_win.Flush(0)
                         loss_win.Unlock(0)
 
-                        if not np.array_equal(indices, (-1*np.ones(workflow.agent.batch_size, dtype=np.intc))):
+                        if not np.array_equal(indices, (-1 * np.ones(workflow.agent.batch_size, dtype=np.intc))):
                             workflow.agent.set_priorities(indices, loss)
 
                         # Inference action
