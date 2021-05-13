@@ -97,7 +97,7 @@ class ASYNC(erl.ExaWorkflow):
                 logger.debug('done:{}'.format(done))
                 # Train
                 train_return = workflow.agent.train(batch)
-                if not train_return is None:
+                if train_return is not None:
                     if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
                         indices, loss = train_return
 
