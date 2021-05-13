@@ -61,6 +61,22 @@ class RMA_ASYNC(erl.ExaWorkflow):
             # Create epsilon window
             epsilon_win = MPI.Win.Create(epsilon, disp, comm=agent_comm)
 
+            # Get size of individual indices
+            disp = MPI.INT.Get_size()
+            indices = None
+            if mpi_settings.is_learner():
+                indices = -1 * np.ones(workflow.agent.batch_size, dtype=np.intc)
+            # Create indices window
+            indices_win = MPI.Win.Create(indices, disp, comm=agent_comm)
+
+            # Get size of loss
+            disp = MPI.DOUBLE.Get_size()
+            loss = None
+            if mpi_settings.is_learner():
+                loss = np.zeros(workflow.agent.batch_size, dtype=np.float64)
+            # Create epsilon window
+            loss_win = MPI.Win.Create(loss, disp, comm=agent_comm)
+
             # Get serialized target weights size
             target_weights = workflow.agent.get_weights()
             serial_target_weights = MPI.pickle.dumps(target_weights)
@@ -125,7 +141,22 @@ class RMA_ASYNC(erl.ExaWorkflow):
                     continue
 
                 # Train & Target train
-                workflow.agent.train(agent_data)
+                train_return = workflow.agent.train(agent_data)
+                if not np.array_equal(train_return[0], (-1*np.ones(workflow.agent.batch_size))):
+                    indices, loss = train_return
+                    indices = np.array(indices, dtype=np.intc)
+                    loss = np.array(loss, dtype=np.float64)
+
+                # Write indices to memory pool
+                indices_win.Lock(0)
+                indices_win.Put(indices, target_rank=0)
+                indices_win.Unlock(0)
+
+                # Write losses to memory pool
+                loss_win.Lock(0)
+                loss_win.Put(loss, target_rank=0)
+                loss_win.Unlock(0)
+
                 # TODO: Double check if this is already in the DQN code
                 workflow.agent.target_train()
                 # Share new model weights
@@ -152,6 +183,8 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 one = np.ones(1, dtype=np.float64)
                 epsilon_update = np.zeros(1, dtype=np.float64)
                 epsilon = np.zeros(1, dtype=np.float64)
+                indices = -1 * np.ones(workflow.agent.batch_size, dtype=np.int32)
+                loss = np.zeros(workflow.agent.batch_size, dtype=np.float64)
 
                 # Get initial value of episode counter
                 episode_win.Lock(0)
@@ -197,13 +230,28 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         target_weights = MPI.pickle.loads(buff)
                         workflow.agent.set_weights(target_weights)
 
-                        # Atomic Get_accumulate to get epsilon
+                        # Get epsilon
                         epsilon_win.Lock(0)
                         epsilon_win.Get(epsilon, target_rank=0)
                         epsilon_win.Flush(0)
                         epsilon_win.Unlock(0)
 
                         workflow.agent.epsilon = epsilon
+
+                        # Get indices
+                        indices_win.Lock(0)
+                        indices_win.Get(indices, target_rank=0)
+                        indices_win.Flush(0)
+                        indices_win.Unlock(0)
+
+                        # Get losses
+                        loss_win.Lock(0)
+                        loss_win.Get(loss, target_rank=0)
+                        loss_win.Flush(0)
+                        loss_win.Unlock(0)
+
+                        if not np.array_equal(indices, (-1*np.ones(workflow.agent.batch_size, dtype=np.intc))):
+                            workflow.agent.set_priorities(indices, loss)
 
                         # Inference action
                         if workflow.action_type == 'fixed':
