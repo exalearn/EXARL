@@ -97,8 +97,9 @@ class ASYNC(erl.ExaWorkflow):
                 logger.debug('done:{}'.format(done))
                 # Train
                 train_return = workflow.agent.train(batch)
-                if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
-                    indices, loss = train_return
+                if not train_return is None:
+                    if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
+                        indices, loss = train_return
 
                 # agent_comm.send([indicies, loss], dest=whofrom)
 
@@ -223,7 +224,7 @@ class ASYNC(erl.ExaWorkflow):
                         except:
                             buffer_length = workflow.agent.replay_buffer.get_buffer_length()
                         logger.info(
-                            'Rank[{}] - Memories: {}'.format(agent_comm.rank, buffer_length))
+                            'Rank[{}] - # Memories: {}'.format(agent_comm.rank, buffer_length))
 
                     if steps >= workflow.nsteps - 1:
                         done = True

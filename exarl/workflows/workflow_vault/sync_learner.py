@@ -87,8 +87,12 @@ class SYNC(erl.ExaWorkflow):
                     batch_data = next(workflow.agent.generate_data())
                     logger.info(
                         'Rank[{}] - Generated data: {}'.format(comm.rank, len(batch_data[0])))
+                try:
+                    buffer_length = len(workflow.agent.memory)
+                except:
+                    buffer_length = workflow.agent.replay_buffer.get_buffer_length()
                 logger.info(
-                    'Rank[{}] - Memories: {}'.format(comm.rank, len(workflow.agent.memory)))
+                    'Rank[{}] - # Memories: {}'.format(comm.rank, buffer_length))
 
                 new_batch = comm.gather(batch_data, root=0)
 
@@ -96,7 +100,11 @@ class SYNC(erl.ExaWorkflow):
                 if mpi_settings.is_learner():
                     # Push memories to learner
                     for batch in new_batch:
-                        workflow.agent.train(batch)
+                        train_return = workflow.agent.train(batch)
+
+                    if train_return is not None:
+                        # indices, loss = train_return
+                        workflow.agent.set_priorities(*train_return)
                     workflow.agent.target_train()
                     rank0_epsilon = workflow.agent.epsilon
                     target_weights = workflow.agent.get_weights()
