@@ -40,12 +40,17 @@ ib.start()
 start = time.time()
 exa_learner.run()
 elapse = time.time() - start
-max_elapse = comm.reduce(np.float64(elapse), max, 0)
-elapse = comm.reduce(np.float64(elapse), sum, 0)
 ib.stop()
 
+if ibLoaded():
+    print("Rank", comm.rank, "Time = ", elapse)
+else:
+    max_elapse = comm.reduce(np.float64(elapse), max, 0)
+    elapse = comm.reduce(np.float64(elapse), sum, 0)
+    if rank == 0:
+        print("Average elapsed time = ", elapse / size)
+        print("Maximum elapsed time = ", max_elapse)
+
 if rank == 0:
-    print("Average elapsed time = ", elapse / size)
-    print("Maximum elapsed time = ", max_elapse)
     # Save rewards vs. episodes plot
     ar.save_reward_plot()
