@@ -79,7 +79,8 @@ class RMA_ASYNC(erl.ExaWorkflow):
             model_win = MPI.Win.Allocate(target_weights_size, 1, comm=agent_comm)
 
             # Get serialized batch data size
-            agent_batch = (next(workflow.agent.generate_data()), np.int64(0))
+            learner_counter = np.int64(0)
+            agent_batch = (next(workflow.agent.generate_data()), learner_counter)
             # data_exchange = ExaMPIBuff(ExaComm.agent_comm, ExaComm.learner_rank(), data=agent_batch)
             # data_exchange = ExaMPIStack(ExaComm.agent_comm, ExaComm.learner_rank(), data=agent_batch)
             data_exchange = ExaMPIQueue(ExaComm.agent_comm, ExaComm.learner_rank(), data=agent_batch)
@@ -98,7 +99,6 @@ class RMA_ASYNC(erl.ExaWorkflow):
             # Initialize batch data buffer
             episode_count_learner = np.zeros(1, dtype=np.float64)
             epsilon = np.array(workflow.agent.epsilon, dtype=np.float64)
-            learner_counter = 0
             # Initialize epsilon
             epsilon_win.Lock(0)
             epsilon_win.Put(epsilon, target_rank=0)

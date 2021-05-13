@@ -4,7 +4,11 @@ import traceback
 # Try to import introbind and replace if fail
 try:
     import introbind as ib
+    def ibLoaded():
+        return True
 except:
+    def ibLoaded():
+        return False
 
     class ib:
         def update(name, toAdd):

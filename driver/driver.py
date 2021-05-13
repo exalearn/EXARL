@@ -23,7 +23,8 @@ import utils.analyze_reward as ar
 import time
 from utils.candleDriver import initialize_parameters
 from utils.introspect import ib
-
+from utils.introspect import ibLoaded
+import numpy as np
 
 # Create learner object and run
 exa_learner = erl.ExaLearner()
@@ -39,11 +40,9 @@ ib.start()
 start = time.time()
 exa_learner.run()
 elapse = time.time() - start
+max_elapse = comm.reduce(np.float64(elapse), max, 0)
+elapse = comm.reduce(np.float64(elapse), sum, 0)
 ib.stop()
-
-# Compute and print average time
-max_elapse = comm.reduce(elapse, max, 0)
-elapse = comm.reduce(elapse, sum, 0)
 
 if rank == 0:
     print("Average elapsed time = ", elapse / size)
