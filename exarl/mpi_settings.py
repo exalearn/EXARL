@@ -23,31 +23,40 @@ import mpi4py.rc
 mpi4py.rc.threads = False
 
 
-def init(comm, procs_per_env):
+def init(comm, learner_procs, procs_per_env):
     # global communicator
     global global_comm
     global_comm = comm
     global_rank = global_comm.rank
+    global num_learners
+    num_learners = learner_procs
+
+    # Learner communicator
+    global learner_comm
+    learner_color = MPI.UNDEFINED
+    if global_rank < num_learners:
+        learner_color = 0
+    learner_comm = global_comm.Split(learner_color, global_rank)
 
     # Agent communicator
     global agent_comm
     agent_color = MPI.UNDEFINED
-    if (global_rank == 0) or ((global_rank + procs_per_env - 1) % procs_per_env == 0):
+    if (global_rank < num_learners) or ((global_rank + procs_per_env - 1) % procs_per_env == 0):
         agent_color = 0
     agent_comm = global_comm.Split(agent_color, global_rank)
 
     # Environment communicator
-    if global_rank == 0:
+    if global_rank < num_learners:
         env_color = 0
     else:
-        env_color = (int((global_rank - 1) / procs_per_env)) + 1
+        env_color = (int((global_rank - num_learners) / procs_per_env)) + 1
     global env_comm
     env_comm = global_comm.Split(env_color, global_rank)
 
 # Function to test if a process is a learner
 def is_learner():
     try:
-        if agent_comm.rank == 0:
+        if agent_comm.rank < num_learners:
             return True
     except:
         return False
@@ -55,7 +64,7 @@ def is_learner():
 # Function to test if a process is an actor
 def is_actor():
     try:
-        if agent_comm.rank > 0:
+        if agent_comm.rank >= num_learners:
             return True
     except:
         return False

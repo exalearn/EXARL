@@ -43,6 +43,7 @@ class ExaLearner():
         self.results_dir = './results'  # Default dir, will be overridden by candle
         self.do_render = False
 
+        self.learner_procs = int(cd.run_params['learner_procs'])
         self.process_per_env = int(cd.run_params['process_per_env'])
         self.action_type = cd.run_params['action_type']
 
@@ -64,7 +65,7 @@ class ExaLearner():
             self.workflow_id = 'exarl.workflows:' + 'sync'
 
         # Setup MPI
-        mpi_settings.init(self.global_comm, self.process_per_env)
+        mpi_settings.init(self.global_comm, self.learner_procs, self.process_per_env)
         self.agent, self.env, self.workflow = self.make()
         self.env.unwrapped.spec.max_episode_steps  = self.nsteps
         self.env.unwrapped._max_episode_steps = self.nsteps
