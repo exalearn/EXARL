@@ -22,7 +22,7 @@ import time
 import csv
 import numpy as np
 import exarl as erl
-from utils.introspect import ib
+from utils.introspect import *
 from utils.typing import TypeUtils
 from utils.profile import *
 import utils.log as log
@@ -36,8 +36,17 @@ logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class RMA_ASYNC(erl.ExaWorkflow):
     def __init__(self):
-        print('Creating RMA async workflow...')
-
+        print('Creating RMA async workflow with ', cd.run_params['data_structure'], "length", cd.run_params['data_structure_length'], "lag", cd.run_params['max_model_lag'])
+        
+        data_exchange_constructors = {
+            "buffer" : ExaMPIBuff,
+            "queue" : ExaMPIQueue,
+            "stack" : ExaMPIStack 
+        }
+        self.de_constr = data_exchange_constructors[cd.run_params['data_structure']]
+        self.de_length = cd.run_params['data_structure_length']
+        self.de_lag = cd.run_params['max_model_lag']
+        
     @PROFILE
     def run(self, workflow):
         # MPI communicators
@@ -81,9 +90,8 @@ class RMA_ASYNC(erl.ExaWorkflow):
             # Get serialized batch data size
             learner_counter = np.int64(0)
             agent_batch = (next(workflow.agent.generate_data()), learner_counter)
-            # data_exchange = ExaMPIBuff(ExaComm.agent_comm, ExaComm.learner_rank(), data=agent_batch)
-            # data_exchange = ExaMPIStack(ExaComm.agent_comm, ExaComm.learner_rank(), data=agent_batch)
-            data_exchange = ExaMPIQueue(ExaComm.agent_comm, ExaComm.learner_rank(), data=agent_batch)
+            data_exchange = self.de_constr(ExaComm.agent_comm, ExaComm.learner_rank(), 
+                                           data=agent_batch, length=self.de_length, max_model_lag=self.de_lag)
 
         if ExaComm.is_learner():
             # Write target weight to model window of learner
@@ -114,15 +122,16 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 episode_win.Unlock(0)
 
                 # Get data from data exchange
-                batch_data, actor_counter = data_exchange.get_data(learner_counter)
+                batch_data, actor_idx, actor_counter = data_exchange.get_data(learner_counter)
+                ib.simpleTrace("RMA_Learner_Get_Data", actor_idx, actor_counter)
                 learner_counter+=1
                 
                 # Train & Target train
                 workflow.agent.train(batch_data)
-                ib.update("Async_Learner_Train", 1)
+                ib.update("RMA_Learner_Train", 1)
                 # TODO: Double check if this is already in the DQN code
                 workflow.agent.target_train()
-                ib.update("Async_Learner_Target_Train", 1)
+                ib.update("RMA_Learner_Target_Train", 1)
 
                 # Share new model weights
                 target_weights = (workflow.agent.get_weights(), learner_counter)
@@ -192,6 +201,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         model_win.Unlock(0)
                         target_weights, learner_counter = MPI.pickle.loads(buff)
                         workflow.agent.set_weights(target_weights)
+                        ib.simpleTrace("RMA_Actor_Get_Model", local_actor_episode_counter, learner_counter)
 
                         # Atomic Get_accumulate to get epsilon
                         epsilon_win.Lock(0)
@@ -203,7 +213,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
                         # Inference action
                         action, policy_type = workflow.agent.action(current_state)
-                        ib.update("Async_Env_Inference", 1)
+                        ib.update("RMA_Env_Inference", 1)
                         if workflow.action_type == 'fixed':
                             action, policy_type = 0, -11
 
@@ -218,7 +228,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                     ib.startTrace("step", 0)
                     next_state, reward, done, _ = workflow.env.step(action)
                     ib.stopTrace()
-                    ib.update("Async_Env_Step", 1)
+                    ib.update("RMA_Env_Step", 1)
 
                     steps += 1
                     if steps >= workflow.nsteps:
@@ -231,7 +241,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         memory = (current_state, action, reward, next_state, done, total_rewards)
                         workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
                         batch_data = (next(workflow.agent.generate_data()), learner_counter)
-                        ib.update("Async_Env_Generate_Data", 1)
+                        ib.update("RMA_Env_Generate_Data", 1)
                         # Write to data window
                         # Here is the PUSH
                         agent_data = data_exchange.push(batch_data)
@@ -240,7 +250,8 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
                                                done, local_actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
                         train_file.flush()
-                    ib.update("Async_Env_Episode", 1)
+                        
+                ib.update("RMA_Env_Episode", 1)
 
         if ExaComm.is_agent():
             model_win.Free()

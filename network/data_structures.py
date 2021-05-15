@@ -18,14 +18,14 @@ MPI=ExaSimple.MPI
 
 # Move to ExaBuffMPI
 class ExaMPIBuff(erl.ExaData):
-    def __init__(self, comm, rank, size=None, data=None):
+    def __init__(self, comm, rank, size=None, data=None, length=1, max_model_lag=None):
         self.comm = comm
         self.rank = rank
 
         if data is not None:
             dataBytes = MPI.pickle.dumps(data)
             size = len(dataBytes)
-        super().__init__(bytes, size, comm_size=comm.size)
+        super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag)
 
         totalSize = 0
         if comm.rank == rank:
@@ -62,15 +62,15 @@ class ExaMPIBuff(erl.ExaData):
 
 
 class ExaMPIStack(erl.ExaData):
-    def __init__(self, comm, rank, size=None, data=None):
+    def __init__(self, comm, rank, size=None, data=None, length=32, max_model_lag=None):
         self.comm = comm
         self.rank = rank
-        self.length = 32
+        self.length = length
 
         if data is not None:
             dataBytes = MPI.pickle.dumps(data)
             size = len(dataBytes)
-        super().__init__(bytes, size, comm_size=comm.size)
+        super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag)
         self.buff = bytearray(self.dataSize)
         self.plus = np.array([1], dtype=np.int64)
         self.minus = np.array([-1], dtype=np.int64)
@@ -125,9 +125,9 @@ class ExaMPIStack(erl.ExaData):
             )
             self.win[rank].Unlock(self.rank)
 
-        if head[0] <= 1:
+        if head[0] <= 0:
             self.head[rank].Accumulate(
-                np.array([1], dtype=np.int64), self.rank, op=MPI.SUM
+                self.plus, self.rank, op=MPI.SUM
             )
             if head[0] == 0:
                 ret = False
@@ -160,15 +160,15 @@ class ExaMPIStack(erl.ExaData):
         self.head[rank].Unlock(self.rank)
 
 class ExaMPIQueue(erl.ExaData):
-    def __init__(self, comm, rank, size=None, data=None):
+    def __init__(self, comm, rank, size=None, data=None, length=32, max_model_lag=None):
         self.comm = comm
         self.rank = rank
-        self.length = 32
+        self.length = length
 
         if data is not None:
             dataBytes = MPI.pickle.dumps(data)
             size = len(dataBytes)
-        super().__init__(bytes, size, comm_size=comm.size)
+        super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag)
         self.buff = bytearray(self.dataSize)
         self.plus = np.array([1], dtype=np.int64)
         self.minus = np.array([-1], dtype=np.int64)

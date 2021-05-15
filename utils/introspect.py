@@ -23,6 +23,9 @@ except:
         def startTrace(name, size):
             return 0
 
+        def simpleTrace(name, a, b):
+            return 0
+
         def stopTrace():
             pass
 
