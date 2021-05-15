@@ -101,6 +101,7 @@ def base_parser(params):
     parser.add_argument("--env")
     parser.add_argument("--model_type")
     parser.add_argument("--workflow")
+    parser.add_argument("--data_structure")
     args, leftovers = parser.parse_known_args()
 
     if args.agent is not None:
@@ -118,6 +119,10 @@ def base_parser(params):
     if args.workflow is not None:
         params['workflow'] = args.workflow
         print("Workflow overwitten from command line: ", args.workflow)
+
+    if args.data_structure is not None:
+        params['data_structure'] = args.data_structure
+        print("Data_structure overwitten from command line: ", args.data_structure)
 
     return params
 
