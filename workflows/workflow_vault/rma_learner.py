@@ -229,6 +229,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                     next_state, reward, done, _ = workflow.env.step(action)
                     ib.stopTrace()
                     ib.update("RMA_Env_Step", 1)
+                    ib.simpleTrace("RMA_Reward", steps, reward)
 
                     steps += 1
                     if steps >= workflow.nsteps:
