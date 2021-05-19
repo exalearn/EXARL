@@ -123,7 +123,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
                 # Get data from data exchange
                 batch_data, actor_idx, actor_counter = data_exchange.get_data(learner_counter)
-                ib.simpleTrace("RMA_Learner_Get_Data", actor_idx, actor_counter)
+                ib.simpleTrace("RMA_Learner_Get_Data", actor_idx, actor_counter, learner_counter-actor_counter, 0)
                 learner_counter+=1
                 
                 # Train & Target train
@@ -201,7 +201,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         model_win.Unlock(0)
                         target_weights, learner_counter = MPI.pickle.loads(buff)
                         workflow.agent.set_weights(target_weights)
-                        ib.simpleTrace("RMA_Actor_Get_Model", local_actor_episode_counter, learner_counter)
+                        ib.simpleTrace("RMA_Actor_Get_Model", local_actor_episode_counter, learner_counter, 0, 0)
 
                         # Atomic Get_accumulate to get epsilon
                         epsilon_win.Lock(0)
@@ -229,7 +229,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                     next_state, reward, done, _ = workflow.env.step(action)
                     ib.stopTrace()
                     ib.update("RMA_Env_Step", 1)
-                    ib.simpleTrace("RMA_Reward", steps, int(reward))
+                    ib.simpleTrace("RMA_Reward", steps, 1 if done else 0, local_actor_episode_counter, reward)
 
                     steps += 1
                     if steps >= workflow.nsteps:
@@ -247,6 +247,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         # Here is the PUSH
                         agent_data = data_exchange.push(batch_data)
 
+                        ib.simpleTrace("RMA_Total_Reward", steps, 1 if done else 0, local_actor_episode_counter, total_rewards)
                         # Log state, action, reward, ...
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
                                                done, local_actor_episode_counter, steps, policy_type, workflow.agent.epsilon])

@@ -23,7 +23,7 @@ except:
         def startTrace(name, size):
             return 0
 
-        def simpleTrace(name, a, b):
+        def simpleTrace(name, a, b, c, d):
             return 0
 
         def stopTrace():
