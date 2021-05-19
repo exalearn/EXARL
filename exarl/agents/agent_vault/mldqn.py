@@ -52,7 +52,7 @@ class MLDQN(erl.ExaAgent):
     def __init__(self, env):
         # Initialize horovod
         self.learner_comm = mpi_settings.learner_comm
-        hvd.init(self.learner_comm)
+        hvd.init(comm=self.learner_comm)
 
         # Initialize member variables
         self.is_learner = False
@@ -144,8 +144,10 @@ class MLDQN(erl.ExaAgent):
             self.target_model.summary()
             self.target_weights = self.target_model.get_weights()
 
-        self.loss_fn = tf.keras.losses.MeanSquaredError()
-        self.opt = tf.keras.optimizers.Adam(self.learning_rate * self.learner_comm.size)
+        if mpi_settings.is_learner():
+            self.first_batch = 1
+            self.loss_fn = tf.keras.losses.MeanSquaredError()
+            self.opt = tf.keras.optimizers.Adam(self.learning_rate * self.learner_comm.size)
         # TODO: make configurable
         self.memory = deque(maxlen=1000)
 
@@ -238,12 +240,12 @@ class MLDQN(erl.ExaAgent):
         logger.debug('Agent[{}] - Minibatch time: {} '.format(self.rank, (end_time - start_time)))
         yield batch_states, batch_target
 
-    def train(self, hvd, batch, first_batch):
+    def train(self, batch):
         if self.is_learner:
             if len(batch) > 0 and len(batch[0]) >= (self.batch_size):
                 start_time = time.time()
                 with tf.device(self.device):
-                    loss = self.training_step(batch, first_batch)
+                    loss = self.training_step(batch)
                 end_time = time.time()
                 self.training_time += (end_time - start_time)
                 self.ntraining_time += 1
@@ -254,7 +256,7 @@ class MLDQN(erl.ExaAgent):
             logger.warning('Training will not be done because this instance is not set to learn.')
 
     @tf.function
-    def training_step(self, hvd, batch, first_batch):
+    def training_step(self, batch):
         with tf.GradientTape() as tape:
             probs = self.model(batch[0], training=True)
             loss_value = self.loss_fn(batch[1], probs)
@@ -265,9 +267,10 @@ class MLDQN(erl.ExaAgent):
         grads = tape.gradient(loss_value, self.model.trainable_variables)
         self.opt.apply_gradients(zip(grads, self.model.trainable_variables))
 
-        if first_batch:
+        if self.first_batch:
             hvd.broadcast_variables(self.model.variables, root_rank=0)
             hvd.broadcast_variables(self.opt.variables(), root_rank=0)
+            self.first_batch = 0
 
         return loss_value
 

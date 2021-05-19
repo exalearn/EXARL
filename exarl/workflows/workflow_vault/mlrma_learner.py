@@ -27,13 +27,12 @@ import exarl as erl
 from exarl.utils.profile import *
 import exarl.utils.log as log
 import exarl.utils.candleDriver as cd
-import horovod.tensorflow as hvd
 
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class ML_RMA(erl.ExaWorkflow):
     def __init__(self):
-        print('Creating RMA async workflow...')
+        print('Creating MLRMA workflow...')
 
     @PROFILE
     def run(self, workflow):
@@ -43,7 +42,6 @@ class ML_RMA(erl.ExaWorkflow):
         learner_comm = mpi_settings.learner_comm
 
         if mpi_settings.is_learner():
-            hvd.init(learner_comm)
             workflow.agent.set_learner()
 
         # Allocate RMA windows
@@ -51,7 +49,7 @@ class ML_RMA(erl.ExaWorkflow):
             # Get size of episode counter
             disp = MPI.DOUBLE.Get_size()
             episode_data = None
-            if learner_comm.rank == 0:
+            if mpi_settings.is_learner() and learner_comm.rank == 0:
                 episode_data = np.zeros(1, dtype=np.float64)
             # Create episode window (attach instead of allocate for zero initialization)
             episode_win = MPI.Win.Create(episode_data, disp, comm=agent_comm)
@@ -59,7 +57,7 @@ class ML_RMA(erl.ExaWorkflow):
             # Get size of epsilon
             disp = MPI.DOUBLE.Get_size()
             epsilon = None
-            if learner_comm.rank == 0:
+            if mpi_settings.is_learner() and learner_comm.rank == 0:
                 epsilon = np.zeros(1, dtype=np.float64)
             # Create epsilon window
             epsilon_win = MPI.Win.Create(epsilon, disp, comm=agent_comm)
@@ -67,7 +65,7 @@ class ML_RMA(erl.ExaWorkflow):
             # Get size of individual indices
             disp = MPI.INT.Get_size()
             indices = None
-            if learner_comm.rank == 0:
+            if mpi_settings.is_learner() and learner_comm.rank == 0:
                 indices = -1 * np.ones(workflow.agent.batch_size, dtype=np.intc)
             # Create indices window
             indices_win = MPI.Win.Create(indices, disp, comm=agent_comm)
@@ -75,7 +73,7 @@ class ML_RMA(erl.ExaWorkflow):
             # Get size of loss
             disp = MPI.DOUBLE.Get_size()
             loss = None
-            if learner_comm.rank == 0:
+            if mpi_settings.is_learner() and learner_comm.rank == 0:
                 loss = np.zeros(workflow.agent.batch_size, dtype=np.float64)
             # Create epsilon window
             loss_win = MPI.Win.Create(loss, disp, comm=agent_comm)
@@ -85,7 +83,7 @@ class ML_RMA(erl.ExaWorkflow):
             serial_target_weights = MPI.pickle.dumps(target_weights)
             serial_target_weights_size = len(serial_target_weights)
             target_weights_size = 0
-            if learner_comm.rank == 0:
+            if mpi_settings.is_learner() and learner_comm.rank == 0:
                 target_weights_size = serial_target_weights_size
             # Allocate model window
             model_win = MPI.Win.Allocate(target_weights_size, 1, comm=agent_comm)
@@ -100,7 +98,7 @@ class ML_RMA(erl.ExaWorkflow):
             # Allocate data window
             data_win = MPI.Win.Allocate(nserial_agent_batch, 1, comm=agent_comm)
 
-        if learner_comm.rank == 0:
+        if mpi_settings.is_learner() and learner_comm.rank == 0:
             # Write target weight to model window of learner
             model_win.Lock(0)
             model_win.Put(serial_target_weights, target_rank=0)
@@ -124,12 +122,15 @@ class ML_RMA(erl.ExaWorkflow):
                 epsilon_win.Unlock(0)
 
             while episode_count_learner < workflow.nepisodes:
-                # Check episode counter
-                episode_win.Lock(0)
-                # Atomic Get_accumulate to fetch episode count
-                episode_win.Get_accumulate(np.ones(1, dtype=np.float64), episode_count_learner, target_rank=0, op=MPI.NO_OP)
-                episode_win.Flush(0)
-                episode_win.Unlock(0)
+                if learner_comm.rank == 0:
+                    # Check episode counter
+                    episode_win.Lock(0)
+                    # Atomic Get_accumulate to fetch episode count
+                    episode_win.Get_accumulate(np.ones(1, dtype=np.float64), episode_count_learner, target_rank=0, op=MPI.NO_OP)
+                    episode_win.Flush(0)
+                    episode_win.Unlock(0)
+
+                episode_count_learner = learner_comm.bcast(episode_count_learner, root=0)
 
                 # Go over all actors (actor processes start from rank 1)
                 # s = (learner_counter % (agent_comm.size - 1)) + 1
@@ -146,10 +147,8 @@ class ML_RMA(erl.ExaWorkflow):
                 except:
                     continue
 
-                first_batch = 1 if (episode_count_learner == 0) else 0
                 # Train & Target train
-
-                train_return = workflow.agent.train(hvd, agent_data, first_batch)
+                train_return = workflow.agent.train(agent_data)
                 learner_comm.Barrier()
 
                 if train_return is not None:
@@ -157,6 +156,7 @@ class ML_RMA(erl.ExaWorkflow):
                         indices, loss = train_return
                         indices = np.array(indices, dtype=np.intc)
                         loss = np.array(loss, dtype=np.float64)
+
                 if learner_comm.rank == 0:
                     # Write indices to memory pool
                     indices_win.Lock(0)
