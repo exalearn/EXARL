@@ -122,7 +122,9 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 episode_win.Unlock(0)
 
                 # Get data from data exchange
+                ib.startTrace("RMA_Data_Exchange_Pop", 0)
                 batch_data, actor_idx, actor_counter = data_exchange.get_data(learner_counter)
+                ib.stopTrace()
                 ib.simpleTrace("RMA_Learner_Get_Data", actor_idx, actor_counter, learner_counter-actor_counter, 0)
                 learner_counter+=1
                 
@@ -154,9 +156,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
                 episode_count_actor = np.zeros(1, dtype=np.float64)
                 one = np.ones(1, dtype=np.float64)
-                epsilon_update = np.zeros(1, dtype=np.float64)
                 epsilon = np.zeros(1, dtype=np.float64)
-                count = 0
 
                 # Get initial value of episode counter
                 episode_win.Lock(0)
@@ -245,7 +245,9 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         ib.update("RMA_Env_Generate_Data", 1)
                         # Write to data window
                         # Here is the PUSH
+                        ib.startTrace("RMA_Data_Exchange_Push", 0)
                         agent_data = data_exchange.push(batch_data)
+                        ib.stopTrace()
 
                         ib.simpleTrace("RMA_Total_Reward", steps, 1 if done else 0, local_actor_episode_counter, total_rewards)
                         # Log state, action, reward, ...
