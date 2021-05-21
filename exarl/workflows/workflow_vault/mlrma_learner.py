@@ -32,7 +32,7 @@ logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class ML_RMA(erl.ExaWorkflow):
     def __init__(self):
-        print('Creating MLRMA workflow...')
+        print("Creating ML_RMA workflow")
 
     @PROFILE
     def run(self, workflow):
@@ -40,9 +40,6 @@ class ML_RMA(erl.ExaWorkflow):
         agent_comm = mpi_settings.agent_comm
         env_comm = mpi_settings.env_comm
         learner_comm = mpi_settings.learner_comm
-
-        if mpi_settings.is_learner():
-            workflow.agent.set_learner()
 
         # Allocate RMA windows
         if mpi_settings.is_agent():
@@ -53,7 +50,7 @@ class ML_RMA(erl.ExaWorkflow):
                 episode_data = np.zeros(1, dtype=np.float64)
             # Create episode window (attach instead of allocate for zero initialization)
             episode_win = MPI.Win.Create(episode_data, disp, comm=agent_comm)
-
+            print('################################agent rank=', agent_comm.rank, flush=True)
             # Get size of epsilon
             disp = MPI.DOUBLE.Get_size()
             epsilon = None

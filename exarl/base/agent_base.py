@@ -68,7 +68,3 @@ class ExaAgent(ABC):
     @abstractmethod
     def save(self, results_dir):
         pass
-
-    @abstractmethod
-    def set_learner(self):
-        pass

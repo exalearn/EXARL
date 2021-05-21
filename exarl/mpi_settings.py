@@ -41,7 +41,7 @@ def init(comm, learner_procs, procs_per_env):
     # Agent communicator
     global agent_comm
     agent_color = MPI.UNDEFINED
-    if (global_rank < num_learners) or ((global_rank + procs_per_env - 1) % procs_per_env == 0):
+    if (global_rank < num_learners) or ((global_rank + procs_per_env - num_learners) % procs_per_env == 0):
         agent_color = 0
     agent_comm = global_comm.Split(agent_color, global_rank)
 

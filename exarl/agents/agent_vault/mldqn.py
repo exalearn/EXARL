@@ -38,8 +38,6 @@ from mpi4py import MPI
 import exarl.utils.candleDriver as cd
 import exarl.utils.log as log
 from tensorflow.compat.v1.keras.backend import set_session
-import mpi4py.rc
-mpi4py.rc.threads = False
 import horovod.tensorflow as hvd
 
 tf_version = int((tf.__version__)[0])
@@ -49,16 +47,17 @@ logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 
 class MLDQN(erl.ExaAgent):
-    def __init__(self, env):
+    def __init__(self, env, is_learner):
         # Initialize horovod
         self.learner_comm = mpi_settings.learner_comm
         hvd.init(comm=self.learner_comm)
 
-        # Initialize member variables
-        self.is_learner = False
+        # Initial values
+        self.is_learner = is_learner
         self.model = None
         self.target_model = None
         self.target_weights = None
+        self.device = None
 
         self.env = env
         self.agent_comm = mpi_settings.agent_comm
@@ -67,8 +66,10 @@ class MLDQN(erl.ExaAgent):
         self.rank = self.agent_comm.rank
         self.size = self.agent_comm.size
 
-        self._get_device()
-        logger.info('Using device: {}'.format(self.device))
+        # self._get_device()
+        self.device = "/CPU:0"
+        logger.info("Using device: {}".format(self.device))
+        # tf.config.experimental.set_memory_growth(self.device, True)
 
         # Timers
         self.training_time = 0
@@ -76,78 +77,71 @@ class MLDQN(erl.ExaAgent):
         self.dataprep_time = 0
         self.ndataprep_time = 0
 
-        # Default settings
-        num_cores = os.cpu_count()
-        num_CPU = os.cpu_count()
-        num_GPU = 0
-
-        # Setup GPU cfg
-        if tf_version < 2:
-            gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
-            if self.rank == 0 and len(gpu_names) > 0:
-                num_cores = 1
-                num_CPU = 1
-                num_GPU = len(gpu_names)
-            config = tf.ConfigProto(intra_op_parallelism_threads=num_cores,
-                                    inter_op_parallelism_threads=num_cores,
-                                    allow_soft_placement=True,
-                                    device_count={'CPU': num_CPU,
-                                                  'GPU': num_GPU})
-            config.gpu_options.allow_growth = True
-            sess = tf.Session(config=config)
-            set_session(sess)
-        elif tf_version >= 2:
-
-            config = tf.compat.v1.ConfigProto()
-            config.gpu_options.allow_growth = True
-            sess = tf.compat.v1.Session(config=config)
-            tf.compat.v1.keras.backend.set_session(sess)
-
         # dqn intrinsic variables
-        self.results_dir = cd.run_params['output_dir']
-        self.gamma = cd.run_params['gamma']
-        self.epsilon = cd.run_params['epsilon']
-        self.epsilon_min = cd.run_params['epsilon_min']
-        self.epsilon_decay = cd.run_params['epsilon_decay']
-        self.learning_rate = cd.run_params['learning_rate']
-        self.batch_size = cd.run_params['batch_size']
-        self.tau = cd.run_params['tau']
-        self.model_type = cd.run_params['model_type']
+        self.results_dir = cd.run_params["output_dir"]
+        self.gamma = cd.run_params["gamma"]
+        self.epsilon = cd.run_params["epsilon"]
+        self.epsilon_min = cd.run_params["epsilon_min"]
+        self.epsilon_decay = cd.run_params["epsilon_decay"]
+        self.learning_rate = cd.run_params["learning_rate"]
+        self.batch_size = cd.run_params["batch_size"]
+        self.tau = cd.run_params["tau"]
+        self.model_type = cd.run_params["model_type"]
 
         # for mlp
-        if self.model_type == 'MLP':
-            self.dense = cd.run_params['dense']
-            self.out_activation = cd.run_params['out_activation']
+        self.dense = cd.run_params["dense"]
 
         # for lstm
-        elif self.model_type == 'LSTM':
-            self.lstm_layers = cd.run_params['lstm_layers']
-            self.gauss_noise = cd.run_params['gauss_noise']
-            self.regularizer = cd.run_params['regularizer']
-            self.out_activation = cd.run_params['out_activation']
+        self.lstm_layers = cd.run_params["lstm_layers"]
+        self.gauss_noise = cd.run_params["gauss_noise"]
+        self.regularizer = cd.run_params["regularizer"]
 
         # for both
-        self.activation = cd.run_params['activation']
-        self.optimizer = cd.run_params['optimizer']
-        self.loss = cd.run_params['loss']
+        self.activation = cd.run_params["activation"]
+        self.out_activation = cd.run_params["out_activation"]
+        self.optimizer = cd.run_params["optimizer"]
+        self.loss = cd.run_params["loss"]
+        self.clipnorm = cd.run_params["clipnorm"]
+        self.clipvalue = cd.run_params["clipvalue"]
 
-        # Build network model
-        with tf.device(self.device):
-            if self.is_learner:
-                self.model = self._build_model()
-                self.model.compile(loss=self.loss, optimizer=self.optimizer)
-                self.model.summary()
+        #
+        config = tf.compat.v1.ConfigProto()
+        config.gpu_options.allow_growth = True
+        sess = tf.compat.v1.Session(config=config)
+        tf.compat.v1.keras.backend.set_session(sess)
 
-        with tf.device('/CPU:0'):
-            self.target_model = self._build_model()
-            self.target_model.compile(loss=self.loss, optimizer=self.optimizer)
-            self.target_model.summary()
-            self.target_weights = self.target_model.get_weights()
+        # Build active network model - only for learner agent -
+        if self.is_learner:
+            # tf.debugging.set_log_device_placement(True)
+            gpus = tf.config.experimental.list_physical_devices("GPU")
+            logger.info("Available GPUs: {}".format(gpus))
+            # Active model
+            self.model = self._build_model()
+            self.model._name = "learner"
+            self.model.compile(loss=self.loss, optimizer=self.optimizer)
+            logger.info("Active model: \n".format(self.model.summary()))
+            # Target model
+            with tf.device("/CPU:0"):
+                self.target_model = self._build_model()
+                self.target_model._name = "target_model"
+                self.target_model.compile(loss=self.loss, optimizer=self.optimizer)
+                # self.target_model.summary()
+                self.target_weights = self.target_model.get_weights()
+        else:
+            cpus = tf.config.experimental.list_physical_devices("CPU")
+            logger.info("Available CPUs: {}".format(cpus))
+            with tf.device("/CPU:0"):
+                self.model = None
+                self.target_model = self._build_model()
+                self.target_model._name = "target_model"
+                self.target_model.compile(loss=self.loss, optimizer=self.optimizer)
+                # self.target_model.summary()
+                self.target_weights = self.target_model.get_weights()
 
         if mpi_settings.is_learner():
             self.first_batch = 1
             self.loss_fn = tf.keras.losses.MeanSquaredError()
-            self.opt = tf.keras.optimizers.Adam(self.learning_rate * self.learner_comm.size)
+            self.opt = tf.keras.optimizers.Adam(self.learning_rate * hvd.size())
         # TODO: make configurable
         self.memory = deque(maxlen=1000)
 
@@ -172,11 +166,9 @@ class MLDQN(erl.ExaAgent):
             sys.exit("Oops! That was not a valid model type. Try again...")
 
     def set_learner(self):
-        logger.debug('Agent[{}] - Creating active model for the learner'.format(self.rank))
-        self.is_learner = True
-        self.model = self._build_model()
-        self.model.compile(loss=self.loss, optimizer=self.optimizer)
-        self.model.summary()
+        logger.debug(
+            "Agent[{}] - Creating active model for the learner".format(self.rank)
+        )
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
