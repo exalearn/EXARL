@@ -61,7 +61,7 @@ class SYNC(erl.ExaWorkflow):
                 memory = (current_state, None, reward, None, done, 0)
                 if done != True:
                     action, policy_type = learner.agent.action(current_state)
-                    next_state, reward, done, _ = learner.env.step(action)
+                    next_state, reward, done, _ = learner.env.step(action[0])  # TODO: Ai needs to fix this!
                     total_reward += reward
                     memory = (current_state, action, reward,
                               next_state, done, total_reward)

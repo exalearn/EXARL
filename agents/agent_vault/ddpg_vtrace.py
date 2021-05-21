@@ -35,22 +35,23 @@ class DDPG_Vtrace(erl.ExaAgent):
         # Environment space and action parameters
         self.env = env
         self.num_states = env.observation_space.shape[0]
-        self.num_actions = env.action_space.shape[0]
-        self.upper_bound = env.action_space.high
-        self.lower_bound = env.action_space.low
-
+        self.num_disc_actions = env.action_space.n
+        self.num_actions = 1  # TODO: fix this later!! env.action_space.shape[0]
+        # self.upper_bound = env.action_space.high
+        # self.lower_bound = env.action_space.low
+       
         logger.info("Size of State Space:  {}".format(self.num_states))
         logger.info("Size of Action Space:  {}".format(self.num_actions))
-        logger.info('Env upper bounds: {}'.format(self.upper_bound))
-        logger.info('Env lower bounds: {}'.format(self.lower_bound))
-
+        # logger.info('Env upper bounds: {}'.format(self.upper_bound))
+        # logger.info('Env lower bounds: {}'.format(self.lower_bound))
+        
         self.gamma = 0.99
         self.tau = 0.005
 
         std_dev = 0.2
-        ave_bound = (self.upper_bound + self.lower_bound) / 2
-        print('ave_bound: {}'.format(ave_bound))
-        self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(std_dev) * np.ones(1))
+        # ave_bound = (self.upper_bound + self.lower_bound) / 2
+        # print('ave_bound: {}'.format(ave_bound))
+        # self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(std_dev) * np.ones(1))
 
         # Experience data
         self.buffer_capacity = 5000
@@ -62,7 +63,7 @@ class DDPG_Vtrace(erl.ExaAgent):
         self.reward_buffer = np.zeros((self.buffer_capacity, 1))
         self.next_state_buffer = np.zeros((self.buffer_capacity, self.num_states))
         self.done_buffer = np.zeros((self.buffer_capacity, 1))
-        self.memory = self.state_buffer  # BAD
+        self.memory = self.state_buffer  # BAD from the original code whoever wrote DDPG
 
         # Setup TF configuration to allow memory growth
         # tf.keras.backend.set_floatx('float64')
@@ -74,6 +75,7 @@ class DDPG_Vtrace(erl.ExaAgent):
         # Training model only required by the learners
         self.actor_model = None
         self.critic_model = None
+
         if self.is_learner:
             self.actor_model = self.get_actor()
             self.critic_model = self.get_critic()
@@ -81,6 +83,7 @@ class DDPG_Vtrace(erl.ExaAgent):
         # Every agent needs this, however, actors only use the CPU (for now)
         self.target_critic = None
         self.target_actor = None
+        
         if self.is_learner:
             self.target_actor = self.get_actor()
             self.target_critic = self.get_critic()
@@ -100,7 +103,7 @@ class DDPG_Vtrace(erl.ExaAgent):
         # Vtrace
         self.time_step     = -1
         self.n_steps       = cd.run_params["n_steps"]
-        print("steps: ", self.n_steps)
+        # print("steps: ", self.n_steps)
         self.truncImpSampC = np.zeros(self.n_steps)
         self.truncImpSampR = np.zeros(self.n_steps)
         self.truncLevelC   = 1
@@ -121,20 +124,56 @@ class DDPG_Vtrace(erl.ExaAgent):
 
     # @tf.function
     def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch):
+
+        print("curr_state_batch: ", state_batch)
+        print("next_state_batch: ", next_state_batch)
+
+        # Ai: I do not know how to get argmax using batches in TF
+        
+        curr_state_output_target_actions = tf.squeeze( self.target_actor(state_batch) )
+        
+        output_target_actions            = tf.squeeze( self.target_actor(next_state_batch) )
+
+        prev_state_target_actions = np.zeros(self.batch_size)
+        next_target_actions       = np.zeros(self.batch_size)
+        for i in range(self.batch_size):
+            prev_state_target_actions[i] = tf.math.argmax(curr_state_output_target_actions[i]).numpy()
+            next_target_actions[i]       = tf.math.argmax(output_target_actions[i]).numpy()
+                      
         # Training and updating Actor & Critic networks.
         with tf.GradientTape() as tape:
-            target_actions = self.target_actor(next_state_batch, training=True)
+            
+            output_target_actions = tf.squeeze( self.target_actor(next_state_batch, training=True) )
+            target_actions = tf.math.argmax(output_target_actions)
+            target_actions = target_actions.numpy()
+
+            """
+            sum_target_val = 0.0
+            sum_behavi_val = 0.0
+            for i in range(self.num_actions):
+                sum_target_val += output_target_actions[i]
+                sum_behavi_val += output_behavi_actions[i]
+            """
+
+            print("prev_state_target_actions: ", curr_state_target_actions)
+            print("next_target_actions: ",       next_target_actions)
 
             # TODO: compute the product of C
             self.prodC = self.truncImpSampC
             
             # Vtace target
             # TODO: need to sum ...
-            y = self.target_actor(state_batch, training=True) \
+            y = prev_state_target_actions \
                 + self.gamma * self.prodC * self.truncImpSampR[self.time_step] \
                 * ( reward_batch + self.gamma * \
-                      self.target_actor(next_state_batch, training=True) \
-                    - self.target_actor(state_batch,      training=True) )
+                    ( next_target_actions - curr_state_target_actions ) )
+                                    
+            # y = self.target_actor(state_batch, training=True) \
+            #     + self.gamma * self.prodC * self.truncImpSampR[self.time_step] \
+            #     * ( reward_batch + self.gamma * \
+            #           self.target_actor(next_state_batch, training=True) \
+            #         - self.target_actor(state_batch,      training=True) )
+            #"""
             
             #logger.warning('target action: {}'.format(target_actions))
             #target_actions = np.array([np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,)) for i in next_state_batch])
@@ -147,24 +186,43 @@ class DDPG_Vtrace(erl.ExaAgent):
 
             critic_value = self.critic_model([state_batch, action_batch], training=True)
             critic_loss = tf.math.reduce_mean(tf.math.square(y - critic_value))
+            
             #if isValid==False:
             #    logger.warning('Initial loss: {}'.format(critic_loss))
             #    critic_loss += 100000
                 
         logger.warning("Critic loss: {}".format(critic_loss))
+        
         critic_grad = tape.gradient(critic_loss, self.critic_model.trainable_variables)
+
         self.critic_optimizer.apply_gradients(
             zip(critic_grad, self.critic_model.trainable_variables)
         )
 
         with tf.GradientTape() as tape:
-            actions = self.actor_model(state_batch, training=True)
+
+            output_behavi_actions = self.actor_model(state_batch, training=True)
+            behavi_actions = tf.math.argmax(output_behavi_actions)
+            print("behavior_actions: ", behavior_actoions)
+
             critic_value = self.critic_model([state_batch, actions], training=True)
             actor_loss = -tf.math.reduce_mean(critic_value)
-            #actor_loss = tf.math.reduce_mean(critic_value)
+            # actor_loss = tf.math.reduce_mean(critic_value)
+
+        # TODO: compute the product of C
+        self.prodC = self.truncImpSampC
+
+        # Vtace target (y)
+        # TODO: need to sum ...
+        y = self.target_actor(state_batch, training=True) \
+            + self.gamma * self.prodC * self.truncImpSampR[self.time_step] \
+              * ( reward_batch + self.gamma * \
+              self.target_actor(next_state_batch, training=True) \
+            - self.target_actor(state_batch,      training=True) )
 
         logger.warning("Actor loss: {}".format(actor_loss))
         actor_grad = tape.gradient(actor_loss, self.actor_model.trainable_variables)
+
         self.actor_optimizer.apply_gradients(
             zip(actor_grad, self.actor_model.trainable_variables)
         )
@@ -174,13 +232,21 @@ class DDPG_Vtrace(erl.ExaAgent):
         inputs = layers.Input(shape=(self.num_states,))
         out = layers.Dense(256, activation="relu")(inputs)
         out = layers.Dense(256, activation="relu")(out)
-        out = layers.Dense(self.num_actions, activation="tanh", kernel_initializer=tf.random_uniform_initializer())(out)
-        #out = layers.Dense(self.num_actions, activation="sigmoid", kernel_initializer=tf.random_uniform_initializer())(out)
-        outputs = layers.Lambda(lambda i: i * self.upper_bound)(out)
-        model = tf.keras.Model(inputs, outputs)
+
+        # out = layers.Dense(self.num_actions, activation="tanh", kernel_initializer=tf.random_uniform_initializer())(out)
+        out = layers.Dense(self.num_disc_actions)(out)
+        
+        # out = layers.Dense(self.num_actions, activation="sigmoid", kernel_initializer=tf.random_uniform_initializer())(out)
+
+        # outputs = layers.Lambda(lambda i: i * self.upper_bound)(out)
+
+        # model = tf.keras.Model(inputs, outputs)
+        model = tf.keras.Model(inputs, out)
+        
         return model
 
     def get_critic(self):
+        
         # State as input
         state_input = layers.Input(shape=self.num_states)
         state_out = layers.Dense(16, activation="relu")(state_input)
@@ -194,7 +260,7 @@ class DDPG_Vtrace(erl.ExaAgent):
         concat = layers.Concatenate()([state_out, action_out])
 
         out = layers.Dense(256, activation="relu")(concat)
-        out = layers.Dense(256, activation="linear",kernel_initializer=tf.random_uniform_initializer())(out)
+        out = layers.Dense(256, activation="linear", kernel_initializer=tf.random_uniform_initializer())(out)
         outputs = layers.Dense(1)(out)
 
         # Outputs single value for give state-action
@@ -226,41 +292,74 @@ class DDPG_Vtrace(erl.ExaAgent):
         
 
     def target_train(self):
+
         # Update the target model
         # if self.buffer_counter >= self.batch_size:
         # update_target(self.target_actor.variables, self.actor_model.variables, self.tau)
         # update_target(self.target_critic.variables, self.critic_model.variables, self.tau)
+
         model_weights = self.actor_model.get_weights()
         target_weights = self.target_actor.get_weights()
+
         for i in range(len(target_weights)):
             target_weights[i] = self.tau * model_weights[i] + (1 - self.tau) * target_weights[i]
+
         self.target_actor.set_weights(target_weights)
 
         model_weights = self.critic_model.get_weights()
         target_weights = self.target_critic.get_weights()
+
         for i in range(len(target_weights)):
             target_weights[i] = self.tau * model_weights[i] + (1 - self.tau) * target_weights[i]
+
         self.target_critic.set_weights(target_weights)
 
+        
     def action(self, state):
+
         policy_type = 1
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
+
+        # Ai: changed behavior policy to choose the next action
         
-        sampled_actions = tf.squeeze(self.target_actor(tf_state))
-        noise = self.ou_noise()  
-        # print("sampled_actions: ", sampled_actions)
+        output_target_actions = tf.squeeze( self.target_actor(tf_state) )
+        # sampled_actions = tf.math.argmax(target_actions).numpy()
+
+        output_behavi_actions = tf.squeeze( self.actor_model(tf_state) )
+        sampled_actions = tf.math.argmax(output_behavi_actions).numpy()
+
+        # TODO: make it available for mutlti-dimensions
         
-        sampled_actions_wn = sampled_actions.numpy() + noise
-        legal_action = sampled_actions_wn
+        # noise = self.ou_noise()  
+        print("sampled_actions: ", sampled_actions)
+        
+        sampled_actions_wn = sampled_actions  # .numpy() # + noise
+        legal_action = sampled_actions_wn     # Ai: what is this for?
+
+        print("legal_action: ", legal_action)
+        
         isValid = self.env.action_space.contains(sampled_actions_wn)
         if isValid == False:
-            legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
+            # legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
+            legal_action = random.randint(0, self.num_disc_actions-1)
             policy_type = 0
-            logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn,legal_action))
-            logger.warning('Policy action: {}; noise: {}'.format(sampled_actions,noise))
+            logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn, legal_action))
+            # logger.warning('Policy action: {}; noise: {}'.format(sampled_actions,noise))
 
         return_action = [np.squeeze(legal_action)]
         logger.warning('Legal action:{}'.format(return_action))
+
+        # compute prob for target and behvior policy for (action|state)
+        sum_target_val = 0.0
+        sum_behavi_val = 0.0
+        for i in range(self.num_disc_actions):
+            sum_target_val += output_target_actions[i]
+            sum_behavi_val += output_behavi_actions[i]
+
+        prob_target_action = output_target_actions[return_action] / sum_target_val
+        prob_behavi_action = output_behavi_actions[return_action] / sum_behavi_val
+
+        # print("target_actions: ", target_actions)
 
         # Vtrace
         self.time_step += 1
@@ -269,8 +368,8 @@ class DDPG_Vtrace(erl.ExaAgent):
         # print(self.target_actor(tf_state).numpy()[0][0])
         # print(self.actor_model(tf_state).numpy()[0][0])
         
-        self.truncImpSampC[self.time_step] = min( self.truncLevelC, self.target_actor(tf_state).numpy()[0][0] / self.target_actor(tf_state).numpy()[0][0] )
-        self.truncImpSampR[self.time_step] = min( self.truncLevelR, self.target_actor(tf_state).numpy()[0][0] / self.target_actor(tf_state).numpy()[0][0] )
+        self.truncImpSampC[self.time_step] = min( self.truncLevelC, prob_target_action / prob_behavi_action )
+        self.truncImpSampR[self.time_step] = min( self.truncLevelR, prob_target_action / prob_behavi_action )
         # self.truncImpSampC[self.time_step] = min( self.truncLevelC, self.target_critic(tf_state_action) / self.critic(tf_state_action) )
         # self.truncImpSampR[self.time_step] = min( self.truncLevelR, self.target_critic(tf_state_action) / self.critic(tf_state_action) )
 
