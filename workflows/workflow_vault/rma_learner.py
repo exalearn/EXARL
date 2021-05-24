@@ -39,7 +39,6 @@ class RMA_ASYNC(erl.ExaWorkflow):
         print('Creating RMA async workflow with ', cd.run_params['data_structure'], "length", cd.run_params['data_structure_length'], "lag", cd.run_params['max_model_lag'])
         
         data_exchange_constructors = {
-            "buffer" : ExaMPIBuff,
             "queue" : ExaMPIQueue,
             "stack" : ExaMPIStack 
         }
@@ -246,8 +245,9 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         # Write to data window
                         # Here is the PUSH
                         ib.startTrace("RMA_Data_Exchange_Push", 0)
-                        agent_data = data_exchange.push(batch_data)
+                        capacity, lost = data_exchange.push(batch_data)
                         ib.stopTrace()
+                        ib.simpleTrace("RMA_Actor_Put_Data", capacity, lost, 0, 0)
 
                         ib.simpleTrace("RMA_Total_Reward", steps, 1 if done else 0, local_actor_episode_counter, total_rewards)
                         # Log state, action, reward, ...
