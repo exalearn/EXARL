@@ -93,7 +93,7 @@ class DQN(erl.ExaAgent):
         elif tf_version >= 2:
             if self.rank == 0:
                 print("Setting GPU rank", self.rank)
-                config = tf.compat.v1.ConfigProto(device_count={'GPU':0, 'CPU':1})
+                config = tf.compat.v1.ConfigProto(device_count={'GPU':1, 'CPU':1})
             else:
                 print("Setting no GPU rank", self.rank)
                 config = tf.compat.v1.ConfigProto(device_count={'GPU':0, 'CPU':1})
