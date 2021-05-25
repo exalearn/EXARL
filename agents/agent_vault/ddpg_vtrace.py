@@ -138,14 +138,14 @@ class DDPG_Vtrace(erl.ExaAgent):
             # target_actions = tf.math.argmax(output_target_actions)
             # target_actions = target_actions.numpy()
 
-            print("curr_state_val: ", curr_state_val )
-            print("next_state_val: ", next_state_val )
+            # print("curr_state_val: ", curr_state_val )
+            # print("next_state_val: ", next_state_val )
 
             # TODO: compute the product of C, but here 1-step
             self.prodC = self.truncImpSampC[self.time_step]
 
-            print("prodC",          self.prodC)
-            print("truncImpSampR",  self.truncImpSampR[self.time_step])
+            # print("prodC",          self.prodC)
+            # print("truncImpSampR",  self.truncImpSampR[self.time_step])
 
             # Vtace target
             # TODO: need to sum ...
@@ -158,9 +158,6 @@ class DDPG_Vtrace(erl.ExaAgent):
             print("y: ", y)
 
             # critic_value = self.critic_model([state_batch], training=True)
-
-            print("critic_value: ", curr_state_val)
-
             critic_loss = tf.math.reduce_mean(tf.math.square(y - curr_state_val))
 
         logger.warning("Critic loss: {}".format(critic_loss))
@@ -172,18 +169,67 @@ class DDPG_Vtrace(erl.ExaAgent):
         )
 
         # This code did not work
-        tf.cast(action_batch, tf.int32)
+        tf.cast(action_batch, dtype=tf.uint8)
 
         print("action_batch: ", action_batch)
 
+        #"""
+        action_idx = [ 0 for i in range(self.batch_size) ]
+        
+        for i in range(self.batch_size):
+            action_idx[i] = int(action_batch[i].numpy())
+
+        print("action_idx: ", action_idx)
+
+        
+        """
+        tf_action_idx = tf.convert_to_tensor( action_idx )
+
+        # tf.reshape(tf_action_idx, [64, 1])
+
+        print("tf_action_idx: ", tf_action_idx)
+        """
+        
         with tf.GradientTape() as tape:
 
             output_behavi_actions = self.actor_model(state_batch, training=True)
-            actor_loss = self.truncLevelR \
-                         * log(output_behavi_actions[action_batch]) \
-                         * ( reward_batch - curr_state_val )
+
+            # behavi_actions        = tf.math.argmax(output_behavi_actions)
+
+            # critic_value = self.critic_model(state_batch, training=True)
+
+            print("output: ", output_behavi_actions)
+
+            """
+            out = [ [0] for _ in range(self.batch_size) ]
+            for i in range(self.batch_size):
+                out[i][0] = output_behavi_actions[i][action_idx[i]].numpy()
+                if out[i][0] < 0: out[i][0] = 0.000001
+
+            print("out: ", out)
+
+            tf_out = tf.convert_to_tensor(out)
+            tf_out = tf.math.log(tf_out)
+
+            print("tf_out: ", tf_out)
+            """
+
+            actor_loss = 0
+            for i in range(self.batch_size):
+                actor_loss += self.truncLevelR * output_behavi_actions[action_idx[i]][0] \
+                        * ( reward_batch[action_idx[i]][0] + self.gamma  \
+                        * next_state_val[action_idx[i]][0] - curr_state_val[action_idx[i]][0] )
+
+            actor_loss = actor_loss.numpy() / self.batch_size
+          
+            """
+            actor_loss = tf.math.reduce_mean(
+                             self.truncLevelR * output_behavi_actions[action_idx][0] \
+                             * ( reward_batch + self.gamma * next_state_val - curr_state_val ) )
+                         # * log(output_behavi_actions[action_batch]) \
                          # * ( reward_batch + self.gamma * y - curr_state_val )
-            # print("behavior_actions: ", behavi_actions)
+            """
+
             # critic_value = self.critic_model([state_batch], training=True)
             # actor_loss = -tf.math.reduce_mean(critic_value)
 
@@ -201,7 +247,7 @@ class DDPG_Vtrace(erl.ExaAgent):
         out = layers.Dense(256, activation="relu")(out)
 
         # out = layers.Dense(self.num_actions, activation="tanh", kernel_initializer=tf.random_uniform_initializer())(out)
-        out = layers.Dense(self.num_disc_actions)(out)
+        out = layers.Dense(self.num_disc_actions, activation="softmax")(out)
 
         # out = layers.Dense(self.num_actions, activation="sigmoid", kernel_initializer=tf.random_uniform_initializer())(out)
 
@@ -331,14 +377,20 @@ class DDPG_Vtrace(erl.ExaAgent):
         print("min_target_val", min_target_val)
 
         for i in range(self.num_disc_actions):
-            if ( min_target_val < 0):
-                sum_target_val += output_target_actions[i].numpy() + abs(min_target_val)
-            if ( min_behavi_val < 0):
-                sum_behavi_val += output_behavi_actions[i].numpy() + abs(min_behavi_val)
+            # if ( min_target_val < 0):
+            sum_target_val += output_target_actions[i].numpy() # + abs(min_target_val)
+            # if ( min_behavi_val < 0):
+            sum_behavi_val += output_behavi_actions[i].numpy() # + abs(min_behavi_val)
 
-        prob_target_action = output_target_actions[return_action].numpy() / sum_target_val
-        prob_behavi_action = output_behavi_actions[return_action].numpy() / sum_behavi_val
+        # prob_target_action = output_target_actions[return_action].numpy() / sum_target_val
+        # prob_behavi_action = output_behavi_actions[return_action].numpy() / sum_behavi_val
 
+        prob_target_action = output_target_actions[return_action].numpy()
+        prob_behavi_action = output_behavi_actions[return_action].numpy()
+
+        if prob_target_action < 0: prob_target_action = 0.000001
+        if prob_behavi_action < 0: prob_behavi_action = 0.000001
+     
         print("prob_target_action: ", prob_target_action)
         print("prob_behavi_action: ", prob_behavi_action)
         print("IS ratio: ",           prob_target_action / prob_behavi_action)
