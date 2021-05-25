@@ -220,7 +220,7 @@ class DDPG_Vtrace(erl.ExaAgent):
                         * ( reward_batch[action_idx[i]][0] + self.gamma  \
                         * next_state_val[action_idx[i]][0] - curr_state_val[action_idx[i]][0] )
 
-            actor_loss = actor_loss.numpy() / self.batch_size
+            actor_loss = actor_loss / self.batch_size
           
             """
             actor_loss = tf.math.reduce_mean(
@@ -233,7 +233,7 @@ class DDPG_Vtrace(erl.ExaAgent):
             # critic_value = self.critic_model([state_batch], training=True)
             # actor_loss = -tf.math.reduce_mean(critic_value)
 
-        logger.warning("Actor loss: {}".format(actor_loss))
+        # logger.warning("Actor loss: {}".format(actor_loss))
         actor_grad = tape.gradient(actor_loss, self.actor_model.trainable_variables)
 
         self.actor_optimizer.apply_gradients(
