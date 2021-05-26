@@ -64,8 +64,8 @@ class ExaCartpoleStatic(gym.Env):
         # myPI = cp.compute_pi(N, self.env_comm) # Calls C++ function
         PI = self.env_comm.reduce(myPI, sum, 0)
 
-        if self.env_comm.rank == 0:
-            print(PI)  # Print PI for verification
+        # if self.env_comm.rank == 0:
+        #     print(PI)  # Print PI for verification
 
         return next_state, reward, done, info
 

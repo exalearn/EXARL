@@ -1,9 +1,9 @@
 {
     "agent": "DQN-v0",
     "env": "ExaCartPole-v1",
-    "workflow": "rma",
+    "workflow": "tester",
     "n_episodes": 10,
-    "n_steps": 10,
+    "n_steps": 100,
     "output_dir": "./results_dir/",
     "process_per_env": 1,
     "model_type": "LSTM",
@@ -12,5 +12,7 @@
     "profile": "none",
     "data_structure": "queue",
     "data_structure_length": 32,
-    "max_model_lag": 100
+    "max_model_lag": 100,
+    "tester_data_file":"exp_to_save.txt",
+    "tester_epocs":100
 }
