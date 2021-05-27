@@ -50,7 +50,7 @@ class ML_RMA(erl.ExaWorkflow):
                 episode_data = np.zeros(1, dtype=np.float64)
             # Create episode window (attach instead of allocate for zero initialization)
             episode_win = MPI.Win.Create(episode_data, disp, comm=agent_comm)
-            print('################################agent rank=', agent_comm.rank, flush=True)
+
             # Get size of epsilon
             disp = MPI.DOUBLE.Get_size()
             epsilon = None
@@ -132,7 +132,9 @@ class ML_RMA(erl.ExaWorkflow):
                 # Go over all actors (actor processes start from rank 1)
                 # s = (learner_counter % (agent_comm.size - 1)) + 1
                 # Randomly select actor
-                s = np.random.randint(low=1, high=agent_comm.size, size=1)
+                low = learner_comm.size  # start
+                high = agent_comm.size  # stop + 1
+                s = np.random.randint(low=low, high=high, size=1)
                 # Get data
                 data_win.Lock(s)
                 data_win.Get(data_buffer, target_rank=s, target=None)

@@ -174,7 +174,7 @@ class ExaBooster_v1(gym.Env):
         self.batch_id = 10  # np.random.randint(0, high=self.nbatches)
         self.data_state = None
 
-        print('Data shape:{}'.format(self.X_train.shape))
+        # print('Data shape:{}'.format(self.X_train.shape))
         self.observation_space = spaces.Box(
             low=0,
             high=+1,

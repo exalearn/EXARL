@@ -50,7 +50,6 @@ class MLDQN(erl.ExaAgent):
     def __init__(self, env, is_learner):
         # Initialize horovod
         self.learner_comm = mpi_settings.learner_comm
-        hvd.init(comm=self.learner_comm)
 
         # Initial values
         self.is_learner = is_learner
@@ -139,6 +138,7 @@ class MLDQN(erl.ExaAgent):
                 self.target_weights = self.target_model.get_weights()
 
         if mpi_settings.is_learner():
+            hvd.init(comm=self.learner_comm)
             self.first_batch = 1
             self.loss_fn = tf.keras.losses.MeanSquaredError()
             self.opt = tf.keras.optimizers.Adam(self.learning_rate * hvd.size())
