@@ -37,8 +37,8 @@ def save_reward_plot():
     df_merged = df_merged.dropna()
     time_min = df_merged.time.min()
     time_max = df_merged.time.max()
-    logger.info('time_min', time_min)
-    logger.info('time_diff', time_max - time_min)
+    # logger.info('time_min', time_min)
+    # logger.info('time_diff', time_max - time_min)
     df_merged['rel_time'] = [idx - time_min for idx in df_merged.time]
     df_merged.sort_values(by=['rel_time'], inplace=True)
 
@@ -52,7 +52,7 @@ def save_reward_plot():
     episodes_per_nodes.append(len(df_merged))
     plt.xlabel('Relative Time')
     plt.ylabel('Rolling Total Reward ({})'.format(rolling_setting))
-    plt.legend(loc="lower right")
+    # plt.legend(loc="lower right")
     if not os.path.exists(results_dir + '/Plots'):
         os.makedirs(results_dir + '/Plots')
     fig.savefig(results_dir + '/Plots/Reward_plot.png')
