@@ -19,9 +19,6 @@
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
 from mpi4py import MPI
-import mpi4py.rc
-mpi4py.rc.threads = False
-MPI.Init()
 
 def init(comm, learner_procs, procs_per_env):
     # global communicator

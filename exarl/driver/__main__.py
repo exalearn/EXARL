@@ -19,8 +19,8 @@
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
 import mpi4py
-mpi4py.rc.threads = False
-mpi4py.rc.recv_mprobe = False
+# mpi4py.rc.threads = False
+# mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
 import exarl.utils.analyze_reward as ar
 import time

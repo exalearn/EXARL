@@ -26,6 +26,8 @@ import csv
 import random
 import tensorflow as tf
 import sys
+
+from tensorflow.python.platform.tf_logging import flush
 import exarl.mpi_settings as mpi_settings
 import pickle
 import exarl as erl
@@ -48,7 +50,7 @@ logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class MLDQN(erl.ExaAgent):
     def __init__(self, env, is_learner):
-        # Initialize horovod
+        # Initialize
         self.learner_comm = mpi_settings.learner_comm
 
         # Initial values
@@ -103,7 +105,7 @@ class MLDQN(erl.ExaAgent):
         self.clipnorm = cd.run_params["clipnorm"]
         self.clipvalue = cd.run_params["clipvalue"]
 
-        #
+        # set TF session
         config = tf.compat.v1.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.compat.v1.Session(config=config)
@@ -140,8 +142,10 @@ class MLDQN(erl.ExaAgent):
         if mpi_settings.is_learner():
             hvd.init(comm=self.learner_comm)
             self.first_batch = 1
-            self.loss_fn = tf.keras.losses.MeanSquaredError()
-            self.opt = tf.keras.optimizers.Adam(self.learning_rate * hvd.size())
+            # self.loss_fn = tf.keras.losses.MeanSquaredError()
+            # self.opt = tf.keras.optimizers.Adam(learning_rate=self.learning_rate * hvd.size())
+            self.loss_fn = tf.losses.MeanSquaredError()
+            self.opt = tf.optimizers.Adam(self.learning_rate * hvd.size())
         # TODO: make configurable
         self.memory = deque(maxlen=1000)
 
@@ -247,7 +251,7 @@ class MLDQN(erl.ExaAgent):
         else:
             logger.warning('Training will not be done because this instance is not set to learn.')
 
-    @tf.function
+    # @tf.function
     def training_step(self, batch):
         with tf.GradientTape() as tape:
             probs = self.model(batch[0], training=True)
@@ -255,7 +259,6 @@ class MLDQN(erl.ExaAgent):
 
         # Horovod distributed gradient tape
         tape = hvd.DistributedGradientTape(tape)
-
         grads = tape.gradient(loss_value, self.model.trainable_variables)
         self.opt.apply_gradients(zip(grads, self.model.trainable_variables))
 

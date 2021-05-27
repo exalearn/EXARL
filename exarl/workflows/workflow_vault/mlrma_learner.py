@@ -43,6 +43,7 @@ class ML_RMA(erl.ExaWorkflow):
 
         # Allocate RMA windows
         if mpi_settings.is_agent():
+
             # Get size of episode counter
             disp = MPI.DOUBLE.Get_size()
             episode_data = None
@@ -119,6 +120,8 @@ class ML_RMA(erl.ExaWorkflow):
                 epsilon_win.Unlock(0)
 
             while episode_count_learner < workflow.nepisodes:
+                process_has_data = 0
+                sum_process_has_data = 0
                 if learner_comm.rank == 0:
                     # Check episode counter
                     episode_win.Lock(0)
@@ -140,15 +143,19 @@ class ML_RMA(erl.ExaWorkflow):
                 data_win.Get(data_buffer, target_rank=s, target=None)
                 data_win.Unlock(s)
 
-                # Continue to the next actor if data_buffer is empty
+                # Check the data_buffer again if it is empty
                 try:
                     agent_data = MPI.pickle.loads(data_buffer)
+                    process_has_data = 1
                 except:
+                    logger.info('Data buffer is empty, continuing...')
+
+                sum_process_has_data = learner_comm.allreduce(process_has_data, op=MPI.SUM)
+                if (sum_process_has_data / learner_comm.size) < 1.0:
                     continue
 
                 # Train & Target train
                 train_return = workflow.agent.train(agent_data)
-                learner_comm.Barrier()
 
                 if train_return is not None:
                     if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
