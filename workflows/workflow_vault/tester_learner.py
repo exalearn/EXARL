@@ -25,6 +25,7 @@ import tensorflow as tf
 import utils.log as log
 import utils.candleDriver as cd
 from utils.profile import *
+from utils.introspect import *
 from network.simple_comm import ExaSimple
 MPI = ExaSimple.MPI
 
@@ -40,8 +41,9 @@ class TESTER(erl.ExaWorkflow):
 
     @PROFILE
     def run(self, workflow):
-        @TIMER
-        def myTrain(batch, epochs=1):
+        @TIMERET
+        @introspectTrace(position=1)
+        def train_time(batch, epochs=1):
             with tf.device(workflow.agent.device):
                 print(batch[0].shape, batch[1].shape)
                 workflow.agent.model.fit(batch[0], batch[1], epochs=epochs, verbose=0)
@@ -56,9 +58,11 @@ class TESTER(erl.ExaWorkflow):
                 print(len(data))
 
                 workflow.agent.set_learner()
-                for batch in data[:1]:
-                    myTrain(batch, self.epocs)
-                    # workflow.agent.train(batch)
+
+                times=[]
+                for i in range(10):
+                    times.append(train_time(data[0], self.epocs))
+                print("Average Time:", sum(times)/len(times))
 
             elif commSize == 2:
                 comm = ExaComm.agent_comm
@@ -69,28 +73,23 @@ class TESTER(erl.ExaWorkflow):
 
                 current_weights = comm.bcast(target_weights, 0)
                 workflow.agent.set_weights(current_weights)
-                totalSteps = 0
                 if ExaComm.is_agent():
-                    for e in range(workflow.nepisodes):
-                        current_state = workflow.env.reset()
-                        total_reward = 0
-                        steps = 0
-                        done = False
+                    done = True
+                    for e in range(workflow.agent.batch_size):
+                        if done:
+                            current_state = workflow.env.reset()
+                            total_reward = 0
+                            done = False
 
-                        while done != True:
-                            action, policy_type = workflow.agent.action(current_state)
-                            next_state, reward, done, _ = workflow.env.step(action)
-                            total_reward += reward
-                            memory = (current_state, action, reward, next_state, done, total_reward)
-                            workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
-                            current_state = next_state
-                            steps += 1
-                            totalSteps += 1
-                            if steps >= workflow.nsteps:
-                                done = True
-                        if totalSteps >= workflow.agent.batch_size:
-                            data.append(next(workflow.agent.generate_data()))
-                            print(workflow.agent.batch_size, totalSteps, len(data), "of", workflow.nepisodes * workflow.nsteps / workflow.agent.batch_size, flush=True)
+                        action, _ = workflow.agent.action(current_state)
+                        next_state, reward, done, _ = workflow.env.step(action)
+                        total_reward += reward
+                        memory = (current_state, action, reward, next_state, done, total_reward)
+                        workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
+                        current_state = next_state
+
+                    data.append(next(workflow.agent.generate_data()))
+                    print(workflow.agent.batch_size, len(data), flush=True)
                         
                 if len(data) > 0:
                     with open(self.data_file, 'wb') as outfile:
