@@ -43,6 +43,7 @@ class ExaLearner():
         self.results_dir = './results'  # Default dir, will be overridden by candle
         self.do_render = False
 
+        self.learner_procs = int(cd.run_params['learner_procs'])
         self.process_per_env = int(cd.run_params['process_per_env'])
         self.action_type = cd.run_params['action_type']
 
@@ -54,9 +55,9 @@ class ExaLearner():
         # Sanity check before we actually allocate resources
         if self.global_size < self.process_per_env:
             sys.exit('EXARL::ERROR Not enough processes.')
-        if (self.global_size - 1) % self.process_per_env != 0:
+        if (self.global_size - self.learner_procs) % self.process_per_env != 0:
             sys.exit('EXARL::ERROR Uneven number of processes.')
-        if self.global_size < 2 and self.workflow_id == 'exarl.workflows:async':
+        if self.global_size < 2 and self.workflow_id != 'exarl.workflows:sync':
             print('')
             print('_________________________________________________________________')
             print('Not enough processes, running synchronous single learner ...')
@@ -64,7 +65,9 @@ class ExaLearner():
             self.workflow_id = 'exarl.workflows:' + 'sync'
 
         # Setup MPI
-        mpi_settings.init(self.global_comm, self.process_per_env)
+        mpi_settings.init(self.global_comm, self.learner_procs, self.process_per_env)
+
+        # Create agent, environment, and workflow
         self.agent, self.env, self.workflow = self.make()
         self.env.unwrapped.spec.max_episode_steps  = self.nsteps
         self.env.unwrapped._max_episode_steps = self.nsteps
@@ -82,8 +85,10 @@ class ExaLearner():
         # Create agent object
         agent = None
         # Only agent_comm processes will create agents
-        if mpi_settings.is_agent():
-            agent = exarl.agents.make(self.agent_id, env=env)
+        if mpi_settings.is_learner():
+            agent = exarl.agents.make(self.agent_id, env=env, is_learner=True)
+        elif mpi_settings.is_actor():
+            agent = exarl.agents.make(self.agent_id, env=env, is_learner=False)
         else:
             logger.debug('Does not contain an agent')
         # Create workflow object

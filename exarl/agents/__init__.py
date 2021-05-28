@@ -14,3 +14,8 @@ register(
     id='DDDQN-v0',
     entry_point='exarl.agents.agent_vault:DDDQN'
 )
+
+register(
+    id='MLDQN-v0',
+    entry_point='exarl.agents.agent_vault:MLDQN'
+)

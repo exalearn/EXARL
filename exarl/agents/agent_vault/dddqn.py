@@ -30,25 +30,27 @@ import gym
 import exarl.mpi_settings as mpi_settings
 import pickle
 import exarl as erl
-# from tensorflow.keras import backend as K
+from tensorflow import keras
 from tensorflow.python.client import device_lib
 from collections import deque
 from datetime import datetime
 import numpy as np
 from exarl.agents.agent_vault._prioritized_replay import PrioritizedReplayBuffer
-from mpi4py import MPI
 import exarl.utils.candleDriver as cd
 import exarl.utils.log as log
 from tensorflow.compat.v1.keras.backend import set_session
-import mpi4py.rc
-mpi4py.rc.threads = False
-tf_version = int((tf.__version__)[0])
 
+tf_version = int((tf.__version__)[0])
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
+class LossHistory(keras.callbacks.Callback):
+    def on_train_begin(self, logs={}):
+        self.loss = []
+
+    def on_batch_end(self, batch, logs={}):
+        self.loss.append(logs.get('loss'))
+
 # The Discrete Double Deep Q-Network (DDDQN)
-
-
 class DDDQN(erl.ExaAgent):
     def __init__(self, env):
         #
@@ -147,9 +149,8 @@ class DDDQN(erl.ExaAgent):
             self.target_model.summary()
             self.target_weights = self.target_model.get_weights()
 
-        # TODO: make configurable
-        # self.memory = deque(maxlen=1000)
-        self.replay_buffer = PrioritizedReplayBuffer(maxlen=100000)
+        self.maxlen = cd.run_params['mem_length']
+        self.replay_buffer = PrioritizedReplayBuffer(maxlen=self.maxlen)
 
     def _get_device(self):
         gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -227,23 +228,15 @@ class DDDQN(erl.ExaAgent):
 
     def generate_data(self):
         # Worker method to create samples for training
-        # TODO: This method is the most expensive and takes 90% of the agent compute time
-        # TODO: Reduce computational time
-        # TODO: Revisit the shape (e.g. extra 1 for the LSTM)
         batch_states = np.zeros((self.batch_size, 1, self.env.observation_space.shape[0]))
         batch_target = np.zeros((self.batch_size, self.env.action_space.n))
-        indices = np.zeros(self.batch_size)
-        # batch_states = []
-        # batch_target = []
-        # Return empty batch
-        # if len(self.memory) < self.batch_size:
+        indices = -1 * np.ones(self.batch_size)
+        importance = np.ones(self.batch_size)
         if self.replay_buffer.get_buffer_length() < self.batch_size:
-            yield batch_states, batch_target
+            yield batch_states, batch_target, indices, importance
         start_time = time.time()
-        # minibatch = random.sample(self.memory, self.batch_size)
-        # TODO: Make priority scale a candle parameter
-        # TODO: Use impotance while updating model
-        minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=0.0)
+        priority_scale = cd.run_params['priority_scale']
+        minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=priority_scale)
         batch_target = list(map(self.calc_target_f, minibatch))
         batch_states = [np.array(exp[0]).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
         batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
@@ -252,26 +245,31 @@ class DDDQN(erl.ExaAgent):
         self.dataprep_time += (end_time - start_time)
         self.ndataprep_time += 1
         logger.debug('Agent[{}] - Minibatch time: {} '.format(self.rank, (end_time - start_time)))
-        yield batch_states, batch_target, indices
+        yield batch_states, batch_target, indices, importance
 
     def train(self, batch):
         if self.is_learner:
-            if len(batch) > 0 and len(batch[0]) >= (self.batch_size):
+            if batch[2][0] != -1:
                 start_time = time.time()
                 with tf.device(self.device):
-                    history = self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
+                    loss = LossHistory()
+                    sample_weight = 10 * batch[3] * (1 - self.epsilon)
+                    # print("Importance = ", sample_weight)
+                    self.model.fit(batch[0], batch[1], epochs=1, batch_size=1, verbose=0, callbacks=loss, sample_weight=sample_weight)
                 end_time = time.time()
                 self.training_time += (end_time - start_time)
                 self.ntraining_time += 1
                 logger.info('Agent[{}]- Training: {} '.format(self.rank, (end_time - start_time)))
                 start_time_episode = time.time()
                 logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
-                print("indices = ", batch[2])
-                print("loss = ", history.history['loss'])
-                self.replay_buffer.set_priorities(batch[2], history.history['loss'])
-                return history
+                return batch[2], loss.loss
         else:
             logger.warning('Training will not be done because this instance is not set to learn.')
+
+        return -1 * np.ones(self.batch_size), -1 * np.ones(self.batch_size)
+
+    def set_priorities(self, indicies, loss):
+        self.replay_buffer.set_priorities(indicies, loss)
 
     def get_weights(self):
         logger.debug('Agent[%s] - get target weight.' % str(self.rank))

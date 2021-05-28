@@ -18,9 +18,9 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-import mpi4py
-mpi4py.rc.threads = False
-mpi4py.rc.recv_mprobe = False
+# import mpi4py
+# mpi4py.rc.threads = False
+# mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
 import exarl.utils.analyze_reward as ar
 import time
@@ -44,7 +44,7 @@ max_elapse = comm.reduce(elapse, op=MPI.MAX, root=0)
 elapse = comm.reduce(elapse, op=MPI.SUM, root=0)
 
 if rank == 0:
-    print("Average elapsed time = ", elapse / size)
-    print("Maximum elapsed time = ", max_elapse)
+    print("Average elapsed time = {} s".format(elapse / size))
+    print("Maximum elapsed time = {} s".format(max_elapse))
     # Save rewards vs. episodes plot
     ar.save_reward_plot()

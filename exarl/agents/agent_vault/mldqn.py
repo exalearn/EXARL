@@ -1,3 +1,23 @@
+# This material was prepared as an account of work sponsored by an agency of the
+# United States Government.  Neither the United States Government nor the United
+# States Department of Energy, nor Battelle, nor any of their employees, nor any
+# jurisdiction or organization that has cooperated in the development of these
+# materials, makes any warranty, express or implied, or assumes any legal
+# liability or responsibility for the accuracy, completeness, or usefulness or
+# any information, apparatus, product, software, or process disclosed, or
+# represents that its use would not infringe privately owned rights. Reference
+# herein to any specific commercial product, process, or service by trade name,
+# trademark, manufacturer, or otherwise does not necessarily constitute or imply
+# its endorsement, recommendation, or favoring by the United States Government
+# or any agency thereof, or Battelle Memorial Institute. The views and opinions
+# of authors expressed herein do not necessarily state or reflect those of the
+# United States Government or any agency thereof.
+#                 PACIFIC NORTHWEST NATIONAL LABORATORY
+#                            operated by
+#                             BATTELLE
+#                             for the
+#                   UNITED STATES DEPARTMENT OF ENERGY
+#                    under Contract DE-AC05-76RL01830
 import time
 import os
 import math
@@ -6,26 +26,32 @@ import csv
 import random
 import tensorflow as tf
 import sys
+
+from tensorflow.python.platform.tf_logging import flush
+import exarl.mpi_settings as mpi_settings
 import pickle
 import exarl as erl
-from exarl import mpi_settings
+# from tensorflow.keras import backend as K
 from tensorflow.python.client import device_lib
 from collections import deque
 from datetime import datetime
 import numpy as np
+from mpi4py import MPI
 import exarl.utils.candleDriver as cd
 import exarl.utils.log as log
 from tensorflow.compat.v1.keras.backend import set_session
+import horovod.tensorflow as hvd
 
 tf_version = int((tf.__version__)[0])
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
-logger = log.setup_logger(__name__, cd.run_params["log_level"])
-
-# The Deep Q-Network (DQN)
+# The Multi-Learner Deep Q-Network (MLDQN)
 
 
-class DQN(erl.ExaAgent):
+class MLDQN(erl.ExaAgent):
     def __init__(self, env, is_learner):
+        # Initialize
+        self.learner_comm = mpi_settings.learner_comm
 
         # Initial values
         self.is_learner = is_learner
@@ -33,7 +59,6 @@ class DQN(erl.ExaAgent):
         self.target_model = None
         self.target_weights = None
         self.device = None
-        self.mirrored_strategy = None
 
         self.env = env
         self.agent_comm = mpi_settings.agent_comm
@@ -42,26 +67,11 @@ class DQN(erl.ExaAgent):
         self.rank = self.agent_comm.rank
         self.size = self.agent_comm.size
 
-        # self._get_device()
-        self.device = "/CPU:0"
-        logger.info("Using device: {}".format(self.device))
-        # tf.config.experimental.set_memory_growth(self.device, True)
-
         # Timers
         self.training_time = 0
         self.ntraining_time = 0
         self.dataprep_time = 0
         self.ndataprep_time = 0
-
-        # Optimization using XLA (1.1x speedup)
-        # tf.config.optimizer.set_jit(True)
-
-        # Optimization using mixed precision (1.5x speedup)
-        # Layers use float16 computations and float32 variables
-        # from tensorflow.keras.mixed_precision import experimental as mixed_precision
-        # policy = mixed_precision.Policy('mixed_float16')
-        # git diff
-        # mixed_precision.set_policy(policy)
 
         # dqn intrinsic variables
         self.results_dir = cd.run_params["output_dir"]
@@ -90,7 +100,7 @@ class DQN(erl.ExaAgent):
         self.clipnorm = cd.run_params["clipnorm"]
         self.clipvalue = cd.run_params["clipvalue"]
 
-        #
+        # set TF session
         config = tf.compat.v1.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.compat.v1.Session(config=config)
@@ -101,14 +111,11 @@ class DQN(erl.ExaAgent):
             # tf.debugging.set_log_device_placement(True)
             gpus = tf.config.experimental.list_physical_devices("GPU")
             logger.info("Available GPUs: {}".format(gpus))
-            self.mirrored_strategy = tf.distribute.MirroredStrategy()
-            logger.info("Using learner strategy: {}".format(self.mirrored_strategy))
             # Active model
-            with self.mirrored_strategy.scope():
-                self.model = self._build_model()
-                self.model._name = "learner"
-                self.model.compile(loss=self.loss, optimizer=self.optimizer)
-                logger.info("Active model: \n".format(self.model.summary()))
+            self.model = self._build_model()
+            self.model._name = "learner"
+            self.model.compile(loss=self.loss, optimizer=self.optimizer)
+            logger.info("Active model: \n".format(self.model.summary()))
             # Target model
             with tf.device("/CPU:0"):
                 self.target_model = self._build_model()
@@ -127,29 +134,22 @@ class DQN(erl.ExaAgent):
                 # self.target_model.summary()
                 self.target_weights = self.target_model.get_weights()
 
+        if mpi_settings.is_learner():
+            hvd.init(comm=self.learner_comm)
+            self.first_batch = 1
+            # self.loss_fn = tf.keras.losses.MeanSquaredError()
+            # self.opt = tf.keras.optimizers.Adam(learning_rate=self.learning_rate * hvd.size())
+            self.loss_fn = tf.losses.MeanSquaredError()
+            self.opt = tf.optimizers.Adam(self.learning_rate * hvd.size())
         # TODO: make configurable
         self.memory = deque(maxlen=1000)
 
-    def _get_device(self):
-        cpus = tf.config.experimental.list_physical_devices('CPU')
-        gpus = tf.config.experimental.list_physical_devices('GPU')
-        ngpus = len(gpus)
-        logger.info('Number of available GPUs: {}'.format(ngpus))
-        if ngpus > 0:
-            gpu_id = self.rank % ngpus
-            self.device = '/GPU:{}'.format(gpu_id)
-            # tf.config.experimental.set_memory_growth(gpus[gpu_id], True)
-        else:
-            self.device = '/CPU:0'
-
     def _build_model(self):
-        if self.model_type == "MLP":
+        if self.model_type == 'MLP':
             from exarl.agents.agent_vault._build_mlp import build_model
-
             return build_model(self)
-        elif self.model_type == "LSTM":
+        elif self.model_type == 'LSTM':
             from exarl.agents.agent_vault._build_lstm import build_model
-
             return build_model(self)
         else:
             sys.exit("Oops! That was not a valid model type. Try again...")
@@ -190,9 +190,7 @@ class DQN(erl.ExaAgent):
         expectedQ = 0
         if not done:
             with tf.device(self.device):
-                expectedQ = self.gamma * np.amax(
-                    self.target_model.predict(np_next_state)[0]
-                )
+                expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
         target = reward + expectedQ
         with tf.device(self.device):
             target_f = self.target_model.predict(np_state)
@@ -201,90 +199,78 @@ class DQN(erl.ExaAgent):
 
     def generate_data(self):
         # Worker method to create samples for training
-        # TODO: This method is the most expensive and takes 90% of the agent compute time
-        # TODO: Reduce computational time
-        # TODO: Revisit the shape (e.g. extra 1 for the LSTM)
-        batch_states = np.zeros(
-            (self.batch_size, 1, self.env.observation_space.shape[0])
-        ).astype("float64")
-        batch_target = np.zeros((self.batch_size, self.env.action_space.n)).astype(
-            "float64"
-        )
+        batch_states = np.zeros((self.batch_size, 1, self.env.observation_space.shape[0]))
+        batch_target = np.zeros((self.batch_size, self.env.action_space.n))
+
         # Return empty batch
         if len(self.memory) < self.batch_size:
             yield batch_states, batch_target
         start_time = time.time()
         minibatch = random.sample(self.memory, self.batch_size)
         batch_target = list(map(self.calc_target_f, minibatch))
-        batch_states = [
-            np.array(exp[0]).reshape(1, 1, len(exp[0]))[0] for exp in minibatch
-        ]
-        batch_states = np.reshape(
-            batch_states, [len(minibatch), 1, len(minibatch[0][0])]
-        ).astype("float64")
-        batch_target = np.reshape(
-            batch_target, [len(minibatch), self.env.action_space.n]
-        ).astype("float64")
+        batch_states = [np.array(exp[0]).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
+        batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
+        batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
         end_time = time.time()
-        self.dataprep_time += end_time - start_time
+        self.dataprep_time += (end_time - start_time)
         self.ndataprep_time += 1
-        logger.debug(
-            "Agent[{}] - Minibatch time: {} ".format(self.rank, (end_time - start_time))
-        )
+        logger.debug('Agent[{}] - Minibatch time: {} '.format(self.rank, (end_time - start_time)))
         yield batch_states, batch_target
 
     def train(self, batch):
         if self.is_learner:
-            # if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
-            if len(batch[0]) >= (self.batch_size):
-                # batch_states, batch_target = batch
+            if len(batch) > 0 and len(batch[0]) >= (self.batch_size):
                 start_time = time.time()
-                # with tf.device(self.device):
-                with self.mirrored_strategy.scope():
-                    history = self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
+                with tf.device(self.device):
+                    loss = self.training_step(batch)
                 end_time = time.time()
-                self.training_time += end_time - start_time
+                self.training_time += (end_time - start_time)
                 self.ntraining_time += 1
-                logger.info(
-                    "Agent[{}]- Training: {} ".format(
-                        self.rank, (end_time - start_time)
-                    )
-                )
+                logger.info('Agent[{}]- Training: {} '.format(self.rank, (end_time - start_time)))
                 start_time_episode = time.time()
-                logger.info(
-                    "Agent[%s] - Target update time: %s "
-                    % (str(self.rank), str(time.time() - start_time_episode))
-                )
+                logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
         else:
-            logger.warning(
-                "Training will not be done because this instance is not set to learn."
-            )
+            logger.warning('Training will not be done because this instance is not set to learn.')
+
+    @tf.function
+    def training_step(self, batch):
+        with tf.GradientTape() as tape:
+            probs = self.model(batch[0], training=True)
+            loss_value = self.loss_fn(batch[1], probs)
+
+        # Horovod distributed gradient tape
+        tape = hvd.DistributedGradientTape(tape)
+        grads = tape.gradient(loss_value, self.model.trainable_variables)
+        self.opt.apply_gradients(zip(grads, self.model.trainable_variables))
+
+        if self.first_batch:
+            hvd.broadcast_variables(self.model.variables, root_rank=0)
+            hvd.broadcast_variables(self.opt.variables(), root_rank=0)
+            self.first_batch = 0
+
+        return loss_value
 
     def get_weights(self):
-        logger.debug("Agent[%s] - get target weight." % str(self.rank))
+        logger.debug('Agent[%s] - get target weight.' % str(self.rank))
         return self.target_model.get_weights()
 
     def set_weights(self, weights):
-        logger.info("Agent[%s] - set target weight." % str(self.rank))
-        logger.debug("Agent[%s] - set target weight: %s" % (str(self.rank), weights))
+        logger.info('Agent[%s] - set target weight.' % str(self.rank))
+        logger.debug('Agent[%s] - set target weight: %s' % (str(self.rank), weights))
         with tf.device(self.device):
             self.target_model.set_weights(weights)
 
     def target_train(self):
         if self.is_learner:
-            logger.info("Agent[%s] - update target weights." % str(self.rank))
+            logger.info('Agent[%s] - update target weights.' % str(self.rank))
             with tf.device(self.device):
                 model_weights = self.model.get_weights()
                 target_weights = self.target_model.get_weights()
             for i in range(len(target_weights)):
-                target_weights[i] = (
-                    self.tau * model_weights[i] + (1 - self.tau) * target_weights[i]
-                )
+                target_weights[i] = self.tau * model_weights[i] + (1 - self.tau) * target_weights[i]
             self.set_weights(target_weights)
         else:
-            logger.warning(
-                "Weights will not be updated because this instance is not set to learn."
-            )
+            logger.warning('Weights will not be updated because this instance is not set to learn.')
 
     def epsilon_adj(self):
         if self.epsilon > self.epsilon_min:
@@ -292,11 +278,11 @@ class DQN(erl.ExaAgent):
 
     def load(self, filename):
         layers = self.target_model.layers
-        with open(filename, "rb") as f:
+        with open(filename, 'rb') as f:
             pickle_list = pickle.load(f)
 
         for layerId in range(len(layers)):
-            assert layers[layerId].name == pickle_list[layerId][0]
+            assert(layers[layerId].name == pickle_list[layerId][0])
             layers[layerId].set_weights(pickle_list[layerId][1])
 
     def save(self, filename):
@@ -306,14 +292,8 @@ class DQN(erl.ExaAgent):
             weigths = layers[layerId].get_weights()
             pickle_list.append([layers[layerId].name, weigths])
 
-        with open(filename, "wb") as f:
+        with open(filename, 'wb') as f:
             pickle.dump(pickle_list, f, -1)
-
-    def update(self):
-        logger.info("Implement update method in dqn.py")
-
-    def monitor(self):
-        logger.info("Implement monitor method in dqn.py")
 
     def benchmark(dataset, num_epochs=1):
         start_time = time.perf_counter()
@@ -326,19 +306,13 @@ class DQN(erl.ExaAgent):
 
     def print_timers(self):
         if self.ntraining_time > 0:
-            logger.info(
-                "Agent[{}] - Average training time: {}".format(
-                    self.rank, self.training_time / self.ntraining_time
-                )
-            )
+            logger.info("Agent[{}] - Average training time: {}".format(self.rank,
+                                                                       self.training_time / self.ntraining_time))
         else:
             logger.info("Agent[{}] - Average training time: {}".format(self.rank, 0))
 
         if self.ndataprep_time > 0:
-            logger.info(
-                "Agent[{}] - Average data prep time: {}".format(
-                    self.rank, self.dataprep_time / self.ndataprep_time
-                )
-            )
+            logger.info("Agent[{}] - Average data prep time: {}".format(self.rank,
+                                                                        self.dataprep_time / self.ndataprep_time))
         else:
             logger.info("Agent[{}] - Average data prep time: {}".format(self.rank, 0))

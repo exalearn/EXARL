@@ -71,7 +71,6 @@ coverage.xml
 
 # Django stuff:
 *.log
-*.h5
 *.sh
 local_settings.py
 db.sqlite3

@@ -38,7 +38,7 @@ def build_model(self):
     layers.append(Flatten()(layers[-1]))
 
     model = Model(inputs=layers[0], outputs=layers[-1])
-    model.summary()
+    # model.summary()
     print('', flush=True)
 
     return model

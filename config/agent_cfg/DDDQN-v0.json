@@ -1,0 +1,12 @@
+{
+    "gamma": 0.75,
+    "epsilon": 1.0,
+    "epsilon_min": 0.01,
+    "epsilon_decay": 0.999,
+    "learning_rate": 0.001,
+    "batch_size": 5,
+    "tau": 0.5,
+    "nactions": 10,
+    "priority_scale": 1.0,
+    "mem_length": 1000
+}

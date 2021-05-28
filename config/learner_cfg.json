@@ -2,12 +2,16 @@
     "agent": "DQN-v0",
     "env": "CartPole-v0",
     "workflow": "async",
-    "n_episodes": 10,
-    "n_steps": 10,
-    "output_dir": "./results_dir/",
+    "n_episodes": 20,
+    "n_steps": 50,
+    "output_dir": "./results_dir_dqn/",
+    "learner_procs": 1,
     "process_per_env": 1,
     "model_type": "LSTM",
     "action_type": "variable",
-    "log_level": [3, 3],
+    "log_level": [
+        3,
+        3
+    ],
     "profile": "none"
 }

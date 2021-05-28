@@ -30,25 +30,24 @@ import exarl.utils.candleDriver as cd
 
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
-class RMA_ASYNC(erl.ExaWorkflow):
+class ML_RMA(erl.ExaWorkflow):
     def __init__(self):
-        print('Creating RMA async workflow...')
+        print("Creating ML_RMA workflow")
 
     @PROFILE
     def run(self, workflow):
         # MPI communicators
         agent_comm = mpi_settings.agent_comm
         env_comm = mpi_settings.env_comm
-
-        if mpi_settings.is_learner():
-            workflow.agent.set_learner()
+        learner_comm = mpi_settings.learner_comm
 
         # Allocate RMA windows
         if mpi_settings.is_agent():
+
             # Get size of episode counter
             disp = MPI.DOUBLE.Get_size()
             episode_data = None
-            if mpi_settings.is_learner():
+            if mpi_settings.is_learner() and learner_comm.rank == 0:
                 episode_data = np.zeros(1, dtype=np.float64)
             # Create episode window (attach instead of allocate for zero initialization)
             episode_win = MPI.Win.Create(episode_data, disp, comm=agent_comm)
@@ -56,7 +55,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
             # Get size of epsilon
             disp = MPI.DOUBLE.Get_size()
             epsilon = None
-            if mpi_settings.is_learner():
+            if mpi_settings.is_learner() and learner_comm.rank == 0:
                 epsilon = np.zeros(1, dtype=np.float64)
             # Create epsilon window
             epsilon_win = MPI.Win.Create(epsilon, disp, comm=agent_comm)
@@ -64,7 +63,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
             # Get size of individual indices
             disp = MPI.INT.Get_size()
             indices = None
-            if mpi_settings.is_learner():
+            if mpi_settings.is_learner() and learner_comm.rank == 0:
                 indices = -1 * np.ones(workflow.agent.batch_size, dtype=np.intc)
             # Create indices window
             indices_win = MPI.Win.Create(indices, disp, comm=agent_comm)
@@ -72,7 +71,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
             # Get size of loss
             disp = MPI.DOUBLE.Get_size()
             loss = None
-            if mpi_settings.is_learner():
+            if mpi_settings.is_learner() and learner_comm.rank == 0:
                 loss = np.zeros(workflow.agent.batch_size, dtype=np.float64)
             # Create epsilon window
             loss_win = MPI.Win.Create(loss, disp, comm=agent_comm)
@@ -82,7 +81,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
             serial_target_weights = MPI.pickle.dumps(target_weights)
             serial_target_weights_size = len(serial_target_weights)
             target_weights_size = 0
-            if mpi_settings.is_learner():
+            if mpi_settings.is_learner() and learner_comm.rank == 0:
                 target_weights_size = serial_target_weights_size
             # Allocate model window
             model_win = MPI.Win.Allocate(target_weights_size, 1, comm=agent_comm)
@@ -97,7 +96,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
             # Allocate data window
             data_win = MPI.Win.Allocate(nserial_agent_batch, 1, comm=agent_comm)
 
-        if mpi_settings.is_learner():
+        if mpi_settings.is_learner() and learner_comm.rank == 0:
             # Write target weight to model window of learner
             model_win.Lock(0)
             model_win.Put(serial_target_weights, target_rank=0)
@@ -112,61 +111,81 @@ class RMA_ASYNC(erl.ExaWorkflow):
             data_buffer = bytearray(serial_agent_batch_size)
             episode_count_learner = np.zeros(1, dtype=np.float64)
             epsilon = np.array(workflow.agent.epsilon, dtype=np.float64)
-            learner_counter = 0
+            # learner_counter = 0
             # Initialize epsilon
-            epsilon_win.Lock(0)
-            epsilon_win.Put(epsilon, target_rank=0)
-            epsilon_win.Flush(0)
-            epsilon_win.Unlock(0)
+            if learner_comm.rank == 0:
+                epsilon_win.Lock(0)
+                epsilon_win.Put(epsilon, target_rank=0)
+                epsilon_win.Flush(0)
+                epsilon_win.Unlock(0)
 
             while episode_count_learner < workflow.nepisodes:
-                # Check episode counter
-                episode_win.Lock(0)
-                # Atomic Get_accumulate to fetch episode count
-                episode_win.Get_accumulate(np.ones(1, dtype=np.float64), episode_count_learner, target_rank=0, op=MPI.NO_OP)
-                episode_win.Flush(0)
-                episode_win.Unlock(0)
+                # Define flags to keep track of data
+                process_has_data = 0
+                sum_process_has_data = 0
+
+                if learner_comm.rank == 0:
+                    # Check episode counter
+                    episode_win.Lock(0)
+                    # Atomic Get_accumulate to fetch episode count
+                    episode_win.Get_accumulate(np.ones(1, dtype=np.float64), episode_count_learner, target_rank=0, op=MPI.NO_OP)
+                    episode_win.Flush(0)
+                    episode_win.Unlock(0)
+
+                episode_count_learner = learner_comm.bcast(episode_count_learner, root=0)
 
                 # Go over all actors (actor processes start from rank 1)
-                s = (learner_counter % (agent_comm.size - 1)) + 1
+                # s = (learner_counter % (agent_comm.size - 1)) + 1
+                # Randomly select actor
+                low = learner_comm.size  # start
+                high = agent_comm.size  # stop + 1
+                s = np.random.randint(low=low, high=high, size=1)
                 # Get data
                 data_win.Lock(s)
                 data_win.Get(data_buffer, target_rank=s, target=None)
                 data_win.Unlock(s)
 
-                # Continue to the next actor if data_buffer is empty
+                # Check the data_buffer again if it is empty
                 try:
                     agent_data = MPI.pickle.loads(data_buffer)
+                    process_has_data = 1
                 except:
+                    logger.info('Data buffer is empty, continuing...')
+
+                # Do an allreduce to check if all learners have data
+                sum_process_has_data = learner_comm.allreduce(process_has_data, op=MPI.SUM)
+                if (sum_process_has_data / learner_comm.size) < 1.0:
                     continue
 
                 # Train & Target train
                 train_return = workflow.agent.train(agent_data)
+
                 if train_return is not None:
                     if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
                         indices, loss = train_return
                         indices = np.array(indices, dtype=np.intc)
                         loss = np.array(loss, dtype=np.float64)
 
-                # Write indices to memory pool
-                indices_win.Lock(0)
-                indices_win.Put(indices, target_rank=0)
-                indices_win.Unlock(0)
+                if learner_comm.rank == 0:
+                    # Write indices to memory pool
+                    indices_win.Lock(0)
+                    indices_win.Put(indices, target_rank=0)
+                    indices_win.Unlock(0)
 
-                # Write losses to memory pool
-                loss_win.Lock(0)
-                loss_win.Put(loss, target_rank=0)
-                loss_win.Unlock(0)
+                    # Write losses to memory pool
+                    loss_win.Lock(0)
+                    loss_win.Put(loss, target_rank=0)
+                    loss_win.Unlock(0)
 
-                # TODO: Double check if this is already in the DQN code
-                workflow.agent.target_train()
-                # Share new model weights
-                target_weights = workflow.agent.get_weights()
-                serial_target_weights = MPI.pickle.dumps(target_weights)
-                model_win.Lock(0)
-                model_win.Put(serial_target_weights, target_rank=0)
-                model_win.Unlock(0)
-                learner_counter += 1
+                    # TODO: Double check if this is already in the DQN code
+                    workflow.agent.target_train()
+                    # Share new model weights
+                    target_weights = workflow.agent.get_weights()
+                    serial_target_weights = MPI.pickle.dumps(target_weights)
+                    model_win.Lock(0)
+                    model_win.Put(serial_target_weights, target_rank=0)
+                    model_win.Unlock(0)
+                # learner_counter += 1
 
             logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_data))
 
