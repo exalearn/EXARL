@@ -74,21 +74,23 @@ class DQN(erl.ExaAgent):
         self.tau = cd.run_params["tau"]
         self.model_type = cd.run_params["model_type"]
 
-        # for mlp
-        self.dense = cd.run_params["dense"]
+        if self.model_type == 'MLP':
+            # for mlp
+            self.dense = cd.run_params["dense"]
 
-        # for lstm
-        self.lstm_layers = cd.run_params["lstm_layers"]
-        self.gauss_noise = cd.run_params["gauss_noise"]
-        self.regularizer = cd.run_params["regularizer"]
+        if self.model_type == 'LSTM':
+            # for lstm
+            self.lstm_layers = cd.run_params["lstm_layers"]
+            self.gauss_noise = cd.run_params["gauss_noise"]
+            self.regularizer = cd.run_params["regularizer"]
+            self.clipnorm = cd.run_params["clipnorm"]
+            self.clipvalue = cd.run_params["clipvalue"]
 
         # for both
         self.activation = cd.run_params["activation"]
         self.out_activation = cd.run_params["out_activation"]
         self.optimizer = cd.run_params["optimizer"]
         self.loss = cd.run_params["loss"]
-        self.clipnorm = cd.run_params["clipnorm"]
-        self.clipvalue = cd.run_params["clipvalue"]
 
         #
         config = tf.compat.v1.ConfigProto()
