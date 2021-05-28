@@ -23,6 +23,7 @@ import tensorflow as tf
 from tensorflow.keras import layers
 import random
 import os
+import pickle
 from datetime import datetime
 from exarl.utils.OUActionNoise import OUActionNoise
 from exarl.utils.OUActionNoise import OUActionNoise2
@@ -43,7 +44,7 @@ def update_target(target_weights, weights, tau):
 class DDPG(erl.ExaAgent):
     is_learner: bool
 
-    def __init__(self, env):
+    def __init__(self, env, is_learner):
         # Distributed variables
         self.is_learner = False
 
@@ -306,11 +307,24 @@ class DDPG(erl.ExaAgent):
     def update(self):
         print("Implement update method in ddpg.py")
 
-    def load(self):
-        print("Implement load method in ddpg.py")
+    def load(self, filename):
+        layers = self.target_actor.layers
+        with open(filename, "rb") as f:
+            pickle_list = pickle.load(f)
 
-    def save(self, results_dir):
-        print("Implement load method in ddpg.py")
+        for layerId in range(len(layers)):
+            assert layers[layerId].name == pickle_list[layerId][0]
+            layers[layerId].set_weights(pickle_list[layerId][1])
+
+    def save(self, filename):
+        layers = self.target_actor.layers
+        pickle_list = []
+        for layerId in range(len(layers)):
+            weigths = layers[layerId].get_weights()
+            pickle_list.append([layers[layerId].name, weigths])
+
+        with open(filename, "wb") as f:
+            pickle.dump(pickle_list, f, -1)
 
     def monitor(self):
         print("Implement monitor method in ddpg.py")
