@@ -2,7 +2,7 @@ import exarl.utils.candleDriver as cd
 
 env = cd.run_params['env']
 
-if env == 'ExaCartPole-v1':
+if env == 'ExaCartPoleStatic-v0':
     from exarl.envs.env_vault.ExaCartpoleStatic import ExaCartpoleStatic
 elif env == 'ExaCH-v0':
     from exarl.envs.env_vault.ExaCH import CahnHilliardEnv

@@ -11,7 +11,7 @@ if env == 'ExaCH-v0':
         entry_point='exarl.envs.env_vault:CahnHilliardEnv',
     )
 
-elif env == 'ExaCartPole-v1':
+elif env == 'ExaCartPoleStatic-v0':
     register(
         id=env,
         entry_point='exarl.envs.env_vault:ExaCartpoleStatic'
