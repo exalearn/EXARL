@@ -7,5 +7,5 @@
     "max_steps": 100,
     "min_BIMIN": 103.1,
     "max_BIMIN": 103.6,
-    "nactions": 15
+    "nactions": 30
 }
