@@ -38,7 +38,7 @@ def resolve_path(*path_components) -> str:
     '''Resolve path to configuration files.
     Priority is as follows:
 
-      1. <current working directory>/config
+      1. <current working directory>/exarl/config
       2. ~/.exarl/config
       3. <site-packages dir>/exarl/config
     '''
@@ -47,7 +47,7 @@ def resolve_path(*path_components) -> str:
     else:
         path = os.path.join(*path_components)
 
-    cwd_path = os.path.join(os.getcwd(), 'config', path)
+    cwd_path = os.path.join(os.getcwd(), 'exarl', 'config', path)
     if os.path.exists(cwd_path):
         return cwd_path
     home_path = os.path.join(os.path.expanduser('~'), '.exarl', 'config', path)

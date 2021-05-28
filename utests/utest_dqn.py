@@ -23,7 +23,8 @@ class TestClass:
         global test_learner
         try:
             test_learner = erl.ExaLearner(comm)
-            test_agent = DQN(test_learner.env)  # run_params).env)
+            is_learner = True
+            test_agent = DQN(test_learner.env, is_learner)  # run_params).env)
         except TypeError:
             pytest.fail('Abstract class methods not handled correctly', pytrace=True)
         except:
