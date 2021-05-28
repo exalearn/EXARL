@@ -120,8 +120,10 @@ class ML_RMA(erl.ExaWorkflow):
                 epsilon_win.Unlock(0)
 
             while episode_count_learner < workflow.nepisodes:
+                # Define flags to keep track of data
                 process_has_data = 0
                 sum_process_has_data = 0
+
                 if learner_comm.rank == 0:
                     # Check episode counter
                     episode_win.Lock(0)
@@ -150,6 +152,7 @@ class ML_RMA(erl.ExaWorkflow):
                 except:
                     logger.info('Data buffer is empty, continuing...')
 
+                # Do an allreduce to check if all learners have data
                 sum_process_has_data = learner_comm.allreduce(process_has_data, op=MPI.SUM)
                 if (sum_process_has_data / learner_comm.size) < 1.0:
                     continue

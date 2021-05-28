@@ -67,11 +67,6 @@ class MLDQN(erl.ExaAgent):
         self.rank = self.agent_comm.rank
         self.size = self.agent_comm.size
 
-        # self._get_device()
-        self.device = "/CPU:0"
-        logger.info("Using device: {}".format(self.device))
-        # tf.config.experimental.set_memory_growth(self.device, True)
-
         # Timers
         self.training_time = 0
         self.ntraining_time = 0
@@ -149,16 +144,6 @@ class MLDQN(erl.ExaAgent):
         # TODO: make configurable
         self.memory = deque(maxlen=1000)
 
-    def _get_device(self):
-        gpus = tf.config.experimental.list_physical_devices('GPU')
-        ngpus = len(gpus)
-        logger.info('Number of available GPUs: {}'.format(ngpus))
-        if ngpus > 0:
-            gpu_id = self.rank % ngpus
-            self.device = '/GPU:{}'.format(gpu_id)
-        else:
-            self.device = '/CPU:0'
-
     def _build_model(self):
         if self.model_type == 'MLP':
             from exarl.agents.agent_vault._build_mlp import build_model
@@ -214,13 +199,9 @@ class MLDQN(erl.ExaAgent):
 
     def generate_data(self):
         # Worker method to create samples for training
-        # TODO: This method is the most expensive and takes 90% of the agent compute time
-        # TODO: Reduce computational time
-        # TODO: Revisit the shape (e.g. extra 1 for the LSTM)
         batch_states = np.zeros((self.batch_size, 1, self.env.observation_space.shape[0]))
         batch_target = np.zeros((self.batch_size, self.env.action_space.n))
-        # batch_states = []
-        # batch_target = []
+
         # Return empty batch
         if len(self.memory) < self.batch_size:
             yield batch_states, batch_target
@@ -251,7 +232,7 @@ class MLDQN(erl.ExaAgent):
         else:
             logger.warning('Training will not be done because this instance is not set to learn.')
 
-    # @tf.function
+    @tf.function
     def training_step(self, batch):
         with tf.GradientTape() as tape:
             probs = self.model(batch[0], training=True)
