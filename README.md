@@ -66,9 +66,11 @@ A scalable software framework for reinforcement learning environments and agents
 - Pull code from repo
 
 ```
-git clone --recursive https://github.com/exalearn/EXARL.git
+git clone --recursive -b CDSS21 https://gitlab.lanl.gov/codesignsummerschool2021/EXARL.git
 cd EXARL
 git lfs install # install git lfs if you haven't
+
+(for older versions of git)
 git lfs fetch
 git lfs pull
 ```
@@ -95,7 +97,7 @@ in your home directory like so:
 ```console
 $ mkdir -p ~/.exarl/config
 $ cd EXARL
-$ cp config/* ~/.exarl/config
+$ cp exarl/config/* ~/.exarl/config
 ```
 
 ## [CANDLE](https://github.com/ECP-CANDLE/Candle) functionality is built into EXARL
@@ -163,7 +165,7 @@ Currently, DQN agent takes either MLP or LSTM as model_type.
 ```
 
 - Please note the agent, model, environment, and workflow configuration file (json file) name must match the agent, model, environment, and workflow ID specified in `EXARL/exarl/config/learner_cfg.json`. \
-  E.g.:- `EXARL/exarl/config/agent_cfg/DQN-v0.json`, `EXARL/exarl/config/model_cfg/MLP.json`, `EXARL/exarl/config/env_cfg/ExaCartPole-v1.json`, and `EXARL/exarl/config/workflow_cfg/async.json`
+  E.g.:- `EXARL/exarl/config/agent_cfg/DQN-v0.json`, `EXARL/exarl/config/model_cfg/MLP.json`, `EXARL/exarl/config/env_cfg/ExaCartPole-v1.json`, and `EXARL//exarlconfig/workflow_cfg/async.json`
 
 ## Running EXARL using MPI
 
