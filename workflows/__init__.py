@@ -14,3 +14,8 @@ register(
     id='rma',
     entry_point='workflows.workflow_vault:RMA_ASYNC'
 )
+
+register(
+    id='tester',
+    entry_point='workflows.workflow_vault:TESTER'
+)

@@ -10,13 +10,11 @@
 	path = envs/env_vault/pydemic
 	url = https://github.com/uiuc-covid19-modeling/pydemic
 	branch = master
-<<<<<<< HEAD
-=======
 [submodule "envs/env_vault/ttm"]
 	path = envs/env_vault/ttm
 	url = https://github.com/exalearn/hydronet.git
->>>>>>> 201e3962c07b29dd132565f115b53932bdabdce1
 [submodule "envs/env_vault/molecular-graph-descriptors"]
 	path = envs/env_vault/molecular-graph-descriptors
 	url = https://github.com/exalearn/molecular-graph-descriptors.git
 	branch = eval_only
+

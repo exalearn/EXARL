@@ -1,7 +1,7 @@
 {
     "agent": "DQN-v0",
     "env": "CartPole-v0",
-    "workflow": "async",
+    "workflow": "tester",
     "n_episodes": 10,
     "n_steps": 10,
     "output_dir": "./results_dir/",
@@ -9,5 +9,6 @@
     "model_type": "LSTM",
     "action_type": "variable",
     "log_level": [3, 3],
-    "profile": "none"
+    "profile": "none",
+    "test_model_path" : "put_path_here"
 }
