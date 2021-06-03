@@ -16,7 +16,7 @@ import sys
 import gym
 import time
 from gym import Wrapper
-from exarl.comm_base import ExaComm
+from exarl.base.comm_base import ExaComm
 
 class ExaEnv(Wrapper):
     def __init__(self, env, **kwargs):

@@ -1,8 +1,9 @@
-from mpi4py import MPI
+from network.simple_comm import ExaSimple
 import ctypes
 import os
 
 _libdir = os.path.dirname(__file__)
+MPI = ExaSimple.MPI
 
 if MPI._sizeof(MPI.Comm) == ctypes.sizeof(ctypes.c_int):
     MPI_Comm = ctypes.c_int

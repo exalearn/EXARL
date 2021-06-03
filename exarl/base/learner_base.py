@@ -17,7 +17,7 @@ import exarl.workflows
 
 from exarl.network.simple_comm import ExaSimple
 # from exarl.network.mpi_comm import ExaMPI
-from exarl.comm_base import ExaComm
+from exarl.base.comm_base import ExaComm
 from exarl.env_base import ExaEnv
 
 import os

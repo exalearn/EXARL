@@ -28,7 +28,7 @@ import tensorflow as tf
 import sys
 import pickle
 import exarl as erl
-from exarl.comm_base import ExaComm
+from exarl.base.comm_base import ExaComm
 from tensorflow.python.client import device_lib
 from collections import deque
 from datetime import datetime
