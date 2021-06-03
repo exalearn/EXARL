@@ -386,6 +386,7 @@ if __name__ == '__main__':
 
 ```
 Example:-
+    import exarl
     class agentName(exarl.ExaAgent):
         ...
 ```
