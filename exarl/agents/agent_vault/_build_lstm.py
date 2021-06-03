@@ -18,10 +18,9 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-from tensorflow.keras.models import Sequential, Model
-from tensorflow.keras.layers import Dense, Dropout, Input, GaussianNoise, BatchNormalization, LSTM
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.regularizers import l1, l2, l1_l2
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout, BatchNormalization, LSTM
+from tensorflow.keras.regularizers import l1_l2
 
 
 def build_model(self):

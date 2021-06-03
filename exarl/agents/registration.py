@@ -12,7 +12,6 @@
 
 import importlib
 from gym import error, logger
-import exarl.agents
 
 
 def load(name):
