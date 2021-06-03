@@ -18,33 +18,47 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-# import mpi4py
-# mpi4py.rc.threads = False
-# mpi4py.rc.recv_mprobe = False
-from mpi4py import MPI
+import exarl as erl
 import exarl.utils.analyze_reward as ar
 import time
-import exarl as erl
-
-# MPI communicator
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
+from exarl.utils.candleDriver import initialize_parameters
+from exarl.utils.candleDriver import run_params
+from exarl.utils.introspect import *
+import numpy as np
 
 # Create learner object and run
-exa_learner = erl.ExaLearner(comm)
+exa_learner = erl.ExaLearner()
+
+# MPI communicator
+comm = erl.ExaComm.global_comm
+rank = comm.rank
+size = comm.size
+
+
+try:
+    writeDir = run_params["introspector_dir"]
+    ibLoadReplacement(comm)
+except:
+    writeDir = None
 
 # Run the learner, measure time
+ib.start()
 start = time.time()
 exa_learner.run()
 elapse = time.time() - start
+ib.stop()
 
-# Compute and print average time
-max_elapse = comm.reduce(elapse, op=MPI.MAX, root=0)
-elapse = comm.reduce(elapse, op=MPI.SUM, root=0)
+if ibLoaded():
+    print("Rank", comm.rank, "Time = ", elapse)
+else:
+    max_elapse = comm.reduce(np.float64(elapse), max, 0)
+    elapse = comm.reduce(np.float64(elapse), sum, 0)
+    if rank == 0:
+        print("Average elapsed time = ", elapse / size)
+        print("Maximum elapsed time = ", max_elapse)
 
 if rank == 0:
-    print("Average elapsed time = {} s".format(elapse / size))
-    print("Maximum elapsed time = {} s".format(max_elapse))
     # Save rewards vs. episodes plot
     ar.save_reward_plot()
+
+ibWrite(writeDir)
