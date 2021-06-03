@@ -18,37 +18,49 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-import exarl.mpi_settings as mpi_settings
 import time
 import csv
-from mpi4py import MPI
 import numpy as np
 import exarl as erl
+from exarl.utils.introspect import *
+from exarl.utils.typing import TypeUtils
 from exarl.utils.profile import *
 import exarl.utils.log as log
 import exarl.utils.candleDriver as cd
+from exarl.base.comm_base import ExaComm
+from exarl.network.data_structures import *
+from exarl.network.simple_comm import ExaSimple
+MPI = ExaSimple.MPI
 
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class RMA_ASYNC(erl.ExaWorkflow):
     def __init__(self):
-        print('Creating RMA async workflow...')
-
+        print('Creating RMA async workflow with ', cd.run_params['data_structure'], "length", cd.run_params['data_structure_length'], "lag", cd.run_params['max_model_lag'])
+        
+        data_exchange_constructors = {
+            "queue" : ExaMPIQueue,
+            "stack" : ExaMPIStack 
+        }
+        self.de_constr = data_exchange_constructors[cd.run_params['data_structure']]
+        self.de_length = cd.run_params['data_structure_length']
+        self.de_lag = cd.run_params['max_model_lag']
+        
     @PROFILE
     def run(self, workflow):
         # MPI communicators
-        agent_comm = mpi_settings.agent_comm
-        env_comm = mpi_settings.env_comm
+        agent_comm = ExaComm.agent_comm.raw()
+        env_comm = ExaComm.env_comm.raw()
 
-        if mpi_settings.is_learner():
+        if ExaComm.is_learner():
             workflow.agent.set_learner()
 
         # Allocate RMA windows
-        if mpi_settings.is_agent():
+        if ExaComm.is_agent():
             # Get size of episode counter
             disp = MPI.DOUBLE.Get_size()
             episode_data = None
-            if mpi_settings.is_learner():
+            if ExaComm.is_learner():
                 episode_data = np.zeros(1, dtype=np.float64)
             # Create episode window (attach instead of allocate for zero initialization)
             episode_win = MPI.Win.Create(episode_data, disp, comm=agent_comm)
@@ -56,7 +68,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
             # Get size of epsilon
             disp = MPI.DOUBLE.Get_size()
             epsilon = None
-            if mpi_settings.is_learner():
+            if ExaComm.is_learner():
                 epsilon = np.zeros(1, dtype=np.float64)
             # Create epsilon window
             epsilon_win = MPI.Win.Create(epsilon, disp, comm=agent_comm)
@@ -64,7 +76,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
             # Get size of individual indices
             disp = MPI.INT.Get_size()
             indices = None
-            if mpi_settings.is_learner():
+            if ExaComm.is_learner():
                 indices = -1 * np.ones(workflow.agent.batch_size, dtype=np.intc)
             # Create indices window
             indices_win = MPI.Win.Create(indices, disp, comm=agent_comm)
@@ -72,32 +84,30 @@ class RMA_ASYNC(erl.ExaWorkflow):
             # Get size of loss
             disp = MPI.DOUBLE.Get_size()
             loss = None
-            if mpi_settings.is_learner():
+            if ExaComm.is_learner():
                 loss = np.zeros(workflow.agent.batch_size, dtype=np.float64)
             # Create epsilon window
             loss_win = MPI.Win.Create(loss, disp, comm=agent_comm)
-
             # Get serialized target weights size
-            target_weights = workflow.agent.get_weights()
+            # The counter needs to be 64 bit value
+            # Otherwise dumps only gives it 1 byte which will overflow at 256
+            # Causing put/get to fail
+            target_weights = (workflow.agent.get_weights(), np.int64(0))
             serial_target_weights = MPI.pickle.dumps(target_weights)
             serial_target_weights_size = len(serial_target_weights)
             target_weights_size = 0
-            if mpi_settings.is_learner():
+            if ExaComm.is_learner():
                 target_weights_size = serial_target_weights_size
             # Allocate model window
             model_win = MPI.Win.Allocate(target_weights_size, 1, comm=agent_comm)
 
             # Get serialized batch data size
-            agent_batch = next(workflow.agent.generate_data())
-            serial_agent_batch = (MPI.pickle.dumps(agent_batch))
-            serial_agent_batch_size = len(serial_agent_batch)
-            nserial_agent_batch = 0
-            if mpi_settings.is_actor():
-                nserial_agent_batch = serial_agent_batch_size
-            # Allocate data window
-            data_win = MPI.Win.Allocate(nserial_agent_batch, 1, comm=agent_comm)
+            learner_counter = np.int64(0)
+            agent_batch = (next(workflow.agent.generate_data()), learner_counter)
+            data_exchange = self.de_constr(ExaComm.agent_comm, ExaComm.learner_rank(), 
+                                           data=agent_batch, length=self.de_length, max_model_lag=self.de_lag)
 
-        if mpi_settings.is_learner():
+        if ExaComm.is_learner():
             # Write target weight to model window of learner
             model_win.Lock(0)
             model_win.Put(serial_target_weights, target_rank=0)
@@ -107,12 +117,10 @@ class RMA_ASYNC(erl.ExaWorkflow):
         agent_comm.Barrier()
 
         # Learner
-        if mpi_settings.is_learner():
+        if ExaComm.is_learner():
             # Initialize batch data buffer
-            data_buffer = bytearray(serial_agent_batch_size)
             episode_count_learner = np.zeros(1, dtype=np.float64)
             epsilon = np.array(workflow.agent.epsilon, dtype=np.float64)
-            learner_counter = 0
             # Initialize epsilon
             epsilon_win.Lock(0)
             epsilon_win.Put(epsilon, target_rank=0)
@@ -127,26 +135,16 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 episode_win.Flush(0)
                 episode_win.Unlock(0)
 
-                # Go over all actors (actor processes start from rank 1)
-                s = (learner_counter % (agent_comm.size - 1)) + 1
-                # Get data
-                data_win.Lock(s)
-                data_win.Get(data_buffer, target_rank=s, target=None)
-                data_win.Unlock(s)
-
-                # Continue to the next actor if data_buffer is empty
-                try:
-                    agent_data = MPI.pickle.loads(data_buffer)
-                except:
-                    continue
-
+                # Get data from data exchange
+                ib.startTrace("RMA_Data_Exchange_Pop", 0)
+                batch_data, actor_idx, actor_counter = data_exchange.get_data(learner_counter)
+                ib.stopTrace()
+                ib.simpleTrace("RMA_Learner_Get_Data", actor_idx, actor_counter, learner_counter-actor_counter, 0)
+                learner_counter+=1
+                
                 # Train & Target train
-                train_return = workflow.agent.train(agent_data)
-                if train_return is not None:
-                    if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
-                        indices, loss = train_return
-                        indices = np.array(indices, dtype=np.intc)
-                        loss = np.array(loss, dtype=np.float64)
+                workflow.agent.train(batch_data)
+                ib.update("RMA_Learner_Train", 1)
 
                 # Write indices to memory pool
                 indices_win.Lock(0)
@@ -160,20 +158,21 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
                 # TODO: Double check if this is already in the DQN code
                 workflow.agent.target_train()
+                ib.update("RMA_Learner_Target_Train", 1)
+
                 # Share new model weights
-                target_weights = workflow.agent.get_weights()
+                target_weights = (workflow.agent.get_weights(), learner_counter)
                 serial_target_weights = MPI.pickle.dumps(target_weights)
                 model_win.Lock(0)
                 model_win.Put(serial_target_weights, target_rank=0)
                 model_win.Unlock(0)
-                learner_counter += 1
-
+                # ib.update("Async_Learner_Episode", 1)
             logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_data))
 
         # Actors
         else:
             local_actor_episode_counter = 0
-            if mpi_settings.is_actor():
+            if ExaComm.is_actor():
                 # Logging files
                 filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
                     % (str(workflow.nepisodes), str(workflow.nsteps), str(agent_comm.rank))
@@ -195,7 +194,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 episode_win.Unlock(0)
 
             while episode_count_actor < workflow.nepisodes:
-                if mpi_settings.is_actor():
+                if ExaComm.is_actor():
                     episode_win.Lock(0)
                     # Atomic Get_accumulate to increment the episode counter
                     episode_win.Get_accumulate(one, episode_count_actor, target_rank=0)
@@ -220,7 +219,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 local_actor_episode_counter += 1
 
                 while done != True:
-                    if mpi_settings.is_actor():
+                    if ExaComm.is_actor():
                         # Update model weight
                         # TODO: weights are updated each step -- REVIEW --
                         buff = bytearray(serial_target_weights_size)
@@ -228,10 +227,11 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         model_win.Get(buff, target=0, target_rank=0)
                         model_win.Flush(0)
                         model_win.Unlock(0)
-                        target_weights = MPI.pickle.loads(buff)
+                        target_weights, learner_counter = MPI.pickle.loads(buff)
                         workflow.agent.set_weights(target_weights)
+                        ib.simpleTrace("RMA_Actor_Get_Model", local_actor_episode_counter, learner_counter, 0, 0)
 
-                        # Get epsilon
+                        # Atomic Get_accumulate to get epsilon
                         epsilon_win.Lock(0)
                         epsilon_win.Get(epsilon, target_rank=0)
                         epsilon_win.Flush(0)
@@ -255,10 +255,10 @@ class RMA_ASYNC(erl.ExaWorkflow):
                             workflow.agent.set_priorities(indices, loss)
 
                         # Inference action
+                        action, policy_type = workflow.agent.action(current_state)
+                        ib.update("RMA_Env_Inference", 1)
                         if workflow.action_type == 'fixed':
                             action, policy_type = 0, -11
-                        else:
-                            action, policy_type = workflow.agent.action(current_state)
 
                         epsilon = np.array(workflow.agent.epsilon)
                         # Atomic Get_accumulate to update epsilon
@@ -268,32 +268,38 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         epsilon_win.Unlock(0)
 
                     # Environment step
+                    ib.startTrace("step", 0)
                     next_state, reward, done, _ = workflow.env.step(action)
+                    ib.stopTrace()
+                    ib.update("RMA_Env_Step", 1)
+                    ib.simpleTrace("RMA_Reward", steps, 1 if done else 0, local_actor_episode_counter, reward)
 
                     steps += 1
                     if steps >= workflow.nsteps:
                         done = True
                     # Broadcast done
                     done = env_comm.bcast(done, root=0)
-
-                    if mpi_settings.is_actor():
+                    if ExaComm.is_actor():
                         # Save memory
                         total_rewards += reward
                         memory = (current_state, action, reward, next_state, done, total_rewards)
                         workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
-                        batch_data = next(workflow.agent.generate_data())
-
+                        batch_data = (next(workflow.agent.generate_data()), learner_counter)
+                        ib.update("RMA_Env_Generate_Data", 1)
                         # Write to data window
-                        serial_agent_batch = (MPI.pickle.dumps(batch_data))
-                        data_win.Lock(agent_comm.rank)
-                        data_win.Put(serial_agent_batch, target_rank=agent_comm.rank)
-                        data_win.Unlock(agent_comm.rank)
+                        # Here is the PUSH
+                        ib.startTrace("RMA_Data_Exchange_Push", 0)
+                        capacity, lost = data_exchange.push(batch_data)
+                        ib.stopTrace()
+                        ib.simpleTrace("RMA_Actor_Put_Data", capacity, lost, 0, 0)
 
+                        ib.simpleTrace("RMA_Total_Reward", steps, 1 if done else 0, local_actor_episode_counter, total_rewards)
                         # Log state, action, reward, ...
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
                                                done, local_actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
                         train_file.flush()
+                        
+                ib.update("RMA_Env_Episode", 1)
 
-        if mpi_settings.is_agent():
+        if ExaComm.is_agent():
             model_win.Free()
-            data_win.Free()

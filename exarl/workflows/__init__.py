@@ -19,3 +19,8 @@ register(
     id='mlrma',
     entry_point='exarl.workflows.workflow_vault:ML_RMA'
 )
+
+register(
+    id='tester',
+    entry_point='exarl.workflows.workflow_vault:TESTER'
+)

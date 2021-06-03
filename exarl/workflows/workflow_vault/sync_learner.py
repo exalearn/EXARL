@@ -20,9 +20,8 @@
 #                    under Contract DE-AC05-76RL01830
 import time
 import csv
-from mpi4py import MPI
 import exarl as erl
-import exarl.mpi_settings as mpi_settings
+from exarl.base.comm_base import ExaComm
 import exarl.utils.log as log
 import exarl.utils.candleDriver as cd
 from exarl.utils.profile import *
@@ -35,7 +34,7 @@ class SYNC(erl.ExaWorkflow):
 
     @PROFILE
     def run(self, workflow):
-        comm = MPI.COMM_WORLD
+        comm = ExaComm.agent_comm()
 
         filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' % (
             str(workflow.nepisodes), str(workflow.nsteps), str(comm.rank))
@@ -46,12 +45,12 @@ class SYNC(erl.ExaWorkflow):
         # Set target model the sample for all
         target_weights = None
 
-        if mpi_settings.is_learner():
+        if ExaComm.is_learner():
             workflow.agent.set_learner()
             target_weights = workflow.agent.get_weights()
 
         # Send and set to all other agents
-        current_weights = comm.bcast(target_weights, root=0)
+        current_weights = comm.bcast(target_weights, 0)
         workflow.agent.set_weights(current_weights)
 
         # Variables for all
@@ -97,11 +96,10 @@ class SYNC(erl.ExaWorkflow):
                 new_batch = comm.gather(batch_data, root=0)
 
                 # Learner
-                if mpi_settings.is_learner():
+                if ExaComm.is_learner():
                     # Push memories to learner
                     for batch in new_batch:
                         train_return = workflow.agent.train(batch)
-
                     if train_return is not None:
                         # indices, loss = train_return
                         workflow.agent.set_priorities(*train_return)
@@ -112,8 +110,8 @@ class SYNC(erl.ExaWorkflow):
                     #    workflow.agent.save(workflow.results_dir+'/'+filename_prefix+'.h5')
 
                 # Broadcast the memory size and the model weights to the workers
-                rank0_epsilon = comm.bcast(rank0_epsilon, root=0)
-                current_weights = comm.bcast(target_weights, root=0)
+                rank0_epsilon = comm.bcast(rank0_epsilon, 0)
+                current_weights = comm.bcast(target_weights, 0)
 
                 # Set the model weight for all the workers
                 workflow.agent.set_weights(current_weights)
@@ -125,7 +123,7 @@ class SYNC(erl.ExaWorkflow):
                             (str(comm.rank), str(total_reward)))
 
                 # Save Learning target model
-                if mpi_settings.is_learner():
+                if ExaComm.is_learner():
                     workflow.agent.save(workflow.results_dir + '/' + filename_prefix + '.h5')
 
                 steps += 1
@@ -138,7 +136,7 @@ class SYNC(erl.ExaWorkflow):
                                            next_state, total_reward, done, e, steps, policy_type, rank0_epsilon])
                     train_file.flush()
 
-                all_done = comm.allreduce(done, op=MPI.LAND)
+                all_done = comm.allreduce(done)
 
             end_time_episode = time.time()
             logger.info('Rank[%s] run-time for episode %s: %s ' %

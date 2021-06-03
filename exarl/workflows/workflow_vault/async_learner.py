@@ -18,18 +18,17 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-import exarl.mpi_settings as mpi_settings
 import time
 import csv
-from mpi4py import MPI
 import numpy as np
 import exarl as erl
+from exarl.utils.introspect import ib
 from exarl.utils.profile import *
 import exarl.utils.log as log
 import exarl.utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.run_params['log_level'])
-import pickle
+from exarl.base.comm_base import ExaComm
 
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class ASYNC(erl.ExaWorkflow):
     def __init__(self):
@@ -37,24 +36,21 @@ class ASYNC(erl.ExaWorkflow):
 
     @PROFILE
     def run(self, workflow):
-
         # MPI communicators
-        agent_comm = mpi_settings.agent_comm
-        env_comm = mpi_settings.env_comm
+        agent_comm = ExaComm.agent_comm
+        env_comm = ExaComm.env_comm
 
-        # Set target model
         target_weights = None
-        if mpi_settings.is_learner():
+        if ExaComm.is_learner():
             workflow.agent.set_learner()
             target_weights = workflow.agent.get_weights()
 
         # Only agent_comm processes will run this try block
-        try:
-            # Send and set weights to all other agents
-            current_weights = agent_comm.bcast(target_weights, root=0)
-            workflow.agent.set_weights(current_weights)
-        except:
-            logger.debug('Does not contain an agent')
+        if agent_comm:
+            target_weights = agent_comm.bcast(target_weights, 0)
+            workflow.agent.set_weights(target_weights)
+        else:
+            logger.debug("Does not contain an agent")
 
         # Variables for all
         episode = 0
@@ -62,11 +58,10 @@ class ASYNC(erl.ExaWorkflow):
         episode_interim = 0
 
         # Round-Robin Scheduler
-        if mpi_settings.is_learner():
-            start = MPI.Wtime()
-            # worker_episodes = np.linspace(0, agent_comm.size - 2, agent_comm.size - 1)
+        if ExaComm.is_learner():
+            start = agent_comm.time()
             worker_episodes = np.arange(1, agent_comm.size)
-            logger.debug('worker_episodes:{}'.format(worker_episodes))
+            logger.debug("worker_episodes:{}".format(worker_episodes))
 
             logger.info("Initializing ...\n")
             for s in range(1, agent_comm.size):
@@ -79,14 +74,14 @@ class ASYNC(erl.ExaWorkflow):
                     [episode, rank0_epsilon, target_weights, indices, loss], dest=s)
 
             init_nepisodes = episode
-            logger.debug('init_nepisodes:{}'.format(init_nepisodes))
+            logger.debug("init_nepisodes:{}".format(init_nepisodes))
 
             logger.debug("Continuing ...\n")
             while episode_done < workflow.nepisodes:
                 # print("Running scheduler/learner episode: {}".format(episode))
 
                 # Receive the rank of the worker ready for more work
-                recv_data = agent_comm.recv(source=MPI.ANY_SOURCE)
+                recv_data = agent_comm.recv(None)
 
                 whofrom = recv_data[0]
                 step = recv_data[1]
@@ -97,44 +92,41 @@ class ASYNC(erl.ExaWorkflow):
                 logger.debug('done:{}'.format(done))
                 # Train
                 train_return = workflow.agent.train(batch)
+                ib.update("Async_Learner_Train", 1)
                 if train_return is not None:
                     if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
                         indices, loss = train_return
-
-                # agent_comm.send([indicies, loss], dest=whofrom)
-
                 # TODO: Double check if this is already in the DQN code
                 workflow.agent.target_train()
+                ib.update("Async_Learner_Target_Train", 1)
                 if policy_type == 0:
                     workflow.agent.epsilon_adj()
                 epsilon = workflow.agent.epsilon
 
                 # Send target weights
                 logger.debug('rank0_epsilon:{}'.format(epsilon))
-
-                target_weights = workflow.agent.get_weights()
-                with open('target_weights.pkl', 'wb') as f:
-                    pickle.dump(target_weights, f)
-
                 # Increment episode when starting
                 if step == 0:
                     episode += 1
-                    logger.debug('if episode:{}'.format(episode))
+                    logger.debug("if episode:{}".format(episode))
 
                 # Increment the number of completed episodes
                 if done:
                     episode_done += 1
                     latest_episode = worker_episodes.max()
                     worker_episodes[whofrom - 1] = latest_episode + 1
-                    logger.debug('episode_done:{}'.format(episode_done))
+                    logger.debug("episode_done:{}".format(episode_done))
+                    ib.update("Async_Learner_Episode", 1)
 
-                agent_comm.send([worker_episodes[whofrom - 1],
-                                 epsilon, target_weights, indices, loss], dest=whofrom)
+                # Send target weights
+                logger.debug('rank0_epsilon:{}'.format(epsilon))
+                target_weights = workflow.agent.get_weights()
+                agent_comm.send([worker_episodes[whofrom - 1], epsilon, target_weights, indices, loss], whofrom)
 
             logger.info("Finishing up ...\n")
             episode = -1
             for s in range(1, agent_comm.size):
-                recv_data = agent_comm.recv(source=MPI.ANY_SOURCE)
+                recv_data = agent_comm.recv(None)
                 whofrom = recv_data[0]
                 step = recv_data[1]
                 batch = recv_data[2]
@@ -142,18 +134,18 @@ class ASYNC(erl.ExaWorkflow):
                 done = recv_data[4]
                 logger.debug('step:{}'.format(step))
                 logger.debug('done:{}'.format(done))
+
                 # Train
                 train_return = workflow.agent.train(batch)
                 if train_return is not None:
                     indices, loss = train_return
                 workflow.agent.target_train()
-                workflow.agent.save(workflow.results_dir + '/model.pkl')
-                agent_comm.send([episode, 0, 0, indices, loss], dest=s)
+                agent_comm.send([episode, 0, 0, indices, loss], s)
 
-            logger.info('Learner time: {}'.format(MPI.Wtime() - start))
+            logger.info("Learner time: {}".format(agent_comm.time() - start))
 
         else:
-            if mpi_settings.is_actor():
+            if ExaComm.is_actor():
                 # Setup logger
                 filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
                     % (str(workflow.nepisodes), str(workflow.nsteps), str(agent_comm.rank))
@@ -161,7 +153,7 @@ class ASYNC(erl.ExaWorkflow):
                                   filename_prefix + ".log", 'w')
                 train_writer = csv.writer(train_file, delimiter=" ")
 
-            start = MPI.Wtime()
+            start = env_comm.time()
             while episode != -1:
                 # Reset variables each episode
                 workflow.env.seed(0)
@@ -175,9 +167,9 @@ class ASYNC(erl.ExaWorkflow):
                 while steps < workflow.nsteps:
                     logger.debug('ASYNC::run() agent_comm.rank{}; step({} of {})'
                                  .format(agent_comm.rank, steps, (workflow.nsteps - 1)))
-                    if mpi_settings.is_actor():
+                    if ExaComm.is_actor():
                         # Receive target weights
-                        recv_data = agent_comm.recv(source=0)
+                        recv_data = agent_comm.recv(None, source=0)
                         # Update episode while beginning a new one i.e. step = 0
                         if steps == 0:
                             episode = recv_data[0]
@@ -185,39 +177,47 @@ class ASYNC(erl.ExaWorkflow):
                         episode_interim = recv_data[0]
 
                     # Broadcast episode within env_comm
-                    episode_interim = env_comm.bcast(episode_interim, root=0)
+                    episode_interim = env_comm.bcast(episode_interim, 0)
 
                     if episode_interim == -1:
                         episode = -1
-                        if mpi_settings.is_actor():
-                            logger.info('Rank[%s] - Episode/Step:%s/%s' %
-                                        (str(agent_comm.rank), str(episode), str(steps)))
+                        if ExaComm.is_actor():
+                            logger.info(
+                                "Rank[%s] - Episode/Step:%s/%s"
+                                % (str(agent_comm.rank), str(episode), str(steps))
+                            )
                         break
 
-                    if mpi_settings.is_actor():
+                    if ExaComm.is_actor():
                         workflow.agent.epsilon = recv_data[1]
                         workflow.agent.set_weights(recv_data[2])
 
-                        if workflow.action_type == 'fixed':
+                        action, policy_type = workflow.agent.action(current_state)
+                        ib.update("Async_Env_Inference", 1)
+                        if workflow.action_type == "fixed":
                             action, policy_type = 0, -11
-                        else:
-                            action, policy_type = workflow.agent.action(
-                                current_state)
 
+                    ib.startTrace("step", 0)
                     next_state, reward, done, _ = workflow.env.step(action)
+                    ib.stopTrace()
+                    ib.update("Async_Env_Step", 1)
 
-                    if mpi_settings.is_actor():
+                    if ExaComm.is_actor():
                         total_reward += reward
-                        memory = (current_state, action, reward,
-                                  next_state, done, total_reward)
-
-                        with open('experience.pkl', 'wb') as f:
-                            pickle.dump(memory, f)
-                        # batch_data = []
+                        memory = (
+                            current_state,
+                            action,
+                            reward,
+                            next_state,
+                            done,
+                            total_reward,
+                        )
                         workflow.agent.remember(
                             memory[0], memory[1], memory[2], memory[3], memory[4])
 
                         batch_data = next(workflow.agent.generate_data())
+                        ib.update("Async_Env_Generate_Data", 1)
+
                         logger.info(
                             'Rank[{}] - Generated data: {}'.format(agent_comm.rank, len(batch_data[0])))
                         try:
@@ -230,11 +230,10 @@ class ASYNC(erl.ExaWorkflow):
                     if steps >= workflow.nsteps - 1:
                         done = True
 
-                    if mpi_settings.is_actor():
+                    if ExaComm.is_actor():
                         # Send batched memories
                         agent_comm.send(
-                            [agent_comm.rank, steps, batch_data, policy_type, done], dest=0)
-                        # indices, loss = agent_comm.recv(source=MPI.ANY_SOURCE)
+                            [agent_comm.rank, steps, batch_data, policy_type, done], 0)
                         indices, loss = recv_data[3:5]
                         if indices is not None:
                             workflow.agent.set_priorities(indices, loss)
@@ -252,14 +251,15 @@ class ASYNC(erl.ExaWorkflow):
                     steps += 1
 
                     # Broadcast done
-                    done = env_comm.bcast(done, root=0)
+                    done = env_comm.bcast(done, 0)
                     # Break for loop if done
                     if done:
                         break
-            logger.info('Worker time = {}'.format(MPI.Wtime() - start))
-            if mpi_settings.is_actor():
+            ib.update("Async_Env_Episode", 1)
+            logger.info("Worker time = {}".format(env_comm.time() - start))
+            if ExaComm.is_actor():
                 train_file.close()
 
-        if mpi_settings.is_actor():
-            logger.info(f'Agent[{agent_comm.rank}] timing info:\n')
+        if ExaComm.is_actor():
+            logger.info(f"Agent[{agent_comm.rank}] timing info:\n")
             workflow.agent.print_timers()
