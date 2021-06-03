@@ -388,7 +388,8 @@ if __name__ == '__main__':
 Example:-
     import exarl
     class agentName(exarl.ExaAgent):
-        ...
+          def __init__(self, env, is_learner):
+              ...
 ```
 
 - Agents must include the following functions:
