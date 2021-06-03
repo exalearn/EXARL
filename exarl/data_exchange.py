@@ -35,7 +35,7 @@ class ExaData(ABC):
         while True:
             actor_idx = 0
             if self.comm_size > 1:
-                actor_idx = np.random.randint(low=1, high=self.comm_size, size=1)
+                actor_idx = np.random.randint(low=1, high=self.comm_size, size=1)[0]
             batch_data = self.pop(actor_idx)
             if batch_data:
                 batch_data, actor_counter = batch_data

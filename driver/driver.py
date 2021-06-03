@@ -22,8 +22,8 @@ import exarl as erl
 import utils.analyze_reward as ar
 import time
 from utils.candleDriver import initialize_parameters
-from utils.introspect import ib
-from utils.introspect import ibLoaded
+from utils.candleDriver import run_params
+from utils.introspect import *
 import numpy as np
 
 # Create learner object and run
@@ -34,6 +34,12 @@ comm = erl.ExaComm.global_comm
 rank = comm.rank
 size = comm.size
 
+
+try:
+    writeDir = run_params["introspector_dir"]
+    ibLoadReplacement(comm)
+except:
+    writeDir = None
 
 # Run the learner, measure time
 ib.start()
@@ -54,3 +60,5 @@ else:
 if rank == 0:
     # Save rewards vs. episodes plot
     ar.save_reward_plot()
+
+ibWrite(writeDir)
