@@ -8,10 +8,6 @@
 # nonexclusive, paid-up, irrevocable worldwide license in this material to reproduce, prepare
 # derivative works, distribute copies to the public, perform publicly and display publicly, and
 # to permit others to do so.
-
-
-import json
-import os
 # This material was prepared as an account of work sponsored by an agency of the
 # United States Government.  Neither the United States Government nor the United
 # States Department of Energy, nor Battelle, nor any of their employees, nor any
@@ -32,13 +28,13 @@ import os
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
+import os
+import sys
 from abc import ABC, abstractmethod
 
-import sys
 file_path = os.path.dirname(os.path.realpath(__file__))
 lib_path = os.path.abspath(os.path.join(file_path, '..', 'candlelib'))
 sys.path.append(lib_path)
-
 
 class ExaAgent(ABC):
 
@@ -67,4 +63,8 @@ class ExaAgent(ABC):
 
     @abstractmethod
     def save(self, results_dir):
+        pass
+
+    @abstractmethod
+    def set_learner(self):
         pass
