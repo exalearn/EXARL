@@ -212,17 +212,10 @@ class DQN(erl.ExaAgent):
         # TODO: This method is the most expensive and takes 90% of the agent compute time
         # TODO: Reduce computational time
         # TODO: Revisit the shape (e.g. extra 1 for the LSTM)
-<<<<<<< HEAD
-        # batch_states = np.empty((self.batch_size, 1, self.env.observation_space.shape[0]))
-        # batch_target = np.empty((self.batch_size, self.env.action_space.n))
-        batch_states = []
-        batch_target = []
-=======
-        batch_states = np.zeros((self.batch_size, 1, self.env.observation_space.shape[0]))
-        batch_target = np.zeros((self.batch_size, self.env.action_space.n))
-        # batch_states = []
-        # batch_target = []
->>>>>>> 201e3962c07b29dd132565f115b53932bdabdce1
+        batch_states = np.empty((self.batch_size, 1, self.env.observation_space.shape[0]))
+        batch_target = np.empty((self.batch_size, self.env.action_space.n))
+        #batch_states = []
+        #batch_target = []
         # Return empty batch
         if len(self.memory) < self.batch_size:
             yield batch_states, batch_target
@@ -240,13 +233,7 @@ class DQN(erl.ExaAgent):
 
     def train(self, batch):
         if self.is_learner:
-<<<<<<< HEAD
-            # if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
             if len(batch) > 0 and len(batch[0]) >= (self.batch_size):
-                # batch_states, batch_target = batch
-=======
-            if len(batch) > 0 and len(batch[0]) >= (self.batch_size):
->>>>>>> 201e3962c07b29dd132565f115b53932bdabdce1
                 start_time = time.time()
                 with tf.device(self.device):
                     history = self.model.fit(batch[0], batch[1], epochs=1, verbose=0)

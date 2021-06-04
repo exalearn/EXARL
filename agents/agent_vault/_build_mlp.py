@@ -34,12 +34,7 @@ def build_model(self):
         layer_width = self.dense[i]
         layers.append(Dense(layer_width, activation=self.activation)(layers[-1]))
     # output layer
-<<<<<<< HEAD
-    #layers.append(Dense(np.prod(self.env.action_space.nvec), activation='sigmoid')(layers[-1]))
-    layers.append(Dense(self.env.action_space.n, activation='sigmoid')(layers[-1]))
-=======
     layers.append(Dense(self.env.action_space.n, activation=self.out_activation)(layers[-1]))
->>>>>>> 201e3962c07b29dd132565f115b53932bdabdce1
     layers.append(Flatten()(layers[-1]))
 
     model = Model(inputs=layers[0], outputs=layers[-1])

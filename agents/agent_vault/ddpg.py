@@ -26,6 +26,7 @@ import os
 from datetime import datetime
 from utils.OUActionNoise import OUActionNoise
 from utils.OUActionNoise import OUActionNoise2
+import pickle
 
 import exarl as erl
 
@@ -43,9 +44,9 @@ def update_target(target_weights, weights, tau):
 class DDPG(erl.ExaAgent):
     is_learner: bool
 
-    def __init__(self, env):
+    def __init__(self, env, is_learner=False):
         # Distributed variables
-        self.is_learner = False
+        self.is_learner = is_learner
 
         # Environment space and action parameters
         self.env = env
@@ -59,10 +60,6 @@ class DDPG(erl.ExaAgent):
         logger.info('Env upper bounds: {}'.format(self.upper_bound))
         logger.info('Env lower bounds: {}'.format(self.lower_bound))
 
-<<<<<<< HEAD
-        self.gamma = 0.99
-        self.tau = 0.005
-=======
         self.gamma = cd.run_params['gamma']
         self.tau = cd.run_params['tau']
 
@@ -80,20 +77,16 @@ class DDPG(erl.ExaAgent):
         self.critic_out_act = cd.run_params['critic_out_act']
         self.critic_optimizer = cd.run_params['critic_optimizer']
         self.tau = cd.run_params['tau']
->>>>>>> 201e3962c07b29dd132565f115b53932bdabdce1
 
         std_dev = 0.2
         ave_bound = (self.upper_bound + self.lower_bound) / 2
         print('ave_bound: {}'.format(ave_bound))
         self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(std_dev) * np.ones(1))
-<<<<<<< HEAD
-=======
 
         # Not used by agent but required by the learner class
         self.epsilon = cd.run_params['epsilon']
         self.epsilon_min = cd.run_params['epsilon_min']
         self.epsilon_decay = cd.run_params['epsilon_decay']
->>>>>>> 201e3962c07b29dd132565f115b53932bdabdce1
 
         # Experience data
         self.buffer_counter = 0
@@ -109,19 +102,11 @@ class DDPG(erl.ExaAgent):
         self.memory = self.state_buffer  # BAD
 
         # Setup TF configuration to allow memory growth
-<<<<<<< HEAD
-=======
-        # tf.keras.backend.set_floatx('float64')
->>>>>>> 201e3962c07b29dd132565f115b53932bdabdce1
         config = tf.compat.v1.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.compat.v1.Session(config=config)
         tf.compat.v1.keras.backend.set_session(sess)
-<<<<<<< HEAD
-        
-=======
 
->>>>>>> 201e3962c07b29dd132565f115b53932bdabdce1
         # Training model only required by the learners
         self.actor_model = None
         self.critic_model = None
@@ -143,17 +128,10 @@ class DDPG(erl.ExaAgent):
                 self.target_critic = self.get_critic()
 
         # Learning rate for actor-critic models
-<<<<<<< HEAD
-        critic_lr = 0.002
-        actor_lr = 0.001
-        self.critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
-        self.actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
-=======
         self.critic_lr = cd.run_params['critic_lr']
         self.actor_lr = cd.run_params['actor_lr']
         self.critic_optimizer = tf.keras.optimizers.Adam(self.critic_lr)
         self.actor_optimizer = tf.keras.optimizers.Adam(self.actor_lr)
->>>>>>> 201e3962c07b29dd132565f115b53932bdabdce1
 
     def remember(self, state, action, reward, next_state, done):
         # If the counter exceeds the capacity then
@@ -197,11 +175,6 @@ class DDPG(erl.ExaAgent):
     def get_actor(self):
         # State as input
         inputs = layers.Input(shape=(self.num_states,))
-<<<<<<< HEAD
-        out = layers.Dense(256, activation="relu")(inputs)
-        out = layers.Dense(256, activation="relu")(out)
-        out = layers.Dense(self.num_actions, activation="tanh", kernel_initializer=tf.random_uniform_initializer())(out)
-=======
         # first layer takes inputs
         out = layers.Dense(self.actor_dense[0], activation=self.actor_dense_act)(inputs)
         # loop over remaining layers
@@ -210,7 +183,6 @@ class DDPG(erl.ExaAgent):
         # output layer has dimension actions, separate activation setting
         out = layers.Dense(self.num_actions, activation=self.actor_out_act,
                            kernel_initializer=tf.random_uniform_initializer())(out)
->>>>>>> 201e3962c07b29dd132565f115b53932bdabdce1
         outputs = layers.Lambda(lambda i: i * self.upper_bound)(out)
         model = tf.keras.Model(inputs, outputs)
         # model.summary()
@@ -242,11 +214,6 @@ class DDPG(erl.ExaAgent):
         # Both are passed through seperate layer before concatenating
         concat = layers.Concatenate()([state_out, action_out])
 
-<<<<<<< HEAD
-        out = layers.Dense(256, activation="relu")(concat)
-        out = layers.Dense(256, activation="linear",kernel_initializer=tf.random_uniform_initializer())(out)
-        outputs = layers.Dense(1)(out)
-=======
         # assumes at least 2 post-concat layers
         # first layer takes concat layer as input
         concat_out = layers.Dense(self.critic_concat_dense[0],
@@ -260,7 +227,6 @@ class DDPG(erl.ExaAgent):
         concat_out = layers.Dense(self.critic_concat_dense[-1], activation=self.critic_out_act,
                                   kernel_initializer=tf.random_uniform_initializer())(concat_out)
         outputs = layers.Dense(1)(concat_out)
->>>>>>> 201e3962c07b29dd132565f115b53932bdabdce1
 
         # Outputs single value for give state-action
         model = tf.keras.Model([state_input, action_input], outputs)
@@ -283,18 +249,9 @@ class DDPG(erl.ExaAgent):
         yield state_batch, action_batch, reward_batch, next_state_batch
 
     def train(self, batch):
-<<<<<<< HEAD
-        # self.epsilon_adj()
-        # if len(batch[0]) >= self.batch_size:
-        #     logger.info('Training...')
-        if self.is_learner:
-            self.update_grad(batch[0], batch[1], batch[2], batch[3])
-        
-=======
         if self.is_learner:
             logger.warning('Training...')
             self.update_grad(batch[0], batch[1], batch[2], batch[3])
->>>>>>> 201e3962c07b29dd132565f115b53932bdabdce1
 
     def target_train(self):
         # Update the target model
@@ -313,32 +270,20 @@ class DDPG(erl.ExaAgent):
     def action(self, state):
         policy_type = 1
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
-<<<<<<< HEAD
-        
-        sampled_actions = tf.squeeze(self.target_actor(tf_state))
-        noise = self.ou_noise()  
-=======
 
         sampled_actions = tf.squeeze(self.target_actor(tf_state))
         noise = self.ou_noise()
->>>>>>> 201e3962c07b29dd132565f115b53932bdabdce1
         sampled_actions_wn = sampled_actions.numpy() + noise
         legal_action = sampled_actions_wn
         isValid = self.env.action_space.contains(sampled_actions_wn)
         if isValid == False:
             legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
             policy_type = 0
-<<<<<<< HEAD
-            
-        return_action = [np.squeeze(legal_action)]
-        logger.info('legal action:{}'.format(return_action))
-=======
             logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn, legal_action))
             logger.warning('Policy action: {}; noise: {}'.format(sampled_actions, noise))
 
         return_action = [np.squeeze(legal_action)]
         logger.warning('Legal action:{}'.format(return_action))
->>>>>>> 201e3962c07b29dd132565f115b53932bdabdce1
         return return_action, policy_type
 
     # For distributed actors #
@@ -361,11 +306,25 @@ class DDPG(erl.ExaAgent):
     def update(self):
         print("Implement update method in ddpg.py")
 
-    def load(self):
-        print("Implement load method in ddpg.py")
+    def load(self, filename):
+        layers = self.target_actor.layers
+        with open(filename, "rb") as f:
+            pickle_list = pickle.load(f)
 
-    def save(self, results_dir):
-        print("Implement load method in ddpg.py")
+        for layerId in range(len(layers)):
+            #print(f"{layers[layerId].name}  {pickle_list[layerId][0]}")
+            #assert layers[layerId].name == pickle_list[layerId][0]
+            layers[layerId].set_weights(pickle_list[layerId][1])
+
+    def save(self, filename):
+        layers = self.target_actor.layers
+        pickle_list = []
+        for layerId in range(len(layers)):
+            weigths = layers[layerId].get_weights()
+            pickle_list.append([layers[layerId].name, weigths])
+
+        with open(filename, "wb") as f:
+            pickle.dump(pickle_list, f, -1)
 
     def monitor(self):
         print("Implement monitor method in ddpg.py")

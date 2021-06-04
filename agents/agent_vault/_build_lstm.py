@@ -46,12 +46,7 @@ def build_model(self):
     model.add(LSTM(self.lstm_layers[l], activation=self.activation,
                    kernel_regularizer=l1_l2(self.regularizer[0], self.regularizer[1]),
                    ))
-<<<<<<< HEAD
-    model.add(GaussianNoise(self.gauss_noise[l]))
-    #model.add(Dense(np.prod(self.env.action_space.nvec), activation=self.out_activation))
-=======
     model.add(Dropout(self.gauss_noise[l]))
->>>>>>> 201e3962c07b29dd132565f115b53932bdabdce1
     model.add(Dense(self.env.action_space.n, activation=self.out_activation))
 
     model.summary()
