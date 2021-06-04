@@ -136,6 +136,7 @@ class ASYNC(erl.ExaWorkflow):
                 workflow.agent.train(batch)
                 # TODO: Double check if this is already in the DQN code
                 workflow.agent.target_train()
+                workflow.agent.save(workflow.results_dir + '/model.pkl')
                 agent_comm.send([episode, 0, 0], dest=s)
 
             logger.info('Learner time: {}'.format(MPI.Wtime() - start))
