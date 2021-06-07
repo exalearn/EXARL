@@ -18,12 +18,6 @@ A scalable software framework for reinforcement learning environments and agents
 ```
 ├── setup.py                          : Python setup file with requirements files
 ├── scripts                           : folder containing RL steering scripts
-├── config                	          : folder containing configurations
-    └── agent_cfg                     : agent configuration folder
-    └── model_cfg                     : model configuration folder
-    └── env_cfg                       : env configuration folder
-    └── workflow_cfg                  : workflow configuration folder
-    └── learner_cfg.json              : learner configuration
 ├── exarl                	            : folder with EXARL code
     └── __init__.py                   : make base classes visible
     └── mpi_settings.py               : MPI settings
@@ -33,6 +27,12 @@ A scalable software framework for reinforcement learning environments and agents
         └── env_base.py               : environment base class
         └── workflow_base.py          : workflow base class
         └── learner_base.py           : learner base class
+    ├── config                	      : folder containing configurations
+        └── agent_cfg                 : agent configuration folder
+        └── model_cfg                 : model configuration folder
+        └── env_cfg                   : env configuration folder
+        └── workflow_cfg              : workflow configuration folder
+        └── learner_cfg.json          : learner configuration
     ├── driver                        : folder containing RL MPI steering scripts
         └── driver.py                 : Run scipt
     ├── candlelib                     : folder containing library for CANDLE functionality
@@ -211,7 +211,7 @@ if rank == 0:
 - Run the following command:
 
 ```
-mpiexec -np <num_parent_processes> python exarl/driver/__main__.py --<run_params>=<param_value>
+mpiexec -np <num_parent_processes> python exarl/driver/__main__.py --<run_params> <param_value>
 ```
 
 - If running a multi-process environment or agent, the communicators are available in `exarl/mpi_settings.py`.
