@@ -4,15 +4,15 @@ import numpy as np
 import exarl as erl
 import pytest
 import exarl.utils.candleDriver as cd
-import exarl.mpi_settings as mpi_settings
+from exarl.base.comm_base import ExaComm
 
 from tensorflow.keras.layers import Dense, GaussianNoise, BatchNormalization, LSTM
 from tensorflow.python.client import device_lib
 from tensorflow.keras import optimizers, activations, losses
 from exarl.agents.agent_vault.dqn import DQN
 from exarl.utils.candleDriver import initialize_parameters
-
-from mpi4py import MPI
+from exarl.network.simple_comm import ExaSimple
+MPI = ExaSimple.MPI
 
 
 class TestClass:
@@ -23,8 +23,7 @@ class TestClass:
         global test_learner
         try:
             test_learner = erl.ExaLearner(comm)
-            is_learner = True
-            test_agent = DQN(test_learner.env, is_learner)  # run_params).env)
+            test_agent = DQN(test_learner.env, True)  # run_params).env)
         except TypeError:
             pytest.fail('Abstract class methods not handled correctly', pytrace=True)
         except:
@@ -234,7 +233,7 @@ class TestClass:
     # 6: test set_weight() for agent
     def test_set_weights(self):
 
-        test_agent_comm = mpi_settings.agent_comm
+        test_agent_comm = ExaComm.agent_comm
         test_target_weights = test_agent.get_weights()
         test_current_weights = test_agent_comm.bcast(test_target_weights, root=0)
 

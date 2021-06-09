@@ -12,11 +12,11 @@
 import sys
 import os
 import numpy as np
-import exarl as erl
+from exarl.base import ExaData
 from exarl.network.simple_comm import ExaSimple
 MPI=ExaSimple.MPI
 
-class ExaMPIStack(erl.ExaData):
+class ExaMPIStack(ExaData):
     def __init__(self, comm, rank, size=None, data=None, length=32, max_model_lag=None, failPush=False):
         self.comm = comm
         self.rank = rank
@@ -164,7 +164,7 @@ class ExaMPIStack(erl.ExaData):
         self.head[rank].Unlock(self.rank)
         return capacity, lost
 
-class ExaMPIQueue(erl.ExaData):
+class ExaMPIQueue(ExaData):
     def __init__(self, comm, rank, size=None, data=None, length=32, max_model_lag=None, failPush=False):
         self.comm = comm
         self.rank = rank

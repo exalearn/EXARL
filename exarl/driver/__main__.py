@@ -21,8 +21,7 @@
 import exarl as erl
 import exarl.utils.analyze_reward as ar
 import time
-from exarl.utils.candleDriver import initialize_parameters
-from exarl.utils.candleDriver import run_params
+from exarl.utils.candleDriver import lookup_params
 from exarl.utils.introspect import *
 import numpy as np
 
@@ -34,12 +33,7 @@ comm = erl.ExaComm.global_comm
 rank = comm.rank
 size = comm.size
 
-
-try:
-    writeDir = run_params["introspector_dir"]
-    ibLoadReplacement(comm)
-except:
-    writeDir = None
+writeDir = lookup_params("introspector_dir")
 
 # Run the learner, measure time
 ib.start()

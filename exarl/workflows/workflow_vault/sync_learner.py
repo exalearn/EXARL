@@ -34,7 +34,7 @@ class SYNC(erl.ExaWorkflow):
 
     @PROFILE
     def run(self, workflow):
-        comm = ExaComm.agent_comm()
+        comm = ExaComm.agent_comm
 
         filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' % (
             str(workflow.nepisodes), str(workflow.nsteps), str(comm.rank))
@@ -69,17 +69,17 @@ class SYNC(erl.ExaWorkflow):
 
             while all_done != True:
                 # All workers
-                reward = -9999
-                memory = (current_state, None, reward, None, done, 0)
+                did_step = False
                 if done != True:
                     action, policy_type = workflow.agent.action(current_state)
                     next_state, reward, done, _ = workflow.env.step(action)
                     total_reward += reward
                     memory = (current_state, action, reward,
                               next_state, done, total_reward)
+                    did_step = True
 
                 batch_data = []
-                if memory[2] != -9999:
+                if did_step:
                     workflow.agent.remember(
                         memory[0], memory[1], memory[2], memory[3], memory[4])
                     # TODO: we need a memory class to scale
@@ -131,7 +131,7 @@ class SYNC(erl.ExaWorkflow):
                     done = True
 
                 # Save memory for offline analysis
-                if reward != -9999:
+                if did_step:
                     train_writer.writerow([time.time(), current_state, action, reward,
                                            next_state, total_reward, done, e, steps, policy_type, rank0_epsilon])
                     train_file.flush()

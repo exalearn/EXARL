@@ -17,11 +17,14 @@ class ExaComm(ABC):
     global_comm = None
     agent_comm = None
     env_comm = None
+    learner_comm = None
+    num_learners = None
 
-    def __init__(self, comm, procs_per_env):
+    def __init__(self, comm, procs_per_env, num_learners):
         if ExaComm.global_comm is None:
+            ExaComm.num_learners = num_learners
             ExaComm.global_comm = comm
-            ExaComm.agent_comm, ExaComm.env_comm = comm.split(procs_per_env)
+            ExaComm.agent_comm, ExaComm.env_comm, ExaComm.learner_comm = comm.split(procs_per_env, num_learners)
 
     @abstractmethod
     def send(self, data, dest, pack=False):
@@ -62,13 +65,13 @@ class ExaComm(ABC):
 
     def is_learner():
         if ExaComm.agent_comm is not None:
-            if ExaComm.agent_comm.rank == 0:
+            if ExaComm.agent_comm.rank < ExaComm.num_learners:
                 return True
         return False
 
     def is_actor():
         if ExaComm.agent_comm is not None:
-            if ExaComm.agent_comm.rank > 0:
+            if ExaComm.agent_comm.rank >= ExaComm.num_learners:
                 return True
         return False
 

@@ -121,6 +121,10 @@ class DQN(erl.ExaAgent):
         else:
             print("Setting no GPU rank", self.rank)
             config = tf.compat.v1.ConfigProto(device_count={'GPU':0, 'CPU':1})
+        
+        cpus = tf.config.experimental.list_physical_devices("CPU")
+        logger.info("Available CPUs: {}".format(cpus))
+
         config.gpu_options.allow_growth = True
         sess = tf.compat.v1.Session(config=config)
         tf.compat.v1.keras.backend.set_session(sess)
@@ -131,7 +135,6 @@ class DQN(erl.ExaAgent):
                 self.model = self._build_model()
                 self.model.compile(loss=self.loss, optimizer=self.optimizer)
                 self.model.summary()
-
             # self.mirrored_strategy = tf.distribute.MirroredStrategy()
             # logger.info("Using learner strategy: {}".format(self.mirrored_strategy))
             # with self.mirrored_strategy.scope():
@@ -140,15 +143,13 @@ class DQN(erl.ExaAgent):
             #     self.model.compile(loss=self.loss, optimizer=self.optimizer)
             #     logger.info("Active model: \n".format(self.model.summary()))
         else:
-            cpus = tf.config.experimental.list_physical_devices("CPU")
-            logger.info("Available CPUs: {}".format(cpus))
-            with tf.device('/CPU:0'):
-                self.model = None
-                self.target_model = self._build_model()
-                self.target_model._name = "target_model"
-                self.target_model.compile(loss=self.loss, optimizer=self.optimizer)
-                # self.target_model.summary()
-                self.target_weights = self.target_model.get_weights()
+            self.model = None
+        with tf.device('/CPU:0'):
+            self.target_model = self._build_model()
+            self.target_model._name = "target_model"
+            self.target_model.compile(loss=self.loss, optimizer=self.optimizer)
+            # self.target_model.summary()
+            self.target_weights = self.target_model.get_weights()
 
         # TODO: make configurable
         self.memory = deque(maxlen=1000)

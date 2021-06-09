@@ -1,7 +1,7 @@
 from exarl.utils.introspect import introspectTrace
+from exarl.base.comm_base import ExaComm
 import gc
 import numpy as np
-import exarl as erl
 
 import mpi4py.rc
 
@@ -10,7 +10,7 @@ mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
 
 
-class ExaMPI(erl.ExaComm):
+class ExaMPI(ExaComm):
     mpi = MPI
 
     def __init__(self, comm=MPI.COMM_WORLD, procs_per_env=1, run_length=False):

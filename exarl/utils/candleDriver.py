@@ -91,6 +91,11 @@ def initialize_parameters():
     global run_params
     run_params = gParameters
 
+def lookup_params(arg, default=None):
+    try:
+        return run_params[arg]
+    except:
+        return default
 
 def base_parser(params):
     # checks for env or agent command line override before reasing json files

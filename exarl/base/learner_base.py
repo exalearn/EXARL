@@ -18,7 +18,7 @@ import exarl.workflows
 from exarl.network.simple_comm import ExaSimple
 # from exarl.network.mpi_comm import ExaMPI
 from exarl.base.comm_base import ExaComm
-from exarl.env_base import ExaEnv
+from exarl.base.env_base import ExaEnv
 
 import os
 import csv
@@ -51,7 +51,7 @@ class ExaLearner:
         # Setup MPI
         # Global communicator
         # ExaMPI(comm, self.process_per_env)
-        ExaSimple(comm, self.process_per_env)
+        ExaSimple(comm, self.process_per_env, self.learner_procs)
         self.global_comm = ExaComm.global_comm
         self.global_size = ExaComm.global_comm.size
 

@@ -1,8 +1,8 @@
 from exarl.utils.introspect import ib
 from exarl.utils.introspect import introspectTrace
+from exarl.base.comm_base import ExaComm
 import os
 import numpy as np
-import exarl as erl
 
 import mpi4py.rc
 
@@ -10,19 +10,23 @@ mpi4py.rc.threads = False
 mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
 
-class ExaSimple(erl.ExaComm):
+class ExaSimple(ExaComm):
     MPI = MPI
 
-    def __init__(self, comm=MPI.COMM_WORLD, procs_per_env=1):
+    def __init__(self, comm=MPI.COMM_WORLD, procs_per_env=1, num_learners=1):
         if comm is None:
-            comm = MPI.COMM_WORLD
-        self.comm = comm
-        self.size = comm.Get_size()
-        self.rank = comm.Get_rank()
+            self.comm = MPI.COMM_WORLD
+            self.size = MPI.COMM_WORLD.Get_size()
+            self.rank = MPI.COMM_WORLD.Get_rank()
+        else:
+            self.comm = comm
+            self.size = comm.size
+            self.rank = comm.rank
+        
         if self.rank > 0:
             os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
         self.buffers = {}
-        super().__init__(self, procs_per_env)
+        super().__init__(self, procs_per_env, num_learners)
 
     @introspectTrace()
     def send(self, data, dest, pack=False):
@@ -52,26 +56,35 @@ class ExaSimple(erl.ExaComm):
     def time(self):
         return MPI.Wtime()
 
-    def split(self, procs_per_env):
+    def split(self, procs_per_env, num_learners):
         # Agent communicator
         agent_color = MPI.UNDEFINED
-        if (self.rank == 0) or ((self.rank + procs_per_env - 1) % procs_per_env == 0):
+        if (self.rank < num_learners) or ((self.rank + procs_per_env - 1) % procs_per_env == 0):
             agent_color = 0
         agent_comm = self.comm.Split(agent_color, self.rank)
-
-        # Environment communicator
-        if self.rank == 0:
-            env_color = 0
-        else:
-            env_color = (int((self.rank - 1) / procs_per_env)) + 1
-        env_comm = self.comm.Split(env_color, self.rank)
-
         if agent_color == 0:
             agent_comm = ExaSimple(comm=agent_comm)
         else:
             agent_comm = None
-        env_comm = ExaSimple(comm=env_comm)
-        return agent_comm, env_comm
+
+        # Environment communicator
+        if self.rank < num_learners:
+            env_color = 0
+        else:
+            env_color = (int((self.rank - num_learners) / procs_per_env)) + 1
+        env_comm = ExaSimple(comm=self.comm.Split(env_color, self.rank))
+
+        # Learner communicator
+        learner_color = MPI.UNDEFINED
+        if self.rank < num_learners:
+            learner_color = 0
+        learner_comm = self.comm.Split(learner_color, self.rank)
+        if learner_color == 0:
+            learner_comm = ExaSimple(comm=learner_comm)
+        else:
+            learner_comm = None
+
+        return agent_comm, env_comm, learner_comm
 
     def raw(self):
         return self.comm
