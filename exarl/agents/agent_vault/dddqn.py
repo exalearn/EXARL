@@ -27,20 +27,19 @@ import random
 import tensorflow as tf
 import sys
 import gym
-import exarl.mpi_settings as mpi_settings
 import pickle
 import exarl as erl
+from exarl.base.comm_base import ExaComm
 from tensorflow import keras
-from tensorflow.python.client import device_lib
 from collections import deque
 from datetime import datetime
 import numpy as np
 from exarl.agents.agent_vault._prioritized_replay import PrioritizedReplayBuffer
 import exarl.utils.candleDriver as cd
 import exarl.utils.log as log
+from exarl.utils.introspect import introspectTrace
 from tensorflow.compat.v1.keras.backend import set_session
 
-tf_version = int((tf.__version__)[0])
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class LossHistory(keras.callbacks.Callback):
@@ -52,15 +51,18 @@ class LossHistory(keras.callbacks.Callback):
 
 # The Discrete Double Deep Q-Network (DDDQN)
 class DDDQN(erl.ExaAgent):
-    def __init__(self, env):
-        #
-        self.is_learner = False
+    def __init__(self, env, is_learner):
+
+        # Initial values
+        self.is_learner = is_learner
         self.model = None
         self.target_model = None
         self.target_weights = None
+        self.device = None
+        self.mirrored_strategy = None
 
         self.env = env
-        self.agent_comm = mpi_settings.agent_comm
+        self.agent_comm = ExaComm.agent_comm
 
         # MPI
         self.rank = self.agent_comm.rank
@@ -75,32 +77,15 @@ class DDDQN(erl.ExaAgent):
         self.dataprep_time = 0
         self.ndataprep_time = 0
 
-        # Default settings
-        num_cores = os.cpu_count()
-        num_CPU = os.cpu_count()
-        num_GPU = 0
+        # Optimization using XLA (1.1x speedup)
+        # tf.config.optimizer.set_jit(True)
 
-        # Setup GPU cfg
-        if tf_version < 2:
-            gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
-            if self.rank == 0 and len(gpu_names) > 0:
-                num_cores = 1
-                num_CPU = 1
-                num_GPU = len(gpu_names)
-            config = tf.ConfigProto(intra_op_parallelism_threads=num_cores,
-                                    inter_op_parallelism_threads=num_cores,
-                                    allow_soft_placement=True,
-                                    device_count={'CPU': num_CPU,
-                                                  'GPU': num_GPU})
-            config.gpu_options.allow_growth = True
-            sess = tf.Session(config=config)
-            set_session(sess)
-        elif tf_version >= 2:
-
-            config = tf.compat.v1.ConfigProto()
-            config.gpu_options.allow_growth = True
-            sess = tf.compat.v1.Session(config=config)
-            tf.compat.v1.keras.backend.set_session(sess)
+        # Optimization using mixed precision (1.5x speedup)
+        # Layers use float16 computations and float32 variables
+        # from tensorflow.keras.mixed_precision import experimental as mixed_precision
+        # policy = mixed_precision.Policy('mixed_float16')
+        # git diff
+        # mixed_precision.set_policy(policy)
 
         # dqn intrinsic variables
         self.results_dir = cd.run_params['output_dir']
@@ -113,20 +98,21 @@ class DDDQN(erl.ExaAgent):
         self.tau = cd.run_params['tau']
         self.model_type = cd.run_params['model_type']
 
-        # for mlp
         if self.model_type == 'MLP':
+            # for mlp
             self.dense = cd.run_params['dense']
-            self.out_activation = cd.run_params['out_activation']
 
-        # for lstm
-        elif self.model_type == 'LSTM':
+        if self.model_type == 'LSTM':
+            # for lstm
             self.lstm_layers = cd.run_params['lstm_layers']
             self.gauss_noise = cd.run_params['gauss_noise']
             self.regularizer = cd.run_params['regularizer']
-            self.out_activation = cd.run_params['out_activation']
+            self.clipnorm = cd.run_params['clipnorm']
+            self.clipvalue = cd.run_params['clipvalue']
 
         # for both
         self.activation = cd.run_params['activation']
+        self.out_activation = cd.run_params['out_activation']
         self.optimizer = cd.run_params['optimizer']
         self.loss = cd.run_params['loss']
         self.n_actions = cd.run_params['nactions']
@@ -136,23 +122,53 @@ class DDDQN(erl.ExaAgent):
             env.action_space.n = self.n_actions
             self.actions = np.linspace(env.action_space.low, env.action_space.high, self.n_actions)
 
+                # Default settings
+        num_cores = os.cpu_count()
+        num_CPU = os.cpu_count()
+        num_GPU = 0
+
+        # Setup GPU cfg
+        if self.rank == 0:
+            print("Setting GPU rank", self.rank)
+            config = tf.compat.v1.ConfigProto(device_count={'GPU':1, 'CPU':1})
+        else:
+            print("Setting no GPU rank", self.rank)
+            config = tf.compat.v1.ConfigProto(device_count={'GPU':0, 'CPU':1})
+        
+        cpus = tf.config.experimental.list_physical_devices("CPU")
+        logger.info("Available CPUs: {}".format(cpus))
+
+        config.gpu_options.allow_growth = True
+        sess = tf.compat.v1.Session(config=config)
+        tf.compat.v1.keras.backend.set_session(sess)
+
         # Build network model
-        with tf.device(self.device):
-            if self.is_learner:
+        if self.is_learner:
+            with tf.device(self.device):
                 self.model = self._build_model()
                 self.model.compile(loss=self.loss, optimizer=self.optimizer)
                 self.model.summary()
-
+            # self.mirrored_strategy = tf.distribute.MirroredStrategy()
+            # logger.info("Using learner strategy: {}".format(self.mirrored_strategy))
+            # with self.mirrored_strategy.scope():
+            #     self.model = self._build_model()
+            #     self.model._name = "learner"
+            #     self.model.compile(loss=self.loss, optimizer=self.optimizer)
+            #     logger.info("Active model: \n".format(self.model.summary()))
+        else:
+            self.model = None
         with tf.device('/CPU:0'):
             self.target_model = self._build_model()
+            self.target_model._name = "target_model"
             self.target_model.compile(loss=self.loss, optimizer=self.optimizer)
-            self.target_model.summary()
+            # self.target_model.summary()
             self.target_weights = self.target_model.get_weights()
 
         self.maxlen = cd.run_params['mem_length']
         self.replay_buffer = PrioritizedReplayBuffer(maxlen=self.maxlen)
 
     def _get_device(self):
+        cpus = tf.config.experimental.list_physical_devices('CPU')
         gpus = tf.config.experimental.list_physical_devices('GPU')
         ngpus = len(gpus)
         logger.info('Number of available GPUs: {}'.format(ngpus))
@@ -173,14 +189,11 @@ class DDDQN(erl.ExaAgent):
             sys.exit("Oops! That was not a valid model type. Try again...")
 
     def set_learner(self):
-        logger.debug('Agent[{}] - Creating active model for the learner'.format(self.rank))
-        self.is_learner = True
-        self.model = self._build_model()
-        self.model.compile(loss=self.loss, optimizer=self.optimizer)
-        self.model.summary()
+        logger.debug(
+            "Agent[{}] - Creating active model for the learner".format(self.rank)
+        )
 
     def remember(self, state, action, reward, next_state, done):
-        # self.memory.append((state, action, reward, next_state, done))
         self.replay_buffer.add((state, action, reward, next_state, done))
 
     def get_action(self, state):
@@ -199,17 +212,18 @@ class DDDQN(erl.ExaAgent):
             action = np.argmax(act_values[0])
             return action, 1
 
+    @introspectTrace()
     def action(self, state):
         action, policy = self.get_action(state)
         if not self.is_discrete:
             action = [self.actions[action]]
         return action, policy
-
     def play(self, state):
         with tf.device(self.device):
             act_values = self.target_model.predict(state)
         return np.argmax(act_values[0])
 
+    @introspectTrace()
     def calc_target_f(self, exp):
         state, action, reward, next_state, done = exp
         np_state = np.array(state).reshape(1, 1, len(state))
@@ -223,7 +237,6 @@ class DDDQN(erl.ExaAgent):
             target_f = self.target_model.predict(np_state)
         action_idx = action if self.is_discrete else np.where(self.actions == action)[1]
         target_f[0][action_idx] = target
-
         return target_f[0]
 
     def generate_data(self):
@@ -272,26 +285,30 @@ class DDDQN(erl.ExaAgent):
         self.replay_buffer.set_priorities(indicies, loss)
 
     def get_weights(self):
-        logger.debug('Agent[%s] - get target weight.' % str(self.rank))
+        logger.debug("Agent[%s] - get target weight." % str(self.rank))
         return self.target_model.get_weights()
 
     def set_weights(self, weights):
-        logger.info('Agent[%s] - set target weight.' % str(self.rank))
-        logger.debug('Agent[%s] - set target weight: %s' % (str(self.rank), weights))
+        logger.info("Agent[%s] - set target weight." % str(self.rank))
+        logger.debug("Agent[%s] - set target weight: %s" % (str(self.rank), weights))
         with tf.device(self.device):
             self.target_model.set_weights(weights)
 
     def target_train(self):
         if self.is_learner:
-            logger.info('Agent[%s] - update target weights.' % str(self.rank))
+            logger.info("Agent[%s] - update target weights." % str(self.rank))
             with tf.device(self.device):
                 model_weights = self.model.get_weights()
                 target_weights = self.target_model.get_weights()
             for i in range(len(target_weights)):
-                target_weights[i] = self.tau * model_weights[i] + (1 - self.tau) * target_weights[i]
+                target_weights[i] = (
+                    self.tau * model_weights[i] + (1 - self.tau) * target_weights[i]
+                )
             self.set_weights(target_weights)
         else:
-            logger.warning('Weights will not be updated because this instance is not set to learn.')
+            logger.warning(
+                "Weights will not be updated because this instance is not set to learn."
+            )
 
     def epsilon_adj(self):
         if self.epsilon > self.epsilon_min:
@@ -316,6 +333,12 @@ class DDDQN(erl.ExaAgent):
         with open(filename, 'wb') as f:
             pickle.dump(pickle_list, f, -1)
 
+    def update(self):
+        logger.info("Implement update method in dqn.py")
+
+    def monitor(self):
+        logger.info("Implement monitor method in dqn.py")
+
     def benchmark(dataset, num_epochs=1):
         start_time = time.perf_counter()
         for epoch_num in range(num_epochs):
@@ -327,13 +350,19 @@ class DDDQN(erl.ExaAgent):
 
     def print_timers(self):
         if self.ntraining_time > 0:
-            logger.info("Agent[{}] - Average training time: {}".format(self.rank,
-                                                                       self.training_time / self.ntraining_time))
+            logger.info(
+                "Agent[{}] - Average training time: {}".format(
+                    self.rank, self.training_time / self.ntraining_time
+                )
+            )
         else:
             logger.info("Agent[{}] - Average training time: {}".format(self.rank, 0))
 
         if self.ndataprep_time > 0:
-            logger.info("Agent[{}] - Average data prep time: {}".format(self.rank,
-                                                                        self.dataprep_time / self.ndataprep_time))
+            logger.info(
+                "Agent[{}] - Average data prep time: {}".format(
+                    self.rank, self.dataprep_time / self.ndataprep_time
+                )
+            )
         else:
             logger.info("Agent[{}] - Average data prep time: {}".format(self.rank, 0))

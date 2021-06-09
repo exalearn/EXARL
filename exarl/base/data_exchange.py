@@ -20,6 +20,7 @@ class ExaData(ABC):
         self.dataSize = size
         self.comm_size = comm_size
         self.max_model_lag = max_model_lag
+        self.max_tries = 100
 
     @abstractmethod
     def pop(self, data, size=1):
@@ -29,16 +30,21 @@ class ExaData(ABC):
     def push(self, data):
         pass
 
-    def get_data(self, learner_counter):
+    # TODO: Think about low and high as parameters
+    def get_data(self, learner_counter, low, high):
         batch_data = None
         actor_counter = -1
-        while True:
+        actor_idx = 0
+        attempt = 0
+        while attempt < self.max_tries:
             actor_idx = 0
             if self.comm_size > 1:
-                actor_idx = np.random.randint(low=1, high=self.comm_size, size=1)[0]
+                actor_idx = np.random.randint(low=low, high=high, size=1)[0]
             batch_data = self.pop(actor_idx)
             if batch_data:
                 batch_data, actor_counter = batch_data
                 if self.max_model_lag is None or learner_counter - actor_counter <= self.max_model_lag:
                     break
+            attempt+=1
+
         return batch_data, actor_idx, actor_counter

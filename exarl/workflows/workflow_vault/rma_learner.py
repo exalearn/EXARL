@@ -23,7 +23,6 @@ import csv
 import numpy as np
 import exarl as erl
 from exarl.utils.introspect import *
-from exarl.utils.typing import TypeUtils
 from exarl.utils.profile import *
 import exarl.utils.log as log
 import exarl.utils.candleDriver as cd
@@ -51,9 +50,6 @@ class RMA_ASYNC(erl.ExaWorkflow):
         # MPI communicators
         agent_comm = ExaComm.agent_comm.raw()
         env_comm = ExaComm.env_comm.raw()
-
-        if ExaComm.is_learner():
-            workflow.agent.set_learner()
 
         # Allocate RMA windows
         if ExaComm.is_agent():
@@ -156,7 +152,6 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 loss_win.Put(loss, target_rank=0)
                 loss_win.Unlock(0)
 
-                # TODO: Double check if this is already in the DQN code
                 workflow.agent.target_train()
                 ib.update("RMA_Learner_Target_Train", 1)
 
@@ -181,7 +176,6 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
                 episode_count_actor = np.zeros(1, dtype=np.float64)
                 one = np.ones(1, dtype=np.float64)
-                epsilon_update = np.zeros(1, dtype=np.float64)
                 epsilon = np.zeros(1, dtype=np.float64)
                 indices = -1 * np.ones(workflow.agent.batch_size, dtype=np.int32)
                 loss = np.zeros(workflow.agent.batch_size, dtype=np.float64)
@@ -279,6 +273,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         done = True
                     # Broadcast done
                     done = env_comm.bcast(done, root=0)
+
                     if ExaComm.is_actor():
                         # Save memory
                         total_rewards += reward
@@ -293,8 +288,8 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         ib.stopTrace()
                         ib.simpleTrace("RMA_Actor_Put_Data", capacity, lost, 0, 0)
 
-                        ib.simpleTrace("RMA_Total_Reward", steps, 1 if done else 0, local_actor_episode_counter, total_rewards)
                         # Log state, action, reward, ...
+                        ib.simpleTrace("RMA_Total_Reward", steps, 1 if done else 0, local_actor_episode_counter, total_rewards)
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
                                                done, local_actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
                         train_file.flush()

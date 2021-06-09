@@ -5,7 +5,6 @@ import os
 import numpy as np
 
 import mpi4py.rc
-
 mpi4py.rc.threads = False
 mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
@@ -23,8 +22,8 @@ class ExaSimple(ExaComm):
             self.size = comm.size
             self.rank = comm.rank
         
-        if self.rank > 0:
-            os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+        # if self.rank > 0:
+        #     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
         self.buffers = {}
         super().__init__(self, procs_per_env, num_learners)
 
