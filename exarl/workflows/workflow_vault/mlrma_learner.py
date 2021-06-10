@@ -168,6 +168,7 @@ class ML_RMA(erl.ExaWorkflow):
                 #     logger.info('Data buffer is empty, continuing...')
 
                 ib.startTrace("RMA_Data_Exchange_Pop", 0)
+                print("LOW:", low, "HIGH:", high, flush=True)
                 agent_data, actor_idx, actor_counter = data_exchange.get_data(learner_counter, low, high)
                 ib.stopTrace()
                 ib.simpleTrace("RMA_Learner_Get_Data", actor_idx, actor_counter, learner_counter-actor_counter, 0)
@@ -178,6 +179,7 @@ class ML_RMA(erl.ExaWorkflow):
                     process_has_data = 1
                 sum_process_has_data = learner_comm.allreduce(process_has_data, op=MPI.SUM)
                 if sum_process_has_data < learner_comm.size:
+                    print("CONT...", flush=True)
                     continue
 
                 # Train & Target train
@@ -268,6 +270,7 @@ class ML_RMA(erl.ExaWorkflow):
                         # TODO: weights are updated each step -- REVIEW --
                         # TODO: Move all buffers to one for atomicity and bandwidth utilization
                         buff = bytearray(serial_target_weights_size)
+                
                         model_win.Lock(0)
                         model_win.Get(buff, target=0, target_rank=0)
                         model_win.Flush(0)

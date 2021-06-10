@@ -6,10 +6,12 @@ from collections import deque
 
 class PrioritizedReplayBuffer():
     def __init__(self, maxlen):
+        self.curlen = 0
         self.buffer = deque(maxlen=maxlen)
         self.priorities = deque(maxlen=maxlen)
 
     def add(self, experience):
+        self.curlen+=1
         self.buffer.append(experience)
         self.priorities.append(max(self.priorities, default=1))
 
@@ -33,6 +35,8 @@ class PrioritizedReplayBuffer():
 
     def set_priorities(self, indices, errors, offset=0.1):
         for i, e in zip(indices, errors):
+            if int(i) >= self.curlen or int(i) <= 0:
+                print("HERE IS THE I:", i, "as int", int(i), "max", self.curlen, "len", len(self.priorities), flush=True)
             self.priorities[int(i)] = abs(e) + offset
 
     def get_buffer_length(self):

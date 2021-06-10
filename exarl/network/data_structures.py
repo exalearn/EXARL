@@ -298,9 +298,16 @@ class ExaMPIQueue(ExaData):
 
         if write:    
             self.win[rank].Lock(self.rank)
-            self.win[rank].Accumulate(
-                toSend, self.rank, target=[headIndex, self.dataSize], op=MPI.REPLACE
-            )
+            try:
+                self.win[rank].Accumulate(
+                    toSend, self.rank, target=[headIndex, len(toSend)], op=MPI.REPLACE
+                )
+                print("SUCCESSFUL SEND OF SIZE:", len(toSend), flush=True)
+            except:
+                #print("THIS IS THE COMM SIZE:", self.comm.size, flush=True)
+                #print("RANK:", rank, "HEAD INDEX", headIndex, "DATASIZE", len(toSend), "vs", self.dataSize, flush=True)
+                #print("THIS IS THE DATA", data, "DATA IS OVER", flush=True)
+                print("FAILED SEND", len(toSend), flush=True)
             self.win[rank].Unlock(self.rank)
 
         self.tail[rank].Unlock(self.rank)

@@ -41,7 +41,7 @@ from exarl.utils.introspect import introspectTrace
 from tensorflow.compat.v1.keras.backend import set_session
 try:
     import horovod.tensorflow as hvd
-    horovod_imported = True
+    horovod_imported = False
 except:
     horovod_imported = False
 
