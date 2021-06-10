@@ -73,21 +73,10 @@ class ML_RMA(erl.ExaWorkflow):
             # Create epsilon window
             epsilon_win = MPI.Win.Create(epsilon, disp, comm=agent_comm)
 
-            # Get size of individual indices
-            disp = MPI.INT.Get_size()
-            indices = None
-            if ExaComm.is_learner() and learner_comm.rank == 0:
-                indices = -1 * np.ones(workflow.agent.batch_size, dtype=np.intc)
-            # Create indices window
-            indices_win = MPI.Win.Create(indices, disp, comm=agent_comm)
-
-            # Get size of loss
-            disp = MPI.DOUBLE.Get_size()
-            loss = None
-            if ExaComm.is_learner() and learner_comm.rank == 0:
-                loss = np.zeros(workflow.agent.batch_size, dtype=np.float64)
-            # Create epsilon window
-            loss_win = MPI.Win.Create(loss, disp, comm=agent_comm)
+            indices_for_size = -1 * np.ones(workflow.agent.batch_size, dtype=np.intc)
+            loss_for_size = np.zeros(workflow.agent.batch_size, dtype=np.float64)
+            indicies_and_loss_for_size = (indices_for_size, loss_for_size)
+            data_exchange_loss = ExaMPIQueue(ExaComm.agent_comm, ExaComm.learner_rank(), data=indicies_and_loss_for_size, length=ExaComm.num_learners, max_model_lag=None)
 
             # Get serialized target weights size
             target_weights = (workflow.agent.get_weights(), np.int64(0))
@@ -168,7 +157,6 @@ class ML_RMA(erl.ExaWorkflow):
                 #     logger.info('Data buffer is empty, continuing...')
 
                 ib.startTrace("RMA_Data_Exchange_Pop", 0)
-                print("LOW:", low, "HIGH:", high, flush=True)
                 agent_data, actor_idx, actor_counter = data_exchange.get_data(learner_counter, low, high)
                 ib.stopTrace()
                 ib.simpleTrace("RMA_Learner_Get_Data", actor_idx, actor_counter, learner_counter-actor_counter, 0)
@@ -179,7 +167,6 @@ class ML_RMA(erl.ExaWorkflow):
                     process_has_data = 1
                 sum_process_has_data = learner_comm.allreduce(process_has_data, op=MPI.SUM)
                 if sum_process_has_data < learner_comm.size:
-                    print("CONT...", flush=True)
                     continue
 
                 # Train & Target train
@@ -187,21 +174,11 @@ class ML_RMA(erl.ExaWorkflow):
                 ib.update("RMA_Learner_Train", 1)
 
                 if train_return is not None:
-                    if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
+                    if train_return[0][0] != -1:
                         indices, loss = train_return
                         indices = np.array(indices, dtype=np.intc)
                         loss = np.array(loss, dtype=np.float64)
-
-                if learner_comm.rank == 0:
-                    # Write indices to memory pool
-                    indices_win.Lock(0)
-                    indices_win.Put(indices, target_rank=0)
-                    indices_win.Unlock(0)
-
-                    # Write losses to memory pool
-                    loss_win.Lock(0)
-                    loss_win.Put(loss, target_rank=0)
-                    loss_win.Unlock(0)
+                        data_exchange_loss.push((indices, loss))
 
                     workflow.agent.target_train()
                     ib.update("RMA_Learner_Target_Train", 1)
@@ -284,22 +261,12 @@ class ML_RMA(erl.ExaWorkflow):
                         epsilon_win.Get(epsilon, target_rank=0)
                         epsilon_win.Flush(0)
                         epsilon_win.Unlock(0)
-
                         workflow.agent.epsilon = epsilon
 
-                        # Get indices
-                        indices_win.Lock(0)
-                        indices_win.Get(indices, target_rank=0)
-                        indices_win.Flush(0)
-                        indices_win.Unlock(0)
-
-                        # Get losses
-                        loss_win.Lock(0)
-                        loss_win.Get(loss, target_rank=0)
-                        loss_win.Flush(0)
-                        loss_win.Unlock(0)
-
-                        if not np.array_equal(indices, (-1 * np.ones(workflow.agent.batch_size, dtype=np.intc))):
+                        # Get the loss and indicies
+                        loss_data = data_exchange_loss.pop(ExaComm.agent_comm.rank)
+                        if loss_data is not None:
+                            loss, indices = loss_data
                             workflow.agent.set_priorities(indices, loss)
 
                         # Inference action

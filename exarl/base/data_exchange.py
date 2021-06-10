@@ -23,11 +23,11 @@ class ExaData(ABC):
         self.max_tries = 100
 
     @abstractmethod
-    def pop(self, data, size=1):
+    def pop(self, rank, count=1):
         pass
 
     @abstractmethod
-    def push(self, data):
+    def push(self, data, rank=None):
         pass
 
     # TODO: Think about low and high as parameters
