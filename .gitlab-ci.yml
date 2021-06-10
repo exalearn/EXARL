@@ -1,5 +1,13 @@
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
+      when: never
+    - if: '$CI_COMMIT_BRANCH'
+
 stages:
   - run-exabooster-benchmark
+  - ornl-test
 
 cori_benchmarks:
   stage: run-exabooster-benchmark
@@ -11,8 +19,54 @@ cori_benchmarks:
     - shifter pip install -e . --user
     - output_dir="${SCRATCH}/exarl-ci/output-${hash}"
     - mkdir -p "${output_dir}"
-    - srun shifter python driver/driver.py --output_dir ${output_dir} --env ExaBooster-v1 --n_episodes 50 --n_steps 5 --workflow async --agent DQN-v0
+    - srun shifter python exarl/driver --output_dir ${output_dir} --env ExaBooster-v1 --n_episodes 50 --n_steps 5 --workflow async --agent DQN-v0
   tags:
     - cori
+  rules:
+    - if: '$CI_PROJECT_PATH != "ecpcitest/ast153/ExaRL"'
   variables:
     SCHEDULER_PARAMETERS: "-C gpu -M escori -t 10 -n 2 --ntasks-per-node=2 -c 10 --gpus-per-task=1 --gpu-bind=map_gpu:0,1 -J ExaRL-ExaBooster-v1-2g-cgpu -L SCRATCH,cfs --image=registry.nersc.gov/apg/exarl-ngc:0.1"
+
+test_on_compute_node:
+  stage: ornl-test
+  tags:
+    - batch
+  variables:
+    SCHEDULER_PARAMETERS: "-P AST153 -nnodes 1 -W 30"
+    WORKDIR: /gpfs/wolf/proj-shared/ast153/ci/${CI_PIPELINE_ID}
+  rules:
+    - if: '$CI_PROJECT_PATH == "ecpcitest/ast153/ExaRL"'
+  script:
+    - |
+      set -xv
+      module load gcc/7.4.0
+      module load spectrum-mpi/10.3.1.2-20200121
+      module load cuda/10.1.243
+      module load ibm-wml-ce/1.7.0-0
+      export PYTHONPATH=$PROJWORK/ast153/src/install-mpi4py/gcc740/lib/python3.6/site-packages
+
+      mkdir -p "$WORKDIR"
+      cp -R ./* "$WORKDIR"
+      cd "$WORKDIR"
+      pip install -e .
+
+      echo 'mpi4py sanity check:'
+      python -c 'import mpi4py; print(mpi4py.__path__)'
+      jsrun -n 4 python -c 'from mpi4py import MPI; print(MPI.COMM_WORLD.Get_rank())'
+
+      jsrun --nrs 6 \
+        --tasks_per_rs 1 \
+        --cpu_per_rs 7 --gpu_per_rs 1 \
+        --rs_per_host 6 --latency_priority CPU-CPU \
+        --launch_distribution packed \
+        --bind packed:7 \
+        python exarl/driver
+
+      res=$?
+
+      echo "Exiting with code $res"
+      exit $res
+  after_script:
+    - |
+      rm -rf $WORKDIR
+

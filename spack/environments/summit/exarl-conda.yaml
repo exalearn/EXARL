@@ -1,0 +1,111 @@
+spack:
+  specs:
+  - exarl.py-exarl@develop%gcc@6.4.0 ^py-numpy@1.18.0
+  view: true
+  definitions:
+  - compilers: [gcc@6.4.0]
+  packages:
+    gcc:
+      externals:
+      - spec: gcc@6.4.0
+        modules: [gcc/6.4.0]
+      buildable: false
+    spectrum-mpi:
+      externals:
+      - spec: spectrum-mpi
+        modules: [spectrum-mpi/10.3.1.2-20200121]
+      buildable: false
+    python:
+      externals:
+      - spec: python@3.6.10
+        prefix: $CONDA_PREFIX
+      buildable: false
+    py-pandas:
+      externals:
+      - spec: py-pandas
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/pandas
+      buildable: false
+    py-mpi4py:
+      externals:
+      - spec: py-mpi4py
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/mpi4py
+      buildable: false
+    cuda:
+      externals:
+      - spec: cuda@10.1.243
+        prefix: $CONDA_PREFIX
+      buildable: false
+    cudnn:
+      externals:
+      - spec: cudnn@7.6.5
+        prefix: $CONDA_PREFIX
+      buildable: false
+    py-tensorflow:
+      externals:
+      - spec: py-tensorflow cuda_arch=70
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/tensorflow
+      buildable: false
+    py-numpy:
+      externals:
+      - spec: py-numpy@1.18.0
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/numpy
+      buildable: false
+    py-dask:
+      externals:
+      - spec: py-dask
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/dask
+      buildable: false
+    py-h5py:
+      externals:
+      - spec: py-h5py@2.10.0
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/h5py
+      buildable: false
+    py-torchvision:
+      externals:
+      - spec: py-torchvision
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/torchvision
+      buildable: false
+    py-matplotlib:
+      externals:
+      - spec: py-matplotlib
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/matplotlib
+      buildable: false
+    py-scipy:
+      externals:
+      - spec: py-scipy
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/scipy
+      buildable: false
+    go-bootstrap:
+      externals:
+      - spec: go-bootstrap
+        modules: [go/1.11.5]
+      buildable: false
+    py-torch:
+      externals:
+      - spec: py-torch
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/torch
+      buildable: false
+    py-scikit-learn:
+      externals:
+      - spec: py-scikit-learn
+        prefix: $CONDA_PREFIX/lib/python3.6/site-packages/sklearn
+      buildable: false
+    py-pip:
+      externals:
+      - spec: py-pip@10.0.1
+        prefix: $CONDA_PREFIX
+      buildable: false
+  compilers:
+  - compiler:
+      spec: gcc@6.4.0
+      paths:
+        cc: /sw/summit/gcc/6.4.0/bin/gcc
+        cxx: /sw/summit/gcc/6.4.0/bin/g++
+        f77: /sw/summit/gcc/6.4.0/bin/gfortran
+        fc: /sw/summit/gcc/6.4.0/bin/gfortran
+      flags: {}
+      operating_system: rhel7
+      target: ppc64le
+      modules: []
+      environment: {}
+      extra_rpaths: []

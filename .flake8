@@ -46,5 +46,12 @@
 
 [flake8]
 ignore = E129,E221,E241,E272,E302,E731,W503,W504,F999,N801,N813,N814,E712,E722,F401,F841,E741,F523,F821,F632,E402,F403,F405
-exclude = envs/env_vault/CahnHilliard2D, envs/env_vault/ImageStructure, envs/env_vault/pydemic, envs/env_vault/LibTDLG, docs
+exclude = 
+    envs/env_vault/CahnHilliard2D
+    envs/env_vault/ImageStructure
+    envs/env_vault/pydemic
+    envs/env_vault/LibTDLG
+    envs/env_vault/molecular-graph-descriptors
+    envs/env_vault/ttm
+    docs
 max-line-length = 160

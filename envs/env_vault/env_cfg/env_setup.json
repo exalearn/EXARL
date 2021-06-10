@@ -1,4 +1,0 @@
-{
-	"worker_app": "./envs/env_vault/cpi.py",
-	"run_type":"static"
-}

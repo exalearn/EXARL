@@ -1,0 +1,18 @@
+{
+<<<<<<< HEAD:learner_cfg.json
+    "agent": "DDPG-Vtrace-v0",
+    "env": "CartPole-v1",
+=======
+    "agent": "DDPG-v0",
+    "env": "Pendulum-v0",
+>>>>>>> develop:exarl/config/learner_cfg_ddpg.json
+    "workflow": "async",
+    "n_episodes": 10,
+    "n_steps": 10,
+    "output_dir": "./results_dir/",
+    "process_per_env": 1,
+    "model_type": "AC",
+    "action_type": "variable",
+    "log_level": [0, 0],
+    "profile": "none"
+}
