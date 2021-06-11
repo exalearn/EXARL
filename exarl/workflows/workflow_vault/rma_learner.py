@@ -36,10 +36,13 @@ logger = log.setup_logger(__name__, cd.run_params['log_level'])
 class RMA_ASYNC(erl.ExaWorkflow):
     def __init__(self):
         data_exchange_constructors = {
-            "queue" : ExaMPIQueue,
-            "stack" : ExaMPIStack 
+            "queue_distribute" : ExaMPIDistributedQueue,
+            "stack_distribute" : ExaMPIDistributedStack,
+            "queue_central" : ExaMPICentralizedQueue, 
+            "stack_central" : ExaMPICentralizedStack
         }
-        self.de = cd.lookup_params('data_structure', default='queue')
+
+        self.de = cd.lookup_params('data_structure', default='queue_distribute')
         self.de_constr = data_exchange_constructors[self.de]
         self.de_length = cd.lookup_params('data_structure_length', default=32)
         self.de_lag = cd.lookup_params('max_model_lag')

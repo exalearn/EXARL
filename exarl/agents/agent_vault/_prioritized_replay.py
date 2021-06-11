@@ -6,14 +6,15 @@ from collections import deque
 
 class PrioritizedReplayBuffer():
     def __init__(self, maxlen):
-        self.curlen = 0
-        self.buffer = deque(maxlen=maxlen)
-        self.priorities = deque(maxlen=maxlen)
+        self.maxlen = None if maxlen == "none" else maxlen
+        self.buffer = deque(maxlen=self.maxlen)
+        self.priorities = deque(maxlen=self.maxlen)
 
     def add(self, experience):
-        self.curlen+=1
+        full_buffer = len(self.buffer) == self.maxlen
         self.buffer.append(experience)
         self.priorities.append(max(self.priorities, default=1))
+        return full_buffer
 
     def get_probabilities(self, priority_scale):
         scaled_priorities = np.array(self.priorities) ** priority_scale
@@ -35,8 +36,6 @@ class PrioritizedReplayBuffer():
 
     def set_priorities(self, indices, errors, offset=0.1):
         for i, e in zip(indices, errors):
-            if int(i) >= self.curlen or int(i) <= 0:
-                print("HERE IS THE I:", i, "as int", int(i), "max", self.curlen, "len", len(self.priorities), flush=True)
             self.priorities[int(i)] = abs(e) + offset
 
     def get_buffer_length(self):

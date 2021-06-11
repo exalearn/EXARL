@@ -120,6 +120,7 @@ class MLDQN(erl.ExaAgent):
         self.optimizer = cd.run_params['optimizer']
         self.loss = cd.run_params['loss']
         self.n_actions = cd.run_params['nactions']
+        self.priority_scale = cd.run_params['priority_scale']
 
         self.is_discrete = (type(env.action_space) == gym.spaces.discrete.Discrete)
         if not self.is_discrete:
@@ -204,7 +205,9 @@ class MLDQN(erl.ExaAgent):
         )
 
     def remember(self, state, action, reward, next_state, done):
-        self.replay_buffer.add((state, action, reward, next_state, done))
+        lost_data = self.replay_buffer.add((state, action, reward, next_state, done))
+        if lost_data and self.priority_scale:
+            logger.warning("Priority replay buffer size too small. Data loss negates replay effect!")
 
     def get_action(self, state):
         random.seed(datetime.now())
@@ -258,9 +261,14 @@ class MLDQN(erl.ExaAgent):
         importance = np.ones(self.batch_size)
         if self.replay_buffer.get_buffer_length() < self.batch_size:
             yield batch_states, batch_target, indices, importance
+            # if self.priority_scale > 0:
+            #     yield batch_states, batch_target, indices, importance
+            # else:
+            #     print("INIT", len(batch_states), len(batch_target))
+            #     yield batch_states, batch_target
+
         start_time = time.time()
-        priority_scale = cd.run_params['priority_scale']
-        minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=priority_scale)
+        minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=self.priority_scale)
         batch_target = list(map(self.calc_target_f, minibatch))
         batch_states = [np.array(exp[0]).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
         batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
@@ -270,6 +278,12 @@ class MLDQN(erl.ExaAgent):
         self.ndataprep_time += 1
         logger.debug('Agent[{}] - Minibatch time: {} '.format(self.rank, (end_time - start_time)))
         yield batch_states, batch_target, indices, importance
+        # TODO: THIS BREAKS THE PICKLE
+        # if self.priority_scale > 0:
+        #     yield batch_states, batch_target, indices, importance
+        # else:
+        #     print("GENERATING", len(batch_states), len(batch_target))
+        #     yield batch_states, batch_target
 
     def train(self, batch):
         if self.is_learner:
