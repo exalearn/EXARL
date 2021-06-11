@@ -29,9 +29,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
-        <script src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -168,7 +169,7 @@
   <div class="section" id="candle-integration">
 <h1>CANDLE Integration<a class="headerlink" href="#candle-integration" title="Permalink to this headline">¶</a></h1>
 <p><a class="reference external" href="https://github.com/ECP-CANDLE/Candle">CANDLE</a> functionality is built into EXARL.
-- Add/modify the learner parameters in <code class="docutils literal notranslate"><span class="pre">ExaRL/learner_cfg.json</span></code></p>
+- Add/modify the learner parameters in <code class="docutils literal notranslate"><span class="pre">ExaRL/config/learner_cfg.json</span></code></p>
 <p>E.g.:-</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
     <span class="nt">&quot;agent&quot;</span><span class="p">:</span> <span class="s2">&quot;DQN-v0&quot;</span><span class="p">,</span>
@@ -181,7 +182,7 @@
 </pre></div>
 </div>
 <ul class="simple">
-<li><p>Add/modify the agent parameters in <code class="docutils literal notranslate"><span class="pre">ExaRL/agents/agent_vault/agent_cfg/&lt;AgentName&gt;_&lt;model_type&gt;.json</span></code></p></li>
+<li><p>Add/modify the agent parameters in <code class="docutils literal notranslate"><span class="pre">ExaRL/exarl/agents/agent_vault/agent_cfg/&lt;AgentName&gt;_&lt;model_type&gt;.json</span></code></p></li>
 </ul>
 <p>E.g.:-</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
@@ -201,15 +202,15 @@
 </pre></div>
 </div>
 <p>Currently, DQN agent takes either MLP or LSTM as model_type.
-- Add/modify the environment parameters in <code class="docutils literal notranslate"><span class="pre">ExaRL/envs/env_vault/env_cfg/&lt;EnvName&gt;.json</span></code></p>
+- Add/modify the environment parameters in <code class="docutils literal notranslate"><span class="pre">ExaRL/exarl/envs/env_vault/env_cfg/&lt;EnvName&gt;.json</span></code></p>
 <p>E.g.:-</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-        <span class="nt">&quot;worker_app&quot;</span><span class="p">:</span> <span class="s2">&quot;./envs/env_vault/cpi.py&quot;</span>
+        <span class="nt">&quot;worker_app&quot;</span><span class="p">:</span> <span class="s2">&quot;./exarl/envs/env_vault/cpi.py&quot;</span>
 <span class="p">}</span>
 </pre></div>
 </div>
 <ul class="simple">
-<li><p>Add/modify the workflow parameters in <code class="docutils literal notranslate"><span class="pre">ExaRL/workflows/workflow_vault/workflow_cfg/&lt;WorkflowName&gt;.json</span></code></p></li>
+<li><p>Add/modify the workflow parameters in <code class="docutils literal notranslate"><span class="pre">ExaRL/exarl/config/workflow_cfg/&lt;WorkflowName&gt;.json</span></code></p></li>
 </ul>
 <p>E.g.:-</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
@@ -218,9 +219,9 @@
 </pre></div>
 </div>
 <ul class="simple">
-<li><p>Please note the agent, environment, and workflow configuration file (json file) name must match the agent, environment, and workflow ID specified in <code class="docutils literal notranslate"><span class="pre">ExaRL/learner_cfg.json</span></code>.</p></li>
+<li><p>Please note the agent, environment, and workflow configuration file (json file) name must match the agent, environment, and workflow ID specified in <code class="docutils literal notranslate"><span class="pre">ExaRL/config/learner_cfg.json</span></code>.</p></li>
 </ul>
-<p>E.g.:- <code class="docutils literal notranslate"><span class="pre">ExaRL/agents/agent_vault/agent_cfg/DQN-v0_LSTM.json</span></code>, <code class="docutils literal notranslate"><span class="pre">ExaRL/envs/env_vault/env_cfg/ExaCartPole-v1.json</span></code>, and <code class="docutils literal notranslate"><span class="pre">ExaRL/workflows/workflow_vault/workflow_cfg/async.json</span></code></p>
+<p>E.g.:- <code class="docutils literal notranslate"><span class="pre">ExaRL/exarl/agents/agent_vault/agent_cfg/DQN-v0_LSTM.json</span></code>, <code class="docutils literal notranslate"><span class="pre">ExaRL/exarl/envs/env_vault/env_cfg/ExaCartPole-v1.json</span></code>, and <code class="docutils literal notranslate"><span class="pre">ExaRL/exarl/workflows/workflow_vault/workflow_cfg/async.json</span></code></p>
 </div>
 
 

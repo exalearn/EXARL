@@ -3,7 +3,7 @@ Running EXARL using MPI
 
 Existing environment can be paired with an available agent.
 
-The following script is provided for convenience: ``ExaRL/driver/driver.py``
+The following script is provided for convenience: ``ExaRL/exarl/driver/driver.py``
 
 .. code-block:: python
 
@@ -47,7 +47,7 @@ Run the following command:
 
 .. code-block:: bash
 
-    mpiexec -np <num_parent_processes> python driver/driver.py --<run_params>=<param_value>
+    mpiexec -np <num_parent_processes> python exarl/driver --<run_params> <param_value>
 
 If running a multi-process environment or agent, the communicators are available in ``exarl/mpi_settings.py``. 
 

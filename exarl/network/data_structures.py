@@ -15,7 +15,7 @@ import numpy as np
 from exarl.base import ExaData
 from exarl.base.comm_base import ExaComm
 from exarl.network.simple_comm import ExaSimple
-MPI=ExaSimple.MPI
+MPI = ExaSimple.MPI
 
 class ExaMPIDistributedQueue(ExaData):
     def __init__(self, comm, rank=None, size=None, data=None, length=32, max_model_lag=None, failPush=False):
@@ -128,7 +128,7 @@ class ExaMPIDistributedQueue(ExaData):
             lost = 0
             capacity = head[0] - tail[0]
 
-        if write:    
+        if write:
             self.win.Lock(rank)
             self.win.Accumulate(
                 toSend, rank, target=[headIndex, len(toSend)], op=MPI.REPLACE
@@ -137,7 +137,7 @@ class ExaMPIDistributedQueue(ExaData):
 
         self.tail.Unlock(rank)
         self.head.Unlock(rank)
-        
+
         return capacity, lost
 
 class ExaMPIDistributedStack(ExaData):
@@ -263,7 +263,7 @@ class ExaMPIDistributedStack(ExaData):
                 toSend, rank, target=[index, self.dataSize], op=MPI.REPLACE
             )
             self.win.Unlock(rank)
-            
+
         self.tail.Unlock(rank)
         self.head.Unlock(rank)
         return capacity, lost
@@ -412,7 +412,7 @@ class ExaMPICentralizedStack(ExaData):
                 toSend, self.rank, target=[index, self.dataSize], op=MPI.REPLACE
             )
             self.win[rank].Unlock(self.rank)
-            
+
         self.tail[rank].Unlock(self.rank)
         self.head[rank].Unlock(self.rank)
         return capacity, lost
@@ -550,7 +550,7 @@ class ExaMPICentralizedQueue(ExaData):
             lost = 0
             capacity = head[0] - tail[0]
 
-        if write:    
+        if write:
             self.win[rank].Lock(self.rank)
             self.win[rank].Accumulate(
                 toSend, self.rank, target=[headIndex, len(toSend)], op=MPI.REPLACE
@@ -559,6 +559,5 @@ class ExaMPICentralizedQueue(ExaData):
 
         self.tail[rank].Unlock(self.rank)
         self.head[rank].Unlock(self.rank)
-        
-        return capacity, lost
 
+        return capacity, lost

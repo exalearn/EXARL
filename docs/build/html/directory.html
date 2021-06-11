@@ -29,9 +29,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
-        <script src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -169,61 +170,69 @@
 <h1>Directory Organization<a class="headerlink" href="#directory-organization" title="Permalink to this headline">¶</a></h1>
 <div class="line-block">
 <div class="line">├── setup.py                          : Python setup file with requirements files</div>
-<div class="line">├── learner_cfg.json                  : Learner configuration file</div>
 <div class="line">├── scripts                           : folder containing RL steering scripts</div>
-<div class="line">├── driver                            : folder containing RL MPI steering scripts</div>
-<div class="line-block">
-<div class="line">└── driver.py                     : Run scipt</div>
-</div>
-<div class="line">├── candlelib                         : folder containing library for CANDLE functionality</div>
-<div class="line">├── exarl                                 : folder containing base classes</div>
+<div class="line">├── exarl                                 : folder with EXARL code</div>
 <div class="line-block">
 <div class="line">└── __init__.py                   : make base classes visible</div>
-<div class="line">└── agent_base.py                 : agent base class</div>
-<div class="line">└── env_base.py                   : environment base class</div>
-<div class="line">└── workflow_base.py              : workflow base class</div>
-<div class="line">└── learner_base.py               : learner base class</div>
 <div class="line">└── mpi_settings.py               : MPI settings</div>
+<div class="line">├── base                          : folder containing EXARL base classes</div>
+<div class="line-block">
+<div class="line">└── __init__.py               : make base classes visible</div>
+<div class="line">└── agent_base.py             : agent base class</div>
+<div class="line">└── env_base.py               : environment base class</div>
+<div class="line">└── workflow_base.py          : workflow base class</div>
+<div class="line">└── learner_base.py           : learner base class</div>
 </div>
-<div class="line">├── agents                            : folder containing ExaRL agents and registration scripts</div>
+<div class="line">├── config                              : folder containing configurations</div>
 <div class="line-block">
-<div class="line">└── __init__.py                   : agent registry</div>
-<div class="line">└── registration.py               : script to handle registration</div>
-<div class="line">├── agent_vault                   : folder containing agents</div>
-<div class="line-block">
-<div class="line">└── __init__.py               : script to make agents visible</div>
-<div class="line">├── agent_cfg                 : folder containing default agent configurations</div>
-<div class="line">└── &lt;RLagent&gt;.py              : RL agents (such as DQN, DDPG, etc.)</div>
+<div class="line">└── agent_cfg                 : agent configuration folder</div>
+<div class="line">└── model_cfg                 : model configuration folder</div>
+<div class="line">└── env_cfg                   : env configuration folder</div>
+<div class="line">└── workflow_cfg              : workflow configuration folder</div>
+<div class="line">└── learner_cfg.json          : learner configuration</div>
 </div>
+<div class="line">├── driver                        : folder containing RL MPI steering scripts</div>
+<div class="line-block">
+<div class="line">└── driver.py                 : Run scipt</div>
 </div>
-<div class="line">├── envs                                  : folder containing ExaRL environments</div>
+<div class="line">├── candlelib                     : folder containing library for CANDLE functionality</div>
+<div class="line">├── agents                              : folder containing EXARL agents and registration scripts</div>
 <div class="line-block">
-<div class="line">└── __init__.py                   : environment registry</div>
-<div class="line">├── env_vault                     : folder containing environments</div>
-<div class="line">└── __init__.py                   : script to make environments visible</div>
+<div class="line">└── __init__.py               : agent registry</div>
+<div class="line">└── registration.py           : script to handle registration</div>
+<div class="line">├── agent_vault               : folder containing agents</div>
 <div class="line-block">
-<div class="line">├── env_cfg                   : folder containing default environment configurations</div>
-<div class="line">└── &lt;RLenv&gt;.py                : RL environments (physics simulations, interfaces to experiments, etc.)</div>
-</div>
-</div>
-<div class="line">├── workflows                         : folder containing ExaRL workflows and registration scripts</div>
-<div class="line-block">
-<div class="line">└── __init__.py                   : workflow registry</div>
-<div class="line">└── registration.py               : script to handle registration</div>
-<div class="line">├── workflow_vault                : folder containing workflows</div>
-<div class="line-block">
-<div class="line">└── __init__.py               : script to make workflows visible</div>
-<div class="line">├── workflow_cfg              : folder containing default workflow configurations</div>
-<div class="line">└── &lt;RLworkflow&gt;.py           : RL workflows (such as SEED, IMPALA, etc.)</div>
+<div class="line">└── __init__.py           : script to make agents visible</div>
+<div class="line">└── &lt;RLagent&gt;.py          : RL agents (such as DQN, DDPG, etc.)</div>
 </div>
 </div>
-<div class="line">├── utils                             : folder containing utilities</div>
+<div class="line">├── envs                          : folder containing EXARL environments</div>
 <div class="line-block">
-<div class="line">└── __init__.py                   : make classes and functions visible</div>
-<div class="line">└── candleDriver.py               : Supporting CANDLE script</div>
-<div class="line">└── analyze_reward.py             : script for plotting results</div>
-<div class="line">└── log.py                        : central place to set logging levels</div>
-<div class="line">└── profile.py                    : provides function decorators for profiling, timing, and debugging</div>
+<div class="line">└── __init__.py               : environment registry</div>
+<div class="line">├── env_vault                 : folder containing environments</div>
+<div class="line">└── __init__.py               : script to make environments visible</div>
+<div class="line-block">
+<div class="line">└── &lt;RLenv&gt;.py            : RL environments (physics simulations, interfaces to experiments, etc.)</div>
+</div>
+</div>
+<div class="line">├── workflows                           : folder containing EXARL workflows and registration scripts</div>
+<div class="line-block">
+<div class="line">└── __init__.py               : workflow registry</div>
+<div class="line">└── registration.py           : script to handle registration</div>
+<div class="line">├── workflow_vault            : folder containing workflows</div>
+<div class="line-block">
+<div class="line">└── __init__.py           : script to make workflows visible</div>
+<div class="line">└── &lt;RLworkflow&gt;.py       : RL workflows (such as SEED, IMPALA, etc.)</div>
+</div>
+</div>
+<div class="line">├── utils                         : folder containing utilities</div>
+<div class="line-block">
+<div class="line">└── __init__.py               : make classes and functions visible</div>
+<div class="line">└── candleDriver.py           : Supporting CANDLE script</div>
+<div class="line">└── analyze_reward.py         : script for plotting results</div>
+<div class="line">└── log.py                    : central place to set logging levels</div>
+<div class="line">└── profile.py                : provides function decorators for profiling, timing, and debugging</div>
+</div>
 </div>
 </div>
 </div>

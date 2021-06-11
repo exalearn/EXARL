@@ -20,7 +20,7 @@ Workflows must include the following functions:
 
    run()   # run the workflow
 
-* Register the workflow in ``ExaRL/workflows/__init__.py``
+* Register the workflow in ``ExaRL/exarl/workflows/__init__.py``
 
 .. code-block:: python
 
@@ -28,15 +28,15 @@ Workflows must include the following functions:
 
    register(
       id='fooWorkflow-v0',
-      entry_point='workflows.workflow_vault:FooWorkflow',
+      entry_point='exarl.workflows.workflow_vault:FooWorkflow',
    )
 
 The id variable will be passed to exarl.make() to call the agent.
 
-The file ```ExaRL/workflows/workflow_vault/__init__.py``` should include:
+The file ```ExaRL/exarl/workflows/workflow_vault/__init__.py``` should include:
 
 .. code-block:: python
 
-   from workflows.workflow_vault.foo_workflow import FooWorkflow
+   from exarl.workflows.workflow_vault.foo_workflow import FooWorkflow
 
-where ``ExaRL/workflows/workflow_vault/foo_workflow.py`` is the file containing your workflow.
+where ``ExaRL/exarl/workflows/workflow_vault/foo_workflow.py`` is the file containing your workflow.

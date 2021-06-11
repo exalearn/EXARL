@@ -21,7 +21,7 @@ class ExaSimple(ExaComm):
             self.comm = comm
             self.size = comm.size
             self.rank = comm.rank
-        
+
         # if self.rank > 0:
         #     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
         self.buffers = {}

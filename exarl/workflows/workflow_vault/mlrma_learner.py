@@ -37,10 +37,10 @@ class ML_RMA(erl.ExaWorkflow):
     def __init__(self):
         print("Creating ML_RMA workflow")
         data_exchange_constructors = {
-            "queue_distribute" : ExaMPIDistributedQueue,
-            "stack_distribute" : ExaMPIDistributedStack,
-            "queue_central" : ExaMPICentralizedQueue, 
-            "stack_central" : ExaMPICentralizedStack
+            "queue_distribute": ExaMPIDistributedQueue,
+            "stack_distribute": ExaMPIDistributedStack,
+            "queue_central": ExaMPICentralizedQueue,
+            "stack_central": ExaMPICentralizedStack
         }
 
         self.de = cd.lookup_params('data_structure', default='queue_distribute')
@@ -64,7 +64,7 @@ class ML_RMA(erl.ExaWorkflow):
         agent_comm = ExaComm.agent_comm.raw()
         env_comm = ExaComm.env_comm.raw()
         if ExaComm.is_learner():
-            learner_comm = ExaComm.learner_comm.raw() 
+            learner_comm = ExaComm.learner_comm.raw()
 
         # Allocate RMA windows
         if ExaComm.is_agent():
@@ -89,7 +89,8 @@ class ML_RMA(erl.ExaWorkflow):
                 indices_for_size = -1 * np.ones(workflow.agent.batch_size, dtype=np.intc)
                 loss_for_size = np.zeros(workflow.agent.batch_size, dtype=np.float64)
                 indicies_and_loss_for_size = (indices_for_size, loss_for_size)
-                data_exchange_loss = self.de_constr_loss(ExaComm.agent_comm, rank=ExaComm.learner_rank(), data=indicies_and_loss_for_size, length=num_learners, max_model_lag=None)
+                data_exchange_loss = self.de_constr_loss(ExaComm.agent_comm, rank=ExaComm.learner_rank(),
+                                                         data=indicies_and_loss_for_size, length=num_learners, max_model_lag=None)
 
             # Get serialized target weights size
             target_weights = (workflow.agent.get_weights(), np.int64(0))
@@ -104,7 +105,7 @@ class ML_RMA(erl.ExaWorkflow):
             # Get serialized batch data size
             learner_counter = np.int64(0)
             agent_batch = (next(workflow.agent.generate_data()), learner_counter)
-            data_exchange = self.de_constr(ExaComm.agent_comm, rank=ExaComm.learner_rank(), 
+            data_exchange = self.de_constr(ExaComm.agent_comm, rank=ExaComm.learner_rank(),
                                            data=agent_batch, length=self.de_length, max_model_lag=self.de_lag)
 
         if ExaComm.is_learner() and learner_comm.rank == 0:
@@ -147,9 +148,9 @@ class ML_RMA(erl.ExaWorkflow):
                 ib.startTrace("RMA_Data_Exchange_Pop", 0)
                 agent_data, actor_idx, actor_counter = data_exchange.get_data(learner_counter, learner_comm.size, agent_comm.size, attempts=self.de_attempts)
                 ib.stopTrace()
-                ib.simpleTrace("RMA_Learner_Get_Data", actor_idx, actor_counter, learner_counter-actor_counter, 0)
-                learner_counter+=1
-                
+                ib.simpleTrace("RMA_Learner_Get_Data", actor_idx, actor_counter, learner_counter - actor_counter, 0)
+                learner_counter += 1
+
                 # Do an allreduce to check if all learners have data
                 if num_learners > 1:
                     if agent_data is not None:
@@ -234,7 +235,7 @@ class ML_RMA(erl.ExaWorkflow):
                         # TODO: weights are updated each step -- REVIEW --
                         # TODO: Move all buffers to one for atomicity and bandwidth utilization
                         buff = bytearray(serial_target_weights_size)
-                
+
                         model_win.Lock(0)
                         model_win.Get(buff, target=0, target_rank=0)
                         model_win.Flush(0)
@@ -296,7 +297,6 @@ class ML_RMA(erl.ExaWorkflow):
                         capacity, lost = data_exchange.push(batch_data)
                         ib.stopTrace()
                         ib.simpleTrace("RMA_Actor_Put_Data", capacity, lost, 0, 0)
-
 
                         # Log state, action, reward, ...
                         ib.simpleTrace("RMA_Total_Reward", steps, 1 if done else 0, local_actor_episode_counter, total_rewards)

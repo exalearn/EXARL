@@ -4,6 +4,7 @@ from time import time_ns as globalTimeStamp
 # Try to import introbind and replace if fail
 try:
     import introbind as ib
+
     def ibLoaded():
         return True
 
@@ -26,7 +27,7 @@ except:
         metric_trace = {}
         metric_trace_count = {}
         last_trace = None
-        
+
         def __init__(self, comm):
             if ib.replace and not ib.init:
                 ib.init = True
@@ -39,7 +40,6 @@ except:
                 comm.barrier()
                 self.skew.append(globalTimeStamp())
                 comm.barrier()
-
 
         def start():
             if ib.replace:
@@ -61,7 +61,7 @@ except:
                         ib.metric_list[name] = []
 
                     old = ib.metric_window[name]
-                    new = ib.metric_window[name] = (old[0]+toAdd, globalTimeStamp(), max([old[0]+toAdd, old[0]]))
+                    new = ib.metric_window[name] = (old[0] + toAdd, globalTimeStamp(), max([old[0] + toAdd, old[0]]))
                     ib.metric_list[name].append((old[0], old[1], new[0], new[1], new[2]))
                     return 1
             return -1
@@ -72,9 +72,9 @@ except:
                     if name not in ib.metric_trace:
                         ib.metric_trace[name] = []
                         ib.metric_trace_count[name] = 1
-                        
+
                     ib.metric_trace[name].append((size, ib.metric_trace_count[name], globalTimeStamp()))
-                    ib.metric_trace_count[name]+=1
+                    ib.metric_trace_count[name] += 1
                     ib.last_trace = name
                     return 1
             return 0
@@ -95,7 +95,7 @@ except:
                         size, seqNum, startTimeStamp = ib.metric_trace[ib.last_trace].pop()
                         ib.metric_trace[ib.last_trace].append((size, seqNum, startTimeStamp, globalTimeStamp()))
                         ib.last_trace = None
-            
+
     def ibWrite(writeDir):
         if writeDir is not None and ib.replace and ib.init:
             for name in ib.metric_list:
@@ -113,7 +113,7 @@ except:
                             if len(data) == 4:
                                 toWrite = toWrite + ","
                             writeFile.write(toWrite + "\n")
-                
+
                 filename = writeDir + "/skew_" + str(ib.rank) + ".ct"
                 with open(filename, "w") as writeFile:
                     for i in ib.skew:
@@ -154,4 +154,3 @@ def introspect(func):
         return result
 
     return wrapper
-

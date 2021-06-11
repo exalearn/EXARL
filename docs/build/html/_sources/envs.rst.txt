@@ -4,7 +4,7 @@ EXARL Environments
 Creating Custom Environments
 ----------------------------
 - ExaRL uses OpenAI gym environments
-- The ExaEnv class in ``ExaRL/exarl/env_base.py`` inherits from OpenAI GYM Wrapper class for including added functionality.
+- The ExaEnv class in ``ExaRL/exarl/base/env_base.py`` inherits from OpenAI GYM Wrapper class for including added functionality.
 - Environments inherit from gym.Env
 
 Example:-
@@ -14,7 +14,7 @@ Example:-
    class envName(gym.Env):
       ...
 
-Register the environment in ``ExaRl/envs/__init__.py``
+Register the environment in ``ExaRl/exarl/envs/__init__.py``
 
 .. code-block:: python
 
@@ -22,18 +22,18 @@ Register the environment in ``ExaRl/envs/__init__.py``
 
    register(
       id='fooEnv-v0',
-      entry_point='envs.env_vault:FooEnv',
+      entry_point='exarl.envs.env_vault:FooEnv',
    )
 
 The ID variable will be passed to exarl.make() to call the environment.
 
-The file ``ExaRL/env/env_vault/__init__.py`` should include:
+The file ``ExaRL/exarl/env/env_vault/__init__.py`` should include:
 
 .. code-block:: python
 
-   from envs.env_vault.foo_env import FooEnv
+   from exarl.envs.env_vault.foo_env import FooEnv
 
-where ``ExaRL/envs/env_vault/foo_env.py`` is the file containing your envirnoment
+where ``ExaRL/exarl/envs/env_vault/foo_env.py`` is the file containing your envirnoment
 
 Using Environment Written in a Lower Level Language
 ---------------------------------------------------

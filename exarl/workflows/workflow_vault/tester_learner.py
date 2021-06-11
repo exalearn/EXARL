@@ -59,10 +59,10 @@ class TESTER(erl.ExaWorkflow):
 
                 workflow.agent.set_learner()
 
-                times=[]
+                times = []
                 for i in range(10):
                     times.append(train_time(data[0], self.epocs))
-                print("Average Time:", sum(times)/len(times))
+                print("Average Time:", sum(times) / len(times))
 
             elif commSize == 2:
                 comm = ExaComm.agent_comm
@@ -90,7 +90,7 @@ class TESTER(erl.ExaWorkflow):
 
                     data.append(next(workflow.agent.generate_data()))
                     print(workflow.agent.batch_size, len(data), flush=True)
-                        
+
                 if len(data) > 0:
                     with open(self.data_file, 'wb') as outfile:
                         pickle.dump(data, outfile)

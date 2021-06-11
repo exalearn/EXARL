@@ -109,7 +109,7 @@ class DQN(erl.ExaAgent):
         self.optimizer = cd.run_params['optimizer']
         self.loss = cd.run_params['loss']
 
-                # Default settings
+        # Default settings
         num_cores = os.cpu_count()
         num_CPU = os.cpu_count()
         num_GPU = 0
@@ -117,11 +117,11 @@ class DQN(erl.ExaAgent):
         # Setup GPU cfg
         if self.rank == 0:
             print("Setting GPU rank", self.rank)
-            config = tf.compat.v1.ConfigProto(device_count={'GPU':1, 'CPU':1})
+            config = tf.compat.v1.ConfigProto(device_count={'GPU': 1, 'CPU': 1})
         else:
             print("Setting no GPU rank", self.rank)
-            config = tf.compat.v1.ConfigProto(device_count={'GPU':0, 'CPU':1})
-        
+            config = tf.compat.v1.ConfigProto(device_count={'GPU': 0, 'CPU': 1})
+
         cpus = tf.config.experimental.list_physical_devices("CPU")
         logger.info("Available CPUs: {}".format(cpus))
 
@@ -263,7 +263,7 @@ class DQN(erl.ExaAgent):
             if len(batch[0]) >= (self.batch_size):
                 start_time = time.time()
                 with tf.device(self.device):
-                # with self.mirrored_strategy.scope():
+                    # with self.mirrored_strategy.scope():
                     history = self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
                 end_time = time.time()
                 self.training_time += end_time - start_time

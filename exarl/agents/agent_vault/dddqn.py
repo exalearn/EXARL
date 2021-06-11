@@ -122,7 +122,7 @@ class DDDQN(erl.ExaAgent):
             env.action_space.n = self.n_actions
             self.actions = np.linspace(env.action_space.low, env.action_space.high, self.n_actions)
 
-                # Default settings
+            # Default settings
         num_cores = os.cpu_count()
         num_CPU = os.cpu_count()
         num_GPU = 0
@@ -130,11 +130,11 @@ class DDDQN(erl.ExaAgent):
         # Setup GPU cfg
         if self.rank == 0:
             print("Setting GPU rank", self.rank)
-            config = tf.compat.v1.ConfigProto(device_count={'GPU':1, 'CPU':1})
+            config = tf.compat.v1.ConfigProto(device_count={'GPU': 1, 'CPU': 1})
         else:
             print("Setting no GPU rank", self.rank)
-            config = tf.compat.v1.ConfigProto(device_count={'GPU':0, 'CPU':1})
-        
+            config = tf.compat.v1.ConfigProto(device_count={'GPU': 0, 'CPU': 1})
+
         cpus = tf.config.experimental.list_physical_devices("CPU")
         logger.info("Available CPUs: {}".format(cpus))
 
@@ -218,6 +218,7 @@ class DDDQN(erl.ExaAgent):
         if not self.is_discrete:
             action = [self.actions[action]]
         return action, policy
+
     def play(self, state):
         with tf.device(self.device):
             act_values = self.target_model.predict(state)

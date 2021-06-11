@@ -27,7 +27,7 @@ Agents must include the following functions:
    save()          # save weights to memory
    monitor()       # monitor progress of learning
 
-Register the agent in ``ExaRL/agents/__init__.py``
+Register the agent in ``ExaRL/exarl/agents/__init__.py``
 
 .. code-block:: python
 
@@ -35,15 +35,15 @@ Register the agent in ``ExaRL/agents/__init__.py``
 
    register(
       id='fooAgent-v0',
-      entry_point='agents.agent_vault:FooAgent',
+      entry_point='exarl.agents.agent_vault:FooAgent',
    )
 
 The id variable will be passed to ``exarl.make()`` to call the agent.
 
-The file ```ExaRL/agents/agent_vault/__init__.py``` should include
+The file ```ExaRL/exarl/agents/agent_vault/__init__.py``` should include
 
 .. code-block:: python
 
    from agents.agent_vault.foo_agent import FooAgent
 
-where ``ExaRL/agents/agent_vault/foo_agent.py`` is the file containing your agent
+where ``ExaRL/exarl/agents/agent_vault/foo_agent.py`` is the file containing your agent

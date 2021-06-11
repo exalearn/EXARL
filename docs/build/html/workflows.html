@@ -29,9 +29,10 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
-        <script src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -186,22 +187,22 @@
 </pre></div>
 </div>
 <ul class="simple">
-<li><p>Register the workflow in <code class="docutils literal notranslate"><span class="pre">ExaRL/workflows/__init__.py</span></code></p></li>
+<li><p>Register the workflow in <code class="docutils literal notranslate"><span class="pre">ExaRL/exarl/workflows/__init__.py</span></code></p></li>
 </ul>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">.registration</span> <span class="kn">import</span> <span class="n">register</span><span class="p">,</span> <span class="n">make</span>
 
 <span class="n">register</span><span class="p">(</span>
    <span class="nb">id</span><span class="o">=</span><span class="s1">&#39;fooWorkflow-v0&#39;</span><span class="p">,</span>
-   <span class="n">entry_point</span><span class="o">=</span><span class="s1">&#39;workflows.workflow_vault:FooWorkflow&#39;</span><span class="p">,</span>
+   <span class="n">entry_point</span><span class="o">=</span><span class="s1">&#39;exarl.workflows.workflow_vault:FooWorkflow&#39;</span><span class="p">,</span>
 <span class="p">)</span>
 </pre></div>
 </div>
 <p>The id variable will be passed to exarl.make() to call the agent.</p>
-<p>The file <code class="docutils literal notranslate"><span class="pre">`ExaRL/workflows/workflow_vault/__init__.py`</span></code> should include:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">workflows.workflow_vault.foo_workflow</span> <span class="kn">import</span> <span class="n">FooWorkflow</span>
+<p>The file <code class="docutils literal notranslate"><span class="pre">`ExaRL/exarl/workflows/workflow_vault/__init__.py`</span></code> should include:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">exarl.workflows.workflow_vault.foo_workflow</span> <span class="kn">import</span> <span class="n">FooWorkflow</span>
 </pre></div>
 </div>
-<p>where <code class="docutils literal notranslate"><span class="pre">ExaRL/workflows/workflow_vault/foo_workflow.py</span></code> is the file containing your workflow.</p>
+<p>where <code class="docutils literal notranslate"><span class="pre">ExaRL/exarl/workflows/workflow_vault/foo_workflow.py</span></code> is the file containing your workflow.</p>
 </div>
 </div>
 

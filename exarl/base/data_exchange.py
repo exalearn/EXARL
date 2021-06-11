@@ -44,5 +44,5 @@ class ExaData(ABC):
                 batch_data, actor_counter = batch_data
                 if self.max_model_lag is None or learner_counter - actor_counter <= self.max_model_lag:
                     break
-            attempt+=1
+            attempt += 1
         return batch_data, actor_idx, actor_counter

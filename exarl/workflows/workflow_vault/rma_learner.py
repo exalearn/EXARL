@@ -36,10 +36,10 @@ logger = log.setup_logger(__name__, cd.run_params['log_level'])
 class RMA_ASYNC(erl.ExaWorkflow):
     def __init__(self):
         data_exchange_constructors = {
-            "queue_distribute" : ExaMPIDistributedQueue,
-            "stack_distribute" : ExaMPIDistributedStack,
-            "queue_central" : ExaMPICentralizedQueue, 
-            "stack_central" : ExaMPICentralizedStack
+            "queue_distribute": ExaMPIDistributedQueue,
+            "stack_distribute": ExaMPIDistributedStack,
+            "queue_central": ExaMPICentralizedQueue,
+            "stack_central": ExaMPICentralizedStack
         }
 
         self.de = cd.lookup_params('data_structure', default='queue_distribute')
@@ -47,7 +47,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
         self.de_length = cd.lookup_params('data_structure_length', default=32)
         self.de_lag = cd.lookup_params('max_model_lag')
         print('Creating RMA async workflow with ', self.de, "length", self.de_length, "lag", self.de_lag)
-        
+
     @PROFILE
     def run(self, workflow):
         # MPI communicators
@@ -103,7 +103,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
             # Get serialized batch data size
             learner_counter = np.int64(0)
             agent_batch = (next(workflow.agent.generate_data()), learner_counter)
-            data_exchange = self.de_constr(ExaComm.agent_comm, ExaComm.learner_rank(), 
+            data_exchange = self.de_constr(ExaComm.agent_comm, ExaComm.learner_rank(),
                                            data=agent_batch, length=self.de_length, max_model_lag=self.de_lag)
 
         if ExaComm.is_learner():
@@ -138,9 +138,9 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 ib.startTrace("RMA_Data_Exchange_Pop", 0)
                 batch_data, actor_idx, actor_counter = data_exchange.get_data(learner_counter)
                 ib.stopTrace()
-                ib.simpleTrace("RMA_Learner_Get_Data", actor_idx, actor_counter, learner_counter-actor_counter, 0)
-                learner_counter+=1
-                
+                ib.simpleTrace("RMA_Learner_Get_Data", actor_idx, actor_counter, learner_counter - actor_counter, 0)
+                learner_counter += 1
+
                 # Train & Target train
                 workflow.agent.train(batch_data)
                 ib.update("RMA_Learner_Train", 1)
@@ -296,7 +296,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
                                                done, local_actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
                         train_file.flush()
-                        
+
                 ib.update("RMA_Env_Episode", 1)
 
         if ExaComm.is_agent():
