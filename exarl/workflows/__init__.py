@@ -12,12 +12,7 @@ register(
 
 register(
     id='rma',
-    entry_point='exarl.workflows.workflow_vault:RMA_ASYNC'
-)
-
-register(
-    id='mlrma',
-    entry_point='exarl.workflows.workflow_vault:ML_RMA'
+    entry_point='exarl.workflows.workflow_vault:RMA'
 )
 
 register(

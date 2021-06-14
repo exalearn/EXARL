@@ -26,26 +26,37 @@ import csv
 import random
 import tensorflow as tf
 import sys
+import gym
 import pickle
 import exarl as erl
 from exarl.base.comm_base import ExaComm
-from tensorflow.python.client import device_lib
+from tensorflow import keras
 from collections import deque
 from datetime import datetime
 import numpy as np
+from exarl.agents.agent_vault._prioritized_replay import PrioritizedReplayBuffer
 import exarl.utils.candleDriver as cd
 import exarl.utils.log as log
 from exarl.utils.introspect import introspectTrace
 from tensorflow.compat.v1.keras.backend import set_session
+try:
+    import horovod.tensorflow as hvd
+    horovod_imported = False
+except:
+    horovod_imported = False
 
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
-# The Deep Q-Network (DQN)
+class LossHistory(keras.callbacks.Callback):
+    def on_train_begin(self, logs={}):
+        self.loss = []
 
+    def on_batch_end(self, batch, logs={}):
+        self.loss.append(logs.get('loss'))
 
+# The Multi-Learner Discrete Double Deep Q-Network
 class DQN(erl.ExaAgent):
     def __init__(self, env, is_learner):
-
         # Initial values
         self.is_learner = is_learner
         self.model = None
@@ -108,6 +119,13 @@ class DQN(erl.ExaAgent):
         self.out_activation = cd.run_params['out_activation']
         self.optimizer = cd.run_params['optimizer']
         self.loss = cd.run_params['loss']
+        self.n_actions = cd.run_params['nactions']
+        self.priority_scale = cd.run_params['priority_scale']
+
+        self.is_discrete = (type(env.action_space) == gym.spaces.discrete.Discrete)
+        if not self.is_discrete:
+            env.action_space.n = self.n_actions
+            self.actions = np.linspace(env.action_space.low, env.action_space.high, self.n_actions)
 
         # Default settings
         num_cores = os.cpu_count()
@@ -151,8 +169,14 @@ class DQN(erl.ExaAgent):
             # self.target_model.summary()
             self.target_weights = self.target_model.get_weights()
 
-        # TODO: make configurable
-        self.memory = deque(maxlen=1000)
+        if horovod_imported and ExaComm.is_learner():
+            hvd.init(comm=ExaComm.learner_comm.raw())
+            self.first_batch = 1
+            self.loss_fn = tf.losses.MeanSquaredError()
+            self.opt = tf.optimizers.Adam(self.learning_rate * hvd.size())
+
+        self.maxlen = cd.run_params['mem_length']
+        self.replay_buffer = PrioritizedReplayBuffer(maxlen=self.maxlen)
 
     def _get_device(self):
         cpus = tf.config.experimental.list_physical_devices('CPU')
@@ -181,10 +205,11 @@ class DQN(erl.ExaAgent):
         )
 
     def remember(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
+        lost_data = self.replay_buffer.add((state, action, reward, next_state, done))
+        if lost_data and self.priority_scale:
+            logger.warning("Priority replay buffer size too small. Data loss negates replay effect!")
 
-    @introspectTrace()
-    def action(self, state):
+    def get_action(self, state):
         random.seed(datetime.now())
         random_data = os.urandom(4)
         np.random.seed(int.from_bytes(random_data, byteorder="big"))
@@ -200,6 +225,13 @@ class DQN(erl.ExaAgent):
             action = np.argmax(act_values[0])
             return action, 1
 
+    @introspectTrace()
+    def action(self, state):
+        action, policy = self.get_action(state)
+        if not self.is_discrete:
+            action = [self.actions[action]]
+        return action, policy
+
     def play(self, state):
         with tf.device(self.device):
             act_values = self.target_model.predict(state)
@@ -213,75 +245,93 @@ class DQN(erl.ExaAgent):
         expectedQ = 0
         if not done:
             with tf.device(self.device):
-                expectedQ = self.gamma * np.amax(
-                    self.target_model.predict(np_next_state)[0]
-                )
+                expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
         target = reward + expectedQ
         with tf.device(self.device):
             target_f = self.target_model.predict(np_state)
-        target_f[0][action] = target
+        action_idx = action if self.is_discrete else np.where(self.actions == action)[1]
+        target_f[0][action_idx] = target
         return target_f[0]
 
     @introspectTrace()
     def generate_data(self):
         # Worker method to create samples for training
-        # TODO: This method is the most expensive and takes 90% of the agent compute time
-        # TODO: Reduce computational time
-        # TODO: Revisit the shape (e.g. extra 1 for the LSTM)
-        batch_states = np.zeros(
-            (self.batch_size, 1, self.env.observation_space.shape[0])
-        ).astype("float64")
-        batch_target = np.zeros((self.batch_size, self.env.action_space.n)).astype(
-            "float64"
-        )
-        # Return empty batch
-        if len(self.memory) < self.batch_size:
-            yield batch_states, batch_target
-        start_time = time.time()
-        minibatch = random.sample(self.memory, self.batch_size)
-        batch_target = list(map(self.calc_target_f, minibatch))
-        batch_states = [
-            np.array(exp[0]).reshape(1, 1, len(exp[0]))[0] for exp in minibatch
-        ]
-        batch_states = np.reshape(
-            batch_states, [len(minibatch), 1, len(minibatch[0][0])]
-        ).astype("float64")
-        batch_target = np.reshape(
-            batch_target, [len(minibatch), self.env.action_space.n]
-        ).astype("float64")
-        end_time = time.time()
-        self.dataprep_time += end_time - start_time
-        self.ndataprep_time += 1
-        logger.debug(
-            "Agent[{}] - Minibatch time: {} ".format(self.rank, (end_time - start_time))
-        )
-        yield batch_states, batch_target
+        batch_states = np.zeros((self.batch_size, 1, self.env.observation_space.shape[0]))
+        batch_target = np.zeros((self.batch_size, self.env.action_space.n))
+        indices = -1 * np.ones(self.batch_size)
+        importance = np.ones(self.batch_size)
+        if self.replay_buffer.get_buffer_length() < self.batch_size:
+            yield batch_states, batch_target, indices, importance
+            # if self.priority_scale > 0:
+            #     yield batch_states, batch_target, indices, importance
+            # else:
+            #     print("INIT", len(batch_states), len(batch_target))
+            #     yield batch_states, batch_target
 
-    @introspectTrace()
+        start_time = time.time()
+        minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=self.priority_scale)
+        batch_target = list(map(self.calc_target_f, minibatch))
+        batch_states = [np.array(exp[0]).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
+        batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
+        batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
+        end_time = time.time()
+        self.dataprep_time += (end_time - start_time)
+        self.ndataprep_time += 1
+        logger.debug('Agent[{}] - Minibatch time: {} '.format(self.rank, (end_time - start_time)))
+        yield batch_states, batch_target, indices, importance
+        # TODO: THIS BREAKS THE PICKLE
+        # if self.priority_scale > 0:
+        #     yield batch_states, batch_target, indices, importance
+        # else:
+        #     print("GENERATING", len(batch_states), len(batch_target))
+        #     yield batch_states, batch_target
+
     def train(self, batch):
         if self.is_learner:
-            if len(batch[0]) >= (self.batch_size):
+            if batch[2][0] != -1:
                 start_time = time.time()
                 with tf.device(self.device):
-                    # with self.mirrored_strategy.scope():
-                    history = self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
+                    # print("Importance = ", sample_weight)
+                    if horovod_imported:
+                        loss = self.training_step(batch)
+                    else:
+                        loss = LossHistory()
+                        sample_weight = batch[3] * (1 - self.epsilon)
+                        self.model.fit(batch[0], batch[1], epochs=1, batch_size=1, verbose=0, callbacks=loss, sample_weight=sample_weight)
+                        loss = loss.loss
                 end_time = time.time()
-                self.training_time += end_time - start_time
+                self.training_time += (end_time - start_time)
                 self.ntraining_time += 1
-                logger.info(
-                    "Agent[{}]- Training: {} ".format(
-                        self.rank, (end_time - start_time)
-                    )
-                )
+                logger.info('Agent[{}]- Training: {} '.format(self.rank, (end_time - start_time)))
                 start_time_episode = time.time()
-                logger.info(
-                    "Agent[%s] - Target update time: %s "
-                    % (str(self.rank), str(time.time() - start_time_episode))
-                )
+                logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
+                return batch[2], loss
         else:
-            logger.warning(
-                "Training will not be done because this instance is not set to learn."
-            )
+            logger.warning('Training will not be done because this instance is not set to learn.')
+
+        return -1 * np.ones(self.batch_size), -1 * np.ones(self.batch_size)
+
+    # @tf.function
+    def training_step(self, batch):
+        with tf.GradientTape() as tape:
+            probs = self.model(batch[0], training=True)
+            loss_value = tf.reduce_mean(tf.multiply(tf.square(self.loss_fn(batch[1], probs)), batch[3] * (1 - self.epsilon)))
+            print("LOSS VALUE:", loss_value)
+
+        # Horovod distributed gradient tape
+        tape = hvd.DistributedGradientTape(tape)
+        grads = tape.gradient(loss_value, self.model.trainable_variables)
+        self.opt.apply_gradients(zip(grads, self.model.trainable_variables))
+
+        if self.first_batch:
+            hvd.broadcast_variables(self.model.variables, root_rank=0)
+            hvd.broadcast_variables(self.opt.variables(), root_rank=0)
+            self.first_batch = 0
+
+        return loss_value
+
+    def set_priorities(self, indicies, loss):
+        self.replay_buffer.set_priorities(indicies, loss)
 
     def get_weights(self):
         logger.debug("Agent[%s] - get target weight." % str(self.rank))
@@ -319,7 +369,7 @@ class DQN(erl.ExaAgent):
             pickle_list = pickle.load(f)
 
         for layerId in range(len(layers)):
-            assert layers[layerId].name == pickle_list[layerId][0]
+            assert(layers[layerId].name == pickle_list[layerId][0])
             layers[layerId].set_weights(pickle_list[layerId][1])
 
     def save(self, filename):
