@@ -104,7 +104,7 @@ class TestClass:
                 isinstance(test_agent.learning_rate, float) is True
             assert test_agent.batch_size == cd.run_params['batch_size'] and \
                 test_agent.batch_size > 0 and \
-                test_agent.memory.maxlen % test_agent.batch_size == 0 and \
+                test_agent.maxlen % test_agent.batch_size == 0 and \
                 isinstance(test_agent.batch_size, int) is True
             assert test_agent.tau == cd.run_params['tau'] and \
                 0 < test_agent.tau < 1 and \
@@ -176,7 +176,7 @@ class TestClass:
             # assert test_agent.clipvalue == cd.run_params['clipvalue'] and \
             #     isinstance(test_agent.clipvalue, float) is True
 
-            assert test_agent.memory.maxlen == 1000
+            assert test_agent.maxlen == cd.run_params['maxlen']
 
             # test model.compile()
             # gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
@@ -218,11 +218,12 @@ class TestClass:
         memory = (current_state, action, reward, next_state, done, total_reward)
         try:
             test_agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
-            assert test_agent.memory[-1][1] == action
-            assert test_agent.memory[-1][2] == reward
-            assert test_agent.memory[-1][4] == done
-            assert all([a == b for a, b in zip(test_agent.memory[-1][0], current_state)])
-            assert all([a == b for a, b in zip(test_agent.memory[-1][3], next_state)])
+            minibatch, _, _ = test_agent.replay_buffer.sample(test_agent.batch_size, test_agent.priority_scale)
+            assert minibatch[-1][1] == action
+            assert minibatch[-1][2] == reward
+            assert minibatch[-1][4] == done
+            assert all([a == b for a, b in zip(minibatch[-1][0], current_state)])
+            assert all([a == b for a, b in zip(minibatch[-1][3], next_state)])
         except:
             pytest.fail("Bad remember()", pytrace=True)
 
@@ -260,7 +261,7 @@ class TestClass:
 
         # global batch  # test_batch_state, test_batch_target
         try:
-            [test_agent.remember(test_agent.env.reset(), 0, 0, test_agent.env.reset(), 0) for _ in range(test_agent.memory.maxlen)]
+            [test_agent.remember(test_agent.env.reset(), 0, 0, test_agent.env.reset(), 0) for _ in range(test_agent.maxlen)]
             batch1 = next(test_agent.generate_data())
             assert isinstance(batch1, tuple) is True
             batch2 = next(test_agent.generate_data())
