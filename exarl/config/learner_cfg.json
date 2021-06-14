@@ -1,7 +1,7 @@
 {
-    "agent": "MLDQN-v0",
+    "agent": "DQN-v0",
     "env": "CartPole-v0",
-    "workflow": "mlrma",
+    "workflow": "rma",
     "n_episodes": 10,
     "n_steps": 10,
     "output_dir": "./results_dir/",

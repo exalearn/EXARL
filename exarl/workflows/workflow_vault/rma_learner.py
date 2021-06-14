@@ -47,7 +47,7 @@ class RMA(erl.ExaWorkflow):
         self.de_constr = data_exchange_constructors[self.de]
         self.de_length = cd.lookup_params('data_structure_length', default=32)
         self.de_lag = cd.lookup_params('max_model_lag')
-        print('Creating RMA async workflow with ', self.de, "length", self.de_length, "lag", self.de_lag)
+        print('Creating RMA workflow with ', self.de, "length", self.de_length, "lag", self.de_lag)
 
         self.de = cd.lookup_params('loss_data_structure', default='queue_distribute')
         self.de_constr_loss = data_exchange_constructors[self.de]
