@@ -69,6 +69,7 @@ class ExaParabola(gym.Env):
         # self.x = np.linspace(self.low, self.high, 100)
         # self.y = self.f(self.x)
 
+
     def step(self, action):
 
         if action == 1:
