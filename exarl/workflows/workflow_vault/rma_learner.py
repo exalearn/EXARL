@@ -107,6 +107,8 @@ class RMA(erl.ExaWorkflow):
             agent_batch = (next(workflow.agent.generate_data()), learner_counter)
             data_exchange = self.de_constr(ExaComm.agent_comm, rank=ExaComm.learner_rank(),
                                            data=agent_batch, length=self.de_length, max_model_lag=self.de_lag)
+            # This is a data/flag that lets us know we have data
+            agent_data = None
 
         if ExaComm.is_learner() and learner_comm.rank == 0:
             # Write target weight to model window of learner
@@ -130,10 +132,6 @@ class RMA(erl.ExaWorkflow):
                 epsilon_win.Unlock(0)
 
             while episode_count_learner < workflow.nepisodes:
-                # Define flags to keep track of data
-                process_has_data = 0
-                sum_process_has_data = 0
-
                 if learner_comm.rank == 0:
                     # Check episode counter
                     episode_win.Lock(0)
@@ -145,16 +143,15 @@ class RMA(erl.ExaWorkflow):
                 if num_learners > 1:
                     episode_count_learner = learner_comm.bcast(episode_count_learner, root=0)
 
-                ib.startTrace("RMA_Data_Exchange_Pop", 0)
-                agent_data, actor_idx, actor_counter = data_exchange.get_data(learner_counter, learner_comm.size, agent_comm.size, attempts=self.de_attempts)
-                ib.stopTrace()
-                ib.simpleTrace("RMA_Learner_Get_Data", actor_idx, actor_counter, learner_counter - actor_counter, 0)
-                learner_counter += 1
+                if agent_data is None:
+                    ib.startTrace("RMA_Data_Exchange_Pop", 0)
+                    agent_data, actor_idx, actor_counter = data_exchange.get_data(learner_counter, learner_comm.size, agent_comm.size, attempts=self.de_attempts)
+                    ib.stopTrace()
+                    ib.simpleTrace("RMA_Learner_Get_Data", actor_idx, actor_counter, learner_counter - actor_counter, 0)
 
                 # Do an allreduce to check if all learners have data
                 if num_learners > 1:
-                    if agent_data is not None:
-                        process_has_data = 1
+                    process_has_data = 0 if agent_data is None else 1
                     sum_process_has_data = learner_comm.allreduce(process_has_data, op=MPI.SUM)
                     if sum_process_has_data < learner_comm.size:
                         continue
@@ -170,52 +167,49 @@ class RMA(erl.ExaWorkflow):
                         loss = np.array(loss, dtype=np.float64)
                         data_exchange_loss.push((indices, loss), rank=actor_idx)
 
+                # Update flag/counters after train
+                learner_counter += 1
+                agent_data = None
+
+                # Share new model weights
+                if ExaComm.is_learner() and learner_comm.rank == 0:
                     workflow.agent.target_train()
                     ib.update("RMA_Learner_Target_Train", 1)
 
-                    # Share new model weights
                     target_weights = (workflow.agent.get_weights(), learner_counter)
                     serial_target_weights = MPI.pickle.dumps(target_weights)
                     model_win.Lock(0)
                     model_win.Put(serial_target_weights, target_rank=0)
                     model_win.Unlock(0)
-                # learner_counter += 1
 
             logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_data))
 
         # Actors
         else:
             local_actor_episode_counter = 0
-            if ExaComm.is_actor():
+            if ExaComm.env_comm.rank == 0:
                 # Logging files
                 filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
                     % (str(workflow.nepisodes), str(workflow.nsteps), str(agent_comm.rank))
                 train_file = open(workflow.results_dir + '/' + filename_prefix + ".log", 'w')
                 train_writer = csv.writer(train_file, delimiter=" ")
 
-                episode_count_actor = np.zeros(1, dtype=np.float64)
-                one = np.ones(1, dtype=np.float64)
-                epsilon = np.zeros(1, dtype=np.float64)
-
-                # Get initial value of episode counter
-                episode_win.Lock(0)
-                # Atomic Get using Get_accumulate
-                episode_win.Get_accumulate(one, episode_count_actor, target_rank=0, op=MPI.NO_OP)
-                episode_win.Flush(0)
-                episode_win.Unlock(0)
-
-            while episode_count_actor < workflow.nepisodes:
-                if ExaComm.is_actor():
+            episode_count_actor = np.zeros(1, dtype=np.float64)
+            one = np.ones(1, dtype=np.float64)
+            epsilon = np.array(workflow.agent.epsilon, dtype=np.float64)
+            
+            while True:
+                if ExaComm.env_comm.rank == 0:
                     episode_win.Lock(0)
                     # Atomic Get_accumulate to increment the episode counter
                     episode_win.Get_accumulate(one, episode_count_actor, target_rank=0)
                     episode_win.Flush(0)
                     episode_win.Unlock(0)
 
+                # Broadcast episode count to all procs in env_comm
                 episode_count_actor = env_comm.bcast(episode_count_actor, root=0)
 
-                # Include another check to avoid each actor running extra
-                # set of steps while terminating
+                # Check exit condition
                 if episode_count_actor >= workflow.nepisodes:
                     break
                 logger.info('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count_actor))
@@ -230,12 +224,9 @@ class RMA(erl.ExaWorkflow):
                 local_actor_episode_counter += 1
 
                 while done != True:
-                    if ExaComm.is_actor():
-                        # Update model weight
-                        # TODO: weights are updated each step -- REVIEW --
-                        # TODO: Move all buffers to one for atomicity and bandwidth utilization
+                    # Update model weight
+                    if ExaComm.env_comm.rank == 0:
                         buff = bytearray(serial_target_weights_size)
-
                         model_win.Lock(0)
                         model_win.Get(buff, target=0, target_rank=0)
                         model_win.Flush(0)
@@ -245,11 +236,13 @@ class RMA(erl.ExaWorkflow):
                         ib.simpleTrace("RMA_Actor_Get_Model", local_actor_episode_counter, learner_counter, 0, 0)
 
                         # Get epsilon
+                        local_epsilon = np.array(workflow.agent.epsilon)
                         epsilon_win.Lock(0)
-                        epsilon_win.Get(epsilon, target_rank=0)
+                        epsilon_win.Get_accumulate(local_epsilon, epsilon, target_rank=0, op=MPI.MIN)
                         epsilon_win.Flush(0)
                         epsilon_win.Unlock(0)
-                        workflow.agent.epsilon = epsilon
+                        # Update the agent epsilon
+                        workflow.agent.epsilon = min(epsilon, local_epsilon)
 
                         # Get the loss and indicies
                         if self.use_priority_replay:
@@ -260,16 +253,12 @@ class RMA(erl.ExaWorkflow):
 
                         # Inference action
                         action, policy_type = workflow.agent.action(current_state)
-                        ib.update("RMA_Env_Inference", 1)
                         if workflow.action_type == 'fixed':
                             action, policy_type = 0, -11
+                        ib.update("RMA_Env_Inference", 1)
 
-                        epsilon = np.array(workflow.agent.epsilon)
-                        # Atomic Get_accumulate to update epsilon
-                        epsilon_win.Lock(0)
-                        epsilon_win.Put(epsilon, target_rank=0)
-                        epsilon_win.Flush(0)
-                        epsilon_win.Unlock(0)
+                    # Broadcast episode count to all procs in env_comm
+                    action = env_comm.bcast(action, root=0)
 
                     # Environment step
                     ib.startTrace("step", 0)
@@ -279,12 +268,11 @@ class RMA(erl.ExaWorkflow):
                     ib.simpleTrace("RMA_Reward", steps, 1 if done else 0, local_actor_episode_counter, reward)
 
                     steps += 1
-                    if steps >= workflow.nsteps:
-                        done = True
-                    # Broadcast done
+                    # Broadcast done. Somewhat redundant.  Note rank 0 must be the one to signal done.
+                    done = done or (steps >= workflow.nsteps)
                     done = env_comm.bcast(done, root=0)
 
-                    if ExaComm.is_actor():
+                    if ExaComm.env_comm.rank == 0:
                         # Save memory
                         total_rewards += reward
                         memory = (current_state, action, reward, next_state, done, total_rewards)
@@ -306,4 +294,3 @@ class RMA(erl.ExaWorkflow):
 
         if ExaComm.is_agent():
             model_win.Free()
-            # data_win.Free()

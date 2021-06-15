@@ -257,16 +257,15 @@ class DQN(erl.ExaAgent):
     def generate_data(self):
         # Worker method to create samples for training
         batch_states = np.zeros((self.batch_size, 1, self.env.observation_space.shape[0]))
-        batch_target = np.zeros((self.batch_size, self.env.action_space.n))
+        # TODO: should this really be float32 and not float64?
+        batch_target = np.zeros((self.batch_size, self.env.action_space.n), dtype=np.float32)
         indices = -1 * np.ones(self.batch_size)
         importance = np.ones(self.batch_size)
         if self.replay_buffer.get_buffer_length() < self.batch_size:
-            yield batch_states, batch_target, indices, importance
-            # if self.priority_scale > 0:
-            #     yield batch_states, batch_target, indices, importance
-            # else:
-            #     print("INIT", len(batch_states), len(batch_target))
-            #     yield batch_states, batch_target
+            if self.priority_scale > 0:
+                yield batch_states, batch_target, indices, importance
+            else:
+                yield batch_states, batch_target
 
         start_time = time.time()
         minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=self.priority_scale)
@@ -278,45 +277,57 @@ class DQN(erl.ExaAgent):
         self.dataprep_time += (end_time - start_time)
         self.ndataprep_time += 1
         logger.debug('Agent[{}] - Minibatch time: {} '.format(self.rank, (end_time - start_time)))
-        yield batch_states, batch_target, indices, importance
-        # TODO: THIS BREAKS THE PICKLE
-        # if self.priority_scale > 0:
-        #     yield batch_states, batch_target, indices, importance
-        # else:
-        #     print("GENERATING", len(batch_states), len(batch_target))
-        #     yield batch_states, batch_target
+        if self.priority_scale > 0:
+            yield batch_states, batch_target, indices, importance
+        else:
+            yield batch_states, batch_target
 
     def train(self, batch):
+        ret = None
         if self.is_learner:
-            if batch[2][0] != -1:
-                start_time = time.time()
-                with tf.device(self.device):
-                    # print("Importance = ", sample_weight)
+            if self.priority_scale > 0:
+                if batch[2][0] != -1:
+                    start_time = time.time()
+                    with tf.device(self.device):
+                        # print("Importance = ", sample_weight)
+                        if horovod_imported:
+                            loss = self.training_step(batch)
+                        else:
+                            loss = LossHistory()
+                            sample_weight = batch[3] * (1 - self.epsilon)
+                            self.model.fit(batch[0], batch[1], epochs=1, batch_size=1, verbose=0, callbacks=loss, sample_weight=sample_weight)
+                            loss = loss.loss
+                        ret = batch[2], loss
+                    end_time = time.time()
+            else:
+                if len(batch[0]) >= self.batch_size:
+                    start_time = time.time()
                     if horovod_imported:
                         loss = self.training_step(batch)
                     else:
-                        loss = LossHistory()
-                        sample_weight = batch[3] * (1 - self.epsilon)
-                        self.model.fit(batch[0], batch[1], epochs=1, batch_size=1, verbose=0, callbacks=loss, sample_weight=sample_weight)
-                        loss = loss.loss
-                end_time = time.time()
-                self.training_time += (end_time - start_time)
-                self.ntraining_time += 1
-                logger.info('Agent[{}]- Training: {} '.format(self.rank, (end_time - start_time)))
-                start_time_episode = time.time()
-                logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
-                return batch[2], loss
+                        with tf.device(self.device):
+                            self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
+                    end_time = time.time()
+
+            self.training_time += (end_time - start_time)
+            self.ntraining_time += 1
+            logger.info('Agent[{}]- Training: {} '.format(self.rank, (end_time - start_time)))
+            start_time_episode = time.time()
+            logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
         else:
             logger.warning('Training will not be done because this instance is not set to learn.')
+        return ret
 
-        return -1 * np.ones(self.batch_size), -1 * np.ones(self.batch_size)
 
     # @tf.function
     def training_step(self, batch):
         with tf.GradientTape() as tape:
             probs = self.model(batch[0], training=True)
-            loss_value = tf.reduce_mean(tf.multiply(tf.square(self.loss_fn(batch[1], probs)), batch[3] * (1 - self.epsilon)))
-            print("LOSS VALUE:", loss_value)
+            if len(batch) > 2:
+                weight = batch[3] * (1 - self.epsilon) 
+            else:
+                weight = np.ones(len(batch[0]))
+            loss_value = tf.reduce_mean(tf.multiply(tf.square(self.loss_fn(batch[1], probs)), weight))
 
         # Horovod distributed gradient tape
         tape = hvd.DistributedGradientTape(tape)
@@ -327,7 +338,6 @@ class DQN(erl.ExaAgent):
             hvd.broadcast_variables(self.model.variables, root_rank=0)
             hvd.broadcast_variables(self.opt.variables(), root_rank=0)
             self.first_batch = 0
-
         return loss_value
 
     def set_priorities(self, indicies, loss):
