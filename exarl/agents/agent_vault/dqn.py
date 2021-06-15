@@ -72,10 +72,6 @@ class DQN(erl.ExaAgent):
         self.rank = self.agent_comm.rank
         self.size = self.agent_comm.size
 
-        # TODO: Check if this is necessary
-        # self._get_device()
-        # logger.info('Using device: {}'.format(self.device))
-
         # Timers
         self.training_time = 0
         self.ntraining_time = 0
@@ -83,14 +79,13 @@ class DQN(erl.ExaAgent):
         self.ndataprep_time = 0
 
         # Optimization using XLA (1.1x speedup)
-        # tf.config.optimizer.set_jit(True)
+        tf.config.optimizer.set_jit(True)
 
         # Optimization using mixed precision (1.5x speedup)
         # Layers use float16 computations and float32 variables
-        # from tensorflow.keras.mixed_precision import experimental as mixed_precision
-        # policy = mixed_precision.Policy('mixed_float16')
-        # git diff
-        # mixed_precision.set_policy(policy)
+        from tensorflow.keras.mixed_precision import experimental as mixed_precision
+        policy = mixed_precision.Policy('mixed_float16')
+        mixed_precision.set_policy(policy)
 
         # dqn intrinsic variables
         self.results_dir = cd.run_params['output_dir']
@@ -131,11 +126,6 @@ class DQN(erl.ExaAgent):
             env.action_space.n = self.n_actions
             self.actions = np.linspace(env.action_space.low, env.action_space.high, self.n_actions)
 
-        # Default settings
-        # num_cores = os.cpu_count()
-        # num_CPU = os.cpu_count()
-        # num_GPU = 0
-
         # Setup GPU cfg
         if ExaComm.is_learner():
             print("Setting GPU rank", self.rank)
@@ -145,9 +135,6 @@ class DQN(erl.ExaAgent):
             config = tf.compat.v1.ConfigProto(device_count={'GPU': 0, 'CPU': 1})
         # Get which device to run on
         self.device = self._get_device()
-
-        # cpus = tf.config.experimental.list_physical_devices("CPU")
-        # logger.info("Available CPUs: {}".format(cpus))
 
         config.gpu_options.allow_growth = True
         sess = tf.compat.v1.Session(config=config)
@@ -207,7 +194,7 @@ class DQN(erl.ExaAgent):
         else:
             sys.exit("Oops! That was not a valid model type. Try again...")
 
-    # TODO: Check if this is used in any workflow and delete
+    # TODO: Check if this is used in any workflow, if not delete
     def set_learner(self):
         logger.debug(
             "Agent[{}] - Creating active model for the learner".format(self.rank)
@@ -240,11 +227,6 @@ class DQN(erl.ExaAgent):
         if not self.is_discrete:
             action = [self.actions[action]]
         return action, policy
-
-    # def play(self, state):
-    #     with tf.device(self.device):
-    #         act_values = self.target_model.predict(state)
-    #     return np.argmax(act_values[0])
 
     @introspectTrace()
     def calc_target_f(self, exp):
@@ -321,7 +303,6 @@ class DQN(erl.ExaAgent):
         return ret
 
     # @tf.function
-
     def training_step(self, batch):
         with tf.GradientTape() as tape:
             probs = self.model(batch[0], training=True)
@@ -399,31 +380,3 @@ class DQN(erl.ExaAgent):
 
     def monitor(self):
         logger.info("Implement monitor method in dqn.py")
-
-    # def benchmark(dataset, num_epochs=1):
-    #     start_time = time.perf_counter()
-    #     for epoch_num in range(num_epochs):
-    #         for sample in dataset:
-    #             # Performing a training step
-    #             time.sleep(0.01)
-    #             print(sample)
-    #     tf.print("Execution time:", time.perf_counter() - start_time)
-
-    # def print_timers(self):
-    #     if self.ntraining_time > 0:
-    #         logger.info(
-    #             "Agent[{}] - Average training time: {}".format(
-    #                 self.rank, self.training_time / self.ntraining_time
-    #             )
-    #         )
-    #     else:
-    #         logger.info("Agent[{}] - Average training time: {}".format(self.rank, 0))
-
-    #     if self.ndataprep_time > 0:
-    #         logger.info(
-    #             "Agent[{}] - Average data prep time: {}".format(
-    #                 self.rank, self.dataprep_time / self.ndataprep_time
-    #             )
-    #         )
-    #     else:
-    #         logger.info("Agent[{}] - Average data prep time: {}".format(self.rank, 0))
