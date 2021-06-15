@@ -5,8 +5,8 @@ import os
 import numpy as np
 
 import mpi4py.rc
-mpi4py.rc.threads = False
-mpi4py.rc.recv_mprobe = False
+# mpi4py.rc.threads = False
+# mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
 
 class ExaSimple(ExaComm):

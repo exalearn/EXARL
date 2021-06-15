@@ -336,8 +336,8 @@ class DDPG(erl.ExaAgent):
     def set_agent(self):
         print("Implement set_agent method in ddpg.py")
 
-    def print_timers(self):
-        print("Implement print_timers method in ddpg.py")
+    # def print_timers(self):
+    #     print("Implement print_timers method in ddpg.py")
 
     def epsilon_adj(self):
         if self.epsilon > self.epsilon_min:

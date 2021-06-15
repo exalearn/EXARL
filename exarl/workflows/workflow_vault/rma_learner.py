@@ -145,7 +145,8 @@ class RMA(erl.ExaWorkflow):
 
                 if agent_data is None:
                     ib.startTrace("RMA_Data_Exchange_Pop", 0)
-                    agent_data, actor_idx, actor_counter = data_exchange.get_data(learner_counter, learner_comm.size, agent_comm.size, attempts=self.de_attempts)
+                    agent_data, actor_idx, actor_counter = data_exchange.get_data(
+                        learner_counter, learner_comm.size, agent_comm.size, attempts=self.de_attempts)
                     ib.stopTrace()
                     ib.simpleTrace("RMA_Learner_Get_Data", actor_idx, actor_counter, learner_counter - actor_counter, 0)
 
@@ -197,7 +198,7 @@ class RMA(erl.ExaWorkflow):
             episode_count_actor = np.zeros(1, dtype=np.float64)
             one = np.ones(1, dtype=np.float64)
             epsilon = np.array(workflow.agent.epsilon, dtype=np.float64)
-            
+
             while True:
                 if ExaComm.env_comm.rank == 0:
                     episode_win.Lock(0)

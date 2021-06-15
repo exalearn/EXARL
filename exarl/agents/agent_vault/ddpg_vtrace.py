@@ -177,7 +177,7 @@ class DDPG_Vtrace(erl.ExaAgent):
         tf.cast(action_batch, dtype=tf.uint8)
         # print("action_batch: ", action_batch)
 
-        #"""
+        # """
         action_idx = [0 for i in range(self.batch_size)]
 
         for i in range(self.batch_size):
@@ -392,7 +392,7 @@ class DDPG_Vtrace(erl.ExaAgent):
 
         if (self.time_step == self.n_steps - 1):
             self.time_step = -1
-        
+
         # return return_action[0], policy_type
         return legal_action, policy_type
 
@@ -444,8 +444,8 @@ class DDPG_Vtrace(erl.ExaAgent):
     def set_agent(self):
         print("Implement set_agent method in ddpg.py")
 
-    def print_timers(self):
-        print("Implement print_timers method in ddpg.py")
+    # def print_timers(self):
+    #     print("Implement print_timers method in ddpg.py")
 
     def epsilon_adj(self):
         if self.epsilon > self.epsilon_min:

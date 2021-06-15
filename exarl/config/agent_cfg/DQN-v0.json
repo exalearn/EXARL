@@ -1,6 +1,6 @@
 {
     "gamma": 0.75,
-    "epsilon": 1.0,
+    "epsilon": 0.9,
     "epsilon_min": 0.01,
     "epsilon_decay": 0.999,
     "learning_rate": 0.001,

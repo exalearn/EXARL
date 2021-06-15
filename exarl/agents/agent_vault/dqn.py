@@ -41,7 +41,7 @@ from exarl.utils.introspect import introspectTrace
 from tensorflow.compat.v1.keras.backend import set_session
 try:
     import horovod.tensorflow as hvd
-    horovod_imported = False
+    horovod_imported = True
 except:
     horovod_imported = False
 
@@ -72,8 +72,9 @@ class DQN(erl.ExaAgent):
         self.rank = self.agent_comm.rank
         self.size = self.agent_comm.size
 
-        self._get_device()
-        logger.info('Using device: {}'.format(self.device))
+        # TODO: Check if this is necessary
+        # self._get_device()
+        # logger.info('Using device: {}'.format(self.device))
 
         # Timers
         self.training_time = 0
@@ -122,26 +123,31 @@ class DQN(erl.ExaAgent):
         self.n_actions = cd.run_params['nactions']
         self.priority_scale = cd.run_params['priority_scale']
 
+        # Check if the action space is discrete
         self.is_discrete = (type(env.action_space) == gym.spaces.discrete.Discrete)
+        # If continuous, discretize the action space
+        # TODO: Incorpoorate Ai's class
         if not self.is_discrete:
             env.action_space.n = self.n_actions
             self.actions = np.linspace(env.action_space.low, env.action_space.high, self.n_actions)
 
         # Default settings
-        num_cores = os.cpu_count()
-        num_CPU = os.cpu_count()
-        num_GPU = 0
+        # num_cores = os.cpu_count()
+        # num_CPU = os.cpu_count()
+        # num_GPU = 0
 
         # Setup GPU cfg
-        if self.rank == 0:
+        if ExaComm.is_learner():
             print("Setting GPU rank", self.rank)
             config = tf.compat.v1.ConfigProto(device_count={'GPU': 1, 'CPU': 1})
         else:
             print("Setting no GPU rank", self.rank)
             config = tf.compat.v1.ConfigProto(device_count={'GPU': 0, 'CPU': 1})
+        # Get which device to run on
+        self.device = self._get_device()
 
-        cpus = tf.config.experimental.list_physical_devices("CPU")
-        logger.info("Available CPUs: {}".format(cpus))
+        # cpus = tf.config.experimental.list_physical_devices("CPU")
+        # logger.info("Available CPUs: {}".format(cpus))
 
         config.gpu_options.allow_growth = True
         sess = tf.compat.v1.Session(config=config)
@@ -172,8 +178,10 @@ class DQN(erl.ExaAgent):
         if horovod_imported and ExaComm.is_learner():
             hvd.init(comm=ExaComm.learner_comm.raw())
             self.first_batch = 1
-            self.loss_fn = tf.losses.MeanSquaredError()
-            self.opt = tf.optimizers.Adam(self.learning_rate * hvd.size())
+            # TODO: Update candle driver to include different losses and optimizers
+            # Default reduction is tf.keras.losses.Reduction.AUTO which errors out with distributed training
+            self.loss_fn = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
+            self.opt = tf.keras.optimizers.Adam(self.learning_rate * hvd.size())
 
         self.maxlen = cd.run_params['mem_length']
         self.replay_buffer = PrioritizedReplayBuffer(maxlen=self.maxlen)
@@ -185,9 +193,9 @@ class DQN(erl.ExaAgent):
         logger.info('Number of available GPUs: {}'.format(ngpus))
         if ngpus > 0:
             gpu_id = self.rank % ngpus
-            self.device = '/GPU:{}'.format(gpu_id)
+            return '/GPU:{}'.format(gpu_id)
         else:
-            self.device = '/CPU:0'
+            return '/CPU:0'
 
     def _build_model(self):
         if self.model_type == 'MLP':
@@ -199,6 +207,7 @@ class DQN(erl.ExaAgent):
         else:
             sys.exit("Oops! That was not a valid model type. Try again...")
 
+    # TODO: Check if this is used in any workflow and delete
     def set_learner(self):
         logger.debug(
             "Agent[{}] - Creating active model for the learner".format(self.rank)
@@ -232,10 +241,10 @@ class DQN(erl.ExaAgent):
             action = [self.actions[action]]
         return action, policy
 
-    def play(self, state):
-        with tf.device(self.device):
-            act_values = self.target_model.predict(state)
-        return np.argmax(act_values[0])
+    # def play(self, state):
+    #     with tf.device(self.device):
+    #         act_values = self.target_model.predict(state)
+    #     return np.argmax(act_values[0])
 
     @introspectTrace()
     def calc_target_f(self, exp):
@@ -249,6 +258,7 @@ class DQN(erl.ExaAgent):
         target = reward + expectedQ
         with tf.device(self.device):
             target_f = self.target_model.predict(np_state)
+        # For handling continuous to discrete actions
         action_idx = action if self.is_discrete else np.where(self.actions == action)[1]
         target_f[0][action_idx] = target
         return target_f[0]
@@ -267,16 +277,12 @@ class DQN(erl.ExaAgent):
             else:
                 yield batch_states, batch_target
 
-        start_time = time.time()
         minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=self.priority_scale)
         batch_target = list(map(self.calc_target_f, minibatch))
         batch_states = [np.array(exp[0]).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
         batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
         batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
-        end_time = time.time()
-        self.dataprep_time += (end_time - start_time)
-        self.ndataprep_time += 1
-        logger.debug('Agent[{}] - Minibatch time: {} '.format(self.rank, (end_time - start_time)))
+
         if self.priority_scale > 0:
             yield batch_states, batch_target, indices, importance
         else:
@@ -289,7 +295,6 @@ class DQN(erl.ExaAgent):
             if self.priority_scale > 0:
                 if batch[2][0] != -1:
                     with tf.device(self.device):
-                        # print("Importance = ", sample_weight)
                         if horovod_imported:
                             loss = self.training_step(batch)
                         else:
@@ -315,16 +320,16 @@ class DQN(erl.ExaAgent):
             logger.warning('Training will not be done because this instance is not set to learn.')
         return ret
 
-
     # @tf.function
+
     def training_step(self, batch):
         with tf.GradientTape() as tape:
             probs = self.model(batch[0], training=True)
             if len(batch) > 2:
-                weight = batch[3] * (1 - self.epsilon) 
+                sample_weight = batch[3] * (1 - self.epsilon)
             else:
-                weight = np.ones(len(batch[0]))
-            loss_value = tf.reduce_mean(tf.multiply(tf.square(self.loss_fn(batch[1], probs)), weight))
+                sample_weight = np.ones(len(batch[0]))
+            loss_value = self.loss_fn(batch[1], probs, sample_weight=sample_weight)
 
         # Horovod distributed gradient tape
         tape = hvd.DistributedGradientTape(tape)
@@ -395,30 +400,30 @@ class DQN(erl.ExaAgent):
     def monitor(self):
         logger.info("Implement monitor method in dqn.py")
 
-    def benchmark(dataset, num_epochs=1):
-        start_time = time.perf_counter()
-        for epoch_num in range(num_epochs):
-            for sample in dataset:
-                # Performing a training step
-                time.sleep(0.01)
-                print(sample)
-        tf.print("Execution time:", time.perf_counter() - start_time)
+    # def benchmark(dataset, num_epochs=1):
+    #     start_time = time.perf_counter()
+    #     for epoch_num in range(num_epochs):
+    #         for sample in dataset:
+    #             # Performing a training step
+    #             time.sleep(0.01)
+    #             print(sample)
+    #     tf.print("Execution time:", time.perf_counter() - start_time)
 
-    def print_timers(self):
-        if self.ntraining_time > 0:
-            logger.info(
-                "Agent[{}] - Average training time: {}".format(
-                    self.rank, self.training_time / self.ntraining_time
-                )
-            )
-        else:
-            logger.info("Agent[{}] - Average training time: {}".format(self.rank, 0))
+    # def print_timers(self):
+    #     if self.ntraining_time > 0:
+    #         logger.info(
+    #             "Agent[{}] - Average training time: {}".format(
+    #                 self.rank, self.training_time / self.ntraining_time
+    #             )
+    #         )
+    #     else:
+    #         logger.info("Agent[{}] - Average training time: {}".format(self.rank, 0))
 
-        if self.ndataprep_time > 0:
-            logger.info(
-                "Agent[{}] - Average data prep time: {}".format(
-                    self.rank, self.dataprep_time / self.ndataprep_time
-                )
-            )
-        else:
-            logger.info("Agent[{}] - Average data prep time: {}".format(self.rank, 0))
+    #     if self.ndataprep_time > 0:
+    #         logger.info(
+    #             "Agent[{}] - Average data prep time: {}".format(
+    #                 self.rank, self.dataprep_time / self.ndataprep_time
+    #             )
+    #         )
+    #     else:
+    #         logger.info("Agent[{}] - Average data prep time: {}".format(self.rank, 0))
