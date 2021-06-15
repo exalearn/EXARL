@@ -7,6 +7,6 @@
     "batch_size": 5,
     "tau": 0.5,
     "nactions": 10,
-    "priority_scale": 1.0,
+    "priority_scale": 0,
     "mem_length": 1000
 }

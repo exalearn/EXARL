@@ -285,9 +285,9 @@ class DQN(erl.ExaAgent):
     def train(self, batch):
         ret = None
         if self.is_learner:
+            start_time = time.time()
             if self.priority_scale > 0:
                 if batch[2][0] != -1:
-                    start_time = time.time()
                     with tf.device(self.device):
                         # print("Importance = ", sample_weight)
                         if horovod_imported:
@@ -298,24 +298,21 @@ class DQN(erl.ExaAgent):
                             self.model.fit(batch[0], batch[1], epochs=1, batch_size=1, verbose=0, callbacks=loss, sample_weight=sample_weight)
                             loss = loss.loss
                         ret = batch[2], loss
-                    end_time = time.time()
             else:
                 if len(batch[0]) >= self.batch_size:
-                    start_time = time.time()
                     if horovod_imported:
                         loss = self.training_step(batch)
                     else:
                         with tf.device(self.device):
                             self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
-                    end_time = time.time()
-
-            # self.training_time += (end_time - start_time)
-            # self.ntraining_time += 1
-            # logger.info('Agent[{}]- Training: {} '.format(self.rank, (end_time - start_time)))
-            # start_time_episode = time.time()
-            # logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
-        # else:
-            # logger.warning('Training will not be done because this instance is not set to learn.')
+            end_time = time.time()
+            self.training_time += (end_time - start_time)
+            self.ntraining_time += 1
+            logger.info('Agent[{}]- Training: {} '.format(self.rank, (end_time - start_time)))
+            start_time_episode = time.time()
+            logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
+        else:
+            logger.warning('Training will not be done because this instance is not set to learn.')
         return ret
 
 
