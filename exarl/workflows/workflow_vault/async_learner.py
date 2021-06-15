@@ -147,7 +147,7 @@ class ASYNC(erl.ExaWorkflow):
         else:
             if ExaComm.is_actor():
                 # Setup logger
-                filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
+                filename_prefix = 'ExaLearner_Episodes%s_Steps%s_Rank%s_memory_v1' \
                     % (str(workflow.nepisodes), str(workflow.nsteps), str(agent_comm.rank))
                 train_file = open(workflow.results_dir + '/' +
                                   filename_prefix + ".log", 'w')
@@ -194,6 +194,7 @@ class ASYNC(erl.ExaWorkflow):
 
                         action, policy_type = workflow.agent.action(current_state)
                         ib.update("Async_Env_Inference", 1)
+
                         if workflow.action_type == "fixed":
                             action, policy_type = 0, -11
 
@@ -242,6 +243,7 @@ class ASYNC(erl.ExaWorkflow):
                         logger.info(
                             'Rank[%s] - Episode/Step/Status:%s/%s/%s' % (str(agent_comm.rank), str(episode), str(steps), str(done)))
 
+                        # TODO: make this configurable so we don't always suffer IO
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_reward,
                                                done, episode, steps, policy_type, workflow.agent.epsilon])
                         train_file.flush()

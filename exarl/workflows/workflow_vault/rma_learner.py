@@ -253,6 +253,7 @@ class RMA(erl.ExaWorkflow):
 
                         # Inference action
                         action, policy_type = workflow.agent.action(current_state)
+
                         if workflow.action_type == 'fixed':
                             action, policy_type = 0, -11
                         ib.update("RMA_Env_Inference", 1)
