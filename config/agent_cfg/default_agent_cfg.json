@@ -1,7 +1,7 @@
 {
     "epsilon": 1.0,
-    "epsilon_min" : 0.01,
-    "epsilon_decay" : 0.999,
+    "epsilon_min" : 0.1,
+    "epsilon_decay" : 0.99,
     "gamma": 0.99,
     "tau" : 0.005,
     "batch_size" : 64,
@@ -21,5 +21,5 @@
     "critic_out_act" : "linear",
     "critic_optimizer" : "adam",
     "loss" : "mse",
-    "std_dev": 0.2
+    "std_dev": 0.1
 }

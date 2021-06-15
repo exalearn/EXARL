@@ -47,6 +47,7 @@ class DDPG(erl.ExaAgent):
     def __init__(self, env, is_learner=False):
         # Distributed variables
         self.is_learner = is_learner
+        self.workflow = cd.run_params['workflow']
 
         # Environment space and action parameters
         self.env = env
@@ -77,11 +78,11 @@ class DDPG(erl.ExaAgent):
         self.critic_out_act = cd.run_params['critic_out_act']
         self.critic_optimizer = cd.run_params['critic_optimizer']
         self.tau = cd.run_params['tau']
+        self.std_dev = cd.run_params['std_dev']
 
-        std_dev = 0.2
         ave_bound = (self.upper_bound + self.lower_bound) / 2
         print('ave_bound: {}'.format(ave_bound))
-        self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(std_dev) * np.ones(1))
+        self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(self.std_dev) * np.ones(1))
 
         # Not used by agent but required by the learner class
         self.epsilon = cd.run_params['epsilon']
@@ -272,7 +273,11 @@ class DDPG(erl.ExaAgent):
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
 
         sampled_actions = tf.squeeze(self.target_actor(tf_state))
-        noise = self.ou_noise()
+        if self.workflow == 'tester':
+            # no noise during tester inference
+            noise = 0
+        else:
+            noise = self.ou_noise()
         sampled_actions_wn = sampled_actions.numpy() + noise
         legal_action = sampled_actions_wn
         isValid = self.env.action_space.contains(sampled_actions_wn)
