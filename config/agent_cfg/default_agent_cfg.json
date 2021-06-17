@@ -21,5 +21,6 @@
     "critic_out_act" : "linear",
     "critic_optimizer" : "adam",
     "loss" : "mse",
-    "std_dev": 0.1
+    "std_dev": 0.2,
+    "theta": 0.15
 }

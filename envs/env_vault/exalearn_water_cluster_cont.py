@@ -318,12 +318,14 @@ class WaterCluster(gym.Env):
         self.rot_min = 80
         self.rot_max = 120
         self.rot_mean = (self.rot_max + self.rot_min)/2
-        rot_width = self.rot_max - self.rot_min
+        self.rot_width = self.rot_max - self.rot_min
         self.trans_min = -0.7 
         self.trans_max = 0.7
         self.trans_mean = (self.trans_max + self.trans_min)/2
-        trans_width = self.trans_max - self.trans_min
-        self.action_space = spaces.Box(low=np.array([-(self.nclusters)/2, -rot_width/2, -trans_width/2, -trans_width/2, -trans_width/2]), high=np.array([(self.nclusters)/2, +rot_width/2, +trans_width/2, +trans_width/2, +trans_width/2]), dtype=np.float64)
+        self.trans_width = self.trans_max - self.trans_min
+        #self.action_space = spaces.Box(low=np.array([-(self.nclusters)/2, -rot_width/2, -trans_width/2, -trans_width/2, -trans_width/2]), high=np.array([(self.nclusters)/2, +rot_width/2, +trans_width/2, +trans_width/2, +trans_width/2]), dtype=np.float64)
+        # normalize actions so all are between -1 and 1
+        self.action_space = spaces.Box(low=-1*np.ones(5), high=np.ones(5), dtype=np.float64) 
 
     def _load_structure(self, env_input, n):
         # Read initial XYZ file
@@ -353,14 +355,18 @@ class WaterCluster(gym.Env):
         #energy = np.random.normal(self.current_energy, 0.01)  # Default energy
         reward = round(np.random.normal(-10, 0.005),4) # Negative penalty
 
-        # Extract actions
+        # Extract actions -- commented out = prior action norm
         natoms = 3
-        cluster_id = math.floor(action[0]+((self.nclusters)/2)+0.5)
+        #cluster_id = math.floor(action[0]+((self.nclusters)/2)+0.5)
+        cluster_id = math.floor((((action[0]+1)/2)*self.nclusters)+0.5)
         if self.state_mode != 'energy':
             cluster_id = self.state_order[cluster_id]
-        rotation_z = round(float(action[1])+self.rot_mean,2)
-        translation_all = [round(float(action[2]+self.trans_mean),4),round(float(action[3]+self.trans_mean),4),round(float(action[4]+self.trans_mean),4)]
+        #rotation_z = round(float(action[1])+self.rot_mean,2)
+        rotation_z = (((action[1]+1)/2)*self.rot_width)+self.rot_min
+        #translation_all = [round(float(action[2]+self.trans_mean),4),round(float(action[3]+self.trans_mean),4),round(float(action[4]+self.trans_mean),4)]
+        translation_all = [(((action[2]+1)/2)*self.trans_width)+self.trans_min,(((action[3]+1)/2)*self.trans_width)+self.trans_min,(((action[4]+1)/2)*self.trans_width)+self.trans_min]
         actions = [cluster_id, rotation_z, translation_all]
+        logger.warning("Unnormed Actions: {}".format(actions))
         translation = " ".join([str(x) for x in translation_all])
         
         # read in structure as ase atom object

@@ -78,11 +78,14 @@ class DDPG(erl.ExaAgent):
         self.critic_out_act = cd.run_params['critic_out_act']
         self.critic_optimizer = cd.run_params['critic_optimizer']
         self.tau = cd.run_params['tau']
+
+        # OUActionNoise hyperparameters 
         self.std_dev = cd.run_params['std_dev']
+        self.theta = cd.run_params['theta']
 
         ave_bound = (self.upper_bound + self.lower_bound) / 2
         print('ave_bound: {}'.format(ave_bound))
-        self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(self.std_dev) * np.ones(1))
+        self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(self.std_dev) * np.ones(1), theta=self.theta)
 
         # Not used by agent but required by the learner class
         self.epsilon = cd.run_params['epsilon']
@@ -278,14 +281,22 @@ class DDPG(erl.ExaAgent):
             noise = 0
         else:
             noise = self.ou_noise()
+        logger.warning('Noise {}'.format(noise))
         sampled_actions_wn = sampled_actions.numpy() + noise
         legal_action = sampled_actions_wn
         isValid = self.env.action_space.contains(sampled_actions_wn)
-        if isValid == False:
-            legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
-            policy_type = 0
-            logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn, legal_action))
-            logger.warning('Policy action: {}; noise: {}'.format(sampled_actions, noise))
+        #logger.warning(self.env.action_space.high)
+        #logger.warning(self.env.action_space.low)
+        if not isValid:
+            # remove noise and recheck if valid
+            legal_action = sampled_actions.numpy()
+            isValid = self.env.action_space.contains(legal_action)
+            # if still not valid just do random action
+            if not isValid:
+                legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
+                policy_type = 0
+                logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn, legal_action))
+                logger.warning('Policy action: {}; noise: {}'.format(sampled_actions, noise))
 
         return_action = [np.squeeze(legal_action)]
         logger.warning('Legal action:{}'.format(return_action))
