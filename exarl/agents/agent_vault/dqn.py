@@ -126,12 +126,16 @@ class DQN(erl.ExaAgent):
             env.action_space.n = self.n_actions
             self.actions = np.linspace(env.action_space.low, env.action_space.high, self.n_actions)
 
+        # Data types of action and observation space
+        self.dtype_action = np.array(self.env.action_space.sample()).dtype
+        self.dtype_observation = self.env.observation_space.sample().dtype
+
         # Setup GPU cfg
         if ExaComm.is_learner():
-            print("Setting GPU rank", self.rank)
+            logger.info("Setting GPU rank", self.rank)
             config = tf.compat.v1.ConfigProto(device_count={'GPU': 1, 'CPU': 1})
         else:
-            print("Setting no GPU rank", self.rank)
+            logger.info("Setting no GPU rank", self.rank)
             config = tf.compat.v1.ConfigProto(device_count={'GPU': 0, 'CPU': 1})
         # Get which device to run on
         self.device = self._get_device()
@@ -231,8 +235,8 @@ class DQN(erl.ExaAgent):
     @introspectTrace()
     def calc_target_f(self, exp):
         state, action, reward, next_state, done = exp
-        np_state = np.array(state).reshape(1, 1, len(state))
-        np_next_state = np.array(next_state).reshape(1, 1, len(next_state))
+        np_state = np.array(state, dtype=self.dtype_observation).reshape(1, 1, len(state))
+        np_next_state = np.array(next_state, dtype=self.dtype_observation).reshape(1, 1, len(next_state))
         expectedQ = 0
         if not done:
             with tf.device(self.device):
@@ -247,23 +251,20 @@ class DQN(erl.ExaAgent):
 
     @introspectTrace()
     def generate_data(self):
-        # Worker method to create samples for training
-        batch_states = np.zeros((self.batch_size, 1, self.env.observation_space.shape[0]))
-        # TODO: should this really be float32 and not float64?
-        batch_target = np.zeros((self.batch_size, self.env.action_space.n), dtype=np.float32)
-        indices = -1 * np.ones(self.batch_size)
-        importance = np.ones(self.batch_size)
         if self.replay_buffer.get_buffer_length() < self.batch_size:
-            if self.priority_scale > 0:
-                yield batch_states, batch_target, indices, importance
-            else:
-                yield batch_states, batch_target
-
-        minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=self.priority_scale)
-        batch_target = list(map(self.calc_target_f, minibatch))
-        batch_states = [np.array(exp[0]).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
-        batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
-        batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
+            # TODO: Only works with float32 for now. Check where the inconsistencies arise.
+            # Worker method to create samples for training
+            batch_states = np.zeros((self.batch_size, 1, self.env.observation_space.shape[0]), dtype=self.dtype_observation)
+            # TODO: should this really be float32 and not float64?
+            batch_target = np.zeros((self.batch_size, self.env.action_space.n), dtype=self.dtype_action)
+            indices = -1 * np.ones(self.batch_size)
+            importance = np.ones(self.batch_size)
+        else:
+            minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=self.priority_scale)
+            batch_target = list(map(self.calc_target_f, minibatch))
+            batch_states = [np.array(exp[0], dtype=self.dtype_observation).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
+            batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
+            batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
 
         if self.priority_scale > 0:
             yield batch_states, batch_target, indices, importance
@@ -302,7 +303,7 @@ class DQN(erl.ExaAgent):
             logger.warning('Training will not be done because this instance is not set to learn.')
         return ret
 
-    # @tf.function
+    @ tf.function
     def training_step(self, batch):
         with tf.GradientTape() as tape:
             probs = self.model(batch[0], training=True)

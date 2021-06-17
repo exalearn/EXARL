@@ -78,6 +78,7 @@ class DDPG(erl.ExaAgent):
         self.critic_optimizer = cd.run_params['critic_optimizer']
         self.tau = cd.run_params['tau']
 
+        # TODO: Parameterize these
         std_dev = 0.2
         ave_bound = (self.upper_bound + self.lower_bound) / 2
         print('ave_bound: {}'.format(ave_bound))
@@ -131,6 +132,7 @@ class DDPG(erl.ExaAgent):
         # Learning rate for actor-critic models
         self.critic_lr = cd.run_params['critic_lr']
         self.actor_lr = cd.run_params['actor_lr']
+        # TODO: Parameterize
         self.critic_optimizer = tf.keras.optimizers.Adam(self.critic_lr)
         self.actor_optimizer = tf.keras.optimizers.Adam(self.actor_lr)
 
