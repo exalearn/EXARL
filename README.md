@@ -80,10 +80,10 @@ pip install -e . --user
 
 ## Configuration Files
 
-Configuration files such as `config/learner_cfg.json` are searched for in the
+Configuration files such as `exarl/config/learner_cfg.json` are searched for in the
 following directories:
 
-1. (current working directory)/config
+1. (current working directory)/exarl/config
 2. ~/.exarl/config
 3. (site-packages dir)/exarl/config
 
@@ -99,7 +99,7 @@ $ cp config/* ~/.exarl/config
 
 ## [CANDLE](https://github.com/ECP-CANDLE/Candle) functionality is built into EXARL
 
-- Add/modify the learner parameters in `EXARL/config/learner_cfg.json`\
+- Add/modify the learner parameters in `EXARL/exarl/config/learner_cfg.json`\
   E.g.:-
 
 ```
@@ -113,7 +113,7 @@ $ cp config/* ~/.exarl/config
 }
 ```
 
-- Add/modify the agent parameters in `EXARL/config/agent_cfg/<AgentName>.json`\
+- Add/modify the agent parameters in `EXARL/exarl/config/agent_cfg/<AgentName>.json`\
   E.g.:-
 
 ```
@@ -130,7 +130,7 @@ $ cp config/* ~/.exarl/config
 
 Currently, DQN agent takes either MLP or LSTM as model_type.
 
-- Add/modify the model parameters in `EXARL/config/model_cfg/<ModelName>.json`\
+- Add/modify the model parameters in `EXARL/exarl/config/model_cfg/<ModelName>.json`\
   E.g.:-
 
 ```
@@ -143,16 +143,16 @@ Currently, DQN agent takes either MLP or LSTM as model_type.
 }
 ```
 
-- Add/modify the environment parameters in `EXARL/config/env_cfg/<EnvName>.json`\
+- Add/modify the environment parameters in `EXARL/exarl/config/env_cfg/<EnvName>.json`\
   E.g.:-
 
 ```
 {
-        "worker_app": "./envs/env_vault/cpi.py"
+        "worker_app": "./exarl/envs/env_vault/cpi.py"
 }
 ```
 
-- Add/modify the workflow parameters in `EXARL/config/workflow_cfg/<WorkflowName>.json`\
+- Add/modify the workflow parameters in `EXARL/exarl/config/workflow_cfg/<WorkflowName>.json`\
   E.g.:-
 
 ```
@@ -161,8 +161,8 @@ Currently, DQN agent takes either MLP or LSTM as model_type.
 }
 ```
 
-- Please note the agent, model, environment, and workflow configuration file (json file) name must match the agent, model, environment, and workflow ID specified in `EXARL/config/learner_cfg.json`. \
-  E.g.:- `EXARL/config/agent_cfg/DQN-v0.json`, `EXARL/config/model_cfg/MLP.json`, `EXARL/config/env_cfg/ExaCartPole-v1.json`, and `EXARL/config/workflow_cfg/async.json`
+- Please note the agent, model, environment, and workflow configuration file (json file) name must match the agent, model, environment, and workflow ID specified in `EXARL/exarl/config/learner_cfg.json`. \
+  E.g.:- `EXARL/exarl/config/agent_cfg/DQN-v0.json`, `EXARL/exarl/config/model_cfg/MLP.json`, `EXARL/exarl/config/env_cfg/ExaCartPole-v1.json`, and `EXARL/exarl/config/workflow_cfg/async.json`
 
 ## Running EXARL using MPI
 
@@ -264,13 +264,13 @@ register(
 
 - The id variable will be passed to exarl.make() to call the environment
 
-- The file `EXARL/env/env_vault/__init__.py` should include
+- The file `EXARL/exarl/env/env_vault/__init__.py` should include
 
 ```
 from exarl.envs.env_vault.foo_env import FooEnv
 ```
 
-where EXARL/envs/env_vault/foo_env.py is the file containing your envirnoment
+where EXARL/exarl/envs/env_vault/foo_env.py is the file containing your envirnoment
 
 ### Using environment written in a lower level language
 
