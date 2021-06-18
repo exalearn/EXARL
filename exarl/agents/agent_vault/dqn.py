@@ -39,11 +39,11 @@ import exarl.utils.candleDriver as cd
 import exarl.utils.log as log
 from exarl.utils.introspect import introspectTrace
 from tensorflow.compat.v1.keras.backend import set_session
-try:
+if ExaComm.num_learners > 1:
     import horovod.tensorflow as hvd
-    horovod_imported = True
-except:
-    horovod_imported = False
+    multiLearner = True
+else:
+    multiLearner = False
 
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
@@ -166,7 +166,7 @@ class DQN(erl.ExaAgent):
             # self.target_model.summary()
             self.target_weights = self.target_model.get_weights()
 
-        if horovod_imported and ExaComm.is_learner():
+        if multiLearner and ExaComm.is_learner():
             hvd.init(comm=ExaComm.learner_comm.raw())
             self.first_batch = 1
             # TODO: Update candle driver to include different losses and optimizers
@@ -249,10 +249,12 @@ class DQN(erl.ExaAgent):
         target_f[0][action_idx] = target
         return target_f[0]
 
+    def has_data(self):
+        return (self.replay_buffer.get_buffer_length() >= self.batch_size)
+
     @introspectTrace()
     def generate_data(self):
-        data_valid = 0
-        if self.replay_buffer.get_buffer_length() < self.batch_size:
+        if not self.has_data():
             # TODO: Only works with float32 for now. Check where the inconsistencies arise.
             # Worker method to create samples for training
             batch_states = np.zeros((self.batch_size, 1, self.env.observation_space.shape[0]), dtype=self.dtype_observation)
@@ -266,20 +268,20 @@ class DQN(erl.ExaAgent):
             batch_states = [np.array(exp[0], dtype=self.dtype_observation).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
             batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
             batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
-            data_valid = 1
 
         if self.priority_scale > 0:
-            yield batch_states, batch_target, indices, importance, data_valid
+            yield batch_states, batch_target, indices, importance
         else:
-            yield batch_states, batch_target, data_valid
+            yield batch_states, batch_target
 
+    # @tf.function
     def train(self, batch):
         ret = None
         if self.is_learner:
             start_time = time.time()
             if self.priority_scale > 0:
                 with tf.device(self.device):
-                    if horovod_imported:
+                    if multiLearner:
                         loss = self.training_step(batch)
                     else:
                         loss = LossHistory()
@@ -288,8 +290,7 @@ class DQN(erl.ExaAgent):
                         loss = loss.loss
                     ret = batch[2], loss
             else:
-                print("batch = ", len(batch[0]), flush=True)
-                if horovod_imported:
+                if multiLearner:
                     loss = self.training_step(batch)
                 else:
                     with tf.device(self.device):
@@ -304,7 +305,7 @@ class DQN(erl.ExaAgent):
             logger.warning('Training will not be done because this instance is not set to learn.')
         return ret
 
-    @ tf.function
+    @tf.function
     def training_step(self, batch):
         with tf.GradientTape() as tape:
             probs = self.model(batch[0], training=True)

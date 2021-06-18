@@ -33,6 +33,8 @@ logger = log.setup_logger(__name__, cd.run_params['log_level'])
 class ASYNC(erl.ExaWorkflow):
     def __init__(self):
         print('Creating ASYNC learner workflow...')
+        priority_scale = cd.lookup_params('priority_scale')
+        self.use_priority_replay = (priority_scale is not None and priority_scale > 0)
 
     @PROFILE
     def run(self, workflow):
@@ -41,16 +43,16 @@ class ASYNC(erl.ExaWorkflow):
         env_comm = ExaComm.env_comm
 
         target_weights = None
-        if ExaComm.is_learner():
-            workflow.agent.set_learner()
-            target_weights = workflow.agent.get_weights()
+        # if ExaComm.is_learner():
+        #     workflow.agent.set_learner()
+        #     target_weights = workflow.agent.get_weights()
 
-        # Only agent_comm processes will run this try block
-        if agent_comm:
-            target_weights = agent_comm.bcast(target_weights, 0)
-            workflow.agent.set_weights(target_weights)
-        else:
-            logger.debug("Does not contain an agent")
+        # # Only agent_comm processes will run this try block
+        # if agent_comm:
+        #     target_weights = agent_comm.bcast(target_weights, 0)
+        #     workflow.agent.set_weights(target_weights)
+        # else:
+        #     logger.debug("Does not contain an agent")
 
         # Variables for all
         episode = 0
@@ -93,12 +95,15 @@ class ASYNC(erl.ExaWorkflow):
                 # Train
                 train_return = workflow.agent.train(batch)
                 ib.update("Async_Learner_Train", 1)
-                if train_return is not None:
-                    if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
+                # if train_return is not None:
+                if self.use_priority_replay and train_return is not None:
+                    # if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
+                    if train_return[0][0] != -1:
                         indices, loss = train_return
                 # TODO: Double check if this is already in the DQN code
                 workflow.agent.target_train()
                 ib.update("Async_Learner_Target_Train", 1)
+
                 if policy_type == 0:
                     workflow.agent.epsilon_adj()
                 epsilon = workflow.agent.epsilon
@@ -114,6 +119,7 @@ class ASYNC(erl.ExaWorkflow):
                 if done:
                     episode_done += 1
                     latest_episode = worker_episodes.max()
+                    # Updated episode = latest_episode + 1
                     worker_episodes[whofrom - 1] = latest_episode + 1
                     logger.debug("episode_done:{}".format(episode_done))
                     ib.update("Async_Learner_Episode", 1)
@@ -145,7 +151,7 @@ class ASYNC(erl.ExaWorkflow):
             logger.info("Learner time: {}".format(agent_comm.time() - start))
 
         else:
-            if ExaComm.is_actor():
+            if ExaComm.env_comm.rank == 0:
                 # Setup logger
                 filename_prefix = 'ExaLearner_Episodes%s_Steps%s_Rank%s_memory_v1' \
                     % (str(workflow.nepisodes), str(workflow.nsteps), str(agent_comm.rank))
@@ -167,7 +173,7 @@ class ASYNC(erl.ExaWorkflow):
                 while steps < workflow.nsteps:
                     logger.debug('ASYNC::run() agent_comm.rank{}; step({} of {})'
                                  .format(agent_comm.rank, steps, (workflow.nsteps - 1)))
-                    if ExaComm.is_actor():
+                    if ExaComm.env_comm.rank == 0:
                         # Receive target weights
                         recv_data = agent_comm.recv(None, source=0)
                         # Update episode while beginning a new one i.e. step = 0
@@ -181,87 +187,90 @@ class ASYNC(erl.ExaWorkflow):
 
                     if episode_interim == -1:
                         episode = -1
-                        if ExaComm.is_actor():
+                        if ExaComm.env_comm.rank == 0:
                             logger.info(
                                 "Rank[%s] - Episode/Step:%s/%s"
                                 % (str(agent_comm.rank), str(episode), str(steps))
                             )
                         break
 
-                    if ExaComm.is_actor():
-                        workflow.agent.epsilon = recv_data[1]
-                        workflow.agent.set_weights(recv_data[2])
+                    send_data = False
+                    done = False
+                    while send_data == False and done == False:
+                        if ExaComm.env_comm.rank == 0:
+                            workflow.agent.epsilon = recv_data[1]
+                            workflow.agent.set_weights(recv_data[2])
 
-                        action, policy_type = workflow.agent.action(current_state)
-                        ib.update("Async_Env_Inference", 1)
+                            action, policy_type = workflow.agent.action(current_state)
+                            ib.update("Async_Env_Inference", 1)
 
-                        if workflow.action_type == "fixed":
-                            action, policy_type = 0, -11
+                            if workflow.action_type == "fixed":
+                                action, policy_type = 0, -11
 
-                    ib.startTrace("step", 0)
-                    next_state, reward, done, _ = workflow.env.step(action)
-                    ib.stopTrace()
-                    ib.update("Async_Env_Step", 1)
+                        # Broadcast episode count to all procs in env_comm
+                        action = env_comm.bcast(action, root=0)
 
-                    if ExaComm.is_actor():
-                        total_reward += reward
-                        memory = (
-                            current_state,
-                            action,
-                            reward,
-                            next_state,
-                            done,
-                            total_reward,
-                        )
-                        workflow.agent.remember(
-                            memory[0], memory[1], memory[2], memory[3], memory[4])
+                        ib.startTrace("step", 0)
+                        next_state, reward, done, _ = workflow.env.step(action)
+                        ib.stopTrace()
+                        ib.update("Async_Env_Step", 1)
 
-                        batch_data = next(workflow.agent.generate_data())
-                        ib.update("Async_Env_Generate_Data", 1)
+                        if ExaComm.env_comm.rank == 0:
+                            total_reward += reward
+                            memory = (
+                                current_state,
+                                action,
+                                reward,
+                                next_state,
+                                done,
+                                total_reward,
+                            )
+                            workflow.agent.remember(
+                                memory[0], memory[1], memory[2], memory[3], memory[4])
 
-                        logger.info(
-                            'Rank[{}] - Generated data: {}'.format(agent_comm.rank, len(batch_data[0])))
-                        try:
-                            buffer_length = len(workflow.agent.memory)
-                        except:
-                            buffer_length = workflow.agent.replay_buffer.get_buffer_length()
-                        logger.info(
-                            'Rank[{}] - # Memories: {}'.format(agent_comm.rank, buffer_length))
+                            batch_data = next(workflow.agent.generate_data())
+                            ib.update("Async_Env_Generate_Data", 1)
 
-                    if steps >= workflow.nsteps - 1:
-                        done = True
+                            logger.info(
+                                'Rank[{}] - Generated data: {}'.format(agent_comm.rank, len(batch_data[0])))
+                            try:
+                                buffer_length = len(workflow.agent.memory)
+                            except:
+                                buffer_length = workflow.agent.replay_buffer.get_buffer_length()
+                            logger.info(
+                                'Rank[{}] - # Memories: {}'.format(agent_comm.rank, buffer_length))
 
-                    if ExaComm.is_actor():
-                        # Send batched memories
-                        agent_comm.send(
-                            [agent_comm.rank, steps, batch_data, policy_type, done], 0)
-                        indices, loss = recv_data[3:5]
-                        if indices is not None:
-                            workflow.agent.set_priorities(indices, loss)
-                        logger.info('Rank[%s] - Total Reward:%s' %
-                                    (str(agent_comm.rank), str(total_reward)))
-                        logger.info(
-                            'Rank[%s] - Episode/Step/Status:%s/%s/%s' % (str(agent_comm.rank), str(episode), str(steps), str(done)))
+                        if steps >= workflow.nsteps - 1:
+                            done = True
 
-                        # TODO: make this configurable so we don't always suffer IO
-                        train_writer.writerow([time.time(), current_state, action, reward, next_state, total_reward,
-                                               done, episode, steps, policy_type, workflow.agent.epsilon])
-                        train_file.flush()
+                        if ExaComm.env_comm.rank == 0:
+                            # Send batched memories
+                            if workflow.agent.has_data():
+                                send_data = True
+                                agent_comm.send([agent_comm.rank, steps, batch_data, policy_type, done], 0)
+                            indices, loss = recv_data[3:5]
+                            if indices is not None:
+                                workflow.agent.set_priorities(indices, loss)
+                            logger.info('Rank[%s] - Total Reward:%s' %
+                                        (str(agent_comm.rank), str(total_reward)))
+                            logger.info(
+                                'Rank[%s] - Episode/Step/Status:%s/%s/%s' % (str(agent_comm.rank), str(episode), str(steps), str(done)))
 
-                    # Update state and step
-                    current_state = next_state
-                    steps += 1
+                            # TODO: make this configurable so we don't always suffer IO
+                            train_writer.writerow([time.time(), current_state, action, reward, next_state, total_reward,
+                                                   done, episode, steps, policy_type, workflow.agent.epsilon])
+                            train_file.flush()
 
-                    # Broadcast done
-                    done = env_comm.bcast(done, 0)
-                    # Break for loop if done
+                        # Update state and step
+                        current_state = next_state
+                        steps += 1
+
+                        # Broadcast done
+                        done = env_comm.bcast(done, 0)
+                    # Break loop if done
                     if done:
                         break
             ib.update("Async_Env_Episode", 1)
             logger.info("Worker time = {}".format(env_comm.time() - start))
             if ExaComm.is_actor():
                 train_file.close()
-
-        if ExaComm.is_actor():
-            logger.info(f"Agent[{agent_comm.rank}] timing info:\n")
-            workflow.agent.print_timers()

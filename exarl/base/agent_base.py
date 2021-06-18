@@ -66,5 +66,5 @@ class ExaAgent(ABC):
         pass
 
     @abstractmethod
-    def set_learner(self):
+    def has_data(self):
         pass

@@ -60,6 +60,12 @@ class ExaLearner:
             sys.exit('EXARL::ERROR Not enough processes.')
         if (self.global_size - self.learner_procs) % self.process_per_env != 0:
             sys.exit('EXARL::ERROR Uneven number of processes.')
+        if self.learner_procs > 1 and self.workflow_id != 'exarl.workflows:rma':
+            print('')
+            print('_________________________________________________________________')
+            print('Multilearner is only supported in RMA, running rma workflow ...')
+            print('_________________________________________________________________', flush=True)
+            self.workflow_id = 'exarl.workflows:' + 'rma'
         if self.global_size < 2 and self.workflow_id != 'exarl.workflows:sync':
             print('')
             print('_________________________________________________________________')

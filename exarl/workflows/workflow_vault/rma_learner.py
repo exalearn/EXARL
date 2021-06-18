@@ -282,13 +282,9 @@ class RMA(erl.ExaWorkflow):
                         total_rewards += reward
                         memory = (current_state, action, reward, next_state, done, total_rewards)
                         workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
-                        batch_data = (next(workflow.agent.generate_data()), learner_counter)
-                        ib.update("RMA_Env_Generate_Data", 1)
-
-                        # Only push data if data is valid
-                        # batch_data = [[batch_data], learner_counter]
-                        # batch_data[0][-1] = data_valid flag
-                        if batch_data[0][-1] == True:
+                        if workflow.agent.has_data():
+                            batch_data = (next(workflow.agent.generate_data()), learner_counter)
+                            ib.update("RMA_Env_Generate_Data", 1)
                             ib.startTrace("RMA_Data_Exchange_Push", 0)
                             # Write to data window
                             capacity, lost = data_exchange.push(batch_data)
