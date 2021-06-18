@@ -251,6 +251,7 @@ class DQN(erl.ExaAgent):
 
     @introspectTrace()
     def generate_data(self):
+        data_valid = 0
         if self.replay_buffer.get_buffer_length() < self.batch_size:
             # TODO: Only works with float32 for now. Check where the inconsistencies arise.
             # Worker method to create samples for training
@@ -265,34 +266,34 @@ class DQN(erl.ExaAgent):
             batch_states = [np.array(exp[0], dtype=self.dtype_observation).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
             batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
             batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
+            data_valid = 1
 
         if self.priority_scale > 0:
-            yield batch_states, batch_target, indices, importance
+            yield batch_states, batch_target, indices, importance, data_valid
         else:
-            yield batch_states, batch_target
+            yield batch_states, batch_target, data_valid
 
     def train(self, batch):
         ret = None
         if self.is_learner:
             start_time = time.time()
             if self.priority_scale > 0:
-                if batch[2][0] != -1:
-                    with tf.device(self.device):
-                        if horovod_imported:
-                            loss = self.training_step(batch)
-                        else:
-                            loss = LossHistory()
-                            sample_weight = batch[3] * (1 - self.epsilon)
-                            self.model.fit(batch[0], batch[1], epochs=1, batch_size=1, verbose=0, callbacks=loss, sample_weight=sample_weight)
-                            loss = loss.loss
-                        ret = batch[2], loss
-            else:
-                if len(batch[0]) >= self.batch_size:
+                with tf.device(self.device):
                     if horovod_imported:
                         loss = self.training_step(batch)
                     else:
-                        with tf.device(self.device):
-                            self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
+                        loss = LossHistory()
+                        sample_weight = batch[3] * (1 - self.epsilon)
+                        self.model.fit(batch[0], batch[1], epochs=1, batch_size=1, verbose=0, callbacks=loss, sample_weight=sample_weight)
+                        loss = loss.loss
+                    ret = batch[2], loss
+            else:
+                print("batch = ", len(batch[0]), flush=True)
+                if horovod_imported:
+                    loss = self.training_step(batch)
+                else:
+                    with tf.device(self.device):
+                        self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
             end_time = time.time()
             self.training_time += (end_time - start_time)
             self.ntraining_time += 1

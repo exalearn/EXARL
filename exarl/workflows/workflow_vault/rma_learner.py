@@ -35,7 +35,7 @@ logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class RMA(erl.ExaWorkflow):
     def __init__(self):
-        print("Creating ML_RMA workflow")
+        print("Creating ML_RMA workflow", flush=True)
         data_exchange_constructors = {
             "queue_distribute": ExaMPIDistributedQueue,
             "stack_distribute": ExaMPIDistributedStack,
@@ -47,7 +47,7 @@ class RMA(erl.ExaWorkflow):
         self.de_constr = data_exchange_constructors[self.de]
         self.de_length = cd.lookup_params('data_structure_length', default=32)
         self.de_lag = cd.lookup_params('max_model_lag')
-        print('Creating RMA workflow with ', self.de, "length", self.de_length, "lag", self.de_lag)
+        logger.info('Creating RMA workflow with ', self.de, "length", self.de_length, "lag", self.de_lag)
 
         self.de = cd.lookup_params('loss_data_structure', default='queue_distribute')
         self.de_constr_loss = data_exchange_constructors[self.de]
@@ -131,7 +131,7 @@ class RMA(erl.ExaWorkflow):
                 epsilon_win.Flush(0)
                 epsilon_win.Unlock(0)
 
-            while episode_count_learner < workflow.nepisodes:
+            while True:
                 if learner_comm.rank == 0:
                     # Check episode counter
                     episode_win.Lock(0)
@@ -142,6 +142,9 @@ class RMA(erl.ExaWorkflow):
 
                 if num_learners > 1:
                     episode_count_learner = learner_comm.bcast(episode_count_learner, root=0)
+
+                if episode_count_learner >= workflow.nepisodes:
+                    break
 
                 if agent_data is None:
                     ib.startTrace("RMA_Data_Exchange_Pop", 0)
@@ -282,11 +285,15 @@ class RMA(erl.ExaWorkflow):
                         batch_data = (next(workflow.agent.generate_data()), learner_counter)
                         ib.update("RMA_Env_Generate_Data", 1)
 
-                        # Write to data window
-                        ib.startTrace("RMA_Data_Exchange_Push", 0)
-                        capacity, lost = data_exchange.push(batch_data)
-                        ib.stopTrace()
-                        ib.simpleTrace("RMA_Actor_Put_Data", capacity, lost, 0, 0)
+                        # Only push data if data is valid
+                        # batch_data = [[batch_data], learner_counter]
+                        # batch_data[0][-1] = data_valid flag
+                        if batch_data[0][-1] == True:
+                            ib.startTrace("RMA_Data_Exchange_Push", 0)
+                            # Write to data window
+                            capacity, lost = data_exchange.push(batch_data)
+                            ib.stopTrace()
+                            ib.simpleTrace("RMA_Actor_Put_Data", capacity, lost, 0, 0)
 
                         # Log state, action, reward, ...
                         ib.simpleTrace("RMA_Total_Reward", steps, 1 if done else 0, local_actor_episode_counter, total_rewards)
