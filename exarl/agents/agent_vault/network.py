@@ -19,7 +19,6 @@
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
 
-import os
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
