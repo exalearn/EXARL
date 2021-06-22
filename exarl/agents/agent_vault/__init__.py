@@ -26,3 +26,5 @@ elif agent == 'A2C-v1':
     from exarl.agents.agent_vault.a2c_vtrace import A2Cvtrace
 elif agent == 'A2C-v2':
     from exarl.agents.agent_vault.a2c_continuous import A2Ccontinuous
+elif agent == 'SAC-v0':
+    from exarl.agents.agent_vault.sac import SAC

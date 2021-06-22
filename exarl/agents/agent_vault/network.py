@@ -18,26 +18,27 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-
+import os
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
 import tensorflow_probability as tfp
-import tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import Dense
 
 #TODO : Have to improve the model later 
-class Critic(keras.Model):
-    def __init__(self, n_actions, fc1_dims=512, fc2_dims=512, name='Critic', chkpt_dir='tmp/sac', activation='relu'):
-        super(Critic,self).__init__()
-        self.fc1_dims = fc1_dims
-        self.fc2_dims = fc2_dims
+class CriticModel(keras.Model):
+    def __init__(self, n_actions, fc_dims=[512, 512], name='Critic', chkpt_dir='tmp/sac', activation_in='relu',activation_out=None):
+        super(CriticModel,self).__init__()
+        self.fc1_dims = fc_dims[0]
+        self.fc2_dims = fc_dims[1]
         self.n_actions = n_actions
 
         self.model_name = name
         self.chkpt_dir = chkpt_dir
-        self.activation = activation
-        self.fc1 = Dense(self.fc1_dims, activation=activation)
-        self.fc2 = Dense(self.fc2_dims, activation=activation)
+        self.activation_in = activation_in
+        self.activation_out = activation_out
+        self.fc1 = Dense(self.fc1_dims, activation=activation_in)
+        self.fc2 = Dense(self.fc2_dims, activation=activation_in)
         self.q = Dense(1,activation=None)
 
     def __call__(self, state, action):
@@ -45,18 +46,28 @@ class Critic(keras.Model):
         action_value = self.fc2(action_value)
 
         return self.q(action_value)
+    
+    # TODO: Remove repeatability
+    def get_checkpoint_name(self, number=None):
+        if number is None:
+            file_name = self.model_name+'_sac'
+            return os.path.join(self.chkpt_dir, file_name)
+        file_name =  self.model_name+'_'+str(number)+'_sac'
+        return os.path.join(self.chkpt_dir, file_name)
 
-class Value(keras.Model):
-    def __init__(self, fc1_dims=256, fc2_dims=256, name='Value', chkpt_dir='tmp/sac', activation='relu'):
-        super(Critic,self).__init__()
-        self.fc1_dims = fc1_dims
-        self.fc2_dims = fc2_dims
+
+class ValueModel(keras.Model):
+    def __init__(self, fc_dims=[256, 256], name='Value', chkpt_dir='tmp/sac', activation_in='relu',activation_out=None):
+        super(ValueModel,self).__init__()
+        self.fc1_dims = fc_dims[0]
+        self.fc2_dims = fc_dims[1]
 
         self.model_name = name
         self.chkpt_dir = chkpt_dir
-        self.activation = activation
-        self.fc1 = Dense(self.fc1_dims, activation=activation)
-        self.fc2 = Dense(self.fc2_dims, activation=activation)
+        self.activation_in = activation_in
+        self.activation_out = activation_out
+        self.fc1 = Dense(self.fc1_dims, activation=activation_in)
+        self.fc2 = Dense(self.fc2_dims, activation=activation_in)
         self.v = Dense(1,activation=None)
 
     def __call__(self, state):
@@ -64,21 +75,31 @@ class Value(keras.Model):
         state_value = self.fc2(state_value)
 
         return self.v(state_value)
+    # TODO: Remove repeatability
+    def get_checkpoint_name(self, number=None):
+        if number is None:
+            file_name = self.model_name+'_sac'
+            return os.path.join(self.chkpt_dir, file_name)
+        file_name =  self.model_name+'_'+str(number)+'_sac'
+        return os.path.join(self.chkpt_dir, file_name)
 
-class Actor(keras.Model):
-    def __init__(self, max_action, fc1_dims=256, fc2_dims=256, n_action=3, name='Actor', chkpt_dir='tmp/sac', activation='relu'):
-        super(Actor,self).__init__()
-        self.fc1_dims = fc1_dims
-        self.fc2_dims = fc2_dims
+
+class ActorModel(keras.Model):
+    def __init__(self, max_action, fc_dims=[256,256], n_action=3, name='Actor', chkpt_dir='tmp/sac', activation_in='relu',activation_out=None, noise=1e-6):
+        super(ActorModel,self).__init__()
+        self.fc1_dims = fc_dims[0]
+        self.fc2_dims = fc_dims[1]
         self.n_action = n_action
         self.model_name = name
         self.chkpt_dir = chkpt_dir
         self.max_action = max_action
-        self.noise = 1e-6 #TODO: Change this to use the OAUNoise, might add this later
-        self.fc1 = Dense(self.fc1_dims, activation=activation)
-        self.fc2 = Dense(self.fc2_dims, activation=activation)
-        self.mu = Dense(self.n_action, activation=None)
-        self.sigma = Dense(self.n_action, activation=None)
+        self.activation_in = activation_in
+        self.activation_out = activation_out
+        self.noise = noise #TODO: Change this to use the OAUNoise, might add this later
+        self.fc1 = Dense(self.fc1_dims, activation=activation_in)
+        self.fc2 = Dense(self.fc2_dims, activation=activation_in)
+        self.mu = Dense(self.n_action, activation=activation_out)
+        self.sigma = Dense(self.n_action, activation=activation_out)
     
     def __call__(self, state):
         probability = self.fc1(state)
@@ -88,12 +109,20 @@ class Actor(keras.Model):
         sigma = self.sigma(probability)
 
         return mu, sigma
+    # TODO: Remove repeatability
+    def get_checkpoint_name(self, number=None):
+        if number is None:
+            file_name = self.model_name+'_sac'
+            return os.path.join(self.chkpt_dir, file_name)
+        file_name =  self.model_name+'_'+str(number)+'_sac'
+        return os.path.join(self.chkpt_dir, file_name)
+
 
     def sample_normal(self, state, reparameterize=True):
         mu, sigma = self.__call__(state)
         probabilities = tfp.distributions.Normal(mu, sigma)
         if reparameterize:
-            actions = probabilities.rsample()
+            actions = probabilities.sample() #TODO: double check type of reparameterization
         else:
             actions = probabilities.sample()
         action = tf.math.tanh(actions)*self.max_action
