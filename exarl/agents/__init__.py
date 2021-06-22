@@ -43,6 +43,10 @@ elif agent == 'TD3-v0':
     register(
         id=agent,
         entry_point='exarl.agents.agent_vault:TD3'
+elif agent == 'SAC-v0':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:SAC'
     )
 
 elif agent == 'DDDQN-v0':
