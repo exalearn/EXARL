@@ -1,0 +1,18 @@
+{
+    "actor_lr" : 0.001,
+    "actor_dense_act" : "relu",
+    "actor_dense": [256, 256],
+    "actor_out_act" : "tanh",
+    "actor_optimizer" : "adam",
+    "value_lr" : 0.001,
+    "value_dense_act" : "relu",
+    "value_dense": [256, 256],
+    "value_out_act" : "tanh",
+    "value_optimizer" : "adam",
+    "critic_lr" : 0.001,
+    "critic_dense_act" : "relu",
+    "critic_dense": [256, 256],
+    "critic_out_act" : "tanh",
+    "loss" : "mse",
+    "std_dev": 0.2
+}
