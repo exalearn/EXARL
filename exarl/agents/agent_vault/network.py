@@ -41,7 +41,7 @@ class CriticModel(keras.Model):
         self.fc2 = Dense(self.fc2_dims, activation=activation_in)
         self.q = Dense(1,activation=None)
 
-    def __call__(self, state, action):
+    def call(self, state, action):
         action_value = self.fc1(tf.concat([state, action], axis=1))
         action_value = self.fc2(action_value)
 
@@ -70,7 +70,7 @@ class ValueModel(keras.Model):
         self.fc2 = Dense(self.fc2_dims, activation=activation_in)
         self.v = Dense(1,activation=None)
 
-    def __call__(self, state):
+    def call(self, state):
         state_value = self.fc1(state)
         state_value = self.fc2(state_value)
 
@@ -101,7 +101,7 @@ class ActorModel(keras.Model):
         self.mu = Dense(self.n_action, activation=activation_out)
         self.sigma = Dense(self.n_action, activation=activation_out)
     
-    def __call__(self, state):
+    def call(self, state):
         probability = self.fc1(state)
         probability = self.fc2(probability)
 
@@ -119,7 +119,7 @@ class ActorModel(keras.Model):
 
 
     def sample_normal(self, state, reparameterize=True):
-        mu, sigma = self.__call__(state)
+        mu, sigma = self.call(state)
         probabilities = tfp.distributions.Normal(mu, sigma)
         if reparameterize:
             actions = probabilities.sample() #TODO: double check type of reparameterization
