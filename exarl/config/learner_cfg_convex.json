@@ -1,0 +1,17 @@
+{
+    "agent": "DQN-v0",
+    "env": "ExaParabola-v0",
+    "workflow": "sync",
+    "n_episodes": 10,
+    "n_steps": 10,
+    "output_dir": "./results_dir",
+    "learner_procs": 1,
+    "process_per_env": 1,
+    "model_type": "MLP",
+    "action_type": "variable",
+    "log_level": [
+        3,
+        3
+    ],
+    "profile": "none"
+}

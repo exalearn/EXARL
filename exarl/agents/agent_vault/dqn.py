@@ -71,6 +71,10 @@ class DQN(erl.ExaAgent):
             is_learner (bool): Used to indicate if the agent is a learner or an actor
         """
 
+        random.seed(datetime.now())
+        random_data = os.urandom(4)
+        np.random.seed(int.from_bytes(random_data, byteorder="big"))
+
         # Initial values
         self.is_learner = is_learner
         self.model = None

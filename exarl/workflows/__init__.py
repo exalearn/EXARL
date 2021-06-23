@@ -6,6 +6,11 @@ register(
 )
 
 register(
+    id='sync2',
+    entry_point='exarl.workflows.workflow_vault:SYNC2'
+)
+
+register(
     id='async',
     entry_point='exarl.workflows.workflow_vault:ASYNC'
 )

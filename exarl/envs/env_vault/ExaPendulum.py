@@ -22,87 +22,61 @@ import gym
 import time
 from mpi4py import MPI
 import numpy as np
-import matplotlib.pyplot as plt
-import random
 import sys
 import json
 import exarl as erl
 # from envs.env_vault.computePI import computePI as cp
 import exarl.mpi_settings as mpi_settings
 
-class ExaParabola(gym.Env):
+
+def computePI(N, new_comm):
+    h = 1.0 / N
+    s = 0.0
+    rank = new_comm.rank
+    size = new_comm.size
+    for i in range(rank, N, size):
+        x = h * (i + 0.5)
+        s += 4.0 / (1.0 + x**2)
+    return s * h
+
+
+class ExaCartpoleStatic(gym.Env):
     metadata = {'render.modes': ['human']}
 
     def __init__(self):
         super().__init__()
         self.env_comm = mpi_settings.env_comm
-        
-        # Set up the parabola
-        random.seed(42)
-        self.a = 2
-        self.b = 4
-        self.c = 1
-        self.f = lambda x: self.a*x**2.0 + self.b*x + self.c
-        self.time_steps = 100
-
-        self.x_min = -self.b/(2.0*self.a)
-        self.y_min = self.f(self.x_min)
-
-        self.high = 2
-        self.low = -self.high
-
-        # For use in render function
-        self.x = np.linspace(self.low, self.high, 100)
-        self.y = self.f(self.x)
-
-        # Define action and observation space
-        self.action_space = gym.spaces.Discrete(2)
-        self.observation_space = gym.spaces.Box(low=np.array([self.low]), high=np.array([self.high]), dtype=np.float64)
-        self.state = [0]
+        self.env = gym.make('CartPole-v0')
+        self.action_space = self.env.action_space
+        self.observation_space = self.env.observation_space
 
     def step(self, action):
-        
-        action_step_size = 0.1
+        next_state, reward, done, info = self.env.step(action)
+        time.sleep(0)  # Delay in seconds
 
-        if action == 1:
-            self.state[0] += action_step_size
+        rank = self.env_comm.rank
+        if rank == 0:
+            N = 100
         else:
-            self.state[0] -= action_step_size
+            N = None
 
-        self.time_steps -= 1
+        N = self.env_comm.bcast(N, root=0)
+        myPI = computePI(N, self.env_comm)  # Calls python function
+        # myPI = cp.compute_pi(N, self.env_comm) # Calls C++ function
+        PI = self.env_comm.reduce(myPI, op=MPI.SUM, root=0)
 
-        y_pred = self.f(self.state[0])
-        y_diff = abs(self.y_min - y_pred)
+        if self.env_comm.rank == 0:
+            print(PI)  # Print PI for verification
 
-        tol = 0.1
-        reward = 1.0 - y_diff**2.0
-
-        if y_diff <= tol:
-            done = True
-            return self.state, reward, done, {}
-
-        if self.time_steps <= 0 or y_diff <= tol:
-            done = True
-        else:
-            done = False
-
-        return self.state, reward, done, {}
+        return next_state, reward, done, info
 
     def reset(self):
         # self.env._max_episode_steps=self._max_episode_steps
         # print('Max steps: %s' % str(self._max_episode_steps))
-        self.state = [0]
-        self.time_steps = 100
-        return self.state
+        return self.env.reset()
 
     def render(self, mode='human', close=False):
-#        plt.clf()
-#        plt.plot(self.x, self.y)
-#        plt.plot(self.x_min, self.y_min, 'g*', label='minimum value')
-#        plt.plot(self.state, self.f(self.state), 'r*', label='current state')
-#        plt.legend()
-#        plt.show()
-        return
+        return self.env.render()
 
     def set_env(self):
         print('Use this function to set hyper-parameters, if any')

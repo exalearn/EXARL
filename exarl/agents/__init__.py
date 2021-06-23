@@ -17,5 +17,10 @@ elif agent == 'DDPG-VTRACE-v0':
         id=agent,
         entry_point='exarl.agents.agent_vault:DDPG_Vtrace'
     )
+elif agent == 'A2C-v0':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:A2C'
+    )
 else:
     print("No agent selected!")
