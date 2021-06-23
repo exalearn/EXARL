@@ -23,3 +23,8 @@ elif agent == 'MLDQN-v0':
         id=agent,
         entry_point='exarl.agents.agent_vault:MLDQN'
     )
+elif agent == 'A2C-v0':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:A2C'
+    )

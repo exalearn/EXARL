@@ -2,8 +2,8 @@
     "gamma": 0.75,
     "epsilon": 1.0,
     "epsilon_min" : 0.01,
-    "epsilon_decay" : 0.999,
+    "epsilon_decay" : 0.990,
     "learning_rate" : 0.001,
-    "batch_size" : 5,
+    "batch_size" : 32,
     "tau" : 0.5
 }

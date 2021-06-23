@@ -27,6 +27,10 @@ logger = log.setup_logger(__name__, cd.run_params["log_level"])
 class DQN(erl.ExaAgent):
     def __init__(self, env, is_learner):
 
+        random.seed(datetime.now())
+        random_data = os.urandom(4)
+        np.random.seed(int.from_bytes(random_data, byteorder="big"))
+
         # Initial values
         self.is_learner = is_learner
         self.model = None
@@ -165,9 +169,6 @@ class DQN(erl.ExaAgent):
         self.memory.append((state, action, reward, next_state, done))
 
     def action(self, state):
-        random.seed(datetime.now())
-        random_data = os.urandom(4)
-        np.random.seed(int.from_bytes(random_data, byteorder="big"))
         rdm = np.random.rand()
         if rdm <= self.epsilon:
             self.epsilon_adj()

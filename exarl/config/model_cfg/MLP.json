@@ -1,5 +1,5 @@
 {
-    "dense" : [64, 128],
+    "dense" : [64, 64],
     "activation" : "relu",
     "optimizer" : "adam",
     "out_activation" : "linear",

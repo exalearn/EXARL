@@ -1,17 +1,14 @@
 {
-    "agent": "DQN-v0",
-    "env": "ExaParabola-v0",
-    "workflow": "async",
-    "n_episodes": 10,
-    "n_steps": 10,
-    "output_dir": "./results_dir/",
+    "agent": "A2C-v0",
+    "env": "CartPole-v1",
+    "workflow": "sync2",
+    "n_episodes": 20,
+    "n_steps": 200,
+    "output_dir": "./results_dir",
     "learner_procs": 1,
     "process_per_env": 1,
-    "model_type": "MLP",
+    "model_type": "AC2",
     "action_type": "variable",
-    "log_level": [
-        3,
-        3
-    ],
+    "log_level": [3, 3],
     "profile": "none"
 }

@@ -44,7 +44,7 @@ max_elapse = comm.reduce(elapse, op=MPI.MAX, root=0)
 elapse = comm.reduce(elapse, op=MPI.SUM, root=0)
 
 if rank == 0:
-    print("Average elapsed time = {} s".format(elapse / size))
+    print("Average elapsed time = {} s".format(elapse))
     print("Maximum elapsed time = {} s".format(max_elapse))
     # Save rewards vs. episodes plot
     ar.save_reward_plot()
