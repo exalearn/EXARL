@@ -58,8 +58,14 @@ class ExaLearner:
         # Sanity check before we actually allocate resources
         if self.global_size < self.process_per_env:
             sys.exit('EXARL::ERROR Not enough processes.')
-        if (self.global_size - self.learner_procs) % self.process_per_env != 0:
-            sys.exit('EXARL::ERROR Uneven number of processes.')
+        if self.workflow_id == 'exarl.workflows:sync':
+            if self.learner_procs > 1:
+                sys.exit('EXARL::sync learner only works with single learner.')
+            if self.global_size != self.process_per_env:
+                sys.exit('EXARL::sync learner can only run one env group.')
+        else:
+            if (self.global_size - self.learner_procs) % self.process_per_env != 0:
+                sys.exit('EXARL::ERROR Uneven number of processes.')
         if self.learner_procs > 1 and self.workflow_id != 'exarl.workflows:rma':
             print('')
             print('_________________________________________________________________')

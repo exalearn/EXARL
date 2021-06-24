@@ -34,24 +34,25 @@ class SYNC(erl.ExaWorkflow):
 
     @PROFILE
     def run(self, workflow):
-        comm = ExaComm.agent_comm
+        agent_comm = ExaComm.agent_comm
+        env_comm = ExaComm.env_comm
 
-        filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' % (
-            str(workflow.nepisodes), str(workflow.nsteps), str(comm.rank))
-        train_file = open(workflow.results_dir + '/' +
-                          filename_prefix + ".log", 'w')
-        train_writer = csv.writer(train_file, delimiter=" ")
+        if ExaComm.env_comm.rank == 0:
+            filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' % (
+                str(workflow.nepisodes), str(workflow.nsteps), str(agent_comm.rank))
+            train_file = open(workflow.results_dir + '/' +
+                              filename_prefix + ".log", 'w')
+            train_writer = csv.writer(train_file, delimiter=" ")
 
         # Set target model the sample for all
-        target_weights = None
-
-        if ExaComm.is_learner():
-            workflow.agent.set_learner()
-            target_weights = workflow.agent.get_weights()
+        # target_weights = None
+        # if ExaComm.is_learner():
+        #     # workflow.agent.set_learner()
+        #     target_weights = workflow.agent.get_weights()
 
         # Send and set to all other agents
-        current_weights = comm.bcast(target_weights, 0)
-        workflow.agent.set_weights(current_weights)
+        # current_weights = agent_comm.bcast(target_weights, 0)
+        # workflow.agent.set_weights(current_weights)
 
         # Variables for all
         rank0_epsilon = 0
@@ -67,80 +68,92 @@ class SYNC(erl.ExaWorkflow):
 
             start_time_episode = time.time()
 
-            while all_done != True:
+            while done != True:
                 # All workers
                 did_step = False
                 if done != True:
-                    action, policy_type = workflow.agent.action(current_state)
+                    action = None
+                    if ExaComm.env_comm.rank == 0:
+                        action, policy_type = workflow.agent.action(current_state)
+                    # Broadcast episode count to all procs in env_comm
+                    action = env_comm.bcast(action, root=0)
                     next_state, reward, done, _ = workflow.env.step(action)
-                    total_reward += reward
-                    memory = (current_state, action, reward,
-                              next_state, done, total_reward)
+
+                    if ExaComm.env_comm.rank == 0:
+                        total_reward += reward
+                        memory = (current_state, action, reward,
+                                  next_state, done, total_reward)
                     did_step = True
 
-                batch_data = []
-                if did_step:
-                    workflow.agent.remember(
-                        memory[0], memory[1], memory[2], memory[3], memory[4])
-                    # TODO: we need a memory class to scale
-                    batch_data = next(workflow.agent.generate_data())
+                if ExaComm.env_comm.rank == 0:
+                    batch_data = []
+                    if did_step:
+                        workflow.agent.remember(
+                            memory[0], memory[1], memory[2], memory[3], memory[4])
+                        # TODO: we need a memory class to scale
+                        batch_data = next(workflow.agent.generate_data())
+                        logger.info(
+                            'Rank[{}] - Generated data: {}'.format(agent_comm.rank, len(batch_data[0])))
+                    try:
+                        buffer_length = len(workflow.agent.memory)
+                    except:
+                        buffer_length = workflow.agent.replay_buffer.get_buffer_length()
                     logger.info(
-                        'Rank[{}] - Generated data: {}'.format(comm.rank, len(batch_data[0])))
-                try:
-                    buffer_length = len(workflow.agent.memory)
-                except:
-                    buffer_length = workflow.agent.replay_buffer.get_buffer_length()
-                logger.info(
-                    'Rank[{}] - # Memories: {}'.format(comm.rank, buffer_length))
+                        'Rank[{}] - # Memories: {}'.format(agent_comm.rank, buffer_length))
 
-                new_batch = comm.gather(batch_data, root=0)
+                # new_batch = agent_comm.gather(batch_data, root=0)
 
                 # Learner
                 if ExaComm.is_learner():
                     # Push memories to learner
-                    for batch in new_batch:
-                        train_return = workflow.agent.train(batch)
+                    train_return = workflow.agent.train(batch_data)
                     if train_return is not None:
                         # indices, loss = train_return
                         workflow.agent.set_priorities(*train_return)
                     workflow.agent.target_train()
                     rank0_epsilon = workflow.agent.epsilon
-                    target_weights = workflow.agent.get_weights()
+                    # target_weights = workflow.agent.get_weights()
                     # if rank0_memories%(comm.size) == 0:
                     #    workflow.agent.save(workflow.results_dir+'/'+filename_prefix+'.h5')
 
-                # Broadcast the memory size and the model weights to the workers
-                rank0_epsilon = comm.bcast(rank0_epsilon, 0)
-                current_weights = comm.bcast(target_weights, 0)
+                if ExaComm.env_comm.rank == 0:
+                    # # Broadcast the memory size and the model weights to the workers
+                    # rank0_epsilon = agent_comm.bcast(rank0_epsilon, 0)
+                    # current_weights = agent_comm.bcast(target_weights, 0)
 
-                # Set the model weight for all the workers
-                workflow.agent.set_weights(current_weights)
-                workflow.agent.epsilon = rank0_epsilon
+                    # # Set the model weight for all the workers
+                    # workflow.agent.set_weights(current_weights)
+                    # workflow.agent.epsilon = rank0_epsilon
 
-                # Update state
-                current_state = next_state
-                logger.info('Rank[%s] - Total Reward:%s' %
-                            (str(comm.rank), str(total_reward)))
+                    # Update state
+                    current_state = next_state
+                    logger.info('Rank[%s] - Total Reward:%s' %
+                                (str(agent_comm.rank), str(total_reward)))
 
-                # Save Learning target model
-                if ExaComm.is_learner():
-                    workflow.agent.save(workflow.results_dir + '/' + filename_prefix + '.h5')
+                if ExaComm.env_comm.rank == 0:
+                    steps += 1
+                    if steps >= workflow.nsteps:
+                        done = True
 
-                steps += 1
-                if steps >= workflow.nsteps:
-                    done = True
+                    # Save memory for offline analysis
+                    if did_step:
+                        train_writer.writerow([time.time(), current_state, action, reward,
+                                               next_state, total_reward, done, e, steps, policy_type, rank0_epsilon])
+                        train_file.flush()
 
-                # Save memory for offline analysis
-                if did_step:
-                    train_writer.writerow([time.time(), current_state, action, reward,
-                                           next_state, total_reward, done, e, steps, policy_type, rank0_epsilon])
-                    train_file.flush()
-
-                all_done = comm.allreduce(done)
+                # Broadcast done
+                done = env_comm.bcast(done, 0)
+                # all_done = agent_comm.allreduce(done)
 
             end_time_episode = time.time()
-            logger.info('Rank[%s] run-time for episode %s: %s ' %
-                        (str(comm.rank), str(e), str(end_time_episode - start_time_episode)))
-            logger.info('Rank[%s] run-time for episode per step %s: %s '
-                        % (str(comm.rank), str(e), str((end_time_episode - start_time_episode) / steps)))
-        train_file.close()
+            if ExaComm.env_comm.rank == 0:
+                logger.info('Rank[%s] run-time for episode %s: %s ' %
+                            (str(agent_comm.rank), str(e), str(end_time_episode - start_time_episode)))
+                logger.info('Rank[%s] run-time for episode per step %s: %s '
+                            % (str(agent_comm.rank), str(e), str((end_time_episode - start_time_episode) / steps)))
+
+        if ExaComm.env_comm.rank == 0:
+            # Save Learning target model
+            if ExaComm.is_learner():
+                workflow.agent.save(workflow.results_dir + '/' + filename_prefix + '.h5')
+            train_file.close()
