@@ -43,16 +43,6 @@ class ASYNC(erl.ExaWorkflow):
         env_comm = ExaComm.env_comm
 
         target_weights = None
-        # if ExaComm.is_learner():
-        #     workflow.agent.set_learner()
-        #     target_weights = workflow.agent.get_weights()
-
-        # # Only agent_comm processes will run this try block
-        # if agent_comm:
-        #     target_weights = agent_comm.bcast(target_weights, 0)
-        #     workflow.agent.set_weights(target_weights)
-        # else:
-        #     logger.debug("Does not contain an agent")
 
         # Variables for all
         episode = 0
@@ -80,8 +70,6 @@ class ASYNC(erl.ExaWorkflow):
 
             logger.debug("Continuing ...\n")
             while episode_done < workflow.nepisodes:
-                # print("Running scheduler/learner episode: {}".format(episode))
-
                 # Receive the rank of the worker ready for more work
                 recv_data = agent_comm.recv(None)
 
@@ -97,7 +85,6 @@ class ASYNC(erl.ExaWorkflow):
                 ib.update("Async_Learner_Train", 1)
                 # if train_return is not None:
                 if self.use_priority_replay and train_return is not None:
-                    # if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
                     if train_return[0][0] != -1:
                         indices, loss = train_return
                 # TODO: Double check if this is already in the DQN code
