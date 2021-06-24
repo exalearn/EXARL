@@ -38,4 +38,6 @@ register(
 register(
     id='random',
     entry_point='exarl.workflows.workflow_vault:RANDOM'
+    id='rma_v2',
+    entry_point='exarl.workflows.workflow_vault:RMA_ASYNC_v2'
 )
