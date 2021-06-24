@@ -255,10 +255,8 @@ class DQN(erl.ExaAgent):
     @introspectTrace()
     def generate_data(self):
         if not self.has_data():
-            # TODO: Only works with float32 for now. Check where the inconsistencies arise.
             # Worker method to create samples for training
             batch_states = np.zeros((self.batch_size, 1, self.env.observation_space.shape[0]), dtype=self.dtype_observation)
-            # TODO: should this really be float32 and not float64?
             batch_target = np.zeros((self.batch_size, self.env.action_space.n), dtype=self.dtype_action)
             indices = -1 * np.ones(self.batch_size)
             importance = np.ones(self.batch_size)
@@ -279,8 +277,8 @@ class DQN(erl.ExaAgent):
         ret = None
         if self.is_learner:
             start_time = time.time()
-            if self.priority_scale > 0:
-                with tf.device(self.device):
+            with tf.device(self.device):
+                if self.priority_scale > 0:
                     if multiLearner:
                         loss = self.training_step(batch)
                     else:
@@ -289,11 +287,10 @@ class DQN(erl.ExaAgent):
                         self.model.fit(batch[0], batch[1], epochs=1, batch_size=1, verbose=0, callbacks=loss, sample_weight=sample_weight)
                         loss = loss.loss
                     ret = batch[2], loss
-            else:
-                if multiLearner:
-                    loss = self.training_step(batch)
                 else:
-                    with tf.device(self.device):
+                    if multiLearner:
+                        loss = self.training_step(batch)
+                    else:
                         self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
             end_time = time.time()
             self.training_time += (end_time - start_time)
@@ -303,6 +300,7 @@ class DQN(erl.ExaAgent):
             logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
         else:
             logger.warning('Training will not be done because this instance is not set to learn.')
+        # print("ret = ", ret, flush=True)
         return ret
 
     @tf.function

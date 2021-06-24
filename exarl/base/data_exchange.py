@@ -13,12 +13,15 @@ import sys
 import os
 from abc import ABC, abstractmethod
 import numpy as np
+from exarl.base.comm_base import ExaComm
 
 class ExaData(ABC):
     def __init__(self, dataType, size, comm_size=1, max_model_lag=None):
         self.dataType = dataType
         self.dataSize = size
         self.comm_size = comm_size
+        if max_model_lag == "none":
+            max_model_lag = None
         self.max_model_lag = max_model_lag
 
     @abstractmethod
@@ -35,11 +38,14 @@ class ExaData(ABC):
         actor_counter = -1
         actor_idx = 0
         attempt = 0
-        while attempts is None or attempt < attempts:
+        # while attempts is None or attempt < attempts:
+        for a in range(attempts):
             actor_idx = 0
             if self.comm_size > 1:
                 actor_idx = np.random.randint(low=low, high=high, size=1)[0]
+            # print("before pop, rank=", ExaComm.learner_comm.rank, "actor_idx=", actor_idx, "low=", low, "high=", high, flush=True)
             batch_data = self.pop(actor_idx)
+            # print("after pop, rank=", ExaComm.learner_comm.rank, flush=True)
             if batch_data:
                 batch_data, actor_counter = batch_data
                 if self.max_model_lag is None or learner_counter - actor_counter <= self.max_model_lag:

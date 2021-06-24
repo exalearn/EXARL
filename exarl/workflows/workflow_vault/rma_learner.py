@@ -140,26 +140,33 @@ class RMA(erl.ExaWorkflow):
                     episode_win.Flush(0)
                     episode_win.Unlock(0)
 
+                # print("before bcast epsiode count, rank = ", ExaComm.learner_comm.rank)
                 if num_learners > 1:
                     episode_count_learner = learner_comm.bcast(episode_count_learner, root=0)
+                # print("after bcast epsiode count, rank = ", ExaComm.learner_comm.rank)
 
                 if episode_count_learner >= workflow.nepisodes:
+                    # print("breaking out of the loop, rank = ", ExaComm.learner_comm.rank)
                     break
 
                 if agent_data is None:
                     ib.startTrace("RMA_Data_Exchange_Pop", 0)
+                    # print("before data exchange, rank = ", ExaComm.learner_comm.rank)
                     agent_data, actor_idx, actor_counter = data_exchange.get_data(
                         learner_counter, learner_comm.size, agent_comm.size, attempts=self.de_attempts)
+                    # print("after data exchange, rank = ", ExaComm.learner_comm.rank)
                     ib.stopTrace()
                     ib.simpleTrace("RMA_Learner_Get_Data", actor_idx, actor_counter, learner_counter - actor_counter, 0)
 
                 # Do an allreduce to check if all learners have data
                 if num_learners > 1:
                     process_has_data = 0 if agent_data is None else 1
+                    # print("Before allreduce, rank=", ExaComm.learner_comm.rank, "episode=", episode_count_learner, flush=True)
                     sum_process_has_data = learner_comm.allreduce(process_has_data, op=MPI.SUM)
+                    # print("After allreduce, rank=", ExaComm.learner_comm.rank, "episode=", episode_count_learner, flush=True)
                     if sum_process_has_data < learner_comm.size:
                         continue
-
+                # print("Before train in rma, sum_process_has_data=", sum_process_has_data, "episode=", episode_count_learner, flush=True)
                 # Train & Target train
                 train_return = workflow.agent.train(agent_data)
                 ib.update("RMA_Learner_Train", 1)
