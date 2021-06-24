@@ -70,7 +70,9 @@ class ExaParabola(gym.Env):
         # self.y = self.f(self.x)
 
 
+
     def step(self, action):
+
 
         if action == 1:
             self.state[0] += self.action_step_size

@@ -31,6 +31,11 @@ register(
 )
 
 register(
+    id='rma_v2',
+    entry_point='exarl.workflows.workflow_vault:RMA_ASYNC_v2'
+)
+
+register(
     id='mlrma',
     entry_point='exarl.workflows.workflow_vault:ML_RMA'
 )
