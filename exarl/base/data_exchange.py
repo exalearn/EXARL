@@ -43,9 +43,7 @@ class ExaData(ABC):
             actor_idx = 0
             if self.comm_size > 1:
                 actor_idx = np.random.randint(low=low, high=high, size=1)[0]
-            # print("before pop, rank=", ExaComm.learner_comm.rank, "actor_idx=", actor_idx, "low=", low, "high=", high, flush=True)
             batch_data = self.pop(actor_idx)
-            # print("after pop, rank=", ExaComm.learner_comm.rank, flush=True)
             if batch_data:
                 batch_data, actor_counter = batch_data
                 if self.max_model_lag is None or learner_counter - actor_counter <= self.max_model_lag:
