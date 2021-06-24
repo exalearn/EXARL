@@ -18,7 +18,7 @@ class ExaComm(ABC):
     agent_comm = None
     env_comm = None
     learner_comm = None
-    num_learners = None
+    num_learners = 1
 
     def __init__(self, comm, procs_per_env, num_learners):
         if ExaComm.global_comm is None:
