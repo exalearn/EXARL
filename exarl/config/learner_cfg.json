@@ -1,9 +1,9 @@
 {
     "agent": "DQN-v0",
-    "env": "CartPole-v0",
+    "env": "ExaBoosterDiscrete-v0",
     "workflow": "rma",
-    "n_episodes": 10,
-    "n_steps": 10,
+    "n_episodes": 1000,
+    "n_steps": 500,
     "output_dir": "./results_dir/",
     "learner_procs": 1,
     "process_per_env": 1,

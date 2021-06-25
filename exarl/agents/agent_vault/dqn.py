@@ -272,7 +272,7 @@ class DQN(erl.ExaAgent):
         else:
             yield batch_states, batch_target
 
-    @tf.function
+    # @tf.function
     def train(self, batch):
         ret = None
         if self.is_learner:

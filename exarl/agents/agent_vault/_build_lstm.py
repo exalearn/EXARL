@@ -30,23 +30,23 @@ def build_model(self):
     model = Sequential()
     # special case for input layer
     model.add(LSTM(self.lstm_layers[0], activation=self.activation,
-                   return_sequences=True, input_shape=(1, self.env.observation_space.shape[0])))
-    model.add(BatchNormalization())
-    model.add(Dropout(self.gauss_noise[0]))
+                   return_sequences=True, input_shape=(1, self.env.observation_space.shape[0]), dtype='float32'))
+    model.add(BatchNormalization(dtype='float32'))
+    model.add(Dropout(self.gauss_noise[0], dtype='float32'))
 
     # loop over inner layers only
     for l in range(1, num_layers - 1):
         model.add(LSTM(self.lstm_layers[l], activation=self.activation,
-                       return_sequences=True))
-        model.add(Dropout(self.gauss_noise[l]))
+                       return_sequences=True, dtype='float32'))
+        model.add(Dropout(self.gauss_noise[l], dtype='float32'))
 
     # special case for output layer
     l = num_layers = 1
     model.add(LSTM(self.lstm_layers[l], activation=self.activation,
                    kernel_regularizer=l1_l2(self.regularizer[0], self.regularizer[1]),
-                   ))
-    model.add(Dropout(self.gauss_noise[l]))
-    model.add(Dense(self.env.action_space.n, activation=self.out_activation))
+                   dtype='float32'))
+    model.add(Dropout(self.gauss_noise[l], dtype='float32'))
+    model.add(Dense(self.env.action_space.n, activation=self.out_activation, dtype='float32'))
 
     # model.summary()
     print('', flush=True)
