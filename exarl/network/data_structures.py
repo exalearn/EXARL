@@ -17,18 +17,19 @@ from exarl.base.comm_base import ExaComm
 from exarl.network.simple_comm import ExaSimple
 MPI = ExaSimple.MPI
 
+
 # Move to ExaBuffMPI
 class ExaMPIBuff(ExaData):
-    # TODO: come up with better name than rank... 
+    # TODO: come up with better name than rank...
     def __init__(self, comm, rank=None, size=None, data=None, length=1, max_model_lag=None, failPush=False):
         self.comm = comm
 
         if data is not None:
             dataBytes = MPI.pickle.dumps(data)
             size = len(dataBytes)
-            
+
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=None)
-        
+
         totalSize = 0
         if rank:
             totalSize = size
@@ -39,7 +40,7 @@ class ExaMPIBuff(ExaData):
         # Since everyone should call this everyone should get a start value!
         if rank and data is not None:
             self.push(data)
-        #     self.win.Fence(self.rank)
+            # self.win.Fence(self.rank)
 
     def __del__(self):
         self.win.Free()
@@ -47,12 +48,12 @@ class ExaMPIBuff(ExaData):
     def pop(self, rank, count=1):
         self.win.Lock(rank)
         self.win.Get_accumulate(
-                self.buff,
-                self.buff,
-                rank,
-                target=[0, self.dataSize],
-                op=MPI.NO_OP,
-            )
+            self.buff,
+            self.buff,
+            rank,
+            target=[0, self.dataSize],
+            op=MPI.NO_OP,
+        )
         self.win.Unlock(rank)
         return MPI.pickle.loads(self.buff)
 
@@ -66,8 +67,8 @@ class ExaMPIBuff(ExaData):
         self.win.Lock(rank)
         # Accumulate is element-wise atomic vs put which is not
         self.win.Accumulate(
-                toSend, rank, target=[0, len(toSend)], op=MPI.REPLACE
-            )
+            toSend, rank, target=[0, len(toSend)], op=MPI.REPLACE
+        )
         self.win.Unlock(rank)
         return 0, 0
 

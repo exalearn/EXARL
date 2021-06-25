@@ -34,7 +34,7 @@ class RMA(erl.ExaWorkflow):
     def __init__(self):
         print("Creating ML_RMA workflow")
         priority_scale = cd.run_params['priority_scale']
-        self.use_priority_replay = (priority_scale != None and priority_scale > 0)
+        self.use_priority_replay = (priority_scale is not None and priority_scale > 0)
 
     @PROFILE
     def run(self, workflow):

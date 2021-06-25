@@ -39,7 +39,6 @@ class ExaData(ABC):
         actor_idx = 0
         attempt = 0
         while attempts is None or attempt < attempts:
-        # for a in range(attempts):
             actor_idx = 0
             if self.comm_size > 1:
                 actor_idx = np.random.randint(low=low, high=high, size=1)[0]
