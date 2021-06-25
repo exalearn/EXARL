@@ -31,28 +31,29 @@ if [[ -n $EXA_CARTPOLE ]]; then
 	DIR_NAME=Exa_CartPole
 	OUTPUT_DIR=${OUT_DIR}/${DIR_NAME}_results/nodes_${NODES}/
 
-	jsrun --nrs $NUM_RES_SET --tasks_per_rs $TASKS_PER_RS --cpu_per_rs $CPUS_PER_RS --gpu_per_rs $GPUS_PER_RS --rs_per_host $RS_PER_HOST --latency_priority GPU-CPU --launch_distribution packed --bind packed:$CPUS_PER_RS python driver/driver.py --output_dir $OUTPUT_DIR --env ExaCartPole-v1 --n_episodes 100 --n_steps 100 --workflow $WORKFLOW --agent DQN-v0
+	jsrun --nrs $NUM_RES_SET --tasks_per_rs $TASKS_PER_RS --cpu_per_rs $CPUS_PER_RS --gpu_per_rs $GPUS_PER_RS --rs_per_host $RS_PER_HOST --latency_priority GPU-CPU --launch_distribution packed --bind packed:$CPUS_PER_RS python ${EXARL_ROOT}/exarl/driver/__main__.py --output_dir $OUTPUT_DIR --env ExaCartPole-v1 --n_episodes 100 --n_steps 100 --workflow $WORKFLOW --agent DQN-v0
 fi
 
 if [[ -n $EXA_BCP ]]; then
         DIR_NAME=Exa_BCP
         OUTPUT_DIR=${OUT_DIR}/${DIR_NAME}_results/nodes_${NODES}/
 
-        jsrun --nrs $NUM_RES_SET --tasks_per_rs $TASKS_PER_RS --cpu_per_rs $CPUS_PER_RS --gpu_per_rs $GPUS_PER_RS --rs_per_host $RS_PER_HOST --latency_priority GPU-CPU --launch_distribution packed --bind packed:$CPUS_PER_RS python driver/driver.py --output_dir $OUTPUT_DIR --env ExaCH-v0 --n_episodes 500 --n_steps 10 --workflow $WORKFLOW --agent DQN-v0
+        jsrun --nrs $NUM_RES_SET --tasks_per_rs $TASKS_PER_RS --cpu_per_rs $CPUS_PER_RS --gpu_per_rs $GPUS_PER_RS --rs_per_host $RS_PER_HOST --latency_priority GPU-CPU --launch_distribution packed --bind packed:$CPUS_PER_RS python ${EXARL_ROOT}/exarl/driver/__main__.py --output_dir $OUTPUT_DIR --env ExaCH-v0 --n_episodes 500 --n_steps 10 --workflow $WORKFLOW --agent DQN-v0
 fi
 
 if [[ -n $EXA_BOOSTER ]]; then
         DIR_NAME=Exa_Booster
         OUTPUT_DIR=${OUT_DIR}/${DIR_NAME}_results/nodes_${NODES}/
 
-        jsrun --nrs $NUM_RES_SET --tasks_per_rs $TASKS_PER_RS --cpu_per_rs $CPUS_PER_RS --gpu_per_rs $GPUS_PER_RS --rs_per_host $RS_PER_HOST --latency_priority GPU-CPU --launch_distribution packed --bind packed:$CPUS_PER_RS python driver/driver.py --output_dir $OUTPUT_DIR --env ExaBoosterDiscrete-v0 --n_episodes 2000 --n_steps 50 --workflow $WORKFLOW --agent DQN-v0
+        jsrun --nrs $NUM_RES_SET --tasks_per_rs $TASKS_PER_RS --cpu_per_rs $CPUS_PER_RS --gpu_per_rs $GPUS_PER_RS --rs_per_host $RS_PER_HOST --latency_priority GPU-CPU --launch_distribution packed --bind packed:$CPUS_PER_RS python ${EXARL_ROOT}/exarl/driver/__main__.py --output_dir $OUTPUT_DIR --env ExaBoosterDiscrete-v0 --n_episodes 2000 --n_steps 50 --workflow $WORKFLOW --agent DQN-v0
 fi
 
 if [[ -n $EXA_WATER_CLUSTER ]]; then
         DIR_NAME=Exa_Water_Cluster
         OUTPUT_DIR=${OUT_DIR}/${DIR_NAME}_results/nodes_${NODES}/
 
-        jsrun --nrs $NUM_RES_SET --tasks_per_rs $TASKS_PER_RS --cpu_per_rs $CPUS_PER_RS --gpu_per_rs $GPUS_PER_RS --rs_per_host $RS_PER_HOST --latency_priority GPU-CPU --launch_distribution packed --bind packed:$CPUS_PER_RS python driver/driver.py --output_dir $OUTPUT_DIR --env ExaWaterClusterDiscrete-v0 --n_episodes 1000 --n_steps 100 --workflow $WORKFLOW --agent DQN-v0
+        jsrun --nrs $NUM_RES_SET --tasks_per_rs $TASKS_PER_RS --cpu_per_rs $CPUS_PER_RS --gpu_per_rs $GPUS_PER_RS --rs_per_host $RS_PER_HOST --latency_priority GPU-CPU --launch_distribution packed --bind packed:$CPUS_PER_RS python ${EXARL_ROOT}/exarl/driver/__main__.py --output_dir $OUTPUT_DIR --env ExaWaterClusterDiscrete-v0 --n_episodes 1000 --n_steps 100 --workflow $WORKFLOW --agent DQN-v0
 fi
+
 
 
