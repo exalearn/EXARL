@@ -284,7 +284,7 @@ class ASYNC(erl.ExaWorkflow):
                 # Steps in an episode
                 while steps < workflow.nsteps:
                     #logger.debug('ASYNC::run() agent_comm.rank{}; step({} of {})'
-                                 #.format(agent_comm.rank, steps, (workflow.nsteps - 1)))
+                                #.format(agent_comm.rank, steps, (workflow.nsteps - 1)))
                     if mpi_settings.is_actor():
                         # Receive target weights
                         tmp = MPI.Wtime()

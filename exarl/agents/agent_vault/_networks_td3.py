@@ -23,7 +23,7 @@ class CriticModel(keras.Model):
 
 
 class ActorModel(keras.Model):
-    def __init__(self, fc_dims=[512,512], n_action=3, name='Actor', activation_in='relu',activation_out='tanh'):
+    def __init__(self, fc_dims=[256,256], n_action=3, name='Actor', activation_in='relu',activation_out=None):
         super(ActorModel,self).__init__()
         self.fc1_dims = fc_dims[0]
         self.fc2_dims = fc_dims[1]
@@ -34,7 +34,7 @@ class ActorModel(keras.Model):
         self.fc1 = Dense(self.fc1_dims, activation=activation_in)
         self.fc2 = Dense(self.fc2_dims, activation=activation_in)
         self.mu = Dense(self.n_action, activation=activation_out)
-
+    
     def call(self, state):
         probability = self.fc1(state)
         probability = self.fc2(probability)
