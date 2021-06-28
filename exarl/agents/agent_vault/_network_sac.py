@@ -27,14 +27,13 @@ from tensorflow.keras.layers import Dense
 
 #TODO : Have to improve the model later 
 class CriticModel(keras.Model):
-    def __init__(self, n_actions, fc_dims=[512, 512], name='Critic', chkpt_dir='tmp/sac', activation_in='relu',activation_out=None):
+    def __init__(self, n_actions, fc_dims=[512, 512], name='Critic', activation_in='relu',activation_out=None):
         super(CriticModel,self).__init__()
         self.fc1_dims = fc_dims[0]
         self.fc2_dims = fc_dims[1]
         self.n_actions = n_actions
 
         self.model_name = name
-        self.chkpt_dir = chkpt_dir
         self.activation_in = activation_in
         self.activation_out = activation_out
         self.fc1 = Dense(self.fc1_dims, activation=activation_in)
@@ -47,23 +46,15 @@ class CriticModel(keras.Model):
 
         return self.q(action_value)
     
-    # TODO: Remove repeatability
-    def get_checkpoint_name(self, number=None):
-        if number is None:
-            file_name = self.model_name+'_sac'
-            return os.path.join(self.chkpt_dir, file_name)
-        file_name =  self.model_name+'_'+str(number)+'_sac'
-        return os.path.join(self.chkpt_dir, file_name)
 
 
 class ValueModel(keras.Model):
-    def __init__(self, fc_dims=[256, 256], name='Value', chkpt_dir='tmp/sac', activation_in='relu',activation_out=None):
+    def __init__(self, fc_dims=[256, 256], name='Value', activation_in='relu',activation_out=None):
         super(ValueModel,self).__init__()
         self.fc1_dims = fc_dims[0]
         self.fc2_dims = fc_dims[1]
 
         self.model_name = name
-        self.chkpt_dir = chkpt_dir
         self.activation_in = activation_in
         self.activation_out = activation_out
         self.fc1 = Dense(self.fc1_dims, activation=activation_in)
@@ -76,22 +67,14 @@ class ValueModel(keras.Model):
 
         return self.v(state_value)
     # TODO: Remove repeatability
-    def get_checkpoint_name(self, number=None):
-        if number is None:
-            file_name = self.model_name+'_sac'
-            return os.path.join(self.chkpt_dir, file_name)
-        file_name =  self.model_name+'_'+str(number)+'_sac'
-        return os.path.join(self.chkpt_dir, file_name)
-
 
 class ActorModel(keras.Model):
-    def __init__(self, max_action, fc_dims=[256,256], n_action=3, name='Actor', chkpt_dir='tmp/sac', activation_in='relu',activation_out=None, noise=1e-6):
+    def __init__(self, max_action, fc_dims=[256,256], n_action=3, name='Actor', activation_in='relu',activation_out=None, noise=1e-6):
         super(ActorModel,self).__init__()
         self.fc1_dims = fc_dims[0]
         self.fc2_dims = fc_dims[1]
         self.n_action = n_action
         self.model_name = name
-        self.chkpt_dir = chkpt_dir
         self.max_action = max_action
         self.activation_in = activation_in
         self.activation_out = activation_out
@@ -109,13 +92,6 @@ class ActorModel(keras.Model):
         sigma = self.sigma(probability)
 
         return mu, sigma
-    # TODO: Remove repeatability
-    def get_checkpoint_name(self, number=None):
-        if number is None:
-            file_name = self.model_name+'_sac'
-            return os.path.join(self.chkpt_dir, file_name)
-        file_name =  self.model_name+'_'+str(number)+'_sac'
-        return os.path.join(self.chkpt_dir, file_name)
 
 
     def sample_normal(self, state, reparameterize=True):
