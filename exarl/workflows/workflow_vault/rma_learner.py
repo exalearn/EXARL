@@ -104,7 +104,9 @@ class RMA(erl.ExaWorkflow):
                 loss_win = MPI.Win.Create(loss, disp, comm=agent_comm)
 
             # Get serialized target weights size
-            target_weights = workflow.agent.get_weights()
+            # target_weights = workflow.agent.get_weights()
+            learner_counter = np.int64(0)
+            target_weights = (workflow.agent.get_weights(), learner_counter)
             serial_target_weights = MPI.pickle.dumps(target_weights)
             serial_target_weights_size = len(serial_target_weights)
             target_weights_size = 0
@@ -135,7 +137,6 @@ class RMA(erl.ExaWorkflow):
             # Initialize batch data buffer
             episode_count_learner = np.zeros(1, dtype=np.float64)
             epsilon = np.array(workflow.agent.epsilon, dtype=np.float64)
-            # learner_counter = 0
             # Initialize epsilon
             if learner_comm.rank == 0:
                 epsilon_win.Lock(0)
@@ -203,16 +204,16 @@ class RMA(erl.ExaWorkflow):
                         loss_win.Put(loss, target_rank=actor_idx)
                         loss_win.Unlock(actor_idx)
 
+                learner_counter += 1
                 if ExaComm.is_learner() and learner_comm.rank == 0:
                     # Target train
                     workflow.agent.target_train()
                     # Share new model weights
-                    target_weights = workflow.agent.get_weights()
+                    target_weights = (workflow.agent.get_weights(), learner_counter)
                     serial_target_weights = MPI.pickle.dumps(target_weights)
                     model_win.Lock(0)
                     model_win.Put(serial_target_weights, target_rank=0)
                     model_win.Unlock(0)
-                # learner_counter += 1
 
             logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_data))
 
@@ -267,7 +268,7 @@ class RMA(erl.ExaWorkflow):
                         model_win.Get(buff, target=0, target_rank=0)
                         model_win.Flush(0)
                         model_win.Unlock(0)
-                        target_weights = MPI.pickle.loads(buff)
+                        target_weights, learner_counter = MPI.pickle.loads(buff)
                         workflow.agent.set_weights(target_weights)
 
                         # Get epsilon
@@ -318,7 +319,7 @@ class RMA(erl.ExaWorkflow):
                         total_rewards += reward
                         workflow.agent.remember(current_state, action, reward, next_state, done)
                         if workflow.agent.has_data():
-                            batch_data = (next(workflow.agent.generate_data()), 1)
+                            batch_data = (next(workflow.agent.generate_data()), learner_counter)
                             ib.update("RMA_Env_Generate_Data", 1)
                             ib.startTrace("RMA_Data_Exchange_Push", 0)
                             # Write to data window
