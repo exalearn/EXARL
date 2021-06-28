@@ -163,21 +163,19 @@ class RMA(erl.ExaWorkflow):
                 if episode_count_learner >= workflow.nepisodes:
                     break
 
-                # Randomly select actor
-                ib.startTrace("RMA_Data_Exchange_Pop", 0)
-                agent_data, actor_idx, actor_counter = batch_data_exchange.get_data(
-                    learner_counter, learner_comm.size, agent_comm.size)
-                ib.stopTrace()
-                ib.simpleTrace("RMA_Learner_Get_Data", actor_idx, actor_counter, learner_counter - actor_counter, 0)
+                if agent_data is None:
+                    # Randomly select actor
+                    ib.startTrace("RMA_Data_Exchange_Pop", 0)
+                    agent_data, actor_idx, actor_counter = batch_data_exchange.get_data(
+                        learner_counter, learner_comm.size, agent_comm.size)
+                    ib.stopTrace()
+                    ib.simpleTrace("RMA_Learner_Get_Data", actor_idx, actor_counter, learner_counter - actor_counter, 0)
 
                 # Check the data_buffer again if it is empty
-                try:
-                    if agent_data is not None:
-                        process_has_data = 1
-                    else:
-                        print("Blocked bad data train", flush=True)
-                except:
-                    logger.info('Data buffer is empty, continuing...')
+                if agent_data is not None:
+                    process_has_data = 1
+                else:
+                    print("Blocked bad data train", flush=True)
 
                 # Do an allreduce to check if all learners have data
                 sum_process_has_data = learner_comm.allreduce(process_has_data, op=MPI.SUM)
@@ -205,6 +203,8 @@ class RMA(erl.ExaWorkflow):
                         loss_win.Unlock(actor_idx)
 
                 learner_counter += 1
+                agent_data = None
+
                 if ExaComm.is_learner() and learner_comm.rank == 0:
                     # Target train
                     workflow.agent.target_train()
