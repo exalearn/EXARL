@@ -19,7 +19,6 @@ class ExaData(ABC):
     def __init__(self, dataType, size, comm_size=1, max_model_lag=None):
         self.dataType = dataType
         self.dataSize = size
-        self.comm_size = comm_size
         if max_model_lag == "none":
             max_model_lag = None
         self.max_model_lag = max_model_lag
@@ -33,19 +32,28 @@ class ExaData(ABC):
         pass
 
     # TODO: Think about low and high as parameters
-    def get_data(self, learner_counter, low, high, attempts=None):
-        batch_data = None
-        actor_counter = -1
-        actor_idx = 0
-        attempt = 0
-        while attempts is None or attempt < attempts:
-            actor_idx = 0
-            if self.comm_size > 1:
-                actor_idx = np.random.randint(low=low, high=high, size=1)[0]
-            batch_data = self.pop(actor_idx)
-            if batch_data:
-                batch_data, actor_counter = batch_data
-                if self.max_model_lag is None or learner_counter - actor_counter <= self.max_model_lag:
-                    break
-            attempt += 1
-        return batch_data, actor_idx, actor_counter
+    def get_data(self, learner_counter, low, high):
+        actor_idx = np.random.randint(low=low, high=high, size=1)[0]
+        batch_data = self.pop(actor_idx)
+        if batch_data:
+            batch_data, actor_counter = batch_data
+            if self.max_model_lag is None or learner_counter - actor_counter <= self.max_model_lag:
+                return batch_data, actor_idx, actor_counter
+        return None, -1, -1
+
+    # def get_data(self, learner_counter, low, high, attempts=None):
+    #     batch_data = None
+    #     actor_counter = -1
+    #     actor_idx = 0
+    #     attempt = 0
+    #     while attempts is None or attempt < attempts:
+    #         actor_idx = 0
+    #         if self.comm_size > 1:
+    #             actor_idx = np.random.randint(low=low, high=high, size=1)[0]
+    #         batch_data = self.pop(actor_idx)
+    #         if batch_data:
+    #             batch_data, actor_counter = batch_data
+    #             if self.max_model_lag is None or learner_counter - actor_counter <= self.max_model_lag:
+    #                 break
+    #         attempt += 1
+    #     return batch_data, actor_idx, actor_counter

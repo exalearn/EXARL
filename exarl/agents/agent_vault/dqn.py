@@ -207,7 +207,8 @@ class DQN(erl.ExaAgent):
     def remember(self, state, action, reward, next_state, done):
         lost_data = self.replay_buffer.add((state, action, reward, next_state, done))
         if lost_data and self.priority_scale:
-            logger.warning("Priority replay buffer size too small. Data loss negates replay effect!")
+            # logger.warning("Priority replay buffer size too small. Data loss negates replay effect!")
+            print("Priority replay buffer size too small. Data loss negates replay effect!", flush=True)
 
     def get_action(self, state):
         random.seed(datetime.now())
@@ -254,6 +255,7 @@ class DQN(erl.ExaAgent):
 
     @introspectTrace()
     def generate_data(self):
+        # Has data checks if the buffer is greater than batch size for training
         if not self.has_data():
             # Worker method to create samples for training
             batch_states = np.zeros((self.batch_size, 1, self.env.observation_space.shape[0]), dtype=self.dtype_observation)
