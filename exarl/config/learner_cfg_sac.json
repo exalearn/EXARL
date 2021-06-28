@@ -1,0 +1,17 @@
+{
+    "agent": "SAC-v0",
+    "env": "Pendulum-v0",
+    "workflow": "async",
+    "n_episodes": 100,
+    "n_steps": 100,
+    "output_dir": "./results_dir/sac/temp1",
+    "learner_procs": 1,
+    "process_per_env": 1,
+    "model_type": "SAC",
+    "action_type": "variable",
+    "log_level": [
+        3,
+        3
+    ],
+    "profile": "none"
+}
