@@ -54,6 +54,11 @@ class RMA(erl.ExaWorkflow):
         self.de_lag = None  # cd.lookup_params('max_model_lag')
         logger.info("Creating RMA data exchange workflow", cd.lookup_params('data_structure', default='buff'), "length", self.de_length, "lag", self.de_lag)
 
+        # Loss and indicies
+        self.de = cd.lookup_params('loss_data_structure', default='buff')
+        self.ind_loss_data_structure = data_exchange_constructors[self.de]
+        logger.info('Creating RMA loss exchange workflow with ', self.de)
+
         priority_scale = cd.run_params['priority_scale']
         self.use_priority_replay = (priority_scale is not None and priority_scale > 0)
 
@@ -87,47 +92,26 @@ class RMA(erl.ExaWorkflow):
             epsilon_win = MPI.Win.Create(epsilon, disp, comm=agent_comm)
 
             if self.use_priority_replay:
-                # Get size of individual indices
-                disp = MPI.INT.Get_size()
-                indices = None
-                if ExaComm.is_actor:
-                    indices = -1 * np.ones(workflow.agent.batch_size, dtype=np.intc)
-                # Create indices window
-                indices_win = MPI.Win.Create(indices, disp, comm=agent_comm)
-
-                # Get size of loss
-                disp = MPI.DOUBLE.Get_size()
-                loss = None
-                if ExaComm.is_actor():
-                    loss = np.zeros(workflow.agent.batch_size, dtype=np.float64)
-                # Create epsilon window
-                loss_win = MPI.Win.Create(loss, disp, comm=agent_comm)
+                # Create windows for priority replay (loss and indicies)
+                indices_for_size = -1 * np.ones(workflow.agent.batch_size, dtype=np.intc)
+                loss_for_size = np.zeros(workflow.agent.batch_size, dtype=np.float64)
+                indicies_and_loss_for_size = (indices_for_size, loss_for_size)
+                ind_loss_buffer = self.ind_loss_data_structure(ExaComm.agent_comm, rank_mask=ExaComm.is_actor(),
+                                                               data=indicies_and_loss_for_size, length=num_learners, max_model_lag=None)
 
             # Get serialized target weights size
-            # target_weights = workflow.agent.get_weights()
             learner_counter = np.int64(0)
             target_weights = (workflow.agent.get_weights(), learner_counter)
-            serial_target_weights = MPI.pickle.dumps(target_weights)
-            serial_target_weights_size = len(serial_target_weights)
-            target_weights_size = 0
-            if ExaComm.is_learner() and learner_comm.rank == 0:
-                target_weights_size = serial_target_weights_size
-            # Allocate model window
-            model_win = MPI.Win.Allocate(target_weights_size, 1, comm=agent_comm)
+            model_buff = self.target_weight_data_structure(ExaComm.agent_comm, rank_mask=ExaComm.is_learner() and ExaComm.learner_comm.rank ==
+                                                           0, data=target_weights, length=1, max_model_lag=None, failPush=False)
 
             # Get serialized batch data size
             learner_counter = np.int64(0)
             agent_batch = (next(workflow.agent.generate_data()), learner_counter)
-            batch_data_exchange = self.batch_data_structure(ExaComm.agent_comm, rank=ExaComm.is_actor(),
+            batch_data_exchange = self.batch_data_structure(ExaComm.agent_comm, rank_mask=ExaComm.is_actor(),
                                                             data=agent_batch, length=self.de_length, max_model_lag=self.de_lag)
             # This is a data/flag that lets us know we have data
             agent_data = None
-
-        if ExaComm.is_learner() and learner_comm.rank == 0:
-            # Write target weight to model window of learner
-            model_win.Lock(0)
-            model_win.Put(serial_target_weights, target_rank=0)
-            model_win.Unlock(0)
 
         # Synchronize
         agent_comm.Barrier()
@@ -177,7 +161,7 @@ class RMA(erl.ExaWorkflow):
                 else:
                     print("Blocked bad data train", flush=True)
 
-                # Do an allreduce to check if all learners have data
+                    # Do an allreduce to check if all learners have data
                 sum_process_has_data = learner_comm.allreduce(process_has_data, op=MPI.SUM)
                 if sum_process_has_data < learner_comm.size:
                     continue
@@ -190,17 +174,8 @@ class RMA(erl.ExaWorkflow):
                         indices, loss = train_return
                         indices = np.array(indices, dtype=np.intc)
                         loss = np.array(loss, dtype=np.float64)
-
-                        # if ExaComm.is_learner() and learner_comm.rank == 0:
                         # Write indices to memory pool
-                        indices_win.Lock(actor_idx)
-                        indices_win.Put(indices, target_rank=actor_idx)
-                        indices_win.Unlock(actor_idx)
-
-                        # Write losses to memory pool
-                        loss_win.Lock(actor_idx)
-                        loss_win.Put(loss, target_rank=actor_idx)
-                        loss_win.Unlock(actor_idx)
+                        ind_loss_buffer.push((indices, loss), rank=actor_idx)
 
                 learner_counter += 1
                 agent_data = None
@@ -209,11 +184,9 @@ class RMA(erl.ExaWorkflow):
                     # Target train
                     workflow.agent.target_train()
                     # Share new model weights
+                    ib.update("RMA_Learner_Target_Train", 1)
                     target_weights = (workflow.agent.get_weights(), learner_counter)
-                    serial_target_weights = MPI.pickle.dumps(target_weights)
-                    model_win.Lock(0)
-                    model_win.Put(serial_target_weights, target_rank=0)
-                    model_win.Unlock(0)
+                    model_buff.push(target_weights, rank=0)
 
             logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_data))
 
@@ -263,13 +236,9 @@ class RMA(erl.ExaWorkflow):
                 while done != True:
                     if ExaComm.env_comm.rank == 0:
                         # Update model weight
-                        buff = bytearray(serial_target_weights_size)
-                        model_win.Lock(0)
-                        model_win.Get(buff, target=0, target_rank=0)
-                        model_win.Flush(0)
-                        model_win.Unlock(0)
-                        target_weights, learner_counter = MPI.pickle.loads(buff)
+                        target_weights, learner_counter = model_buff.pop(0)
                         workflow.agent.set_weights(target_weights)
+                        ib.simpleTrace("RMA_Actor_Get_Model", local_actor_episode_counter, learner_counter, 0, 0)
 
                         # Get epsilon
                         local_epsilon = np.array(workflow.agent.epsilon)
@@ -282,19 +251,11 @@ class RMA(erl.ExaWorkflow):
                         workflow.agent.epsilon = min(epsilon, local_epsilon)
 
                         if self.use_priority_replay:
-                            # Get indices
-                            indices_win.Lock(agent_comm.rank)
-                            indices_win.Get(indices, target_rank=agent_comm.rank)
-                            indices_win.Flush(agent_comm.rank)
-                            indices_win.Unlock(agent_comm.rank)
-
-                            # Get losses
-                            loss_win.Lock(agent_comm.rank)
-                            loss_win.Get(loss, target_rank=agent_comm.rank)
-                            loss_win.Flush(agent_comm.rank)
-                            loss_win.Unlock(agent_comm.rank)
-
+                            # Get indices and losses
+                            loss_data = ind_loss_buffer.pop(agent_comm.rank)
+                            # if loss_data is not None:
                             if not np.array_equal(indices, (-1 * np.ones(workflow.agent.batch_size, dtype=np.intc))):
+                                loss, indices = loss_data
                                 workflow.agent.set_priorities(indices, loss)
 
                         # Inference action
@@ -332,5 +293,5 @@ class RMA(erl.ExaWorkflow):
                                                done, local_actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
                         train_file.flush()
 
-        if ExaComm.is_agent():
-            model_win.Free()
+        # mpi4py may miss MPI Finalize sometimes, therefore using a barrier
+        agent_comm.Barrier()

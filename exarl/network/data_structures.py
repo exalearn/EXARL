@@ -21,7 +21,7 @@ MPI = ExaSimple.MPI
 # Move to ExaBuffMPI
 class ExaMPIBuff(ExaData):
     # TODO: come up with better name than rank...
-    def __init__(self, comm, rank=None, size=None, data=None, length=1, max_model_lag=None, failPush=False):
+    def __init__(self, comm, rank_mask=None, size=None, data=None, length=1, max_model_lag=None, failPush=False):
         self.comm = comm
 
         if data is not None:
@@ -31,14 +31,14 @@ class ExaMPIBuff(ExaData):
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=None)
 
         totalSize = 0
-        if rank:
+        if rank_mask:
             totalSize = size
         self.win = MPI.Win.Allocate(totalSize, disp_unit=1, comm=self.comm.raw())
         self.buff = bytearray(self.dataSize)
 
         # If we are given data to start lets put it in our buffer
         # Since everyone should call this everyone should get a start value!
-        if rank and data is not None:
+        if rank_mask and data is not None:
             self.push(data)
             # self.win.Fence(self.rank)
 
