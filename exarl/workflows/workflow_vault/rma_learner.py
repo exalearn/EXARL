@@ -50,13 +50,14 @@ class RMA(erl.ExaWorkflow):
         self.target_weight_data_structure = data_exchange_constructors[cd.lookup_params('target_weight_structure', default='buff_unchecked')]
 
         # Batch data
-        self.batch_data_structure = data_exchange_constructors[cd.lookup_params('data_structure', default='buff_checked')]
+        self.batch_data_structure = data_exchange_constructors[cd.lookup_params('data_structure', default='buff_unchecked')]
         self.de_length = cd.lookup_params('data_structure_length', default=32)
         self.de_lag = None  # cd.lookup_params('max_model_lag')
-        logger.info("Creating RMA data exchange workflow", cd.lookup_params('data_structure', default='buff_checked'), "length", self.de_length, "lag", self.de_lag)
+        logger.info("Creating RMA data exchange workflow", cd.lookup_params('data_structure',
+                                                                            default='buff_unchecked'), "length", self.de_length, "lag", self.de_lag)
 
         # Loss and indicies
-        self.de = cd.lookup_params('loss_data_structure', default='buff_checked')
+        self.de = cd.lookup_params('loss_data_structure', default='buff_unchecked')
         self.ind_loss_data_structure = data_exchange_constructors[self.de]
         logger.info('Creating RMA loss exchange workflow with ', self.de)
 
@@ -203,6 +204,8 @@ class RMA(erl.ExaWorkflow):
                 episode_count_actor = np.zeros(1, dtype=np.float64)
                 one = np.ones(1, dtype=np.float64)
                 epsilon = np.array(workflow.agent.epsilon, dtype=np.float64)
+                if self.use_priority_replay:
+                    indices = -1 * np.ones(workflow.agent.batch_size, dtype=np.int32)
 
             while True:
                 if ExaComm.env_comm.rank == 0:
@@ -249,8 +252,11 @@ class RMA(erl.ExaWorkflow):
                         if self.use_priority_replay:
                             # Get indices and losses
                             loss_data = ind_loss_buffer.pop(agent_comm.rank)
-                            if loss_data is not None:
-                            # if not np.array_equal(indices, (-1 * np.ones(workflow.agent.batch_size, dtype=np.intc))):
+                            if self.de == "buff_unchecked":
+                                condition = (not np.array_equal(indices, (-1 * np.ones(workflow.agent.batch_size, dtype=np.intc))))
+                            else:
+                                condition = (loss_data is not None)
+                            if condition:
                                 loss, indices = loss_data
                                 workflow.agent.set_priorities(indices, loss)
 
