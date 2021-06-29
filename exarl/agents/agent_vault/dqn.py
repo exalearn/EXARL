@@ -78,14 +78,16 @@ class DQN(erl.ExaAgent):
         self.dataprep_time = 0
         self.ndataprep_time = 0
 
-        # Optimization using XLA (1.1x speedup)
-        tf.config.optimizer.set_jit(True)
+        self.enable_xla = True if cd.run_params['xla'] == "True" else False
+        if self.enable_xla:
+            # Optimization using XLA (1.1x speedup)
+            tf.config.optimizer.set_jit(True)
 
-        # Optimization using mixed precision (1.5x speedup)
-        # Layers use float16 computations and float32 variables
-        from tensorflow.keras.mixed_precision import experimental as mixed_precision
-        policy = mixed_precision.Policy('mixed_float16')
-        mixed_precision.set_policy(policy)
+            # Optimization using mixed precision (1.5x speedup)
+            # Layers use float16 computations and float32 variables
+            from tensorflow.keras.mixed_precision import experimental as mixed_precision
+            policy = mixed_precision.Policy('mixed_float16')
+            mixed_precision.set_policy(policy)
 
         # dqn intrinsic variables
         self.results_dir = cd.run_params['output_dir']

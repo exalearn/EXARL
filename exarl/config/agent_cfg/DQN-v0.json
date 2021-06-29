@@ -8,5 +8,6 @@
     "tau": 0.5,
     "nactions": 10,
     "priority_scale": 0.0,
-    "mem_length": 1000
+    "mem_length": 1000,
+    "xla": "True"
 }
