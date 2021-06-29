@@ -101,10 +101,8 @@ class ASYNC2(erl.ExaWorkflow):
                         if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
                             indices, loss = train_return
 
-                # agent_comm.send([indicies, loss], dest=whofrom)
+                    workflow.agent.target_train()
 
-                # TODO: Double check if this is already in the DQN code
-                workflow.agent.target_train()
                 if policy_type == 0:
                     workflow.agent.epsilon_adj()
                 epsilon = workflow.agent.epsilon
@@ -152,7 +150,8 @@ class ASYNC2(erl.ExaWorkflow):
 
                     workflow.agent.target_train()
                     workflow.agent.save(workflow.results_dir + '/model.pkl')
-                    agent_comm.send([episode, 0, 0, indices, loss], dest=s)
+
+                agent_comm.send([episode, 0, 0, indices, loss], dest=s)
 
             logger.info('Learner time: {}'.format(MPI.Wtime() - start))
 
@@ -238,9 +237,8 @@ class ASYNC2(erl.ExaWorkflow):
 
                     if mpi_settings.is_actor():
                         # Send batched memories
-                        agent_comm.send(
-                            [agent_comm.rank, steps, batch_data, policy_type, done], dest=0)
-                        # indices, loss = agent_comm.recv(source=MPI.ANY_SOURCE)
+                        agent_comm.send([agent_comm.rank, steps, batch_data, policy_type, done], dest=0)
+
                         indices, loss = recv_data[3:5]
                         if indices is not None:
                             workflow.agent.set_priorities(indices, loss)
