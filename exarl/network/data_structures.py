@@ -166,7 +166,7 @@ class ExaMPIBuffChecked(ExaData):
         )
         self.win.Unlock(rank)
         _, valid = MPI.pickle.loads(self.buff)
-        return 1, valid==1
+        return 1, valid == 1
 
 class ExaMPIDistributedQueue(ExaData):
     def __init__(self, comm, data=None, rank_mask=None, length=32, max_model_lag=None, failPush=False):
@@ -584,7 +584,7 @@ class ExaMPICentralizedQueue(ExaData):
         dataBytes = MPI.pickle.dumps(data)
         size = len(dataBytes)
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag)
-        
+
         self.buff = bytearray(self.dataSize)
         self.plus = np.array([1], dtype=np.int64)
         self.minus = np.array([-1], dtype=np.int64)

@@ -77,8 +77,8 @@ class RMA(erl.ExaWorkflow):
 
         # Allocate RMA windows
         if ExaComm.is_agent():
-            episode_const = ExaMPIConstant(agent_comm, ExaComm.is_learner() and learner_comm.rank==0, np.int64)
-            epsilon_const = ExaMPIConstant(agent_comm, ExaComm.is_learner() and learner_comm.rank==0, np.float64)
+            episode_const = ExaMPIConstant(agent_comm, ExaComm.is_learner() and learner_comm.rank == 0, np.int64)
+            epsilon_const = ExaMPIConstant(agent_comm, ExaComm.is_learner() and learner_comm.rank == 0, np.float64)
 
             if self.use_priority_replay:
                 # Create windows for priority replay (loss and indicies)
@@ -91,7 +91,7 @@ class RMA(erl.ExaWorkflow):
             # Get serialized target weights size
             learner_counter = np.int64(0)
             target_weights = (workflow.agent.get_weights(), learner_counter)
-            model_buff = self.target_weight_data_structure(agent_comm, target_weights, rank_mask=ExaComm.is_learner() and 
+            model_buff = self.target_weight_data_structure(agent_comm, target_weights, rank_mask=ExaComm.is_learner() and
                                                            learner_comm.rank == 0,  length=1, max_model_lag=None, failPush=False)
 
             # Get serialized batch data size
