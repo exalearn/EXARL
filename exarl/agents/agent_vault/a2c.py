@@ -82,7 +82,7 @@ class A2C(erl.ExaAgent):
         self.reward_memory.append(reward)
 
     def generate_data(self):
-        yield self.memory
+        return [self.state_memory, self.action_memory, self.reward_memory]
 
     def train(self, batch):
         if self.is_learner:
