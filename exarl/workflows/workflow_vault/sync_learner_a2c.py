@@ -59,7 +59,6 @@ class SYNC2(erl.ExaWorkflow):
 
         # Loop over episodes
         for e in range(workflow.nepisodes):
-            print(e)
             # Reset variables each episode
             current_state = workflow.env.reset()
             total_reward  = 0
@@ -84,16 +83,6 @@ class SYNC2(erl.ExaWorkflow):
                 if memory[2] != -9999:
                     workflow.agent.remember(
                         memory[0], memory[1], memory[2], memory[3], memory[4])
-                    # TODO: we need a memory class to scale
-                    # batch_data = next(workflow.agent.generate_data())
-                    # logger.info(
-                    #     'Rank[{}] - Generated data: {}'.format(comm.rank, len(batch_data[0])))
-                # try:
-                #     buffer_length = len(workflow.agent.memory)
-                # except:
-                #     buffer_length = workflow.agent.replay_buffer.get_buffer_length()
-                # logger.info(
-                #     'Rank[{}] - # Memories: {}'.format(comm.rank, buffer_length))
 
                 # Update state
                 current_state = next_state
