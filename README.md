@@ -68,6 +68,7 @@ A scalable software framework for reinforcement learning environments and agents
 ```
 git clone --recursive https://github.com/exalearn/EXARL.git
 cd EXARL
+git lfs install # install git lfs if you haven't
 git lfs fetch
 git lfs pull
 ```
