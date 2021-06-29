@@ -59,12 +59,11 @@ class ExaMPIConstant:
 
 class ExaMPIBuffUnchecked(ExaData):
     # This class will always succed a pop!
-    def __init__(self, comm, rank_mask=None, size=None, data=None, length=1, max_model_lag=None, failPush=False):
+    def __init__(self, comm, data, rank_mask=None, length=1, max_model_lag=None, failPush=False):
         self.comm = comm
 
-        if data is not None:
-            dataBytes = MPI.pickle.dumps(data)
-            size = len(dataBytes)
+        dataBytes = MPI.pickle.dumps(data)
+        size = len(dataBytes)
 
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=None)
 
@@ -76,7 +75,7 @@ class ExaMPIBuffUnchecked(ExaData):
 
         # If we are given data to start lets put it in our buffer
         # Since everyone should call this everyone should get a start value!
-        if rank_mask and data is not None:
+        if rank_mask:
             self.push(data)
 
     def __del__(self):
@@ -110,12 +109,11 @@ class ExaMPIBuffUnchecked(ExaData):
         return 1, 1
 
 class ExaMPIBuffChecked(ExaData):
-    def __init__(self, comm, rank_mask=None, size=None, data=None, length=1, max_model_lag=None, failPush=False):
+    def __init__(self, comm, data, rank_mask=None, length=1, max_model_lag=None, failPush=False):
         self.comm = comm
 
-        if data is not None:
-            self.dataBytes = bytearray(MPI.pickle.dumps((data, np.int64(0))))
-            size = len(self.dataBytes)
+        self.dataBytes = bytearray(MPI.pickle.dumps((data, np.int64(0))))
+        size = len(self.dataBytes)
 
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=None)
 
@@ -125,7 +123,7 @@ class ExaMPIBuffChecked(ExaData):
         self.win = MPI.Win.Allocate(totalSize, disp_unit=1, comm=self.comm.raw())
         self.buff = bytearray(self.dataSize)
 
-        if rank_mask and data is not None:
+        if rank_mask:
             self.win.Lock(self.comm.rank)
             self.win.Accumulate(
                 self.dataBytes, self.comm.rank, target=[0, self.dataSize], op=MPI.REPLACE
@@ -171,16 +169,16 @@ class ExaMPIBuffChecked(ExaData):
         return 1, valid==1
 
 class ExaMPIDistributedQueue(ExaData):
-    def __init__(self, comm, rank_mask=None, size=None, data=None, length=32, max_model_lag=None, failPush=False):
+    def __init__(self, comm, data=None, rank_mask=None, length=32, max_model_lag=None, failPush=False):
         self.comm = comm
         self.length = length
         # This lets us fail a push when at full capacity
         # Otherwise will overwrite the oldest data
         self.failPush = failPush
 
-        if data is not None:
-            dataBytes = MPI.pickle.dumps(data)
-            size = len(dataBytes)
+        dataBytes = MPI.pickle.dumps(data)
+        size = len(dataBytes)
+
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag)
         self.buff = bytearray(self.dataSize)
         self.plus = np.array([1], dtype=np.int64)
@@ -294,17 +292,17 @@ class ExaMPIDistributedQueue(ExaData):
         return capacity, lost
 
 class ExaMPIDistributedStack(ExaData):
-    def __init__(self, comm, rank_mask=None, size=None, data=None, length=32, max_model_lag=None, failPush=False):
+    def __init__(self, comm, data, rank_mask=None, length=32, max_model_lag=None, failPush=False):
         self.comm = comm
         self.length = length
         # This lets us fail a push when at full capacity
         # Otherwise will overwrite the oldest data
         self.failPush = failPush
 
-        if data is not None:
-            dataBytes = MPI.pickle.dumps(data)
-            size = len(dataBytes)
+        dataBytes = MPI.pickle.dumps(data)
+        size = len(dataBytes)
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag)
+
         self.buff = bytearray(self.dataSize)
         self.plus = np.array([1], dtype=np.int64)
         self.minus = np.array([-1], dtype=np.int64)
@@ -422,7 +420,7 @@ class ExaMPIDistributedStack(ExaData):
         return capacity, lost
 
 class ExaMPICentralizedStack(ExaData):
-    def __init__(self, comm, rank_mask=None, size=None, data=None, length=32, max_model_lag=None, failPush=False):
+    def __init__(self, comm, data, rank_mask=None, length=32, max_model_lag=None, failPush=False):
         self.comm = comm
         if rank_mask:
             self.rank = self.comm.rank
@@ -431,10 +429,10 @@ class ExaMPICentralizedStack(ExaData):
         # Otherwise will overwrite the oldest data
         self.failPush = failPush
 
-        if data is not None:
-            dataBytes = MPI.pickle.dumps(data)
-            size = len(dataBytes)
+        dataBytes = MPI.pickle.dumps(data)
+        size = len(dataBytes)
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag)
+
         self.buff = bytearray(self.dataSize)
         self.plus = np.array([1], dtype=np.int64)
         self.minus = np.array([-1], dtype=np.int64)
@@ -574,7 +572,7 @@ class ExaMPICentralizedStack(ExaData):
         return capacity, lost
 
 class ExaMPICentralizedQueue(ExaData):
-    def __init__(self, comm, rank_mask=None, size=None, data=None, length=32, max_model_lag=None, failPush=False):
+    def __init__(self, comm, data, rank_mask=None, length=32, max_model_lag=None, failPush=False):
         self.comm = comm
         if rank_mask:
             self.rank = self.comm.rank
@@ -583,10 +581,10 @@ class ExaMPICentralizedQueue(ExaData):
         # Otherwise will overwrite the oldest data
         self.failPush = failPush
 
-        if data is not None:
-            dataBytes = MPI.pickle.dumps(data)
-            size = len(dataBytes)
+        dataBytes = MPI.pickle.dumps(data)
+        size = len(dataBytes)
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag)
+        
         self.buff = bytearray(self.dataSize)
         self.plus = np.array([1], dtype=np.int64)
         self.minus = np.array([-1], dtype=np.int64)
