@@ -77,8 +77,8 @@ class RMA(erl.ExaWorkflow):
 
         # Allocate RMA windows
         if ExaComm.is_agent():
-            episode_const = ExaMPIConstant(ExaComm.agent_comm, ExaComm.is_learner() and learner_comm.rank==0, np.int64)
-            epsilon_const = ExaMPIConstant(ExaComm.agent_comm, ExaComm.is_learner() and learner_comm.rank==0, np.float64)
+            episode_const = ExaMPIConstant(ExaComm.agent_comm, ExaComm.is_learner() and learner_comm.rank == 0, np.int64)
+            epsilon_const = ExaMPIConstant(ExaComm.agent_comm, ExaComm.is_learner() and learner_comm.rank == 0, np.float64)
 
             if self.use_priority_replay:
                 # Create windows for priority replay (loss and indicies)
@@ -107,6 +107,8 @@ class RMA(erl.ExaWorkflow):
 
         # Learner
         if ExaComm.is_learner():
+            # Initialize counter
+            episode_count_learner = 0
             if learner_comm.rank == 0:
                 epsilon_const.put(workflow.agent.epsilon, 0)
 
@@ -117,7 +119,6 @@ class RMA(erl.ExaWorkflow):
 
                 if learner_comm.rank == 0:
                     episode_count_learner = episode_const.get(0)
-                    
 
                 if num_learners > 1:
                     episode_count_learner = learner_comm.bcast(episode_count_learner, root=0)
@@ -207,9 +208,13 @@ class RMA(erl.ExaWorkflow):
                         if self.use_priority_replay:
                             # Get indices and losses
                             loss_data = ind_loss_buffer.pop(agent_comm.rank)
+                            # print("loss data = ", loss_data, flush=True)
                             if loss_data is not None:
-                                loss, indices = loss_data
-                                if self.de != "buff_unchecked" or not np.array_equal(indices, (-1 * np.ones(workflow.agent.batch_size, dtype=np.intc))):
+                                indices, loss = loss_data
+                                if self.de == "buff_unchecked":
+                                    if not np.array_equal(indices, (-1 * np.ones(workflow.agent.batch_size, dtype=np.intc))):
+                                        workflow.agent.set_priorities(indices, loss)
+                                else:
                                     workflow.agent.set_priorities(indices, loss)
 
                         # Inference action
