@@ -70,40 +70,40 @@ class RMA(erl.ExaWorkflow):
         num_learners = ExaComm.num_learners
 
         # MPI communicators
-        agent_comm = ExaComm.agent_comm.raw()
-        env_comm = ExaComm.env_comm.raw()
+        agent_comm = ExaComm.agent_comm
+        env_comm = ExaComm.env_comm
         if ExaComm.is_learner():
-            learner_comm = ExaComm.learner_comm.raw()
+            learner_comm = ExaComm.learner_comm
 
         # Allocate RMA windows
         if ExaComm.is_agent():
-            episode_const = ExaMPIConstant(ExaComm.agent_comm, ExaComm.is_learner() and learner_comm.rank==0, np.int64)
-            epsilon_const = ExaMPIConstant(ExaComm.agent_comm, ExaComm.is_learner() and learner_comm.rank==0, np.float64)
+            episode_const = ExaMPIConstant(agent_comm, ExaComm.is_learner() and learner_comm.rank==0, np.int64)
+            epsilon_const = ExaMPIConstant(agent_comm, ExaComm.is_learner() and learner_comm.rank==0, np.float64)
 
             if self.use_priority_replay:
                 # Create windows for priority replay (loss and indicies)
                 indices_for_size = -1 * np.ones(workflow.agent.batch_size, dtype=np.intc)
                 loss_for_size = np.zeros(workflow.agent.batch_size, dtype=np.float64)
                 indicies_and_loss_for_size = (indices_for_size, loss_for_size)
-                ind_loss_buffer = self.ind_loss_data_structure(ExaComm.agent_comm, rank_mask=ExaComm.is_actor(),
+                ind_loss_buffer = self.ind_loss_data_structure(agent_comm, rank_mask=ExaComm.is_actor(),
                                                                data=indicies_and_loss_for_size, length=num_learners, max_model_lag=None)
 
             # Get serialized target weights size
             learner_counter = np.int64(0)
             target_weights = (workflow.agent.get_weights(), learner_counter)
-            model_buff = self.target_weight_data_structure(ExaComm.agent_comm, rank_mask=ExaComm.is_learner() and ExaComm.learner_comm.rank ==
-                                                           0, data=target_weights, length=1, max_model_lag=None, failPush=False)
+            model_buff = self.target_weight_data_structure(agent_comm, rank_mask=ExaComm.is_learner() and 
+                                                           learner_comm.rank == 0, data=target_weights, length=1, max_model_lag=None, failPush=False)
 
             # Get serialized batch data size
             learner_counter = np.int64(0)
             agent_batch = (next(workflow.agent.generate_data()), learner_counter)
-            batch_data_exchange = self.batch_data_structure(ExaComm.agent_comm, rank_mask=ExaComm.is_actor(),
+            batch_data_exchange = self.batch_data_structure(agent_comm, rank_mask=ExaComm.is_actor(),
                                                             data=agent_batch, length=self.de_length, max_model_lag=self.de_lag)
             # This is a data/flag that lets us know we have data
             agent_data = None
 
         # Synchronize
-        agent_comm.Barrier()
+        agent_comm.barrier()
 
         # Learner
         if ExaComm.is_learner():
@@ -168,7 +168,7 @@ class RMA(erl.ExaWorkflow):
         # Actors
         else:
             local_actor_episode_counter = 0
-            if ExaComm.env_comm.rank == 0:
+            if env_comm.rank == 0:
                 # Logging files
                 filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
                     % (str(workflow.nepisodes), str(workflow.nsteps), str(agent_comm.rank))
@@ -176,7 +176,7 @@ class RMA(erl.ExaWorkflow):
                 train_writer = csv.writer(train_file, delimiter=" ")
 
             while True:
-                if ExaComm.env_comm.rank == 0:
+                if env_comm.rank == 0:
                     episode_count_actor = episode_const.inc(0)
 
                 episode_count_actor = env_comm.bcast(episode_count_actor, root=0)
@@ -196,7 +196,7 @@ class RMA(erl.ExaWorkflow):
                 local_actor_episode_counter += 1
 
                 while done != True:
-                    if ExaComm.env_comm.rank == 0:
+                    if env_comm.rank == 0:
                         # Update model weight
                         target_weights, learner_counter = model_buff.pop(0)
                         workflow.agent.set_weights(target_weights)
@@ -218,7 +218,7 @@ class RMA(erl.ExaWorkflow):
                             action, policy_type = 0, -11
 
                         # Broadcast episode count to all procs in env_comm
-                        action = env_comm.bcast(action, root=0)
+                        action = env_comm.bcast(action, 0)
 
                     # Environment step
                     next_state, reward, done, _ = workflow.env.step(action)
@@ -227,9 +227,9 @@ class RMA(erl.ExaWorkflow):
                     if steps >= workflow.nsteps:
                         done = True
                     # Broadcast done
-                    done = env_comm.bcast(done, root=0)
+                    done = env_comm.bcast(done, 0)
 
-                    if ExaComm.env_comm.rank == 0:
+                    if env_comm.rank == 0:
                         # Save memory
                         total_rewards += reward
                         workflow.agent.remember(current_state, action, reward, next_state, done)
@@ -248,4 +248,4 @@ class RMA(erl.ExaWorkflow):
                         train_file.flush()
 
         # mpi4py may miss MPI Finalize sometimes -- using a barrier
-        agent_comm.Barrier()
+        agent_comm.barrier()
