@@ -26,7 +26,6 @@ class ExaMPIConstant:
         self.size = self.mpiType.Get_size()
         data = None
         if rank_mask:
-            print("RANK_MASK:", self.comm.rank)
             self.rank = self.comm.rank
             data = np.zeros(1, dtype=self.npType)
         self.win = MPI.Win.Create(data, self.size, comm=self.comm)
@@ -34,7 +33,6 @@ class ExaMPIConstant:
         self.buff = np.zeros(1, dtype=self.npType)
 
     def put(self, value, rank):
-        print("PUTTING:", value, "Type:", type(value), "nptype:", self.npType, "RANK:", rank)
         data = np.array(value, dtype=self.npType)
         self.win.Lock(rank)
         self.win.Accumulate(data, target_rank=rank, op=MPI.REPLACE)
@@ -47,14 +45,12 @@ class ExaMPIConstant:
         return self.buff[0]
 
     def inc(self, rank):
-        print("INC: nptype:", self.npType, "RANK:", rank)
         self.win.Lock(rank)
         self.win.Get_accumulate(self.sum, self.buff, target_rank=rank, op=MPI.SUM)
         self.win.Unlock(rank)
         return self.buff[0]
 
     def min(self, value, rank):
-        print("MIN:", value, "Type:", type(value), "nptype:", self.npType, "RANK:", rank)
         data = np.array(value, dtype=self.npType)
         self.win.Lock(rank)
         self.win.Get_accumulate(data, self.buff, target_rank=rank, op=MPI.MIN)

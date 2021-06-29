@@ -50,14 +50,15 @@ class RMA(erl.ExaWorkflow):
         self.target_weight_data_structure = data_exchange_constructors[cd.lookup_params('target_weight_structure', default='buff_unchecked')]
 
         # Batch data
-        self.batch_data_structure = data_exchange_constructors[cd.lookup_params('data_structure', default='buff_checked')]
+        self.batch_data_structure = data_exchange_constructors[cd.lookup_params('data_structure', default='buff_unchecked')]
         self.de_length = cd.lookup_params('data_structure_length', default=32)
         self.de_lag = None  # cd.lookup_params('max_model_lag')
-        logger.info("Creating RMA data exchange workflow", cd.lookup_params('data_structure', default='buff_checked'), "length", self.de_length, "lag", self.de_lag)
+        logger.info("Creating RMA data exchange workflow", cd.lookup_params('data_structure',
+                                                                            default='buff_unchecked'), "length", self.de_length, "lag", self.de_lag)
 
         # Loss and indicies
-        self.de = cd.lookup_params('loss_data_structure', default='buff_checked')
-        self.ind_loss_data_structure = data_exchange_constructors[self.de]
+        self.de = cd.lookup_params('loss_data_structure', default='buff_unchecked')
+        self.ind_loss_data_structure = data_exchange_constructors[cd.lookup_params('loss_data_structure', default='buff_unchecked')]
         logger.info('Creating RMA loss exchange workflow with ', self.de)
 
         priority_scale = cd.run_params['priority_scale']
@@ -76,22 +77,7 @@ class RMA(erl.ExaWorkflow):
 
         # Allocate RMA windows
         if ExaComm.is_agent():
-            # Get size of episode counter
-            # disp = MPI.DOUBLE.Get_size()
-            # episode_data = None
-            # if ExaComm.is_learner() and learner_comm.rank == 0:
-            #     episode_data = np.zeros(1, dtype=np.float64)
-            # # Create episode window (attach instead of allocate for zero initialization)
-            # episode_win = MPI.Win.Create(episode_data, disp, comm=agent_comm)
             episode_const = ExaMPIConstant(ExaComm.agent_comm, ExaComm.is_learner() and learner_comm.rank==0, np.int64)
-
-            # Get size of epsilon
-            # disp = MPI.DOUBLE.Get_size()
-            # epsilon = None
-            # if ExaComm.is_learner() and learner_comm.rank == 0:
-            #     epsilon = np.zeros(1, dtype=np.float64)
-            # # Create epsilon window
-            # epsilon_win = MPI.Win.Create(epsilon, disp, comm=agent_comm)
             epsilon_const = ExaMPIConstant(ExaComm.agent_comm, ExaComm.is_learner() and learner_comm.rank==0, np.float64)
 
             if self.use_priority_replay:
@@ -121,15 +107,7 @@ class RMA(erl.ExaWorkflow):
 
         # Learner
         if ExaComm.is_learner():
-            # Initialize batch data buffer
-            # episode_count_learner = np.zeros(1, dtype=np.float64)
-            # epsilon = np.array(workflow.agent.epsilon, dtype=np.float64)
-            # Initialize epsilon
             if learner_comm.rank == 0:
-                # epsilon_win.Lock(0)
-                # epsilon_win.Put(epsilon, target_rank=0)
-                # epsilon_win.Flush(0)
-                # epsilon_win.Unlock(0)
                 epsilon_const.put(workflow.agent.epsilon, 0)
 
             while True:
@@ -138,12 +116,6 @@ class RMA(erl.ExaWorkflow):
                 sum_process_has_data = 0
 
                 if learner_comm.rank == 0:
-                    # Check episode counter
-                    # episode_win.Lock(0)
-                    # # Atomic Get_accumulate to fetch episode count
-                    # episode_win.Get_accumulate(np.ones(1, dtype=np.float64), episode_count_learner, target_rank=0, op=MPI.NO_OP)
-                    # episode_win.Flush(0)
-                    # episode_win.Unlock(0)
                     episode_count_learner = episode_const.get(0)
                     
 
@@ -154,7 +126,6 @@ class RMA(erl.ExaWorkflow):
                     break
 
                 if agent_data is None:
-                    # Randomly select actor
                     ib.startTrace("RMA_Data_Exchange_Pop", 0)
                     agent_data, actor_idx, actor_counter = batch_data_exchange.get_data(
                         learner_counter, learner_comm.size, agent_comm.size)
@@ -165,7 +136,7 @@ class RMA(erl.ExaWorkflow):
                 if agent_data is not None:
                     process_has_data = 1
 
-                    # Do an allreduce to check if all learners have data
+                # Do an allreduce to check if all learners have data
                 sum_process_has_data = learner_comm.allreduce(process_has_data, op=MPI.SUM)
                 if sum_process_has_data < learner_comm.size:
                     continue
@@ -204,24 +175,13 @@ class RMA(erl.ExaWorkflow):
                 train_file = open(workflow.results_dir + '/' + filename_prefix + ".log", 'w')
                 train_writer = csv.writer(train_file, delimiter=" ")
 
-                # Initialize buffers
-                # episode_count_actor = np.zeros(1, dtype=np.float64)
-                # one = np.ones(1, dtype=np.float64)
-                # epsilon = np.array(workflow.agent.epsilon, dtype=np.float64)
-
             while True:
                 if ExaComm.env_comm.rank == 0:
-                    # episode_win.Lock(0)
-                    # # Atomic Get_accumulate to increment the episode counter
-                    # episode_win.Get_accumulate(one, episode_count_actor, target_rank=0)
-                    # episode_win.Flush(0)
-                    # episode_win.Unlock(0)
                     episode_count_actor = episode_const.inc(0)
 
                 episode_count_actor = env_comm.bcast(episode_count_actor, root=0)
 
-                # Include another check to avoid each actor running extra
-                # set of steps while terminating
+                # Check if we are done based on the completed episodes
                 if episode_count_actor >= workflow.nepisodes:
                     break
                 logger.info('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count_actor))
@@ -242,23 +202,15 @@ class RMA(erl.ExaWorkflow):
                         workflow.agent.set_weights(target_weights)
                         ib.simpleTrace("RMA_Actor_Get_Model", local_actor_episode_counter, learner_counter, 0, 0)
 
-                        # Get epsilon
-                        # local_epsilon = np.array(workflow.agent.epsilon)
-                        # epsilon_win.Lock(0)
-                        # epsilon_win.Get_accumulate(local_epsilon, epsilon, target_rank=0, op=MPI.MIN)
-                        # epsilon_win.Flush(0)
-                        # epsilon_win.Unlock(0)
-                        # Update the agent epsilon
-                        # workflow.agent.epsilon = min(epsilon, local_epsilon)
                         workflow.agent.epsilon = epsilon_const.min(workflow.agent.epsilon, 0)
 
                         if self.use_priority_replay:
                             # Get indices and losses
                             loss_data = ind_loss_buffer.pop(agent_comm.rank)
                             if loss_data is not None:
-                            # if not np.array_equal(indices, (-1 * np.ones(workflow.agent.batch_size, dtype=np.intc))):
                                 loss, indices = loss_data
-                                workflow.agent.set_priorities(indices, loss)
+                                if self.de != "buff_unchecked" or not np.array_equal(indices, (-1 * np.ones(workflow.agent.batch_size, dtype=np.intc))):
+                                    workflow.agent.set_priorities(indices, loss)
 
                         # Inference action
                         action, policy_type = workflow.agent.action(current_state)
@@ -295,5 +247,5 @@ class RMA(erl.ExaWorkflow):
                                                done, local_actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
                         train_file.flush()
 
-        # mpi4py may miss MPI Finalize sometimes, therefore using a barrier
+        # mpi4py may miss MPI Finalize sometimes -- using a barrier
         agent_comm.Barrier()
