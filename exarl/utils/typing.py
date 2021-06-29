@@ -152,6 +152,24 @@ class TypeUtils:
         print("Failed to convert type", the_type, "to tf type")
         return the_type
 
+    def mpi_type_converter(the_type, promote=True):
+        if the_type == float or the_type == np.float64 or the_type == tf.float64 or the_type == MPI.DOUBLE:
+            return MPI.DOUBLE
+        if the_type == np.float32 or the_type == tf.float32 or the_type == MPI.FLOAT:
+            if promote:
+                return MPI.DOUBLE
+            return MPI.FLOAT
+        if the_type == int or the_type == np.int64 or the_type == tf.int64 or the_type == MPI.INT64_T:
+            return MPI.INT64_T
+        if the_type == np.int32 or the_type == tf.int32 or the_type == MPI.INT:
+            if promote:
+                return MPI.INT64_T
+            return MPI.INT
+        if the_type == bool or the_type == np.bool or the_type == tf.bool or the_type == MPI.BOOL:
+            return MPI.BOOL
+        print("Failed to convert type", the_type, "to mpi type")
+        return the_type
+
     def promote_numpy_type(data, makeList=True):
         list_flag, the_type = TypeUtils.list_like(data)
         if not list_flag and makeList:

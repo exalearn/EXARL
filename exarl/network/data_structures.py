@@ -15,7 +15,51 @@ import numpy as np
 from exarl.base import ExaData
 from exarl.base.comm_base import ExaComm
 from exarl.network.simple_comm import ExaSimple
+from exarl.utils.typing import TypeUtils
 MPI = ExaSimple.MPI
+
+class ExaMPIConstant:
+    def __init__(self, comm, rank_mask, the_type):
+        self.comm = comm.raw()
+        self.npType = TypeUtils.np_type_converter(the_type, promote=True)
+        self.mpiType = TypeUtils.mpi_type_converter(the_type, promote=True)
+        self.size = self.mpiType.Get_size()
+        data = None
+        if rank_mask:
+            print("RANK_MASK:", self.comm.rank)
+            self.rank = self.comm.rank
+            data = np.zeros(1, dtype=self.npType)
+        self.win = MPI.Win.Create(data, self.size, comm=self.comm)
+        self.sum = np.ones(1, dtype=self.npType)
+        self.buff = np.zeros(1, dtype=self.npType)
+
+    def put(self, value, rank):
+        print("PUTTING:", value, "Type:", type(value), "nptype:", self.npType, "RANK:", rank)
+        data = np.array(value, dtype=self.npType)
+        self.win.Lock(rank)
+        self.win.Accumulate(data, target_rank=rank, op=MPI.REPLACE)
+        self.win.Unlock(rank)
+
+    def get(self, rank):
+        self.win.Lock(rank)
+        self.win.Get_accumulate(self.sum, self.buff, target_rank=rank, op=MPI.NO_OP)
+        self.win.Unlock(rank)
+        return self.buff[0]
+
+    def inc(self, rank):
+        print("INC: nptype:", self.npType, "RANK:", rank)
+        self.win.Lock(rank)
+        self.win.Get_accumulate(self.sum, self.buff, target_rank=rank, op=MPI.SUM)
+        self.win.Unlock(rank)
+        return self.buff[0]
+
+    def min(self, value, rank):
+        print("MIN:", value, "Type:", type(value), "nptype:", self.npType, "RANK:", rank)
+        data = np.array(value, dtype=self.npType)
+        self.win.Lock(rank)
+        self.win.Get_accumulate(data, self.buff, target_rank=rank, op=MPI.MIN)
+        self.win.Unlock(rank)
+        return min(self.buff[0], value)
 
 class ExaMPIBuffUnchecked(ExaData):
     # This class will always succed a pop!
@@ -68,7 +112,7 @@ class ExaMPIBuffUnchecked(ExaData):
         )
         self.win.Unlock(rank)
         return 1, 1
-        
+
 class ExaMPIBuffChecked(ExaData):
     def __init__(self, comm, rank_mask=None, size=None, data=None, length=1, max_model_lag=None, failPush=False):
         self.comm = comm

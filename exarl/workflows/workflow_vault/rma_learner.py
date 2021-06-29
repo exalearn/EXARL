@@ -77,20 +77,22 @@ class RMA(erl.ExaWorkflow):
         # Allocate RMA windows
         if ExaComm.is_agent():
             # Get size of episode counter
-            disp = MPI.DOUBLE.Get_size()
-            episode_data = None
-            if ExaComm.is_learner() and learner_comm.rank == 0:
-                episode_data = np.zeros(1, dtype=np.float64)
-            # Create episode window (attach instead of allocate for zero initialization)
-            episode_win = MPI.Win.Create(episode_data, disp, comm=agent_comm)
+            # disp = MPI.DOUBLE.Get_size()
+            # episode_data = None
+            # if ExaComm.is_learner() and learner_comm.rank == 0:
+            #     episode_data = np.zeros(1, dtype=np.float64)
+            # # Create episode window (attach instead of allocate for zero initialization)
+            # episode_win = MPI.Win.Create(episode_data, disp, comm=agent_comm)
+            episode_const = ExaMPIConstant(ExaComm.agent_comm, ExaComm.is_learner() and learner_comm.rank==0, np.int64)
 
             # Get size of epsilon
-            disp = MPI.DOUBLE.Get_size()
-            epsilon = None
-            if ExaComm.is_learner() and learner_comm.rank == 0:
-                epsilon = np.zeros(1, dtype=np.float64)
-            # Create epsilon window
-            epsilon_win = MPI.Win.Create(epsilon, disp, comm=agent_comm)
+            # disp = MPI.DOUBLE.Get_size()
+            # epsilon = None
+            # if ExaComm.is_learner() and learner_comm.rank == 0:
+            #     epsilon = np.zeros(1, dtype=np.float64)
+            # # Create epsilon window
+            # epsilon_win = MPI.Win.Create(epsilon, disp, comm=agent_comm)
+            epsilon_const = ExaMPIConstant(ExaComm.agent_comm, ExaComm.is_learner() and learner_comm.rank==0, np.float64)
 
             if self.use_priority_replay:
                 # Create windows for priority replay (loss and indicies)
@@ -120,14 +122,15 @@ class RMA(erl.ExaWorkflow):
         # Learner
         if ExaComm.is_learner():
             # Initialize batch data buffer
-            episode_count_learner = np.zeros(1, dtype=np.float64)
-            epsilon = np.array(workflow.agent.epsilon, dtype=np.float64)
+            # episode_count_learner = np.zeros(1, dtype=np.float64)
+            # epsilon = np.array(workflow.agent.epsilon, dtype=np.float64)
             # Initialize epsilon
             if learner_comm.rank == 0:
-                epsilon_win.Lock(0)
-                epsilon_win.Put(epsilon, target_rank=0)
-                epsilon_win.Flush(0)
-                epsilon_win.Unlock(0)
+                # epsilon_win.Lock(0)
+                # epsilon_win.Put(epsilon, target_rank=0)
+                # epsilon_win.Flush(0)
+                # epsilon_win.Unlock(0)
+                epsilon_const.put(workflow.agent.epsilon, 0)
 
             while True:
                 # Define flags to keep track of data
@@ -136,11 +139,13 @@ class RMA(erl.ExaWorkflow):
 
                 if learner_comm.rank == 0:
                     # Check episode counter
-                    episode_win.Lock(0)
-                    # Atomic Get_accumulate to fetch episode count
-                    episode_win.Get_accumulate(np.ones(1, dtype=np.float64), episode_count_learner, target_rank=0, op=MPI.NO_OP)
-                    episode_win.Flush(0)
-                    episode_win.Unlock(0)
+                    # episode_win.Lock(0)
+                    # # Atomic Get_accumulate to fetch episode count
+                    # episode_win.Get_accumulate(np.ones(1, dtype=np.float64), episode_count_learner, target_rank=0, op=MPI.NO_OP)
+                    # episode_win.Flush(0)
+                    # episode_win.Unlock(0)
+                    episode_count_learner = episode_const.get(0)
+                    
 
                 if num_learners > 1:
                     episode_count_learner = learner_comm.bcast(episode_count_learner, root=0)
@@ -187,7 +192,7 @@ class RMA(erl.ExaWorkflow):
                     target_weights = (workflow.agent.get_weights(), learner_counter)
                     model_buff.push(target_weights, rank=0)
 
-            logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_data))
+            logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_count_learner))
 
         # Actors
         else:
@@ -200,17 +205,18 @@ class RMA(erl.ExaWorkflow):
                 train_writer = csv.writer(train_file, delimiter=" ")
 
                 # Initialize buffers
-                episode_count_actor = np.zeros(1, dtype=np.float64)
-                one = np.ones(1, dtype=np.float64)
-                epsilon = np.array(workflow.agent.epsilon, dtype=np.float64)
+                # episode_count_actor = np.zeros(1, dtype=np.float64)
+                # one = np.ones(1, dtype=np.float64)
+                # epsilon = np.array(workflow.agent.epsilon, dtype=np.float64)
 
             while True:
                 if ExaComm.env_comm.rank == 0:
-                    episode_win.Lock(0)
-                    # Atomic Get_accumulate to increment the episode counter
-                    episode_win.Get_accumulate(one, episode_count_actor, target_rank=0)
-                    episode_win.Flush(0)
-                    episode_win.Unlock(0)
+                    # episode_win.Lock(0)
+                    # # Atomic Get_accumulate to increment the episode counter
+                    # episode_win.Get_accumulate(one, episode_count_actor, target_rank=0)
+                    # episode_win.Flush(0)
+                    # episode_win.Unlock(0)
+                    episode_count_actor = episode_const.inc(0)
 
                 episode_count_actor = env_comm.bcast(episode_count_actor, root=0)
 
@@ -237,14 +243,14 @@ class RMA(erl.ExaWorkflow):
                         ib.simpleTrace("RMA_Actor_Get_Model", local_actor_episode_counter, learner_counter, 0, 0)
 
                         # Get epsilon
-                        local_epsilon = np.array(workflow.agent.epsilon)
-                        epsilon_win.Lock(0)
-                        epsilon_win.Get_accumulate(local_epsilon, epsilon, target_rank=0, op=MPI.MIN)
-                        epsilon_win.Flush(0)
-                        epsilon_win.Unlock(0)
-
+                        # local_epsilon = np.array(workflow.agent.epsilon)
+                        # epsilon_win.Lock(0)
+                        # epsilon_win.Get_accumulate(local_epsilon, epsilon, target_rank=0, op=MPI.MIN)
+                        # epsilon_win.Flush(0)
+                        # epsilon_win.Unlock(0)
                         # Update the agent epsilon
-                        workflow.agent.epsilon = min(epsilon, local_epsilon)
+                        # workflow.agent.epsilon = min(epsilon, local_epsilon)
+                        workflow.agent.epsilon = epsilon_const.min(workflow.agent.epsilon, 0)
 
                         if self.use_priority_replay:
                             # Get indices and losses
