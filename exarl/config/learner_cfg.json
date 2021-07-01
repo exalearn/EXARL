@@ -9,6 +9,6 @@
     "process_per_env": 1,
     "model_type": "LSTM",
     "action_type": "variable",
-    "log_level": [3,3],
+    "log_level": [3, 3],
     "profile": "none"
 }

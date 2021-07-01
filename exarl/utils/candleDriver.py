@@ -89,7 +89,9 @@ def initialize_parameters():
     logger = log.setup_logger(__name__, gParameters['log_level'])
     logger.info("Finalized parameters:\n" + pformat(gParameters))
     global run_params
+    global kerasDefaults
     run_params = gParameters
+    kerasDefaults = candle.keras_default_config()
 
 def lookup_params(arg, default=None):
     try:
