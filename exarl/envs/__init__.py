@@ -23,6 +23,12 @@ elif env == 'ExaParabola-v0':
 	entry_point='exarl.envs.env_vault:ExaParabola'
     )
 
+elif env == 'ExaParabola-v1':
+    register(
+	id=env,
+	entry_point='exarl.envs.env_vault:ExaParabolaOrig'
+    )
+
 elif env == 'ExaCovid-v0':
     register(
         id=env,

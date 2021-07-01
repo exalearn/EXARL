@@ -12,3 +12,5 @@ elif agent == 'MLDQN-v0':
     from exarl.agents.agent_vault.mldqn import MLDQN
 elif agent == 'A2C-v0':
     from exarl.agents.agent_vault.a2c import A2C
+elif agent == 'A2C-v1':
+    from exarl.agents.agent_vault.a2c_vtrace import A2Cvtrace

@@ -59,6 +59,7 @@ class SYNC2(erl.ExaWorkflow):
 
         # Loop over episodes
         for e in range(workflow.nepisodes):
+
             # Reset variables each episode
             current_state = workflow.env.reset()
             total_reward  = 0
@@ -102,8 +103,8 @@ class SYNC2(erl.ExaWorkflow):
                 all_done = comm.allreduce(done, op=MPI.LAND)
 
             batch_data = [workflow.agent.state_memory, workflow.agent.action_memory, workflow.agent.reward_memory]
-            new_batch = comm.gather(batch_data, root=0)
             workflow.agent.reset_lists()
+            new_batch = comm.gather(batch_data, root=0)
 
             # Learner
             if mpi_settings.is_learner():

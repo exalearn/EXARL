@@ -1,13 +1,13 @@
 {
-    "agent": "A2C-v0",
+    "agent": "DQN-v0",
     "env": "ExaParabola-v0",
-    "workflow": "async2",
+    "workflow": "async",
     "n_episodes": 100,
     "n_steps": 100,
-    "output_dir": "./results_dir/temp_a2c_async_3",
+    "output_dir": "./results_dir/temp_dqn_async_parabola_4",
     "learner_procs": 1,
     "process_per_env": 1,
-    "model_type": "AC2",
+    "model_type": "MLP",
     "action_type": "variable",
     "log_level": [3, 3],
     "profile": "none"
