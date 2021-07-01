@@ -32,7 +32,7 @@ import exarl.candlelib.candle as candle
 
 
 # required = ['agent', 'env', 'n_episodes', 'n_steps']
-required = ['agent', 'env']
+required = ['agent', 'model_type', 'env', 'workflow']
 
 def resolve_path(*path_components) -> str:
     '''Resolve path to configuration files.
@@ -139,7 +139,7 @@ def base_parser(params):
         params['tester_epocs'] = args.tester_epocs
         print("tester_epocs overwitten from command line: ", args.tester_epocs)
 
-    if args.tester_epocs is not None:
+    if args.batch_size is not None:
         params['batch_size'] = args.tester_epocs
         print("batch_size overwitten from command line: ", args.batch_size)
 
@@ -167,7 +167,7 @@ def get_driver_params():
     params = json.load(open(learner_cfg))
     params = base_parser(params)
     print('_________________________________________________________________')
-    print("Running - {}, {}, and {}".format(params['agent'], params['env'], params['workflow']))
+    print("Running - {}, {}, {} and {}".format(params['agent'], params['model_type'], params['env'], params['workflow']))
     print('_________________________________________________________________', flush=True)
     try:
         agent_cfg = resolve_path('agent_cfg',
