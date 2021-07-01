@@ -22,5 +22,10 @@ elif agent == 'A2C-v0':
         id=agent,
         entry_point='exarl.agents.agent_vault:A2C'
     )
+elif agent == 'A2C-v1':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:A2Cvtrace'
+    )
 else:
     print("No agent selected!")

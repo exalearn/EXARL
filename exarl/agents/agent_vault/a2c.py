@@ -9,13 +9,10 @@ import sys
 import pickle
 import exarl as erl
 from exarl import mpi_settings
-from tensorflow.python.client import device_lib
-from collections import deque
 from datetime import datetime
 import numpy as np
 import exarl.utils.candleDriver as cd
 import exarl.utils.log as log
-from tensorflow.compat.v1.keras.backend import set_session
 
 logger = log.setup_logger(__name__, cd.run_params["log_level"])
 

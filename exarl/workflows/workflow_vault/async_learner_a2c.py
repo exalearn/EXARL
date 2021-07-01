@@ -259,7 +259,6 @@ class ASYNC2(erl.ExaWorkflow):
                     done = env_comm.bcast(done, root=0)
                     # Break for loop if done
                     if done:
-                        print(agent_comm.rank, steps)
                         if mpi_settings.is_actor():
                             workflow.agent.reset_lists()
                         break

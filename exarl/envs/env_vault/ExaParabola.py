@@ -27,8 +27,8 @@ import random
 import sys
 import json
 import exarl as erl
-# from envs.env_vault.computePI import computePI as cp
 import exarl.mpi_settings as mpi_settings
+import exarl.utils.candleDriver as cd
 
 class ExaParabola(gym.Env):
     metadata = {'render.modes': ['human']}
@@ -36,52 +36,47 @@ class ExaParabola(gym.Env):
     def __init__(self):
         super().__init__()
         self.env_comm = mpi_settings.env_comm
-        
+
+        # Load action step size from config file
+        self.action_step_size = cd.run_params['action_step_size']
+
         # Set up the parabola
-        random.seed(42)
-        self.a = 2
-        self.b = 4
-        self.c = 1
+        self.a = cd.run_params['parabola_variable_a']
+        self.b = cd.run_params['parabola_variable_b']
+        self.c = cd.run_params['parabola_variable_c']
         self.f = lambda x: self.a*x**2.0 + self.b*x + self.c
-        self.time_steps = 100
 
         self.x_min = -self.b/(2.0*self.a)
         self.y_min = self.f(self.x_min)
 
-        self.high = 2
-        self.low = -self.high
-
-        # For use in render function
-        self.x = np.linspace(self.low, self.high, 100)
-        self.y = self.f(self.x)
-
         # Define action and observation space
+        self.high = cd.run_params['max_range']
+        self.low = -self.high
         self.action_space = gym.spaces.Discrete(2)
         self.observation_space = gym.spaces.Box(low=np.array([self.low]), high=np.array([self.high]), dtype=np.float64)
-        self.state = [0]
+
+        # Initialize starting state
+        self.start_state_value = cd.run_params['start_state_value']
+        self.state = [self.start_state_value]
+
+        # For use in render function
+        # self.x = np.linspace(self.low, self.high, 100)
+        # self.y = self.f(self.x)
 
     def step(self, action):
-        
-        action_step_size = 0.1
 
         if action == 1:
-            self.state[0] += action_step_size
+            self.state[0] += self.action_step_size
         else:
-            self.state[0] -= action_step_size
-
-        self.time_steps -= 1
+            self.state[0] -= self.action_step_size
 
         y_pred = self.f(self.state[0])
         y_diff = abs(self.y_min - y_pred)
 
-        tol = 0.1
+        tol = self.action_step_size
         reward = 1.0 - y_diff**2.0
 
         if y_diff <= tol:
-            done = True
-            return self.state, reward, done, {}
-
-        if self.time_steps <= 0 or y_diff <= tol:
             done = True
         else:
             done = False
@@ -89,10 +84,7 @@ class ExaParabola(gym.Env):
         return self.state, reward, done, {}
 
     def reset(self):
-        # self.env._max_episode_steps=self._max_episode_steps
-        # print('Max steps: %s' % str(self._max_episode_steps))
-        self.state = [0]
-        self.time_steps = 100
+        self.state = [self.start_state_value]
         return self.state
 
     def render(self, mode='human', close=False):
@@ -102,7 +94,4 @@ class ExaParabola(gym.Env):
 #        plt.plot(self.state, self.f(self.state), 'r*', label='current state')
 #        plt.legend()
 #        plt.show()
-        return
-
-    def set_env(self):
-        print('Use this function to set hyper-parameters, if any')
+        pass
