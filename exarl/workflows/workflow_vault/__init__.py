@@ -10,4 +10,8 @@ from exarl.workflows.workflow_vault.async_learner_parallel import ASYNCparallel
 from exarl.workflows.workflow_vault.rma_learner import RMA_ASYNC
 from exarl.workflows.workflow_vault.rma_learner_v2 import RMA_ASYNC_v2
 from exarl.workflows.workflow_vault.mlrma_learner import ML_RMA
+<<<<<<< HEAD
 >>>>>>> e260d5c7... added updates
+=======
+from exarl.workflows.workflow_vault.seed_learner import SEED
+>>>>>>> 08a3c1ed... seed + scripts

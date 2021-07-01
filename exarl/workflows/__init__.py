@@ -41,3 +41,8 @@ register(
     id='rma_v2',
     entry_point='exarl.workflows.workflow_vault:RMA_ASYNC_v2'
 )
+
+register(
+    id='seed',
+    entry_point='exarl.workflows.workflow_vault:SEED'
+)
