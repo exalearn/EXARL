@@ -37,8 +37,9 @@ class ExaParabola(gym.Env):
         super().__init__()
         self.env_comm = mpi_settings.env_comm
 
-        # Load action step size from config file
+        # Load action step size, tolerance from config file
         self.action_step_size = cd.run_params['action_step_size']
+        self.tol = cd.run_params['tolerance']
 
         # Set up the parabola
         self.a = cd.run_params['parabola_variable_a']
@@ -46,7 +47,12 @@ class ExaParabola(gym.Env):
         self.c = cd.run_params['parabola_variable_c']
         self.f = lambda x: self.a*x**2.0 + self.b*x + self.c
 
-        self.x_min = -self.b/(2.0*self.a)
+        try:
+            self.x_min = -self.b/(2.0*self.a)
+        except:
+            print('Parabola variable "a" must be non-zero.')
+            sys.exit()
+
         self.y_min = self.f(self.x_min)
 
         # Define action and observation space
@@ -73,10 +79,9 @@ class ExaParabola(gym.Env):
         y_pred = self.f(self.state[0])
         y_diff = abs(self.y_min - y_pred)
 
-        tol = self.action_step_size
         reward = 1.0 - y_diff**2.0
 
-        if y_diff <= tol:
+        if y_diff <= self.tol:
             done = True
         else:
             done = False
