@@ -69,6 +69,10 @@ class ExaParabola(gym.Env):
         # self.x = np.linspace(self.low, self.high, 100)
         # self.y = self.f(self.x)
 
+        # Define action and observation space
+        self.action_space = gym.spaces.Discrete(2)
+        self.observation_space = gym.spaces.Box(low=np.array([self.low]), high=np.array([self.high]), dtype=np.float64)
+        self.state = [0]#[random.uniform(self.low, self.high)]
 
 
     def step(self, action):

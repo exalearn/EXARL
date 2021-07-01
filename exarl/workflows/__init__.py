@@ -39,3 +39,8 @@ register(
     id='mlrma',
     entry_point='exarl.workflows.workflow_vault:ML_RMA'
 )
+
+register(
+    id='seed',
+    entry_point='exarl.workflows.workflow_vault:SEED'
+)

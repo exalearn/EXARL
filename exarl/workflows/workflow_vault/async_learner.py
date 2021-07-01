@@ -61,6 +61,9 @@ class ASYNC(erl.ExaWorkflow):
         episode_done = 0
         episode_interim = 0
 
+        # temp vars
+        local_episode = 0
+
         # Round-Robin Scheduler
         if mpi_settings.is_learner():
             start = MPI.Wtime()
@@ -205,6 +208,7 @@ class ASYNC(erl.ExaWorkflow):
                             action, policy_type = workflow.agent.action(
                                 current_state)
 
+                    action = env_comm.bcast(action, root=0)
                     next_state, reward, done, _ = workflow.env.step(action)
 
                     if mpi_settings.is_actor():
@@ -230,6 +234,9 @@ class ASYNC(erl.ExaWorkflow):
 
                     if steps >= workflow.nsteps - 1:
                         done = True
+
+                    if done :
+                        local_episode += 1
 
                     if mpi_settings.is_actor():
                         # Send batched memories
@@ -261,6 +268,10 @@ class ASYNC(erl.ExaWorkflow):
             if mpi_settings.is_actor():
                 train_file.close()
 
+        if mpi_settings.is_agent():
+            agent_comm.Barrier()
+
         if mpi_settings.is_actor():
             logger.info(f'Agent[{agent_comm.rank}] timing info:\n')
             workflow.agent.print_timers()
+            print(" -- async v1 local_episode : ", local_episode)
