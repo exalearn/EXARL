@@ -236,6 +236,10 @@ class DQN(erl.ExaAgent):
         )
         yield batch_states, batch_target
 
+    #Sai Chenna - return the minibatch
+    def get_minibatch(self):
+        return random.sample(self.memory,self.batch_size)
+
     def train(self, batch):
         if self.is_learner:
             # if len(self.memory) > (self.batch_size) and len(batch_states)>=(self.batch_size):
@@ -318,6 +322,10 @@ class DQN(erl.ExaAgent):
     def monitor(self):
         logger.info("Implement monitor method in dqn.py")
 
+    #Sai Chenna - test method to check if env processes can access agent methods
+    def test(self):
+        print("Debug: Success! Environment process can call agent method!")
+
     def benchmark(dataset, num_epochs=1):
         start_time = time.perf_counter()
         for epoch_num in range(num_epochs):
@@ -345,3 +353,37 @@ class DQN(erl.ExaAgent):
             )
         else:
             logger.info("Agent[{}] - Average data prep time: {}".format(self.rank, 0))
+
+    def generate_data_part(self,bz):
+        # Worker method to create samples for training
+        # TODO: This method is the most expensive and takes 90% of the agent compute time
+        # TODO: Reduce computational time
+        # TODO: Revisit the shape (e.g. extra 1 for the LSTM)
+        batch_states = np.zeros(
+            (bz, 1, self.env.observation_space.shape[0])
+        ).astype("float64")
+        batch_target = np.zeros((bz, self.env.action_space.n)).astype(
+            "float64"
+        )
+        # Return empty batch
+        if len(self.memory) < bz:
+            yield batch_states, batch_target
+        #start_time = time.time()
+        minibatch = random.sample(self.memory, bz)
+        batch_target = list(map(self.calc_target_f, minibatch))
+        batch_states = [
+            np.array(exp[0]).reshape(1, 1, len(exp[0]))[0] for exp in minibatch
+        ]
+        batch_states = np.reshape(
+            batch_states, [len(minibatch), 1, len(minibatch[0][0])]
+        ).astype("float64")
+        batch_target = np.reshape(
+            batch_target, [len(minibatch), self.env.action_space.n]
+        ).astype("float64")
+        #end_time = time.time()
+        #self.dataprep_time += end_time - start_time
+        #self.ndataprep_time += 1
+        #logger.debug(
+        #    "Agent[{}] - Minibatch time: {} ".format(self.rank, (end_time - start_time))
+        #)
+        yield batch_states, batch_target

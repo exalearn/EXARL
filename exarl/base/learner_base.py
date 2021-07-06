@@ -91,6 +91,7 @@ class ExaLearner():
             agent = exarl.agents.make(self.agent_id, env=env, is_learner=False)
         else:
             logger.debug('Does not contain an agent')
+            #agent = exarl.agents.make(self.agent_id, env=env, is_learner=False)
         # Create workflow object
         workflow = exarl.workflows.make(self.workflow_id)
         return agent, env, workflow
