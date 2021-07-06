@@ -7,3 +7,6 @@ from exarl.workflows.workflow_vault.rma_learner import RMA_ASYNC
 from exarl.workflows.workflow_vault.rma_learner_v2 import RMA_ASYNC_v2
 from exarl.workflows.workflow_vault.mlrma_learner import ML_RMA
 from exarl.workflows.workflow_vault.seed_learner import SEED
+from exarl.workflows.workflow_vault.seed_a2c_learner import SEED_A2C
+from exarl.workflows.workflow_vault.async_learner_a2c import ASYNC2
+from exarl.workflows.workflow_vault.sync_learner_a2c import SYNC_A2C

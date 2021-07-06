@@ -60,7 +60,6 @@ class RMA_ASYNC_v2(erl.ExaWorkflow):
             if mpi_settings.is_learner() and learner_comm.rank == 0:
                 episode_win.Lock(0)
                 episode_win.Put(episode_data, target_rank=0)
-                episode_win.Flush(0)
                 episode_win.Unlock(0)
 
             # -- Get size of epsilon
@@ -75,7 +74,6 @@ class RMA_ASYNC_v2(erl.ExaWorkflow):
             if mpi_settings.is_learner() and learner_comm.rank == 0:
                 epsilon_win.Lock(0)
                 epsilon_win.Put(epsilon, target_rank=0)
-                epsilon_win.Flush(0)
                 epsilon_win.Unlock(0)
 
             # -- Get size of individual indices
@@ -91,7 +89,6 @@ class RMA_ASYNC_v2(erl.ExaWorkflow):
             if mpi_settings.is_learner() and learner_comm.rank == 0:
                 indices_win.Lock(0)
                 indices_win.Put(indices, target_rank=0)
-                indices_win.Flush(0)
                 indices_win.Unlock(0)
 
             # -- Get size of loss
@@ -108,7 +105,6 @@ class RMA_ASYNC_v2(erl.ExaWorkflow):
                 temp =  np.zeros(workflow.agent.batch_size, dtype=np.float64)
                 loss_win.Lock(0)
                 loss_win.Put(temp, target_rank=0)
-                loss_win.Flush(0)
                 loss_win.Unlock(0)
 
 
@@ -151,21 +147,19 @@ class RMA_ASYNC_v2(erl.ExaWorkflow):
             # Initialize epsilon
             epsilon_win.Lock(0)
             epsilon_win.Put(epsilon, target_rank=0)
-            epsilon_win.Flush(0)
             epsilon_win.Unlock(0)
 
             while episode_count_learner < workflow.nepisodes:
                 # Check episode counter
-                episode_win.Lock(0)
+                episode_win.Lock(0, lock_type=MPI.LOCK_SHARED)
                 # Atomic Get_accumulate to fetch episode count
                 episode_win.Get_accumulate(np.ones(1, dtype=np.float64), episode_count_learner, target_rank=0, op=MPI.NO_OP)
-                episode_win.Flush(0)
                 episode_win.Unlock(0)
 
                 # Go randomly over all actors
                 s = np.random.randint(low=learner_comm.size, high=agent_comm.size)
                 # Get data
-                data_win.Lock(s)
+                data_win.Lock(s, lock_type=MPI.LOCK_SHARED)
                 data_win.Get(data_buffer, target_rank=s, target=None)
                 data_win.Unlock(s)
 
@@ -224,10 +218,9 @@ class RMA_ASYNC_v2(erl.ExaWorkflow):
                 loss = np.zeros(workflow.agent.batch_size, dtype=np.float64)
 
                 # Get initial value of episode counter
-                episode_win.Lock(0)
+                episode_win.Lock(0, lock_type=MPI.LOCK_SHARED)
                 # Atomic Get using Get_accumulate
                 episode_win.Get_accumulate(one, episode_count_actor, target_rank=0, op=MPI.NO_OP)
-                episode_win.Flush(0)
                 episode_win.Unlock(0)
 
 
@@ -236,7 +229,6 @@ class RMA_ASYNC_v2(erl.ExaWorkflow):
                     episode_win.Lock(0)
                     # Atomic Get_accumulate to increment the episode counter
                     episode_win.Get_accumulate(one, episode_count_actor, target_rank=0, op=MPI.SUM)
-                    episode_win.Flush(0)
                     episode_win.Unlock(0)
 
                 episode_count_actor = env_comm.bcast(episode_count_actor, root=0)
@@ -267,27 +259,23 @@ class RMA_ASYNC_v2(erl.ExaWorkflow):
                         total_comm_time -= MPI.Wtime()
                         # Update model weight
                         # TODO: weights are updated each step -- REVIEW --
-                        model_win.Lock(0)
+                        model_win.Lock(0, lock_type=MPI.LOCK_SHARED)
                         model_win.Get(buff, target_rank=0)
-                        model_win.Flush(0)
                         model_win.Unlock(0)
 
                         # Get epsilon
-                        epsilon_win.Lock(0)
+                        epsilon_win.Lock(0, lock_type=MPI.LOCK_SHARED)
                         epsilon_win.Get_accumulate(local_epsilon, epsilon, target_rank=0, op=MPI.MIN)
-                        epsilon_win.Flush(0)
                         epsilon_win.Unlock(0)
 
                         # Get indices
-                        indices_win.Lock(0)
+                        indices_win.Lock(0, lock_type=MPI.LOCK_SHARED)
                         indices_win.Get(indices, target_rank=0)
-                        indices_win.Flush(0)
                         indices_win.Unlock(0)
 
                         # Get losses
-                        loss_win.Lock(0)
+                        loss_win.Lock(0, lock_type=MPI.LOCK_SHARED)
                         loss_win.Get(loss, target_rank=0)
-                        loss_win.Flush(0)
                         loss_win.Unlock(0)
 
                         total_comm_time += MPI.Wtime()

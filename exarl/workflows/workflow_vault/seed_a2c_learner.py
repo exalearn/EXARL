@@ -31,9 +31,9 @@ logger = log.setup_logger(__name__, cd.run_params['log_level'])
 import pickle
 
 
-class SEED(erl.ExaWorkflow):
+class SEED_A2C(erl.ExaWorkflow):
     def __init__(self):
-        print('Creating SEED learner workflow...')
+        print('Creating SEED A2C learner workflow...')
 
     @PROFILE
     def run(self, workflow):
@@ -95,13 +95,9 @@ class SEED(erl.ExaWorkflow):
 
                 elif recv_data[0] == 1 : # recv observation
                     # construct batch
-                    memory = (recv_data[1], recv_data[2], recv_data[3], recv_data[4], recv_data[5])
-                    workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
-                    generate_data_time -= MPI.Wtime()
-                    batch = next(workflow.agent.generate_data())
-                    generate_data_time += MPI.Wtime()
-                    policy_type = recv_data[6]
-                    done = recv_data[5]
+                    batch = recv_data[1]
+                    policy_type = recv_data[2]
+                    done = recv_data[3]
 
                     # Train
                     train_return = workflow.agent.train(batch)
@@ -187,6 +183,8 @@ class SEED(erl.ExaWorkflow):
                         with open('experience.pkl', 'wb') as f:
                             pickle.dump(memory, f)
 
+                        # memory
+                        workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
 
                     if steps >= workflow.nsteps - 1:
                         done = True
@@ -196,13 +194,9 @@ class SEED(erl.ExaWorkflow):
 
                     if mpi_settings.is_actor():
                         # Send observation
-                        agent_comm.send(
-                            [1, current_state, action, reward, next_state, done, policy_type], dest=0)
-
-                        logger.info('Rank[%s] - Total Reward:%s' %
-                                    (str(agent_comm.rank), str(total_reward)))
-                        logger.info(
-                            'Rank[%s] - Episode/Step/Status:%s/%s/%s' % (str(agent_comm.rank), str(episode), str(steps), str(done)))
+                        if done :
+                            batch_data = workflow.agent.generate_data()
+                            agent_comm.send([1, batch_data, done, policy_type], dest=0)
 
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_reward,
                                                done, episode, steps, policy_type, epsilon])
@@ -216,9 +210,11 @@ class SEED(erl.ExaWorkflow):
                     done = env_comm.bcast(done, root=0)
                     # Break for loop if done
                     if done:
+                        if mpi_settings.is_actor():
+                            workflow.agent.reset_lists()
                         break
-            logger.info('Worker time = {}'.format(MPI.Wtime() - start))
 
+            logger.info('Worker time = {}'.format(MPI.Wtime() - start))
             if mpi_settings.is_actor():
                 train_file.close()
 
