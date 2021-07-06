@@ -49,6 +49,7 @@ elif agent == 'DDDQN-v0':
         id=agent,
         entry_point='exarl.agents.agent_vault:DDPG_Vtrace'
     )
+
 elif agent == 'A2C-v0':
     register(
         id=agent,

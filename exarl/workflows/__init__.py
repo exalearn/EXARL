@@ -46,3 +46,15 @@ register(
     id='seed',
     entry_point='exarl.workflows.workflow_vault:SEED'
 )
+register(
+    id='seed_a2c',
+    entry_point='exarl.workflows.workflow_vault:SEED_A2C'
+)
+register(
+    id='a2c',
+    entry_point='exarl.workflows.workflow_vault:ASYNC2'
+)
+register(
+    id='a2c_sync',
+    entry_point='exarl.workflows.workflow_vault:SYNC_A2C'
+)
