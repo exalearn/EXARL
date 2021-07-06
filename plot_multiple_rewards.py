@@ -41,7 +41,7 @@ if __name__ == "__main__":
     plt.title('Cartpole Convergence Comparisons')
 
     x_tick_type = 'episode'     # 'episode' or 'time'
-    g_setting = 25
+    rolling_setting = 25
 
     base_dir = '/home/kcosburn/EXARL/results_dir/'
     # data_dirs = ['temp_a2c_sync_cartpole_3', 'temp_a2c_vtrace_sync_cartpole_1']       # A2C vs. A2C w/ vtrace
