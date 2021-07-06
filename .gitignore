@@ -129,3 +129,4 @@ results_dir
 # slurm
 slurm*
 optimization_results/
+*.pkl

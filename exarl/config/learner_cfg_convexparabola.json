@@ -1,0 +1,17 @@
+{
+    "agent": "DQN-v0",
+    "env": "ExaConvexProblemSai-v0",
+    "workflow": "async",
+    "n_episodes": 100,
+    "n_steps": 10,
+    "output_dir": "./results_dir/tmp14",
+    "learner_procs": 1,
+    "process_per_env": 4,
+    "model_type": "MLP",
+    "action_type": "variable",
+    "log_level": [
+        1,
+        1
+    ],
+    "profile": "none"
+}

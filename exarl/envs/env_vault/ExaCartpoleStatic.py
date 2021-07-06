@@ -59,7 +59,10 @@ class ExaCartpoleStatic(gym.Env):
         N = self.env_comm.bcast(N, 0)
         myPI = computePI(N, self.env_comm)  # Calls python function
         # myPI = cp.compute_pi(N, self.env_comm) # Calls C++ function
-        PI = self.env_comm.reduce(myPI, sum, 0)
+        # logger.info('Computin PI Rank[%s] PI= %s' %
+        #                                (str(rank), str(myPI)))
+        print("Debug: Env Rank: %s , PI: %s" % (str(rank), str(myPI)))
+        PI = self.env_comm.reduce(myPI, op=MPI.SUM, root=0)
 
         # if self.env_comm.rank == 0:
         #     print(PI)  # Print PI for verification
