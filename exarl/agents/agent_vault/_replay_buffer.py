@@ -162,3 +162,4 @@ class PrioritedReplayBuffer(Replay):
 
         for t_i, prio in zip(tree_index, ps):
             self.tree.update(t_i, prio)
+
