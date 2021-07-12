@@ -9,6 +9,7 @@ elif env == 'ExaCovid-v0':
     from exarl.envs.env_vault.ExaCOVID import ExaCOVID
 elif env == 'ExaBoosterDiscrete-v0':
     from exarl.envs.env_vault.ExaBoosterDiscrete import ExaBooster_v1 as ExaBooster
+<<<<<<< HEAD
 elif env == 'ExaWaterClusterDiscrete-v0':
     from exarl.envs.env_vault.ExaWaterClusterDiscrete import ExaWaterClusterDiscrete
 elif env == 'ExaParabola-v0':
