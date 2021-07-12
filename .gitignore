@@ -131,4 +131,3 @@ slurm*
 optimization_results/
 
 #weights
-*.pkl
