@@ -45,11 +45,30 @@ class BitFlip(gym.Env):
         return (self.state == self.goal).all() or self.steps >= self.max_steps
 
     def _reward(self):
+        #need a better reward for this, number of bits that are equal etc
         return -1 if (self.state != self.goal).any() else 0
 
     def step(self, action):
+
         self.state[action] = int(not self.state[action])
         self.steps += 1
+
+        time.sleep(0)  # Delay in seconds
+
+        rank = self.env_comm.rank
+        if rank == 0:
+            N = 100
+        else:
+            N = None
+
+        N = self.env_comm.bcast(N, root=0)
+        myPI = computePI(N, self.env_comm)  # Calls python function
+        # myPI = cp.compute_pi(N, self.env_comm) # Calls C++ function
+        PI = self.env_comm.reduce(myPI, op=MPI.SUM, root=0)
+
+        if self.env_comm.rank == 0:
+            print(PI)  # Print PI for verification
+
 
         return self._get_obs(), self._reward(), self._terminate(), {}
 
@@ -64,7 +83,22 @@ class BitFlip(gym.Env):
             'state': self._mean_zero(self.state),
             'goal' : self._mean_zero(self.goal),
         }
-    
+    def __str__(self):
+        return "State: {}, Goal: {}, Bit length: {}, Max Steps {}, Action Space {}"\
+                .format(self.state, self.goal, self.bit_length, self.max_steps, self.action_space)
     def _render(self, mode='human', close=False):
         pass
+
+    def generate_states(self):
+        return np.random.choice(2,self.bit_length)
+
+    def reset(self):
+        self.state = 0
+        self.state = self.generate_states()
+        self.goal = self.generate_states()
+        while (self.goal == self.state).all():
+            self.goal = self.generate_states()
+        return self._get_obs
+    
+
     
