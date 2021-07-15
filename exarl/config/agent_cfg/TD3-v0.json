@@ -1,9 +1,0 @@
-{
-    "epsilon": 1.0,
-    "epsilon_min" : 0.01,
-    "epsilon_decay" : 0.999,
-    "gamma": 0.99,
-    "tau" : 0.005,
-    "batch_size" : 64,
-    "buffer_capacity": 50000
-}
