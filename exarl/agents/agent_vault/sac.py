@@ -22,6 +22,8 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
+from tensorflow.keras import layers
+import tensorflow_probability as tfp
 import random
 import os
 import sys
@@ -29,7 +31,7 @@ import pickle
 from datetime import datetime
 from exarl.utils.OUActionNoise import OUActionNoise
 from exarl.utils.OUActionNoise import OUActionNoise2
-from ._network_sac import CriticModel, ValueModel, ActorModel
+#from ._network_sac import CriticModel, ValueModel, ActorModel
 from ._replay_buffer import ReplayBuffer
 
 import exarl as erl
@@ -57,21 +59,30 @@ class SAC(erl.ExaAgent):
 
         self.gamma = cd.run_params['gamma']
         self.tau = cd.run_params['tau']
+        self.repram = cd.run_params['repram']
 
         # model definitions
-        #TODO: Using the same parameters for critic 1 and 2, might change later
         self.actor_dense = cd.run_params['actor_dense']
         self.actor_dense_act = cd.run_params['actor_dense_act']
         self.actor_out_act = cd.run_params['actor_out_act']
-        #self.actor_optimizer = cd.run_params['actor_optimizer']
-        self.value_dense = cd.run_params['value_dense']
-        self.value_dense_act = cd.run_params['value_dense_act']
+        self.actor_optimizer = cd.run_params['actor_optimizer']
+        self.critic_state_dense = cd.run_params['critic_state_dense']
+        self.critic_state_dense_act = cd.run_params['critic_state_dense_act']
+        self.critic_action_dense = cd.run_params['critic_action_dense']
+        self.critic_action_dense_act = cd.run_params['critic_action_dense_act']
+        self.critic_concat_dense = cd.run_params['critic_concat_dense']
+        self.critic_concat_dense_act = cd.run_params['critic_concat_dense_act']
+        self.critic_out_act = cd.run_params['critic_out_act']
+        self.critic_optimizer = cd.run_params['critic_optimizer']
+
+        self.value_state_dense = cd.run_params['value_state_dense']
+        self.value_state_dense_act = cd.run_params['value_state_dense_act']
+        self.value_action_dense = cd.run_params['value_action_dense']
+        self.value_action_dense_act = cd.run_params['value_action_dense_act']
+        self.value_concat_dense = cd.run_params['value_concat_dense']
+        self.value_concat_dense_act = cd.run_params['value_concat_dense_act']
         self.value_out_act = cd.run_params['value_out_act']
         self.value_optimizer = cd.run_params['value_optimizer']
-        self.critic_dense = cd.run_params['critic_dense']
-        self.critic_dense_act = cd.run_params['critic_dense_act']
-        self.critic_out_act = cd.run_params['critic_out_act']
-        #self.critic_optimizer = cd.run_params['critic_optimizer']
         #self.directory = cd.run_params["output_dir"]
         #print(self.actor_dense, self.actor_dense_act, self.actor_out_act,self.value_dense,self.value_dense_act,self.critic_out_act )
         
@@ -90,12 +101,7 @@ class SAC(erl.ExaAgent):
         self.buffer_capacity = cd.run_params['buffer_capacity']
         self.batch_size = cd.run_params['batch_size']
 
-        # self.state_buffer = np.zeros((self.buffer_capacity, self.num_states))
-        # self.action_buffer = np.zeros((self.buffer_capacity, self.num_actions))
-        # self.reward_buffer = np.zeros((self.buffer_capacity, 1))
-        # self.next_state_buffer = np.zeros((self.buffer_capacity, self.num_states))
-        # self.done_buffer = np.zeros((self.buffer_capacity, 1))
-        # self.memory =  np.zeros((self.buffer_capacity, self.num_states))  # TODO: Change this
+        # Using uniform sampling
         self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions)
 
         # Setup TF configuration to allow memory growth
@@ -106,17 +112,17 @@ class SAC(erl.ExaAgent):
         tf.compat.v1.keras.backend.set_session(sess)
 
         if self.is_learner:
-            self.critic_model_1 = self.get_critic('Critic_1 Learner')
-            self.critic_model_2 = self.get_critic('Critic_2 Learner')
-            self.value_model = self.get_value('Value model Learner')
-            self.actor_model = self.get_actor('Actor model Learner')
-            self.target_value = self.get_value('target_value Learner')
+            self.critic_model_1 = self.get_critic()
+            self.critic_model_2 = self.get_critic()
+            self.value_model = self.get_value()
+            self.actor_model = self.get_actor()
+            self.target_value = self.get_value()
             self.target_value.set_weights(self.value_model.get_weights())
             
         else:
             with tf.device('/CPU:0'):
-                self.target_value = self.get_value('target_value Actor')
-                self.actor_model = self.get_actor('Actor model Actor')
+                self.target_value = self.get_value()
+                self.actor_model = self.get_actor()
         
         self.critic_lr = cd.run_params['critic_lr']
         self.actor_lr = cd.run_params['actor_lr']
@@ -133,13 +139,13 @@ class SAC(erl.ExaAgent):
     def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch):
 
         with tf.GradientTape() as tape:
-            value = tf.squeeze(self.value_model(state_batch), 1)
-            value_next = tf.squeeze(self.target_value(next_state_batch), 1)
-            policy_actions, log_probs = self.actor_model.sample_normal(state_batch, reparameterize=False)
-            log_probs = tf.squeeze(log_probs, 1)
-            q1_new_policy = self.critic_model_1(state_batch, policy_actions)
-            q2_new_policy = self.critic_model_2(state_batch, policy_actions)
-            critic_value = tf.squeeze(tf.math.minimum(q1_new_policy, q2_new_policy), 1)
+            value = self.value_model(state_batch, training=True)
+            value_next = self.target_value(next_state_batch, training=True)
+            policy_actions, log_probs = self.sample_normal(state_batch, reparameterize=False)
+            #log_probs = tf.squeeze(log_probs, 1)
+            q1_new_policy = self.critic_model_1([state_batch, policy_actions], training=True)
+            q2_new_policy = self.critic_model_2([state_batch, policy_actions], training=True)
+            critic_value = tf.math.minimum(q1_new_policy, q2_new_policy)
             value_target = critic_value - log_probs
             value_loss = 0.5 * keras.losses.MSE(value, value_target)
         logger.warning("Value loss: {}".format(value_loss))
@@ -149,11 +155,11 @@ class SAC(erl.ExaAgent):
         )
 
         with tf.GradientTape() as tape:
-            new_policy_actions , log_probs = self.actor_model.sample_normal(state_batch, reparameterize=True)
-            log_probs = tf.squeeze(log_probs, 1)
-            q1_new_policy = self.critic_model_1(state_batch, new_policy_actions)
-            q2_new_policy = self.critic_model_2(state_batch, new_policy_actions)
-            critic_value = tf.squeeze(tf.math.minimum(q1_new_policy, q2_new_policy), 1)
+            new_policy_actions , log_probs = self.sample_normal(state_batch, reparameterize=True)
+            #log_probs = tf.squeeze(log_probs, 1)
+            q1_new_policy = self.critic_model_1([state_batch, new_policy_actions], training=True)
+            q2_new_policy = self.critic_model_2([state_batch, new_policy_actions], training=True)
+            critic_value = tf.math.minimum(q1_new_policy, q2_new_policy)
             actor_target = log_probs - critic_value
             actor_loss = tf.math.reduce_mean(actor_target)
         logger.warning("Actor loss: {}".format(actor_loss))
@@ -164,8 +170,8 @@ class SAC(erl.ExaAgent):
 
         with tf.GradientTape(persistent=True) as tape:
             q_hat = self.scale*reward_batch + self.gamma*value_next
-            q1_old_policy = tf.squeeze(self.critic_model_1(state_batch, action_batch), 1)
-            q2_old_policy = tf.squeeze(self.critic_model_2(state_batch, action_batch), 1)
+            q1_old_policy = self.critic_model_1([state_batch, action_batch], training=True)
+            q2_old_policy = self.critic_model_2([state_batch, action_batch], training=True)
             critic_1_loss = 0.5 * keras.losses.MSE(q1_old_policy, q_hat)
             critic_2_loss = 0.5 * keras.losses.MSE(q2_old_policy, q_hat)
 
@@ -191,26 +197,150 @@ class SAC(erl.ExaAgent):
 
         yield state_batch, action_batch, reward_batch, next_state_batch
 
-    def get_actor(self, name='Actor'):
-        model = ActorModel(self.upper_bound, self.actor_dense, self.num_actions, name, self.actor_dense_act,self.actor_out_act) #self.ou_noise
+    # def get_actor(self, name='Actor'):
+    #     model = ActorModel(self.upper_bound, self.actor_dense, self.num_actions, name, self.actor_dense_act,self.actor_out_act) #self.ou_noise
+    #     return model
+
+    # def get_critic(self, name='Critic'):
+    #     model = CriticModel(self.num_actions, self.critic_dense,name, self.critic_dense_act,self.critic_out_act)
+    #     return model
+
+    # def get_value(self, name='Value'):
+    #     model = ValueModel( self.value_dense,name, self.value_dense_act,self.value_out_act)
+    #     return model
+
+    def get_actor(self):
+        # State as input
+        inputs = layers.Input(shape=(self.num_states,))
+        # first layer takes inputs
+        out = layers.Dense(self.actor_dense[0], activation=self.actor_dense_act)(inputs)
+        # loop over remaining layers
+        for i in range(1, len(self.actor_dense)):
+            out = layers.Dense(self.actor_dense[i], activation=self.actor_dense_act)(out)
+        # output layer has dimension actions, separate activation setting
+        out = layers.Dense(self.num_actions, activation=self.actor_out_act,
+                           kernel_initializer=tf.random_uniform_initializer())(out)
+        mu = layers.Lambda(lambda i: i * self.upper_bound)(out) # For mu
+        sigma = layers.Lambda(lambda i: i * self.upper_bound)(out) # For sigma
+        model = tf.keras.Model(inputs, [mu, sigma])
+        #model.summary()
+        #exit()
         return model
 
-    def get_critic(self, name='Critic'):
-        model = CriticModel(self.num_actions, self.critic_dense,name, self.critic_dense_act,self.critic_out_act)
-        return model
+    def get_critic(self):
+        # State as input
+        state_input = layers.Input(shape=self.num_states)
+        # first layer takes inputs
+        state_out = layers.Dense(self.critic_state_dense[0],
+                                 activation=self.critic_state_dense_act)(state_input)
+        # loop over remaining layers
+        for i in range(1, len(self.critic_state_dense)):
+            state_out = layers.Dense(self.critic_state_dense[i],
+                                     activation=self.critic_state_dense_act)(state_out)
 
-    def get_value(self, name='Value'):
-        model = ValueModel( self.value_dense,name, self.value_dense_act,self.value_out_act)
-        return model
+        # Action as input
+        action_input = layers.Input(shape=self.num_actions)
 
+        # first layer takes inputs
+        action_out = layers.Dense(self.critic_action_dense[0],
+                                  activation=self.critic_action_dense_act)(action_input)
+        # loop over remaining layers
+        for i in range(1, len(self.critic_action_dense)):
+            action_out = layers.Dense(self.critic_action_dense[i],
+                                      activation=self.critic_action_dense_act)(action_out)
+
+        # Both are passed through seperate layer before concatenating
+        concat = layers.Concatenate()([state_out, action_out])
+
+        # assumes at least 2 post-concat layers
+        # first layer takes concat layer as input
+        concat_out = layers.Dense(self.critic_concat_dense[0],
+                                  activation=self.critic_concat_dense_act)(concat)
+        # loop over remaining inner layers
+        for i in range(1, len(self.critic_concat_dense) - 1):
+            concat_out = layers.Dense(self.critic_concat_dense[i],
+                                      activation=self.critic_concat_dense_act)(concat_out)
+
+        # last layer has different activation
+        concat_out = layers.Dense(self.critic_concat_dense[-1], activation=self.critic_out_act,
+                                  kernel_initializer=tf.random_uniform_initializer())(concat_out)
+        outputs = layers.Dense(1)(concat_out)
+
+        # Outputs single value for give state-action
+        model = tf.keras.Model([state_input, action_input], outputs)
+        #model.summary()
+
+        return model
+    
+    def sample_normal(self, state_batch, reparameterize=True):
+        mu, sigma = self.actor_model(state_batch, training=True)
+
+        sigma = tf.clip_by_value(sigma, self.repram, 1)
+        probabilities = tfp.distributions.Normal(mu, sigma)
+        if reparameterize:
+            actions = probabilities.sample()
+        else:
+            actions = probabilities.sample()
+        action = tf.math.tanh(actions)*self.upper_bound
+        log_probs = probabilities.log_prob(actions)
+        log_probs -= tf.math.log(1-tf.math.pow(action, 2) + self.repram) #noise to avoid taking log of zero
+        log_probs = tf.math.reduce_sum(log_probs, axis=1, keepdims=True)
+
+        return action, log_probs
+
+    def get_value(self):
+        # State as input
+        state_input = layers.Input(shape=self.num_states)
+        # first layer takes inputs
+        state_out = layers.Dense(self.value_state_dense[0],
+                                 activation=self.value_state_dense_act)(state_input)
+        # loop over remaining layers
+        for i in range(1, len(self.value_state_dense)):
+            state_out = layers.Dense(self.value_state_dense[i],
+                                     activation=self.value_state_dense_act)(state_out)
+
+        # Action as input
+        # action_input = layers.Input(shape=self.num_actions)
+
+        # # first layer takes inputs
+        # action_out = layers.Dense(self.value_action_dense[0],
+        #                           activation=self.value_action_dense_act)(action_input)
+        # # loop over remaining layers
+        # for i in range(1, len(self.value_action_dense)):
+        #     action_out = layers.Dense(self.value_action_dense[i],
+        #                               activation=self.value_action_dense_act)(action_out)
+
+        # # Both are passed through seperate layer before concatenating
+        # concat = layers.Concatenate()([state_out, action_out])
+
+        # assumes at least 2 post-concat layers
+        # first layer takes concat layer as input
+        concat_out = layers.Dense(self.value_concat_dense[0],
+                                  activation=self.value_concat_dense_act)(state_out)
+        # loop over remaining inner layers
+        for i in range(1, len(self.value_concat_dense) - 1):
+            concat_out = layers.Dense(self.value_concat_dense[i],
+                                      activation=self.value_concat_dense_act)(concat_out)
+
+        # last layer has different activation
+        concat_out = layers.Dense(self.value_concat_dense[-1], activation=self.value_out_act,
+                                  kernel_initializer=tf.random_uniform_initializer())(concat_out)
+        outputs = layers.Dense(1)(concat_out)
+
+        # Outputs single value for give state-action
+        model = tf.keras.Model(state_input, outputs)
+        #model.summary()
+        #exit()
+        return model
+    
     def action(self, state):
         policy_type = 1
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
 
-        sampled_actions, _ = tf.squeeze(self.actor_model.sample_normal(tf_state, reparameterize=False))
+        sampled_actions, _ = tf.squeeze(self.sample_normal(tf_state, reparameterize=False))
         #noise = self.ou_noise()
-        # sampled_actions_wn = sampled_actions.numpy()
-        sampled_actions_wn = sampled_actions
+        sampled_actions_wn = sampled_actions.numpy()
+        #sampled_actions_wn = sampled_actions
         # legal_action = sampled_actions_wn
         isValid = self.env.action_space.contains(sampled_actions_wn)
         #print(isValid)
@@ -248,11 +378,11 @@ class SAC(erl.ExaAgent):
 
     def set_learner(self):
         self.is_learner = True
-        self.critic_model_1 = self.get_critic('Critic_1 Learner')
-        self.critic_model_2 = self.get_critic('Critic_2 Learner')
-        self.value_model = self.get_value('Value model Learner')
-        self.actor_model = self.get_actor('Actor model Learner')
-        self.target_value = self.get_value('target_value Learner')
+        self.critic_model_1 = self.get_critic()
+        self.critic_model_2 = self.get_critic()
+        self.value_model = self.get_value()
+        self.actor_model = self.get_actor()
+        self.target_value = self.get_value()
         self.target_value.set_weights(self.value_model.get_weights())
 
     def update(self):
