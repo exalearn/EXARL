@@ -59,3 +59,7 @@ register(
     id='seed_a2c',
     entry_point='exarl.workflows.workflow_vault:SEED_A2C'
 )
+register(    
+    id='mlasync',
+    entry_point='exarl.workflows.workflow_vault:ML_ASYNC'
+)
