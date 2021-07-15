@@ -85,20 +85,27 @@ class MLDQN(erl.ExaAgent):
         self.model_type = cd.run_params["model_type"]
 
         # for mlp
-        self.dense = cd.run_params["dense"]
+        #Sai Chenna - added the if flag to make it work for both MLP and LSTM models
+        if self.model_type == "MLP":
+
+            self.dense = cd.run_params["dense"]
+
 
         # for lstm
-        self.lstm_layers = cd.run_params["lstm_layers"]
-        self.gauss_noise = cd.run_params["gauss_noise"]
-        self.regularizer = cd.run_params["regularizer"]
+        if self.model_type == "LSTM":
+            self.lstm_layers = cd.run_params["lstm_layers"]
+            self.gauss_noise = cd.run_params["gauss_noise"]
+            self.regularizer = cd.run_params["regularizer"]
+            self.clipnorm = cd.run_params["clipnorm"]
+            self.clipvalue = cd.run_params["clipvalue"]
 
         # for both
         self.activation = cd.run_params["activation"]
         self.out_activation = cd.run_params["out_activation"]
         self.optimizer = cd.run_params["optimizer"]
         self.loss = cd.run_params["loss"]
-        self.clipnorm = cd.run_params["clipnorm"]
-        self.clipvalue = cd.run_params["clipvalue"]
+        #self.clipnorm = cd.run_params["clipnorm"]
+        #self.clipvalue = cd.run_params["clipvalue"]
 
         # set TF session
         config = tf.compat.v1.ConfigProto()

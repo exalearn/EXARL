@@ -115,6 +115,9 @@ class ML_RMA(erl.ExaWorkflow):
             # learner_counter = 0
             # Initialize epsilon
             if learner_comm.rank == 0:
+
+                #Sai chenna - to check number of horovod train steps
+                hvd_counter = 0
                 epsilon_win.Lock(0)
                 epsilon_win.Put(epsilon, target_rank=0)
                 epsilon_win.Flush(0)
@@ -160,8 +163,15 @@ class ML_RMA(erl.ExaWorkflow):
                     continue
 
                 # Train & Target train
+                #Sai Chenna - for deubg purposes
+                if learner_comm.rank == 0:
+                    s_time = MPI.Wtime()
                 train_return = workflow.agent.train(agent_data)
                 learner_iterations+=1
+
+                if learner_comm.rank == 0:
+                    hvd_counter += 1
+                    print("ML_RMA: Time taken to train (horovod) is {}. No of hvd trains = {}".format(MPI.Wtime()-s_time,hvd_counter))
 
                 if train_return is not None:
                     if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
