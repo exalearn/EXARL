@@ -1,4 +1,5 @@
 import gym
+from gym import spaces
 import time
 from mpi4py import MPI
 import numpy as np
@@ -23,7 +24,7 @@ def computePI(N, new_comm):
 
 class BitFlip(gym.Env):
 
-    metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 30}
+    metadata = {'render.modes': ['human']
 
     def __init__(self, bit_length=16, max_steps=100, mean_zero=False):
         super(BitFlip, self).__init__()
@@ -31,11 +32,10 @@ class BitFlip(gym.Env):
         if bit_length < 1:
             raise ValueError('bit_length must be >= 1, found {}'.format(bit_length))
         self.bit_length = bit_length
-        self.mean_zero = mean_zero
 
         self.max_steps = max_steps
         self.action_space = spaces.Discrete(bit_length)
-        self.observation_space spaces.Dict({
+        self.observation_space = spaces.Dict({
             'state': spaces.Box(low=0, high=1, shape=(bit_length, )),
             'goal': spaces.Box(low=0, high=1, shape=(bit_length, ))
         })
@@ -45,11 +45,11 @@ class BitFlip(gym.Env):
         return (self.state == self.goal).all() or self.steps >= self.max_steps
 
     def _reward(self):
-        #need a better reward for this, number of bits that are equal etc
+        #For sparse reward
         return -1 if (self.state != self.goal).any() else 0
 
     def step(self, action):
-
+        # Flips the bit
         self.state[action] = int(not self.state[action])
         self.steps += 1
 
@@ -72,33 +72,30 @@ class BitFlip(gym.Env):
 
         return self._get_obs(), self._reward(), self._terminate(), {}
 
-    def _mean_zero(self, x):
-        if self.mean_zero:
-            return (x - 0.5) / 0.5
-        return x
 
     def _get_obs(self):
 
         return {
-            'state': self._mean_zero(self.state),
-            'goal' : self._mean_zero(self.goal),
+            'state': self.state,
+            'goal' : self.goal,
         }
     def __str__(self):
         return "State: {}, Goal: {}, Bit length: {}, Max Steps {}, Action Space {}"\
                 .format(self.state, self.goal, self.bit_length, self.max_steps, self.action_space)
-    def _render(self, mode='human', close=False):
+    def render(self, mode='human', close=False):
+        #return self.env.render()
         pass
 
     def generate_states(self):
         return np.random.choice(2,self.bit_length)
 
     def reset(self):
-        self.state = 0
+        self.steps = 0
         self.state = self.generate_states()
         self.goal = self.generate_states()
         while (self.goal == self.state).all():
             self.goal = self.generate_states()
-        return self._get_obs
+        return self.state, self.goal
     
 
     
