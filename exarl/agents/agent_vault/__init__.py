@@ -27,5 +27,7 @@ elif agent == 'A2C-v2':
     from exarl.agents.agent_vault.a2c_continuous import A2Ccontinuous
 elif agent == 'SAC-v0':
     from exarl.agents.agent_vault.sac import SAC
+elif agent == 'DQNHER-v0':
+    from exarl.agents.agent_vault.dqnher import DQNHER
 else:
     print("No agent selected!")
