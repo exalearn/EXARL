@@ -24,7 +24,7 @@ logger = log.setup_logger(__name__, cd.run_params["log_level"])
 # The Deep Q-Network (DQN)
 
 
-class DQN(erl.ExaAgent):
+class DQNHER(erl.ExaAgent):
     def __init__(self, env, is_learner):
 
         # Initial values
