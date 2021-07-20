@@ -177,7 +177,7 @@ class DQN(erl.ExaAgent):
             # self.loss_fn = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
             self.loss_fn = cd.candle.build_loss(self.loss, cd.kerasDefaults, reduction='none')
             # self.opt = tf.keras.optimizers.Adam(self.learning_rate * hvd.size())
-            self.opt = cd.candle.build_optimizer(self.optimizer, self.learning_rate*hvd.size(), cd.kerasDefaults)
+            self.opt = cd.candle.build_optimizer(self.optimizer, self.learning_rate * hvd.size(), cd.kerasDefaults)
 
         self.maxlen = cd.run_params['mem_length']
         self.replay_buffer = PrioritizedReplayBuffer(maxlen=self.maxlen)

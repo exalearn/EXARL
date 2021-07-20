@@ -353,7 +353,7 @@ def finalize_parameters(bmk):
         conffile = os.path.join(bmk.file_path, conffile_txt)
 
     # the conffile functionality is superseded here
-    #print("Configuration file: ", conffile)
+    # print("Configuration file: ", conffile)
     fileParameters = bmk.read_config_file(conffile)  # aux.config_file)#args.config_file)
     # Get command-line parameters
     args = bmk.parser.parse_args()
