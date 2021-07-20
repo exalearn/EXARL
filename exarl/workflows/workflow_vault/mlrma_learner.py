@@ -102,8 +102,9 @@ class ML_RMA(erl.ExaWorkflow):
             model_win.Put(serial_target_weights, target_rank=0)
             model_win.Unlock(0)
 
-        # Synchronize
-        agent_comm.Barrier()
+        if mpi_settings.is_agent():
+            # Synchronize
+            agent_comm.Barrier()
 
         # Learner
         if mpi_settings.is_learner():
@@ -208,6 +209,8 @@ class ML_RMA(erl.ExaWorkflow):
         # Actors
         else:
             local_actor_episode_counter = 0
+            episode_count_actor = 0
+            put_counter = 0
             if mpi_settings.is_actor():
                 # Logging files
                 filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
@@ -229,6 +232,8 @@ class ML_RMA(erl.ExaWorkflow):
                 episode_win.Flush(0)
                 episode_win.Unlock(0)
 
+            episode_count_actor = env_comm.bcast(episode_count_actor, root=0)
+
             while episode_count_actor < workflow.nepisodes:
                 if mpi_settings.is_actor():
                     episode_win.Lock(0)
@@ -243,7 +248,8 @@ class ML_RMA(erl.ExaWorkflow):
                 # set of steps while terminating
                 if episode_count_actor >= workflow.nepisodes:
                     break
-                logger.info('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count_actor))
+                if mpi_settings.is_actor():
+                    logger.info('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count_actor))
 
                 # Episode initialization
                 workflow.env.seed(0)
@@ -327,14 +333,15 @@ class ML_RMA(erl.ExaWorkflow):
                         data_win.Put(serial_agent_batch, target_rank=agent_comm.rank)
                         data_win.Unlock(agent_comm.rank)
 
+                        #print("Actor {} : RMA window put counter: {} ".format(agent_comm.rank,put_counter))
+
                         # Log state, action, reward, ...
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
                                                done, local_actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
                         train_file.flush()
 
-                        current_state = next_state
-                        # Broadcast action to all procs in env_comm
-                        action = env_comm.bcast(action, root=0)
+                    current_state = next_state
+
 
 
         if mpi_settings.is_agent():
