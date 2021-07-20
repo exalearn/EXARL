@@ -66,6 +66,7 @@ if 'keras' in sys.modules or 'tensorflow.keras' in sys.modules:
     # from keras_utils import add_dense
     from exarl.candlelib.keras_utils import build_initializer
     from exarl.candlelib.keras_utils import build_optimizer
+    from exarl.candlelib.keras_utils import build_loss
     from exarl.candlelib.keras_utils import get_function
     from exarl.candlelib.keras_utils import set_seed
     from exarl.candlelib.keras_utils import set_parallelism_threads

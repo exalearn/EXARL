@@ -39,6 +39,7 @@ import exarl.utils.candleDriver as cd
 import exarl.utils.log as log
 from exarl.utils.introspect import introspectTrace
 from tensorflow.compat.v1.keras.backend import set_session
+
 if ExaComm.num_learners > 1:
     import horovod.tensorflow as hvd
     multiLearner = True
@@ -173,8 +174,10 @@ class DQN(erl.ExaAgent):
             self.first_batch = 1
             # TODO: Update candle driver to include different losses and optimizers
             # Default reduction is tf.keras.losses.Reduction.AUTO which errors out with distributed training
-            self.loss_fn = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
-            self.opt = tf.keras.optimizers.Adam(self.learning_rate * hvd.size())
+            # self.loss_fn = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
+            self.loss_fn = cd.candle.build_loss(self.loss, cd.kerasDefaults, reduction='none')
+            # self.opt = tf.keras.optimizers.Adam(self.learning_rate * hvd.size())
+            self.opt = cd.candle.build_optimizer(self.optimizer, self.learning_rate*hvd.size(), cd.kerasDefaults)
 
         self.maxlen = cd.run_params['mem_length']
         self.replay_buffer = PrioritizedReplayBuffer(maxlen=self.maxlen)

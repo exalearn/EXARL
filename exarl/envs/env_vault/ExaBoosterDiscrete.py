@@ -113,6 +113,7 @@ class ExaBooster_v1(gym.Env):
         # booster_model_file = 'fullbooster_noshift_e250_bs99_nsteps250k_invar5_outvar3_axis1_mmscaler_t0_D10122020-T175237_kfold2__e16_vl0.00038.h5'
         booster_model_file = cd.run_params['model_file']
         booster_model_pfn = os.path.join(booster_dir, booster_model_file)
+        print("booster model file=", booster_model_pfn, flush=True)
         with tf.device('/cpu:0'):
             self.booster_model = keras.models.load_model(booster_model_pfn)
 

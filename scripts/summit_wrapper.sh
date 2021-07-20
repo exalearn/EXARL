@@ -30,7 +30,14 @@ export OUT_LOG=${OUT_DIR}/output_${RUNDATE}.log
 # w - EXA_WATER_CLUSTER
 WHICH_ENV="-b"
 
+export TASKS_PER_RS=1
+export CPUS_PER_RS=7
+export GPUS_PER_RS=1
+export RS_PER_HOST=6
+export WORKFLOW=rma
+
 for NODES in 1 2 4 8 16 32 64
 do
+export NUM_RES_SET=$((NODES*6))
 bsub -P AST153 -J RunEXARL -W 2:00 -nnodes $NODES -e $ERR_LOG -o $OUT_LOG -alloc_flags "gpumps" "sh ${EXARL_ROOT}/scripts/submit_summit.lsf -n $NODES $WHICH_ENV &"
 done

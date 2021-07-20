@@ -4,12 +4,14 @@ from __future__ import absolute_import
 from tensorflow.keras import backend as K
 from tensorflow.keras import optimizers
 from tensorflow.keras import initializers
+from tensorflow.keras import losses
 
 from tensorflow.keras.layers import Dropout
 from tensorflow.keras.callbacks import Callback, ModelCheckpoint
 from tensorflow.keras.utils import get_custom_objects
 from tensorflow.keras.metrics import binary_crossentropy, mean_squared_error, mean_absolute_error
 from tensorflow.keras.models import Model
+import tensorflow.keras as keras
 
 from scipy.stats.stats import pearsonr
 
@@ -90,35 +92,35 @@ def build_optimizer(type, lr, kerasDefaults):
     """
 
     if type == 'sgd':
-        return optimizers.SGD(lr=lr, decay=kerasDefaults['decay_lr'],
+        return optimizers.SGD(learning_rate=lr, decay=kerasDefaults['decay_lr'],
                               momentum=kerasDefaults['momentum_sgd'],
                               nesterov=kerasDefaults['nesterov_sgd'])  # ,
         # clipnorm=kerasDefaults['clipnorm'],
         # clipvalue=kerasDefaults['clipvalue'])
 
     elif type == 'rmsprop':
-        return optimizers.RMSprop(lr=lr, rho=kerasDefaults['rho'],
+        return optimizers.RMSprop(learning_rate=lr, rho=kerasDefaults['rho'],
                                   epsilon=kerasDefaults['epsilon'],
                                   decay=kerasDefaults['decay_lr'])  # ,
         # clipnorm=kerasDefaults['clipnorm'],
 # clipvalue=kerasDefaults['clipvalue'])
 
     elif type == 'adagrad':
-        return optimizers.Adagrad(lr=lr,
+        return optimizers.Adagrad(learning_rate=lr,
                                   epsilon=kerasDefaults['epsilon'],
                                   decay=kerasDefaults['decay_lr'])  # ,
         # clipnorm=kerasDefaults['clipnorm'],
         # clipvalue=kerasDefaults['clipvalue'])
 
     elif type == 'adadelta':
-        return optimizers.Adadelta(lr=lr, rho=kerasDefaults['rho'],
+        return optimizers.Adadelta(learning_rate=lr, rho=kerasDefaults['rho'],
                                    epsilon=kerasDefaults['epsilon'],
                                    decay=kerasDefaults['decay_lr'])  # ,
         # clipnorm=kerasDefaults['clipnorm'],
 # clipvalue=kerasDefaults['clipvalue'])
 
     elif type == 'adam':
-        return optimizers.Adam(lr=lr, beta_1=kerasDefaults['beta_1'],
+        return optimizers.Adam(learning_rate=lr, beta_1=kerasDefaults['beta_1'],
                                beta_2=kerasDefaults['beta_2'],
                                epsilon=kerasDefaults['epsilon'],
                                decay=kerasDefaults['decay_lr'])  # ,
@@ -127,13 +129,13 @@ def build_optimizer(type, lr, kerasDefaults):
 
 # Not generally available
 #    elif type == 'adamax':
-#        return optimizers.Adamax(lr=lr, beta_1=kerasDefaults['beta_1'],
+#        return optimizers.Adamax(learning_rate=lr, beta_1=kerasDefaults['beta_1'],
 #                               beta_2=kerasDefaults['beta_2'],
 #                               epsilon=kerasDefaults['epsilon'],
 #                               decay=kerasDefaults['decay_lr'])
 
 #    elif type == 'nadam':
-#        return optimizers.Nadam(lr=lr, beta_1=kerasDefaults['beta_1'],
+#        return optimizers.Nadam(learning_rate=lr, beta_1=kerasDefaults['beta_1'],
 #                               beta_2=kerasDefaults['beta_2'],
 #                               epsilon=kerasDefaults['epsilon'],
 #                               schedule_decay=kerasDefaults['decay_schedule_lr'])
@@ -193,6 +195,51 @@ def build_initializer(type, kerasDefaults, seed=None, constant=0.):
 
     elif type == 'he_normal':
         return initializers.he_normal(seed=seed)
+
+
+def build_loss(loss_type, kerasDefaults, reduction='auto'):
+
+    # set the reduction according to passed in text string
+    if reduction == 'auto':
+        reduction = keras.utils.ReductionV2.AUTO
+    elif reduction == 'none':
+        reduction = keras.losses.Reduction.NONE
+    elif reduction == 'sum':
+        reduction = keras.losses.Reduction.SUM
+    elif reduction == 'sum_over_batch_size':
+        reduction = keras.losses.Reduction.SUM_OVER_BATCH_SIZE
+
+    # set loss function according to passed in text string
+    if loss_type == 'binary_crossentropy':
+        return keras.losses.BinaryCrossEntropy(reduction=reduction)
+    elif loss_type == 'categorical_crossentropy':
+        return keras.losses.CategoricalCrossEntropy(reduction=reduction)
+    elif loss_type == 'categorical_hinge':
+        return keras.losses.CategoricalHinge(reduction=reduction)
+    elif loss_type == 'cosine_similarity':
+        return keras.losses.CosineSimilarity(reduction=reduction)
+    elif loss_type == 'hinge':
+        return keras.losses.Hinge(reduction=reduction)
+    elif loss_type == 'huber':
+        return keras.losses.Huber(reduction=reduction)
+    elif loss_type == 'kl_divergence':
+        return keras.losses.KLDivergence(reduction=reduction)
+    elif loss_type == 'log_cosh':
+        return keras.losses.LogCosh(reduction=reduction)
+    elif loss_type == 'mae':
+        return keras.losses.MeanAbsoluteError(reduction=reduction)
+    elif loss_type == 'mape':
+        return keras.losses.MeanAbsolutePercentageError(reduction=reduction)
+    elif loss_type == 'mse':
+        return keras.losses.MeanSquaredError(reduction=reduction)
+    elif loss_type == 'msle':
+        return keras.losses.MeanSquaredLogarithmicError(reduction=reduction)
+    elif loss_type == 'poisson':
+        return keras.losses.Poisson(reduction=reduction)
+    elif loss_type == 'sparse_categorical_crossentropy':
+        return keras.losses.SparseCategoricalCrossentropy(reduction=reduction)
+    elif loss_type == 'squared_hinge':
+        return keras.losses.SquaredHinge(reduction=reduction)
 
 
 def xent(y_true, y_pred):

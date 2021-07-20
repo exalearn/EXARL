@@ -352,7 +352,8 @@ def finalize_parameters(bmk):
     else:  # a 'config_file' has been set --> use this file
         conffile = os.path.join(bmk.file_path, conffile_txt)
 
-    print("Configuration file: ", conffile)
+    # the conffile functionality is superseded here
+    #print("Configuration file: ", conffile)
     fileParameters = bmk.read_config_file(conffile)  # aux.config_file)#args.config_file)
     # Get command-line parameters
     args = bmk.parser.parse_args()
@@ -821,7 +822,7 @@ class Benchmark:
                     fileParams[k] = eval(v)
 
         fileParams = self.format_benchmark_config_arguments(fileParams)
-        pprint(fileParams)
+        # pprint(fileParams)
 
         return fileParams
 

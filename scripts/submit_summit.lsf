@@ -20,13 +20,6 @@ if [[ -n $EXA_ALL ]]; then
 	EXA_WATER_CLUSTER="1"
 fi
 
-TASKS_PER_RS=1
-CPUS_PER_RS=7
-GPUS_PER_RS=1
-RS_PER_HOST=6
-NUM_RES_SET=$((NODES*6))
-WORKFLOW=rma
-
 if [[ -n $EXA_CARTPOLE ]]; then
 	DIR_NAME=Exa_CartPole
 	OUTPUT_DIR=${OUT_DIR}/${DIR_NAME}_results/nodes_${NODES}/
