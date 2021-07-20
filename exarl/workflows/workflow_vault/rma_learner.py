@@ -232,6 +232,8 @@ class RMA(erl.ExaWorkflow):
                     ib.update("RMA_Env_Step", 1)
                     ib.simpleTrace("RMA_Reward", steps, 1 if done else 0, local_actor_episode_counter, reward)
 
+                    # Update current state and steps count
+                    current_state = next_state
                     steps += 1
                     if steps >= workflow.nsteps:
                         done = True
