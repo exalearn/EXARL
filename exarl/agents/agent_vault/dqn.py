@@ -289,7 +289,7 @@ class DQN(erl.ExaAgent):
                         loss = self.training_step(batch)
                     else:
                         loss = LossHistory()
-                        sample_weight = batch[3] * (1 - self.epsilon)
+                        sample_weight = batch[3] ** (1 - self.epsilon)
                         self.model.fit(batch[0], batch[1], epochs=1, batch_size=1, verbose=0, callbacks=loss, sample_weight=sample_weight)
                         loss = loss.loss
                     ret = batch[2], loss
