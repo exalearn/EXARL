@@ -197,18 +197,6 @@ class SAC(erl.ExaAgent):
 
         yield state_batch, action_batch, reward_batch, next_state_batch
 
-    # def get_actor(self, name='Actor'):
-    #     model = ActorModel(self.upper_bound, self.actor_dense, self.num_actions, name, self.actor_dense_act,self.actor_out_act) #self.ou_noise
-    #     return model
-
-    # def get_critic(self, name='Critic'):
-    #     model = CriticModel(self.num_actions, self.critic_dense,name, self.critic_dense_act,self.critic_out_act)
-    #     return model
-
-    # def get_value(self, name='Value'):
-    #     model = ValueModel( self.value_dense,name, self.value_dense_act,self.value_out_act)
-    #     return model
-
     def get_actor(self):
         # State as input
         inputs = layers.Input(shape=(self.num_states,))
@@ -278,7 +266,7 @@ class SAC(erl.ExaAgent):
         sigma = tf.clip_by_value(sigma, self.repram, 1)
         probabilities = tfp.distributions.Normal(mu, sigma)
         if reparameterize:
-            actions = probabilities.sample()
+            actions = probabilities.sample() # To do add reparameterization here
         else:
             actions = probabilities.sample()
         action = tf.math.tanh(actions)*self.upper_bound
@@ -299,20 +287,6 @@ class SAC(erl.ExaAgent):
             state_out = layers.Dense(self.value_state_dense[i],
                                      activation=self.value_state_dense_act)(state_out)
 
-        # Action as input
-        # action_input = layers.Input(shape=self.num_actions)
-
-        # # first layer takes inputs
-        # action_out = layers.Dense(self.value_action_dense[0],
-        #                           activation=self.value_action_dense_act)(action_input)
-        # # loop over remaining layers
-        # for i in range(1, len(self.value_action_dense)):
-        #     action_out = layers.Dense(self.value_action_dense[i],
-        #                               activation=self.value_action_dense_act)(action_out)
-
-        # # Both are passed through seperate layer before concatenating
-        # concat = layers.Concatenate()([state_out, action_out])
-
         # assumes at least 2 post-concat layers
         # first layer takes concat layer as input
         concat_out = layers.Dense(self.value_concat_dense[0],
@@ -330,7 +304,6 @@ class SAC(erl.ExaAgent):
         # Outputs single value for give state-action
         model = tf.keras.Model(state_input, outputs)
         #model.summary()
-        #exit()
         return model
     
     def action(self, state):
@@ -338,13 +311,8 @@ class SAC(erl.ExaAgent):
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
 
         sampled_actions, _ = tf.squeeze(self.sample_normal(tf_state, reparameterize=False))
-        #noise = self.ou_noise()
         sampled_actions_wn = sampled_actions.numpy()
-        #sampled_actions_wn = sampled_actions
-        # legal_action = sampled_actions_wn
         isValid = self.env.action_space.contains(sampled_actions_wn)
-        #print(isValid)
-        #exit()
         if isValid == False:
             legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
             policy_type = 0
@@ -390,20 +358,29 @@ class SAC(erl.ExaAgent):
 
     def load(self, file_name):
         #TODO: Sanity check to verify the model is there
-        print("... loading Models ...")
-        self.actor_model.load_weights(file_name)
-        self.critic_model_1.load_weights(file_name)
-        self.critic_model_2.load_weights(file_name)
-        self.value_model.load_weights(file_name)
-        self.target_value.load_weights(file_name)
+        try:
+            print("... loading Models ...")
+            self.actor_model.load_weights(file_name)
+            self.critic_model_1.load_weights(file_name)
+            self.critic_model_2.load_weights(file_name)
+            self.value_model.load_weights(file_name)
+            self.target_value.load_weights(file_name)
+        except:
+            #TODO: Could be improve, but ok for now
+            print("One of the model not present")
 
     def save(self, file_name):
-        print("... Saving Models ...")
-        self.actor_model.save_weights(file_name)
-        self.critic_model_1.save_weights(file_name)
-        self.critic_model_2.save_weights(file_name)
-        self.value_model.save_weights(file_name)
-        self.target_value.save_weights(file_name)
+
+        try:
+            print("... Saving Models ...")
+            self.actor_model.save_weights(file_name)
+            self.critic_model_1.save_weights(file_name)
+            self.critic_model_2.save_weights(file_name)
+            self.value_model.save_weights(file_name)
+            self.target_value.save_weights(file_name)
+        except:
+            #TODO: Could be improve, but ok for now
+            print("One of the model not present")
 
     def monitor(self):
         print("Implement monitor method in sac.py")
