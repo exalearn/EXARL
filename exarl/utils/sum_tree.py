@@ -18,20 +18,20 @@ class SumTree(object):
     @property
     def total_priority(self):
         return self.tree[0]
-
+    
     def update(self, tree_index, priority):
         change = priority - self.tree[tree_index]
-
+        
         self.tree[tree_index] = priority
-
+        
         self._update_tree_difference(tree_index,change)
 
     def get_priority_values(self, value):
         start_parent_index = 0
         index = self._get_value(start_parent_index, value)
-
+        
         data_index = index - self.capacity + 1
-
+        
         return index, self.tree[index], self.data[data_index]
 
     def _update_tree_difference(self, tree_index, change):
@@ -54,5 +54,5 @@ class SumTree(object):
             else:
                 value -= self.tree[left_index]
                 parent_index = right_index
-
+        
         return leaf_index
