@@ -1,38 +1,3 @@
-<<<<<<< HEAD
-# This material was prepared as an account of work sponsored by an agency of the
-# United States Government.  Neither the United States Government nor the United
-# States Department of Energy, nor Battelle, nor any of their employees, nor any
-# jurisdiction or organization that has cooperated in the development of these
-# materials, makes any warranty, express or implied, or assumes any legal
-# liability or responsibility for the accuracy, completeness, or usefulness or
-# any information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights. Reference
-# herein to any specific commercial product, process, or service by trade name,
-# trademark, manufacturer, or otherwise does not necessarily constitute or imply
-# its endorsement, recommendation, or favoring by the United States Government
-# or any agency thereof, or Battelle Memorial Institute. The views and opinions
-# of authors expressed herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#                 PACIFIC NORTHWEST NATIONAL LABORATORY
-#                            operated by
-#                             BATTELLE
-#                             for the
-#                   UNITED STATES DEPARTMENT OF ENERGY
-#                    under Contract DE-AC05-76RL01830
-import numpy as np
-import tensorflow as tf
-import tensorflow.keras as keras
-from tensorflow.keras import layers
-import random
-import os
-import pickle
-from datetime import datetime
-from exarl.utils.OUActionNoise import OUActionNoise
-from exarl.utils.OUActionNoise import OUActionNoise2
-from exarl.utils.memory_type import MEMORY_TYPE
-from ._networks_td3 import ActorModel, CriticModel
-from ._replay_buffer import ReplayBuffer, HindsightExperienceReplayMemory, PrioritedReplayBuffer
-
 import exarl as erl
 
 import exarl.utils.log as log
@@ -101,7 +66,7 @@ class TD3(erl.ExaAgent):
             self.memory = HindsightExperienceReplayMemory(self.buffer_capacity, self.num_states, self.num_actions)
         else:
             print("Unrecognized replay buffer please specify 'uniform, priority or hindsight', using default uniform sampling")
-            self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions) #TODO : maybe exit()
+            self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions) #TODO : maybe exit()  
 
         # Setup TF configuration to allow memory growth
         # tf.keras.backend.set_floatx('float64')
@@ -149,11 +114,11 @@ class TD3(erl.ExaAgent):
         # Training and updating Actor & Critic networks.
         with tf.GradientTape(persistent=True) as tape:
             target_actions = self.target_actor(next_state_batch, training=True)
-            target_actions = target_actions + tf.clip_by_value(np.random.normal(scale=0.2), -0.5, 0.5) # TODO: Might remove this
+            target_actions = target_actions + tf.clip_by_value(np.random.normal(scale=0.2), -0.5, 0.5) # TODO: Might remove this 
             target_actions = tf.clip_by_value(target_actions, self.lower_bound, self.upper_bound) #TODO: Same
             q1_ = self.target_critic_1([next_state_batch, target_actions], training=True)
             q2_ = self.target_critic_2([next_state_batch, target_actions], training=True)
-            # For priroritized experience
+            # For priroritized experience 
 
             q1 = self.critic_model_1([state_batch, action_batch], training=True)
             q2 = self.critic_model_2([state_batch, action_batch], training=True)
@@ -271,7 +236,7 @@ class TD3(erl.ExaAgent):
         return model
 
     def generate_data(self):
-
+        
         # Randomly sample indices
         #TODO: Might be a better way to do this, but ok to test functionalitity
         if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
@@ -300,7 +265,7 @@ class TD3(erl.ExaAgent):
                 self.update_grad(batch[0], batch[1], batch[2], batch[3])
             elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
                 self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4])
-
+            
 
     def target_train(self):
         # Update the target model
@@ -391,7 +356,7 @@ class TD3(erl.ExaAgent):
         except:
             #TODO: Could be improve, but ok for now
             print("One of the model not present")
-
+    
     def monitor(self):
         print("Implement monitor method in td3.py")
 
@@ -404,4 +369,3 @@ class TD3(erl.ExaAgent):
     def epsilon_adj(self):
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
-

@@ -15,7 +15,7 @@ class ReplayBuffer(Replay):
 
     def store(self, state, action, reward, next_state, done):
         # If the counter exceeds the capacity then
-
+    
         self._state_buffer[self._memory_counter] = state
         self._action_buffer[self._memory_counter] = action
         self._reward_buffer[self._memory_counter] = reward
@@ -27,7 +27,6 @@ class ReplayBuffer(Replay):
 
     def sample_buffer(self, batch_size):
         record_range = min(len(self), self._memory_size)
-        record_range = max(1, record_range)
 
         # Randomly sample indices
         batch_indices = np.random.choice(record_range, batch_size)
@@ -100,7 +99,7 @@ class HindsightExperienceReplayMemory(Replay):
         self._done_buffer.fill(0)
         self._goal_buffer.fill(0)
 
-
+    
 class PrioritedReplayBuffer(Replay):
 
     __PER_e = 0.01
@@ -125,7 +124,7 @@ class PrioritedReplayBuffer(Replay):
         self.b_idx = np.zeros((batch_size,), dtype=np.int32)
 
     def store(self, state, action, reward, next_state, done):
-
+        
         experience = state, action, reward, next_state, done
         max_priority = np.max(self.tree.tree[-self.tree.capacity:])
         if max_priority == 0:
@@ -139,8 +138,8 @@ class PrioritedReplayBuffer(Replay):
     def sample_buffer(self, batch_size):
         #TODO: Not efficient
         #minibatch = np.empty((batch_size, self.tree.data[0].size))
-
-
+        
+        
         priority_segment = self.tree.total_priority/batch_size
         for i in range(batch_size):
             a, b = priority_segment * i, priority_segment * (i+1)
@@ -162,4 +161,4 @@ class PrioritedReplayBuffer(Replay):
 
         for t_i, prio in zip(tree_index, ps):
             self.tree.update(t_i, prio)
-
+    
