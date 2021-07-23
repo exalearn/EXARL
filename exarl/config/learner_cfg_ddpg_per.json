@@ -1,0 +1,14 @@
+{
+    "agent": "DDPG-v3",
+    "env": "ExaParabolaContinuous-v0",
+    "workflow": "async",
+    "n_episodes": 200,
+    "n_steps": 100,
+    "output_dir": "./results_dir/ddpg_lstm_vtrace_per_parabola_1",
+    "learner_procs": 1,
+    "process_per_env": 1,
+    "model_type": "AC_LSTM",
+    "action_type": "variable",
+    "log_level": [3, 3],
+    "profile": "none"
+}

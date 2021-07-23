@@ -3,7 +3,6 @@ import numpy as np
 import tensorflow as tf
 from collections import deque
 
-
 class PrioritizedReplayBuffer():
     """Class implements Prioritized Experince Replay (PER)
     """

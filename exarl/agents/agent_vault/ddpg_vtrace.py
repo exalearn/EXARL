@@ -132,7 +132,6 @@ class DDPG_Vtrace(erl.ExaAgent):
             action_batch,
             reward_batch,
             next_state_batch):
-
         # print("curr_state_batch: ", state_batch)
         # print("next_state_batch: ", next_state_batch)
 

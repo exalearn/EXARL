@@ -1,10 +1,10 @@
 {
-    "actor_learning_rate" : 0.007,
-    "actor_dense" : 64,
+    "actor_learning_rate" : 0.001,
+    "actor_dense" : 256,
     "actor_dense_activation" : "relu",
     "actor_dense_kernel_initializer" : "he_uniform",
-    "critic_learning_rate" : 0.007,
-    "critic_dense" : 64,
+    "critic_learning_rate" : 0.001,
+    "critic_dense" : 256,
     "critic_dense_activation" : "relu",
     "critic_dense_kernel_initializer" : "he_uniform"
 }

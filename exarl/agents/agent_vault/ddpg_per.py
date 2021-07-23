@@ -23,17 +23,18 @@ import tensorflow as tf
 from tensorflow.keras import layers
 import random
 import os
+import sys
 import pickle
 from datetime import datetime
 from exarl.utils.OUActionNoise import OUActionNoise
 from exarl.utils.OUActionNoise import OUActionNoise2
-from exarl.utils.introspect import introspectTrace
+from exarl.agents.agent_vault._prioritized_replay import PrioritizedReplayBuffer
 
 import exarl as erl
 
-from exarl.utils import log
+import exarl.utils.log as log
 import exarl.utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 
 @tf.function
@@ -42,25 +43,15 @@ def update_target(target_weights, weights, tau):
         a.assign(b * tau + a * (1 - tau))
 
 
-class DDPG(erl.ExaAgent):
-    """Deep deterministic policy gradient agent.
-    Inherits from ExaAgent base class.
-    """
+class DDPG_PER(erl.ExaAgent):
     is_learner: bool
 
     def __init__(self, env, is_learner):
-        """DDPG constructor
-
-        Args:
-            env (OpenAI Gym environment object): env object indicates the RL environment
-            is_learner (bool): Used to indicate if the agent is a learner or an actor
-        """
         # Distributed variables
-        self.is_learner = is_learner
+        self.is_learner = False
 
         # Environment space and action parameters
         self.env = env
-
         self.num_states = env.observation_space.shape[0]
         self.num_actions = env.action_space.shape[0]
         self.upper_bound = env.action_space.high
@@ -89,12 +80,9 @@ class DDPG(erl.ExaAgent):
         self.critic_optimizer = cd.run_params['critic_optimizer']
         self.tau = cd.run_params['tau']
 
-        # TODO: Parameterize these
         std_dev = 0.2
-        # ave_bound = (self.upper_bound + self.lower_bound) / 2
-        ave_bound = np.zeros(1)
+        ave_bound = (self.upper_bound + self.lower_bound) / 2
         print('ave_bound: {}'.format(ave_bound))
-        # Ornstein-Uhlenbeck process
         self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(std_dev) * np.ones(1))
 
         # Not used by agent but required by the learner class
@@ -145,21 +133,21 @@ class DDPG(erl.ExaAgent):
         # Learning rate for actor-critic models
         self.critic_lr = cd.run_params['critic_lr']
         self.actor_lr = cd.run_params['actor_lr']
-        # TODO: Parameterize
         self.critic_optimizer = tf.keras.optimizers.Adam(self.critic_lr)
         self.actor_optimizer = tf.keras.optimizers.Adam(self.actor_lr)
 
-    def remember(self, state, action, reward, next_state, done):
-        """Add experience to replay buffer
+        self.priority_scale = cd.run_params['priority_scale']
+        self.replay_buffer = PrioritizedReplayBuffer(maxlen=self.buffer_capacity)
+        self.n_episodes = cd.run_params['n_episodes']
+        self.beta0 = cd.run_params['beta_0']
+        self.beta = np.linspace(self.beta0, 1, self.n_episodes)
+        self.episode_count = 0
 
-        Args:
-            state (list or array): Current state of the system
-            action (list or array): Action to take
-            reward (list or array): Environment reward
-            next_state (list or array): Next state of the system
-            done (bool): Indicates episode completion
-        """
-        # If the counter exceeds the capacity then
+    def remember(self, state, action, reward, next_state, done):
+        lost_data = self.replay_buffer.add((state, action, reward, next_state, done))
+        if lost_data and self.priority_scale:
+            print("Priority replay buffer size too small. Data loss negates replay effect!", flush=True)
+
         index = self.buffer_counter % self.buffer_capacity
         self.state_buffer[index] = state
         self.action_buffer[index] = action[0]
@@ -169,22 +157,23 @@ class DDPG(erl.ExaAgent):
         self.buffer_counter += 1
 
     # @tf.function
-    def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch):
-        """Update gradients - training step
+    def update_grad(self, batch):
 
-        Args:
-            state_batch (list): list of states
-            action_batch (list): list of actions
-            reward_batch (list): list of rewards
-            next_state_batch (list): list of next states
-        """
-        # tf.print(state_batch.shape)
+        state_batch = batch[0]
+        action_batch = batch[1]
+        reward_batch = batch[2]
+        next_state_batch = batch[3]
+
+        if self.priority_scale > 0:
+            indices = batch[4]
+            importance = batch[5]
+            sample_weight = importance ** self.beta[self.episode_count]
 
         target_policy = self.target_actor(state_batch)
         behaviour_policy = self.actor_model(state_batch)
-        policy_ratio = target_policy / behaviour_policy
+        policy_ratio = target_policy/behaviour_policy
 
-        print(tf.reduce_mean(policy_ratio))
+        # print(tf.reduce_mean(policy_ratio))
 
         # Training and updating Actor & Critic networks.
         with tf.GradientTape() as tape:
@@ -214,11 +203,6 @@ class DDPG(erl.ExaAgent):
         )
 
     def get_actor(self):
-        """Define actor network
-
-        Returns:
-            model: actor model
-        """
         # State as input
         inputs = layers.Input(shape=(self.num_states,))
         # first layer takes inputs
@@ -236,11 +220,6 @@ class DDPG(erl.ExaAgent):
         return model
 
     def get_critic(self):
-        """Define critic network
-
-        Returns:
-            model: critic network
-        """
         # State as input
         state_input = layers.Input(shape=self.num_states)
         # first layer takes inputs
@@ -286,57 +265,43 @@ class DDPG(erl.ExaAgent):
         return model
 
     def has_data(self):
-        """Indicates if the buffer has data
+        return (self.replay_buffer.get_buffer_length() >= self.batch_size)
 
-        Returns:
-            bool: True if buffer has data
-        """
-        return (self.buffer_counter > 0)
-
-    @introspectTrace()
     def generate_data(self):
-        """Generate data for training
 
-        Yields:
-            state_batch (list): list of states
-            action_batch (list): list of actions
-            reward_batch (list): list of rewards
-            next_state_batch (list): list of next states
-        """
-        if self.has_data():
+        if not self.has_data():
             record_range = min(self.buffer_counter, self.buffer_capacity)
             logger.info('record_range:{}'.format(record_range))
             # Randomly sample indices
             batch_indices = np.random.choice(record_range, self.batch_size)
+            logger.info('batch_indices:{}'.format(batch_indices))
+            state_batch = tf.convert_to_tensor(self.state_buffer[batch_indices])
+            action_batch = tf.convert_to_tensor(self.action_buffer[batch_indices])
+            reward_batch = tf.convert_to_tensor(self.reward_buffer[batch_indices])
+            reward_batch = tf.cast(reward_batch, dtype=tf.float32)
+            next_state_batch = tf.convert_to_tensor(self.next_state_buffer[batch_indices])
+            indices = -1 * np.ones(self.batch_size)
+            importance = np.ones(self.batch_size)
+
         else:
-            batch_indices = [0] * self.batch_size
+             minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=self.priority_scale)
+             state_batch = tf.convert_to_tensor(self.state_buffer[indices])
+             action_batch = tf.convert_to_tensor(self.action_buffer[indices])
+             reward_batch = tf.convert_to_tensor(self.reward_buffer[indices])
+             reward_batch = tf.cast(reward_batch, dtype=tf.float32)
+             next_state_batch = tf.convert_to_tensor(self.next_state_buffer[indices])
 
-        logger.info('batch_indices:{}'.format(batch_indices))
-        state_batch = tf.convert_to_tensor(self.state_buffer[batch_indices])
-        action_batch = tf.convert_to_tensor(self.action_buffer[batch_indices])
-        reward_batch = tf.convert_to_tensor(self.reward_buffer[batch_indices])
-        reward_batch = tf.cast(reward_batch, dtype=tf.float32)
-        next_state_batch = tf.convert_to_tensor(self.next_state_buffer[batch_indices])
+        if self.priority_scale > 0:
+            yield state_batch, action_batch, reward_batch, next_state_batch, indices, importance
+        else:
+            yield state_batch, action_batch, reward_batch, next_state_batch
 
-        yield state_batch, action_batch, reward_batch, next_state_batch
-
-    @introspectTrace()
     def train(self, batch):
-        """Train the NN
-
-        Args:
-            batch (list): sampled batch of experiences
-        """
         if self.is_learner:
             logger.warning('Training...')
-            self.update_grad(batch[0], batch[1], batch[2], batch[3])
-        else:
-            logger.warning('Why is is_learner false...')
+            self.update_grad(batch)
 
-    @introspectTrace()
     def target_train(self):
-        """Update target model
-        """
         # Update the target model
         model_weights = self.actor_model.get_weights()
         target_weights = self.target_actor.get_weights()
@@ -350,62 +315,47 @@ class DDPG(erl.ExaAgent):
             target_weights[i] = self.tau * model_weights[i] + (1 - self.tau) * target_weights[i]
         self.target_critic.set_weights(target_weights)
 
-    @introspectTrace()
     def action(self, state):
-        """Returns sampled action with added noise
-
-        Args:
-            state (list or array): Current state of the system
-
-        Returns:
-            action (list or array): Action to take
-            policy (int): random (0) or inference (1)
-        """
-        policy_type = 1
+        policy_type = 0
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
+        tf_state = tf.expand_dims(tf_state, 0)
+
         sampled_actions = tf.squeeze(self.target_actor(tf_state))
-        # sampled_actions = tf.squeeze(self.actor_model(tf_state))
         noise = self.ou_noise()
         sampled_actions_wn = sampled_actions.numpy() + noise
-        legal_action = np.clip(sampled_actions_wn, self.lower_bound, self.upper_bound)
-        # legal_action = sampled_actions_wn
-        # isValid = self.env.action_space.contains(sampled_actions_wn)
-        # if isValid == False:
-        #     legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
-        #     policy_type = 0
-        #     logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn, legal_action))
-        #     logger.warning('Policy action: {}; noise: {}'.format(sampled_actions, noise))
+        legal_action = sampled_actions_wn
+        isValid = self.env.action_space.contains(sampled_actions_wn)
+        if isValid == False:
+            legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
+            policy_type = 0
+            logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn, legal_action))
+            logger.warning('Policy action: {}; noise: {}'.format(sampled_actions, noise))
 
-        return legal_action, policy_type
+        return_action = [np.squeeze(legal_action)]
+        logger.warning('Legal action:{}'.format(return_action))
+        return return_action, policy_type
 
     # For distributed actors #
     def get_weights(self):
-        """Get weights from target model
-
-        Returns:
-            weights (list): target model weights
-        """
         return self.target_actor.get_weights()
 
     def set_weights(self, weights):
-        """Set model weights
-
-        Args:
-            weights (list): model weights
-        """
         self.target_actor.set_weights(weights)
+
+    def set_learner(self):
+        self.is_learner = True
+        self.actor_model = self.get_actor()
+        self.critic_model = self.get_critic()
+        self.target_actor = self.get_actor()
+        self.target_critic = self.get_critic()
+        self.target_actor.set_weights(self.actor_model.get_weights())
+        self.target_critic.set_weights(self.critic_model.get_weights())
 
     # Extra methods
     def update(self):
         print("Implement update method in ddpg.py")
 
     def load(self, filename):
-        """Load model weights from pickle file
-
-        Args:
-            filename (string): full path of model file
-        """
-        print("Loading from: ", filename)
         layers = self.target_actor.layers
         with open(filename, "rb") as f:
             pickle_list = pickle.load(f)
@@ -415,11 +365,6 @@ class DDPG(erl.ExaAgent):
             layers[layerId].set_weights(pickle_list[layerId][1])
 
     def save(self, filename):
-        """Save model weights to pickle file
-
-        Args:
-            filename (string): full path of model file
-        """
         layers = self.target_actor.layers
         pickle_list = []
         for layerId in range(len(layers)):
@@ -435,11 +380,10 @@ class DDPG(erl.ExaAgent):
     def set_agent(self):
         print("Implement set_agent method in ddpg.py")
 
-    # def print_timers(self):
-    #     print("Implement print_timers method in ddpg.py")
+    def print_timers(self):
+        print("Implement print_timers method in ddpg.py")
 
     def epsilon_adj(self):
-        """Update epsilon value
-        """
+        self.episode_count += 1
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay

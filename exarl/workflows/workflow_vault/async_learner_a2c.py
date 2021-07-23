@@ -118,6 +118,7 @@ class ASYNC2(erl.ExaWorkflow):
                 # Increment episode when starting
                 if step == 0:
                     episode += 1
+                    print(episode)
                     logger.debug('if episode:{}'.format(episode))
 
                 # Increment the number of completed episodes

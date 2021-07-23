@@ -207,6 +207,7 @@ class ASYNC(erl.ExaWorkflow):
                         # Update episode while beginning a new one i.e. step = 0
                         if steps == 0:
                             episode = recv_data[0]
+                            # print(episode)
                         # This variable is used for kill check
                         episode_interim = recv_data[0]
 

@@ -1,12 +1,12 @@
 {
     "agent": "DQN-v0",
-    "env": "ExaParabola-v0",
-    "workflow": "async",
+    "env": "ExaCartPoleStatic-v0",
+    "workflow": "mlrma",
     "n_episodes": 100,
-    "n_steps": 100,
-    "output_dir": "./results_dir/temp_dqn_7",
-    "learner_procs": 1,
-    "process_per_env": 1,
+    "n_steps": 200,
+    "output_dir": "./results_dir/dqn_mlrma_1",
+    "learner_procs": 2,
+    "process_per_env": 4,
     "model_type": "MLP",
     "action_type": "variable",
     "log_level": [
