@@ -294,6 +294,8 @@ class RMA_ASYNC(erl.ExaWorkflow):
                                                done, local_actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
                         train_file.flush()
 
+                        current_state = next_state
+
         if mpi_settings.is_agent():
             model_win.Free()
             data_win.Free()

@@ -14,5 +14,5 @@ elif env == 'ExaWaterClusterDiscrete-v0':
     from exarl.envs.env_vault.ExaWaterClusterDiscrete import ExaWaterClusterDiscrete
 elif env == 'ExaParabola-v0':
     from exarl.envs.env_vault.ExaParabola import ExaParabola
-elif env == 'ExaParabola-v1':
-    from exarl.envs.env_vault.ExaParabolaOrig import ExaParabolaOrig
+elif env == 'ExaParabolaContinuous-v0':
+    from exarl.envs.env_vault.ExaParabolaContinuous import ExaParabolaContinuous

@@ -23,6 +23,7 @@ import tensorflow as tf
 from tensorflow.keras import layers
 import random
 import os
+import sys
 import pickle
 from datetime import datetime
 from exarl.utils.OUActionNoise import OUActionNoise
@@ -41,7 +42,7 @@ def update_target(target_weights, weights, tau):
         a.assign(b * tau + a * (1 - tau))
 
 
-class DDPG(erl.ExaAgent):
+class DDPGvtrace(erl.ExaAgent):
     is_learner: bool
 
     def __init__(self, env, is_learner):
@@ -134,6 +135,8 @@ class DDPG(erl.ExaAgent):
         self.critic_optimizer = tf.keras.optimizers.Adam(self.critic_lr)
         self.actor_optimizer = tf.keras.optimizers.Adam(self.actor_lr)
 
+        self.c_bar, self.rho_bar = 1.0, 1.0
+
     def remember(self, state, action, reward, next_state, done):
         # If the counter exceeds the capacity then
         index = self.buffer_counter % self.buffer_capacity
@@ -153,14 +156,27 @@ class DDPG(erl.ExaAgent):
 
         print(tf.reduce_mean(policy_ratio))
 
+        c, rho = [], []
+        for i in range(policy_ratio.shape[0]):
+            rho.append(min(self.rho_bar, policy_ratio[i].numpy()[0]))
+            c.append(min(self.c_bar, policy_ratio[i].numpy()[0]))
+
+        c = np.array(c)
+        rho = np.array(rho)
+        gamma_s = np.power(self.gamma, np.arange(0, rho.shape[0], 1))
+
         # Training and updating Actor & Critic networks.
         with tf.GradientTape() as tape:
+
             target_actions = self.target_actor(next_state_batch, training=True)
-            y = reward_batch + self.gamma * self.target_critic(
-                [next_state_batch, target_actions], training=True
-            )
-            critic_value = self.critic_model([state_batch, action_batch], training=True)
-            critic_loss = tf.math.reduce_mean(tf.math.square(y - critic_value))
+            target_values = self.target_critic([next_state_batch, target_actions], training=True)
+            critic_values = self.critic_model([state_batch, action_batch], training=True)
+
+            TDerror = reward_batch + self.gamma*target_values - critic_values
+            vs = critic_values + self.gamma*c*rho*TDerror
+            # gamma_vs2 = (1.0/c)*(vs - critic_values + self.gamma*c*target_values - rho*TDerror)
+
+            critic_loss = tf.math.reduce_mean(tf.math.square(vs - target_values))
 
         logger.warning("Critic loss: {}".format(critic_loss))
         critic_grad = tape.gradient(critic_loss, self.critic_model.trainable_variables)
@@ -170,9 +186,10 @@ class DDPG(erl.ExaAgent):
 
         with tf.GradientTape() as tape:
             actions = self.actor_model(state_batch, training=True)
-            critic_value = self.critic_model([state_batch, actions], training=True)
-            actor_loss = -tf.math.reduce_mean(critic_value)
-            # actor_loss = tf.math.reduce_mean(critic_value)
+            actions_next = self.actor_model(next_state_batch, training=True)
+            critic_values = self.critic_model([state_batch, actions], training=True)
+            critic_values_next = self.critic_model([next_state_batch, actions_next], training=True)
+            actor_loss = -tf.math.reduce_mean(critic_values)
 
         logger.warning("Actor loss: {}".format(actor_loss))
         actor_grad = tape.gradient(actor_loss, self.actor_model.trainable_variables)
@@ -292,6 +309,7 @@ class DDPG(erl.ExaAgent):
 
         return_action = [np.squeeze(legal_action)]
         logger.warning('Legal action:{}'.format(return_action))
+
         return return_action, policy_type
 
     # For distributed actors #

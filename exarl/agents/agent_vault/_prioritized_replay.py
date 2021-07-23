@@ -3,15 +3,17 @@ import numpy as np
 import tensorflow as tf
 from collections import deque
 
-
 class PrioritizedReplayBuffer():
     def __init__(self, maxlen):
-        self.buffer = deque(maxlen=maxlen)
-        self.priorities = deque(maxlen=maxlen)
+        self.maxlen = None if maxlen == "none" else maxlen
+        self.buffer = deque(maxlen=self.maxlen)
+        self.priorities = deque(maxlen=self.maxlen)
 
     def add(self, experience):
+        full_buffer = len(self.buffer) == self.maxlen
         self.buffer.append(experience)
         self.priorities.append(max(self.priorities, default=1))
+        return full_buffer
 
     def get_probabilities(self, priority_scale):
         scaled_priorities = np.array(self.priorities) ** priority_scale

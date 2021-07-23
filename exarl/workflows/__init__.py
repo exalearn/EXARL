@@ -21,6 +21,11 @@ register(
 )
 
 register(
+    id='async_parallel',
+    entry_point='exarl.workflows.workflow_vault:ASYNCparallel'
+)
+
+register(
     id='rma',
     entry_point='exarl.workflows.workflow_vault:RMA_ASYNC'
 )
