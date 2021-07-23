@@ -27,7 +27,8 @@ import pickle
 from datetime import datetime
 from exarl.utils.OUActionNoise import OUActionNoise
 from exarl.utils.OUActionNoise import OUActionNoise2
-
+from ._replay_buffer import ReplayBuffer, HindsightExperienceReplayMemory, PrioritedReplayBuffer
+from exarl.utils.memory_type import MEMORY_TYPE
 import exarl as erl
 
 import exarl.utils.log as log
@@ -77,6 +78,7 @@ class DDPG(erl.ExaAgent):
         self.critic_out_act = cd.run_params['critic_out_act']
         self.critic_optimizer = cd.run_params['critic_optimizer']
         self.tau = cd.run_params['tau']
+        self.replay_buffer_type = cd.run_params['replay_buffer_type']
 
         std_dev = 0.2
         ave_bound = (self.upper_bound + self.lower_bound) / 2
@@ -89,17 +91,20 @@ class DDPG(erl.ExaAgent):
         self.epsilon_decay = cd.run_params['epsilon_decay']
 
         # Experience data
-        self.buffer_counter = 0
         self.buffer_capacity = cd.run_params['buffer_capacity']
         self.batch_size = cd.run_params['batch_size']
         # self.buffer_counter = cd.run_params['buffer_counter']
 
-        self.state_buffer = np.zeros((self.buffer_capacity, self.num_states))
-        self.action_buffer = np.zeros((self.buffer_capacity, self.num_actions))
-        self.reward_buffer = np.zeros((self.buffer_capacity, 1))
-        self.next_state_buffer = np.zeros((self.buffer_capacity, self.num_states))
-        self.done_buffer = np.zeros((self.buffer_capacity, 1))
-        self.memory = self.state_buffer  # BAD
+        if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
+            self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions)
+        elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
+            self.memory = PrioritedReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions, self.batch_size)
+        elif self.replay_buffer_type == MEMORY_TYPE.HINDSIGHT_REPLAY: # TODO: Double check if the environment has goal state
+            self.memory = HindsightExperienceReplayMemory(self.buffer_capacity, self.num_states, self.num_actions)
+        else:
+            print("Unrecognized replay buffer please specify 'uniform, priority or hindsight', using default uniform sampling")
+            self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions) #TODO : maybe exit()  
+
 
         # Setup TF configuration to allow memory growth
         # tf.keras.backend.set_floatx('float64')
@@ -109,16 +114,9 @@ class DDPG(erl.ExaAgent):
         tf.compat.v1.keras.backend.set_session(sess)
 
         # Training model only required by the learners
-        self.actor_model = None
-        self.critic_model = None
         if self.is_learner:
             self.actor_model = self.get_actor()
             self.critic_model = self.get_critic()
-
-        # Every agent needs this, however, actors only use the CPU (for now)
-        self.target_critic = None
-        self.target_actor = None
-        if self.is_learner:
             self.target_actor = self.get_actor()
             self.target_critic = self.get_critic()
             self.target_actor.set_weights(self.actor_model.get_weights())
@@ -136,23 +134,10 @@ class DDPG(erl.ExaAgent):
 
     def remember(self, state, action, reward, next_state, done):
         # If the counter exceeds the capacity then
-        index = self.buffer_counter % self.buffer_capacity
-        self.state_buffer[index] = state
-        self.action_buffer[index] = action[0]
-        self.reward_buffer[index] = reward
-        self.next_state_buffer[index] = next_state
-        self.done_buffer[index] = int(done)
-        self.buffer_counter += 1
+        self.memory.store(state, action, reward, next_state, done)
 
     # @tf.function
-    def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch):
-
-        target_policy = self.target_actor(state_batch)
-        behaviour_policy = self.actor_model(state_batch)
-        policy_ratio = target_policy/behaviour_policy
-
-        print(tf.reduce_mean(policy_ratio))
-
+    def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch,b_idx=None):
         # Training and updating Actor & Critic networks.
         with tf.GradientTape() as tape:
             target_actions = self.target_actor(next_state_batch, training=True)
@@ -161,6 +146,10 @@ class DDPG(erl.ExaAgent):
             )
             critic_value = self.critic_model([state_batch, action_batch], training=True)
             critic_loss = tf.math.reduce_mean(tf.math.square(y - critic_value))
+
+        if self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
+            error = np.abs(tf.squeeze(y - critic_value).numpy())
+            self.memory.batch_update(b_idx, error)
 
         logger.warning("Critic loss: {}".format(critic_loss))
         critic_grad = tape.gradient(critic_loss, self.critic_model.trainable_variables)
@@ -256,11 +245,31 @@ class DDPG(erl.ExaAgent):
         next_state_batch = tf.convert_to_tensor(self.next_state_buffer[batch_indices])
 
         yield state_batch, action_batch, reward_batch, next_state_batch
+        if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
+            state_batch, action_batch, reward_batch, next_state_batch, _ = self.memory.sample_buffer(self.batch_size) #done_batch might improve experience
+            state_batch = tf.convert_to_tensor(state_batch,dtype=tf.float32)
+            action_batch = tf.convert_to_tensor(action_batch,dtype=tf.float32)
+            reward_batch = tf.convert_to_tensor(reward_batch,dtype=tf.float32)
+            next_state_batch = tf.convert_to_tensor(next_state_batch,dtype=tf.float32)
+            yield state_batch, action_batch, reward_batch, next_state_batch
+
+        elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
+            state_batch, action_batch, reward_batch, next_state_batch, _, btx_idx = self.memory.sample_buffer(self.batch_size)
+            state_batch = tf.convert_to_tensor(state_batch,dtype=tf.float32)
+            action_batch = tf.convert_to_tensor(action_batch,dtype=tf.float32)
+            reward_batch = tf.convert_to_tensor(reward_batch,dtype=tf.float32)
+            next_state_batch = tf.convert_to_tensor(next_state_batch,dtype=tf.float32)
+            yield state_batch, action_batch, reward_batch, next_state_batch, btx_idx
+        else:
+            raise ValueError('Support for the replay buffer type not implemented yet!')
 
     def train(self, batch):
         if self.is_learner:
             logger.warning('Training...')
-            self.update_grad(batch[0], batch[1], batch[2], batch[3])
+            if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
+                self.update_grad(batch[0], batch[1], batch[2], batch[3])
+            elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
+                self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4])
 
     def target_train(self):
         # Update the target model
