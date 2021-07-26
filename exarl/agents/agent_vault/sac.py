@@ -147,7 +147,7 @@ class SAC(erl.ExaAgent):
         # If the counter exceeds the capacity then
         self.memory.store(state, action, reward, next_state, done)
 
-    def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch,b_idx=None):
+    def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch,b_idx=None,weights=None):
 
         with tf.GradientTape() as tape:
             value = self.value_model(state_batch, training=True)
@@ -190,6 +190,10 @@ class SAC(erl.ExaAgent):
             error_1 = tf.squeeze(q_hat - q1_old_policy).numpy()
             error_2 = tf.squeeze(q_hat - q2_old_policy).numpy()
             error = np.abs(error_1 + error_2)/2.0
+            print(critic_1_loss,weights)
+            exit()
+            critic_1_loss *= weights
+            critic_2_loss *= weights
             self.memory.batch_update(b_idx, error)
 
         logger.warning("Critic 1 loss: {}".format(critic_1_loss))
@@ -332,9 +336,10 @@ class SAC(erl.ExaAgent):
             yield state_batch, action_batch, reward_batch, next_state_batch, terminal_batch
 
         elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
-            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch , btx_idx = self.memory.sample_buffer(self.batch_size)
+            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch , btx_idx ,weights = self.memory.sample_buffer(self.batch_size)
             state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self._convert_to_tensor(state_batch, action_batch, reward_batch, next_state_batch,terminal_batch)
-            yield state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, btx_idx
+            weights = tf.convert_to_tensor(weights,dtype=tf.float32)
+            yield state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, btx_idx, weights
         else:
             raise ValueError('Support for the replay buffer type not implemented yet!')
     #TODO: Replace alot of if-else statement with switch statement
@@ -344,7 +349,7 @@ class SAC(erl.ExaAgent):
             if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
                 self.update_grad(batch[0], batch[1], batch[2], batch[3],batch[4])
             elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
-                self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4], batch[5])
+                self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4], batch[5], batch[6])
             else:
                 raise ValueError('Support for the replay buffer type not implemented yet!')
         

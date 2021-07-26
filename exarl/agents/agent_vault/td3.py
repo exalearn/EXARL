@@ -143,7 +143,8 @@ class TD3(erl.ExaAgent):
 
 
     # @tf.function
-    def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch,b_idx=None):
+    #Just a hack for now:
+    def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch,b_idx=None, weights=None):
         # Training and updating Actor & Critic networks.
         with tf.GradientTape(persistent=True) as tape:
             target_actions = self.target_actor(next_state_batch, training=True)
@@ -166,7 +167,11 @@ class TD3(erl.ExaAgent):
             critic_loss_1 = keras.losses.MSE(y , q1)
             critic_loss_2 = keras.losses.MSE(y , q2)
         if self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
-            error = np.abs(tf.squeeze(y - q1).numpy())
+            error_1 = np.abs(tf.squeeze(y - q1).numpy())
+            error_2 = np.abs(tf.squeeze(y - q2).numpy())
+            error = np.abs(error_1 + error_2)/2.0
+            critic_loss_1 *= weights
+            critic_loss_2 *= weights
             self.memory.batch_update(b_idx, error)
 
         logger.warning("Critic loss 1: {}, Critic loss 2: {} ".format(critic_loss_1,critic_loss_2))
@@ -284,9 +289,10 @@ class TD3(erl.ExaAgent):
             yield state_batch, action_batch, reward_batch, next_state_batch, terminal_batch
 
         elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
-            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch , btx_idx = self.memory.sample_buffer(self.batch_size)
-            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self._convert_to_tensor(state_batch, action_batch, reward_batch, next_state_batch,terminal_batch)
-            yield state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, btx_idx
+            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch , btx_idx, weights = self.memory.sample_buffer(self.batch_size)
+            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self._convert_to_tensor(state_batch, action_batch, reward_batch, next_state_batch, terminal_batch)
+            weights = tf.convert_to_tensor(weights,dtype=tf.float32)
+            yield state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, btx_idx, weights
         else:
             raise ValueError('Support for the replay buffer type not implemented yet!')
 
@@ -297,7 +303,7 @@ class TD3(erl.ExaAgent):
             if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
                 self.update_grad(batch[0], batch[1], batch[2], batch[3],batch[4])
             elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
-                self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4], batch[5])
+                self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4], batch[5], batch[6])
             
 
     def target_train(self):
