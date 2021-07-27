@@ -1,7 +1,7 @@
 import numpy as np
 from exarl.utils.sum_tree import SumTree
 from exarl.base.replay_base import Replay
-
+np.random.seed(0)
 class ReplayBuffer(Replay):
 
     def __init__(self, max_size, input_size, n_actions):
@@ -144,6 +144,8 @@ class PrioritedReplayBuffer(Replay):
         priority_segment = self.tree.total_priority/batch_size
         #self.beta = np.min([1, self.beta + PrioritedReplayBuffer.__PER_b_inc_sampling]) # Annealing the beta, replace with epsilon
         min_prob = np.min(self.tree.tree[-self.tree.capacity:])/self.tree.total_priority
+        if min_prob == 0:
+            min_prob = PrioritedReplayBuffer.__PER_b_inc_sampling
         #self.beta = eps
         for i in range(batch_size):
             a, b = priority_segment * i, priority_segment * (i+1)
@@ -157,7 +159,8 @@ class PrioritedReplayBuffer(Replay):
             self.next_state_buffer[i] = data[3]
             self.done_buffer[i] = data[4]
             self.weights[i] = np.power(prob/min_prob, -self.beta) # Double check this
-
+        #print(self.b_idx,self.weights )
+        #exit()
         return self.state_buffer, self.action_buffer, self.reward_buffer, self.next_state_buffer, self.done_buffer, self.b_idx, self.weights
 
     def batch_update(self, tree_index, abs_errors):
