@@ -190,10 +190,14 @@ class SAC(erl.ExaAgent):
             error_1 = tf.squeeze(q_hat - q1_old_policy).numpy()
             error_2 = tf.squeeze(q_hat - q2_old_policy).numpy()
             error = np.abs(error_1 + error_2)/2.0
-            print(critic_1_loss,weights)
-            exit()
-            critic_1_loss *= weights
-            critic_2_loss *= weights
+            #print(critic_1_loss,weights)
+            #print(critic_1_loss* weights)
+            #exit()
+            print(critic_1_loss, critic_2_loss)
+            #critic_1_loss *= weights
+            #critic_2_loss *= weights
+            #print(critic_1_loss)
+            #exit()
             self.memory.batch_update(b_idx, error)
 
         logger.warning("Critic 1 loss: {}".format(critic_1_loss))
@@ -337,6 +341,7 @@ class SAC(erl.ExaAgent):
 
         elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
             state_batch, action_batch, reward_batch, next_state_batch, terminal_batch , btx_idx ,weights = self.memory.sample_buffer(self.batch_size)
+
             state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self._convert_to_tensor(state_batch, action_batch, reward_batch, next_state_batch,terminal_batch)
             weights = tf.convert_to_tensor(weights,dtype=tf.float32)
             yield state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, btx_idx, weights
