@@ -23,7 +23,7 @@ elif agent == 'DDPG-v0':
 elif agent == 'DDPG-v1':
     register(
         id=agent,
-        entry_point='exarl.agents.agent_vault:DDPG'
+        entry_point='exarl.agents.agent_vault:DDPG_V1'
     )
 elif agent == 'DDDQN-v0':
     register(

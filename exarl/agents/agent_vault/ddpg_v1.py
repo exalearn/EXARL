@@ -43,7 +43,7 @@ def update_target(target_weights, weights, tau):
         a.assign(b * tau + a * (1 - tau))
 
 
-class DDPG(erl.ExaAgent):
+class DDPG_V1(erl.ExaAgent):
     is_learner: bool
 
     def __init__(self, env, is_learner):
