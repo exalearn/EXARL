@@ -167,13 +167,13 @@ class DDPG_V1(erl.ExaAgent):
             actions = self.actor_model(state_batch, training=True)
             critic_value = self.critic_model([state_batch, actions], training=True)
             actor_loss = -tf.math.reduce_mean(critic_value)
-            # actor_loss = tf.math.reduce_mean(critic_value)
 
         logger.warning("Actor loss: {}".format(actor_loss))
         actor_grad = tape.gradient(actor_loss, self.actor_model.trainable_variables)
         self.actor_optimizer.apply_gradients(
             zip(actor_grad, self.actor_model.trainable_variables)
         )
+        self.target_train()
 
     def get_actor(self):
         # State as input
@@ -262,11 +262,12 @@ class DDPG_V1(erl.ExaAgent):
 
     def train(self, batch):
         if self.is_learner:
-            logger.warning('Training...')
-            if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
-                self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4])
-            elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
-                self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4], batch[5], batch[6])
+            if batch and len(batch[0]) >= (self.batch_size):
+                logger.warning('Training...')
+                if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
+                    self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4])
+                elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
+                    self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4], batch[5], batch[6])
 
     def target_train(self):
         # Update the target model
@@ -282,27 +283,46 @@ class DDPG_V1(erl.ExaAgent):
             target_weights[i] = self.tau * model_weights[i] + (1 - self.tau) * target_weights[i]
         self.target_critic.set_weights(target_weights)
 
+    # def action(self, state):
+    #     policy_type = 1
+    #     tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
+
+    #     sampled_actions = tf.squeeze(self.target_actor(tf_state))
+    #     noise = self.ou_noise()
+    #     sampled_actions_wn = sampled_actions.numpy() + noise
+    #     legal_action = sampled_actions_wn
+    #     isValid = self.env.action_space.contains(sampled_actions_wn)
+    #     if isValid == False:
+    #         legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
+    #         policy_type = 0
+    #         logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn, legal_action))
+    #         logger.warning('Policy action: {}; noise: {}'.format(sampled_actions, noise))
+
+    #     return_action = [np.squeeze(legal_action)]
+    #     #print(return_action)
+    #     #exit()
+    #     #return_action = tf.convert_to_tensor([legal_action],)
+    #     logger.warning('Legal action:{}'.format(return_action))
+
+    #     return return_action, policy_type
     def action(self, state):
-        policy_type = 1
-        tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
+        # TODO: No need to return policy but for the hack to work, thanks.
+        if np.random.random() < self.epsilon:
+            sampled_actions = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
+            policy_type = 1
+            self.epsilon_adj()
+        else:
+            policy_type = 1
+            tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
 
-        sampled_actions = tf.squeeze(self.target_actor(tf_state))
+            sampled_actions = tf.squeeze(self.target_actor(tf_state))
+            sampled_actions = sampled_actions.numpy()
         noise = self.ou_noise()
-        sampled_actions_wn = sampled_actions.numpy() + noise
-        legal_action = sampled_actions_wn
-        isValid = self.env.action_space.contains(sampled_actions_wn)
-        if isValid == False:
-            legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
-            policy_type = 0
-            logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn, legal_action))
-            logger.warning('Policy action: {}; noise: {}'.format(sampled_actions, noise))
+        sampled_actions_wn = sampled_actions + noise
+        legal_action = tf.clip_by_value(sampled_actions_wn, self.lower_bound, self.upper_bound)
 
-        return_action = np.squeeze(legal_action)
-        #print(return_action)
-        #exit()
-        #return_action = tf.convert_to_tensor([legal_action],)
+        return_action = [np.squeeze(legal_action)]
         logger.warning('Legal action:{}'.format(return_action))
-
         return return_action, policy_type
 
     # For distributed actors #

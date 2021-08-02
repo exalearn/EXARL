@@ -136,6 +136,8 @@ class TD3(erl.ExaAgent):
 
         self.update_actor_iter = update_actor_iter #Updates actor every other n (2) learning rate
         self.learn_step_counter = 0
+        np.random.seed(0) #
+        tf.random.set_seed(0)
 
     def remember(self, state, action, reward, next_state, done):
         # If the counter exceeds the capacity then
@@ -166,13 +168,13 @@ class TD3(erl.ExaAgent):
 
             critic_loss_1 = keras.losses.MSE(y , q1)
             critic_loss_2 = keras.losses.MSE(y , q2)
-        if self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
-            error_1 = np.abs(tf.squeeze(y - q1).numpy())
-            error_2 = np.abs(tf.squeeze(y - q2).numpy())
-            error = np.abs(error_1 + error_2)/2.0
-            critic_loss_1 *= weights
-            critic_loss_2 *= weights
-            self.memory.batch_update(b_idx, error)
+            if self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
+                error_1 = np.abs(tf.squeeze(y - q1).numpy())
+                error_2 = np.abs(tf.squeeze(y - q2).numpy())
+                error = np.abs(error_1 + error_2)/2.0
+                critic_loss_1 *= weights
+                critic_loss_2 *= weights
+                self.memory.batch_update(b_idx, error)
 
         logger.warning("Critic loss 1: {}, Critic loss 2: {} ".format(critic_loss_1,critic_loss_2))
 
@@ -200,6 +202,7 @@ class TD3(erl.ExaAgent):
         self.actor_optimizer.apply_gradients(
             zip(actor_grad, self.actor_model.trainable_variables)
         )
+        self.target_train()
 
     # def get_actor(self, name):
     #     # State as input
@@ -329,19 +332,19 @@ class TD3(erl.ExaAgent):
 
     def action(self, state):
         # TODO: Might be better to start after warm up
-        policy_type = 1
-        tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
+        if np.random.random() < self.epsilon:
+            sampled_actions = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
+            policy_type = 1
+            self.epsilon_adj()
+        else:
+            policy_type = 1
+            tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
 
-        sampled_actions = tf.squeeze(self.target_actor(tf_state))
+            sampled_actions = tf.squeeze(self.target_actor(tf_state))
+            sampled_actions = sampled_actions.numpy()
         noise = self.ou_noise()
-        sampled_actions_wn = sampled_actions.numpy() + noise
-        legal_action = sampled_actions_wn
-        isValid = self.env.action_space.contains(sampled_actions_wn)
-        if isValid == False:
-            legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
-            policy_type = 0
-            logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn, legal_action))
-            logger.warning('Policy action: {}; noise: {}'.format(sampled_actions, noise))
+        sampled_actions_wn = sampled_actions + noise
+        legal_action = tf.clip_by_value(sampled_actions_wn, self.lower_bound, self.upper_bound)
 
         return_action = [np.squeeze(legal_action)]
         logger.warning('Legal action:{}'.format(return_action))
@@ -373,12 +376,15 @@ class TD3(erl.ExaAgent):
     def load(self, file_name):
         try:
             print('... loading models ...')
-            self.actor_model.load_weights(file_name)
-            self.critic_model_1.load_weights(file_name)
-            self.critic_model_2.load_weights(file_name)
-            self.target_actor.load_weights(file_name)
-            self.target_critic_1.load_weights(file_name)
-            self.target_critic_2.load_weights(file_name)
+            layers = self.target_actor.layers
+            pickle_list = []
+            for layerId in range(len(layers)):
+                weigths = layers[layerId].get_weights()
+                pickle_list.append([layers[layerId].name, weigths])
+
+            with open(file_name, "wb") as f:
+                pickle.dump(pickle_list, f, -1)
+
         except:
             #TODO: Could be improve, but ok for now
             print("One of the model not present")
@@ -387,12 +393,13 @@ class TD3(erl.ExaAgent):
     def save(self, file_name):
         try:
             print('... saving models ...')
-            self.actor_model.save_weights(file_name)
-            self.critic_model_1.save_weights(file_name)
-            self.critic_model_2.save_weights(file_name)
-            self.target_actor.save_weights(file_name)
-            self.target_critic_1.save_weights(file_name)
-            self.target_critic_2.save_weights(file_name)
+            layers = self.target_actor.layers
+            with open(file_name, "rb") as f:
+                pickle_list = pickle.load(f)
+
+            for layerId in range(len(layers)):
+                assert layers[layerId].name == pickle_list[layerId][0]
+                layers[layerId].set_weights(pickle_list[layerId][1])
         except:
             #TODO: Could be improve, but ok for now
             print("One of the model not present")

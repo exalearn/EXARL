@@ -103,17 +103,18 @@ class HindsightExperienceReplayMemory(Replay):
 class PrioritedReplayBuffer(Replay):
 
     __MIN_EPSILON = 0.01
-    __ALPHA = 0.6
+    #__ALPHA = 0.6
     __PER_b_inc_sampling = 0.001
     __ABSOLUTE_ERROR_UPPER = 1.0
 
-    def __init__(self, max_size, input_size, n_actions, batch_size, beta=0.4):
+    def __init__(self, max_size, input_size, n_actions, batch_size, beta=0.4,alpha=0.6):
         super(PrioritedReplayBuffer, self).__init__(max_size)
         self.tree = SumTree(max_size)
         self.input_size = input_size
         self.n_actions = n_actions
         self.init_placeholders_data(batch_size)
         self.beta = beta
+        self.alpha = alpha
 
     def init_placeholders_data(self, batch_size):
         self.state_buffer = np.empty((batch_size, self.input_size)) # place holder to return values
@@ -142,11 +143,7 @@ class PrioritedReplayBuffer(Replay):
         
         
         priority_segment = self.tree.total_priority/batch_size
-        #self.beta = np.min([1, self.beta + PrioritedReplayBuffer.__PER_b_inc_sampling]) # Annealing the beta, replace with epsilon
-        min_prob = np.min(self.tree.tree[-self.tree.capacity:])/self.tree.total_priority
-        if min_prob == 0:
-            min_prob = PrioritedReplayBuffer.__PER_b_inc_sampling
-        #self.beta = eps
+        self.beta = np.min([1, self.beta + PrioritedReplayBuffer.__PER_b_inc_sampling]) # Annealing the beta, replace with epsilon
         for i in range(batch_size):
             a, b = priority_segment * i, priority_segment * (i+1)
             value = np.random.uniform(a,b)
@@ -158,15 +155,15 @@ class PrioritedReplayBuffer(Replay):
             self.reward_buffer[i] = data[2]
             self.next_state_buffer[i] = data[3]
             self.done_buffer[i] = data[4]
-            self.weights[i] = np.power(prob/min_prob, -self.beta) # Double check this
-        #print(self.b_idx,self.weights )
-        #exit()
+            self.weights[i] = np.power(prob*self.tree.capacity, -self.beta) # Double check this
+        self.weights = self.weights/np.max(self.weights)
         return self.state_buffer, self.action_buffer, self.reward_buffer, self.next_state_buffer, self.done_buffer, self.b_idx, self.weights
 
     def batch_update(self, tree_index, abs_errors):
+        self.alpha = np.min([1, self.alpha + PrioritedReplayBuffer.__PER_b_inc_sampling])
         abs_errors += PrioritedReplayBuffer.__MIN_EPSILON
         clipped_errors = np.minimum(abs_errors, PrioritedReplayBuffer.__ABSOLUTE_ERROR_UPPER)
-        ps = np.power(clipped_errors, PrioritedReplayBuffer.__ALPHA)
+        ps = np.power(clipped_errors, self.alpha)
 
         for t_i, prio in zip(tree_index, ps):
             self.tree.update(t_i, prio)
