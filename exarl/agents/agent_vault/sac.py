@@ -44,7 +44,7 @@ logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class SAC(erl.ExaAgent):
 
-    def __init__(self, env, is_learner=False,scale=2):
+    def __init__(self, env, is_learner=False,scale=10):
         self.is_learner = is_learner
         self.env = env
         self.num_states = env.observation_space.shape[0]
@@ -151,6 +151,7 @@ class SAC(erl.ExaAgent):
 
         with tf.GradientTape() as tape:
             value = self.value_model(state_batch, training=True)
+            #print(value)
             value_next = self.target_value(next_state_batch, training=True)
             policy_actions, log_probs = self.sample_normal(state_batch, reparameterize=False)
             #log_probs = tf.squeeze(log_probs, 1)
@@ -185,20 +186,16 @@ class SAC(erl.ExaAgent):
             q2_old_policy = self.critic_model_2([state_batch, action_batch], training=True)
             critic_1_loss = 0.5 * keras.losses.MSE(q1_old_policy, q_hat)
             critic_2_loss = 0.5 * keras.losses.MSE(q2_old_policy, q_hat)
+            #print(critic_1_loss,critic_2_loss)
             
-        if self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
-            error_1 = tf.squeeze(q_hat - q1_old_policy).numpy()
-            error_2 = tf.squeeze(q_hat - q2_old_policy).numpy()
-            error = np.abs(error_1 + error_2)/2.0
-            #print(critic_1_loss,weights)
-            #print(critic_1_loss* weights)
-            #exit()
-            print(critic_1_loss, critic_2_loss)
-            #critic_1_loss *= weights
-            #critic_2_loss *= weights
-            #print(critic_1_loss)
-            #exit()
-            self.memory.batch_update(b_idx, error)
+            if self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
+                error_1 = tf.squeeze(q_hat - q1_old_policy).numpy()
+                error_2 = tf.squeeze(q_hat - q2_old_policy).numpy()
+                error = np.abs(error_1 + error_2)/2.0
+                print(critic_1_loss, critic_2_loss)
+                critic_1_loss *= weights
+                critic_2_loss *= weights
+                self.memory.batch_update(b_idx, error)
 
         logger.warning("Critic 1 loss: {}".format(critic_1_loss))
         logger.warning("Critic 2 loss: {}".format(critic_2_loss))
@@ -211,6 +208,7 @@ class SAC(erl.ExaAgent):
         self.critic_optimizer.apply_gradients(
             zip(critic_2_grad, self.critic_model_2.trainable_variables)
         )
+        self.target_train()
 
 
     def get_actor(self):
@@ -316,11 +314,14 @@ class SAC(erl.ExaAgent):
             actions = probabilities.sample() # TODO: add reparameterization here, maybe this will improve accuracy
         else:
             actions = probabilities.sample()
+        
         action = tf.math.tanh(actions)*self.upper_bound
+        #action = tf.math.scalar_mul(tf.constant(self.upper_bound, dtype=tf.float32),tf.math.tanh(actions))
         log_probs = probabilities.log_prob(actions)
         log_probs -= tf.math.log(1-tf.math.pow(action, 2) + self.repram) #noise to avoid taking log of zero
         #log_probs -= tf.math.log(1-tf.math.pow(action, 2) + self.ou_noise)
         log_probs = tf.math.reduce_sum(log_probs, axis=1, keepdims=True)
+        print(action[0], log_probs[0])
 
         return action, log_probs
 
@@ -350,13 +351,14 @@ class SAC(erl.ExaAgent):
     #TODO: Replace alot of if-else statement with switch statement
     def train(self, batch):
         if self.is_learner:
-            logger.warning('Training...')
-            if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
-                self.update_grad(batch[0], batch[1], batch[2], batch[3],batch[4])
-            elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
-                self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4], batch[5], batch[6])
-            else:
-                raise ValueError('Support for the replay buffer type not implemented yet!')
+            if batch and len(batch[0]) >= (self.batch_size):
+                logger.warning('Training...')
+                if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
+                    self.update_grad(batch[0], batch[1], batch[2], batch[3],batch[4])
+                elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
+                    self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4], batch[5], batch[6])
+                else:
+                    raise ValueError('Support for the replay buffer type not implemented yet!')
         
     def target_train(self):
         model_weights = self.value_model.get_weights()
@@ -384,10 +386,10 @@ class SAC(erl.ExaAgent):
 
     # For distributed actors #    
     def get_weights(self):
-        return self.actor_model.get_weights()
+        return self.target_value.get_weights()
 
     def set_weights(self, weights):
-        self.actor_model.set_weights(weights)
+        self.target_value.set_weights(weights)
 
     def set_learner(self):
         self.is_learner = True

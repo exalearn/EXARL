@@ -199,7 +199,7 @@ class ASYNC(erl.ExaWorkflow):
                 # agent_comm.send([indicies, loss], dest=whofrom)
 
                 # TODO: Double check if this is already in the DQN code
-                workflow.agent.target_train()
+                #workflow.agent.target_train()
                 if policy_type == 0:
                     workflow.agent.epsilon_adj()
                 epsilon = workflow.agent.epsilon
@@ -243,7 +243,7 @@ class ASYNC(erl.ExaWorkflow):
                 train_return = workflow.agent.train(batch)
                 if train_return is not None:
                     indices, loss = train_return
-                workflow.agent.target_train()
+                #workflow.agent.target_train()
                 workflow.agent.save(workflow.results_dir + '/model.pkl')
                 agent_comm.send([episode, 0, 0, indices, loss], dest=s)
                 send_counter += 1

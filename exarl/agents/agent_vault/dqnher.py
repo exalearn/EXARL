@@ -16,6 +16,7 @@ import numpy as np
 import exarl.utils.candleDriver as cd
 import exarl.utils.log as log
 from tensorflow.compat.v1.keras.backend import set_session
+from ._replay_buffer import HindsightExperienceReplayMemory
 
 tf_version = int((tf.__version__)[0])
 
@@ -129,8 +130,12 @@ class DQNHER(erl.ExaAgent):
                 # self.target_model.summary()
                 self.target_weights = self.target_model.get_weights()
 
+        
+        self.buffer_capacity = 1000
+        self.num_states = env.observation_space.shape[0]
+        self.num_actions = env.action_space.shape[0]
         # TODO: make configurable
-        self.memory = deque(maxlen=1000)
+        self.memory = HindsightExperienceReplayMemory(self.buffer_capacity, self.num_states, self.num_actions)
 
     def _get_device(self):
         cpus = tf.config.experimental.list_physical_devices('CPU')
@@ -146,11 +151,11 @@ class DQNHER(erl.ExaAgent):
 
     def _build_model(self):
         if self.model_type == "MLP":
-            from exarl.agents.agent_vault._build_mlp import build_model
+            from exarl.agents.agent_vault._build_mlp_her import build_model
 
             return build_model(self)
         elif self.model_type == "LSTM":
-            from exarl.agents.agent_vault._build_lstm import build_model
+            from exarl.agents.agent_vault._build_lstm_her import build_model
 
             return build_model(self)
         else:
@@ -161,8 +166,8 @@ class DQNHER(erl.ExaAgent):
             "Agent[{}] - Creating active model for the learner".format(self.rank)
         )
 
-    def remember(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
+    def remember(self, state, action, reward, next_state, done, goal):
+        self.memory.append(state, action, reward, next_state, done, goal)
 
     def action(self, state, goal):
         random.seed(datetime.now())
