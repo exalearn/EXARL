@@ -77,8 +77,8 @@ class RMA(erl.ExaWorkflow):
 
         # Allocate RMA windows
         if ExaComm.is_agent():
-            episode_const = ExaMPIConstant(agent_comm, ExaComm.is_learner() and learner_comm.rank == 0, np.int64)
-            epsilon_const = ExaMPIConstant(agent_comm, ExaComm.is_learner() and learner_comm.rank == 0, np.float64)
+            episode_const = ExaMPIConstant(agent_comm, ExaComm.is_learner() and learner_comm.rank == 0, np.int64, name="Episode_Const")
+            epsilon_const = ExaMPIConstant(agent_comm, ExaComm.is_learner() and learner_comm.rank == 0, np.float64, name="Epsilon_Const")
 
             if self.use_priority_replay:
                 # Create windows for priority replay (loss and indicies)
@@ -86,19 +86,19 @@ class RMA(erl.ExaWorkflow):
                 loss_for_size = np.zeros(workflow.agent.batch_size, dtype=np.float64)
                 indicies_and_loss_for_size = (indices_for_size, loss_for_size)
                 ind_loss_buffer = self.ind_loss_data_structure(agent_comm, indicies_and_loss_for_size, rank_mask=ExaComm.is_actor(),
-                                                               length=num_learners, max_model_lag=None)
+                                                               length=num_learners, max_model_lag=None, name="Loss_Buffer")
 
             # Get serialized target weights size
             learner_counter = np.int64(0)
             target_weights = (workflow.agent.get_weights(), learner_counter)
             model_buff = self.target_weight_data_structure(agent_comm, target_weights, rank_mask=ExaComm.is_learner() and
-                                                           learner_comm.rank == 0,  length=1, max_model_lag=None, failPush=False)
+                                                           learner_comm.rank == 0,  length=1, max_model_lag=None, failPush=False, name="Model_Buffer")
 
             # Get serialized batch data size
             learner_counter = np.int64(0)
             agent_batch = (next(workflow.agent.generate_data()), learner_counter)
             batch_data_exchange = self.batch_data_structure(agent_comm, agent_batch, rank_mask=ExaComm.is_actor(),
-                                                            length=self.de_length, max_model_lag=self.de_lag)
+                                                            length=self.de_length, max_model_lag=self.de_lag, name="Data_Exchange")
             # This is a data/flag that lets us know we have data
             agent_data = None
 
@@ -127,10 +127,9 @@ class RMA(erl.ExaWorkflow):
                     break
 
                 if agent_data is None:
-                    ib.startTrace("RMA_Data_Exchange_Pop", 0)
                     agent_data, actor_idx, actor_counter = batch_data_exchange.get_data(
                         learner_counter, learner_comm.size, agent_comm.size)
-                    ib.stopTrace()
+                    ib.update("RMA_Learner_Pop_Data", 1)
                     ib.simpleTrace("RMA_Learner_Get_Data", actor_idx, actor_counter, learner_counter - actor_counter, 0)
 
                 # Check the data_buffer again if it is empty
@@ -151,8 +150,8 @@ class RMA(erl.ExaWorkflow):
                         indices = np.array(indices, dtype=np.intc)
                         loss = np.array(loss, dtype=np.float64)
                         # Write indices to memory pool
-                        ind_loss_buffer.push((indices, loss), rank=actor_idx)
-
+                        ind_loss_buffer.push((indices, loss), rank=actor_idx, name="Loss")
+                        ib.update("RMA_Learner_Loss_Push", 1)
                 learner_counter += 1
                 agent_data = None
 
@@ -162,6 +161,7 @@ class RMA(erl.ExaWorkflow):
                     # Share new model weights
                     target_weights = (workflow.agent.get_weights(), learner_counter)
                     model_buff.push(target_weights, rank=0)
+                    ib.update("RMA_Learner_Model_Push", 1)
 
             logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_count_learner))
 
@@ -199,6 +199,7 @@ class RMA(erl.ExaWorkflow):
                     if env_comm.rank == 0:
                         # Update model weight
                         target_weights, learner_counter = model_buff.pop(0)
+                        ib.update("RMA_Env_Model_Pop", 1)
                         workflow.agent.set_weights(target_weights)
                         ib.simpleTrace("RMA_Actor_Get_Model", local_actor_episode_counter, learner_counter, 0, 0)
 
@@ -207,6 +208,7 @@ class RMA(erl.ExaWorkflow):
                         if self.use_priority_replay:
                             # Get indices and losses
                             loss_data = ind_loss_buffer.pop(agent_comm.rank)
+                            ib.update("RMA_Env_Loss_Pop", 1)
                             # print("loss data = ", loss_data, flush=True)
                             if loss_data is not None:
                                 indices, loss = loss_data
@@ -248,9 +250,8 @@ class RMA(erl.ExaWorkflow):
                             batch_data = (next(workflow.agent.generate_data()), learner_counter)
                             ib.update("RMA_Env_Generate_Data", 1)
                             # Write to data window
-                            ib.startTrace("RMA_Data_Exchange_Push", 0)
                             capacity, lost = batch_data_exchange.push(batch_data)
-                            ib.stopTrace()
+                            ib.update("RMA_Env_Push_Data", 1)
                             ib.simpleTrace("RMA_Actor_Put_Data", capacity, lost, 0, 0)
 
                         # Log state, action, reward, ...

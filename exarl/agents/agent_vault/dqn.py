@@ -279,6 +279,7 @@ class DQN(erl.ExaAgent):
         else:
             yield batch_states, batch_target
 
+    @introspectTrace()
     def train(self, batch):
         ret = None
         if self.is_learner:
@@ -289,7 +290,7 @@ class DQN(erl.ExaAgent):
                         loss = self.training_step(batch)
                     else:
                         loss = LossHistory()
-                        sample_weight = batch[3] * (1 - self.epsilon)
+                        sample_weight = batch[3] ** (1 - self.epsilon)
                         self.model.fit(batch[0], batch[1], epochs=1, batch_size=1, verbose=0, callbacks=loss, sample_weight=sample_weight)
                         loss = loss.loss
                     ret = batch[2], loss
@@ -342,6 +343,7 @@ class DQN(erl.ExaAgent):
         with tf.device(self.device):
             self.target_model.set_weights(weights)
 
+    @introspectTrace()
     def target_train(self):
         if self.is_learner:
             logger.info("Agent[%s] - update target weights." % str(self.rank))

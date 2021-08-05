@@ -72,6 +72,7 @@ class ASYNC(erl.ExaWorkflow):
             while episode_done < workflow.nepisodes:
                 # Receive the rank of the worker ready for more work
                 recv_data = agent_comm.recv(None)
+                ib.update("Async_Learner_Get_Data", 1)
 
                 whofrom = recv_data[0]
                 step = recv_data[1]

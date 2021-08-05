@@ -43,14 +43,14 @@ except:
 
         def start():
             if ib.replace:
-                print("---------------STARTING REPLACEMENT IB---------------")
+                print("---------------STARTING REPLACEMENT IB", ib.rank, "---------------", flush=True)
                 ib.start_time = globalTimeStamp()
                 return 1
             return 0
 
         def stop():
             if ib.replace:
-                print("---------------STOPPING REPLACEMENT IB---------------")
+                print("---------------STOPPING REPLACEMENT IB" , ib.rank, "---------------", flush=True)
                 ib.end_time = globalTimeStamp()
 
         def update(name, toAdd):
@@ -69,14 +69,15 @@ except:
         def startTrace(name, size):
             if ib.replace:
                 if ib.start_time is not None and ib.end_time is None:
-                    if name not in ib.metric_trace:
-                        ib.metric_trace[name] = []
-                        ib.metric_trace_count[name] = 1
+                    if ib.last_trace is None:
+                        if name not in ib.metric_trace:
+                            ib.metric_trace[name] = []
+                            ib.metric_trace_count[name] = 1
 
-                    ib.metric_trace[name].append((size, ib.metric_trace_count[name], globalTimeStamp()))
-                    ib.metric_trace_count[name] += 1
-                    ib.last_trace = name
-                    return 1
+                        ib.metric_trace[name].append((size, ib.metric_trace_count[name], globalTimeStamp()))
+                        ib.metric_trace_count[name] += 1
+                        ib.last_trace = name
+                        return 1
             return 0
 
         def simpleTrace(name, size, seqNum, endTimeStamp, trace):
@@ -126,16 +127,19 @@ except:
         ib.replace = True
         return ib(comm)
 
-def introspectTrace(position=None, keyword=None, default=0):
+def introspectTrace(position=None, keyword=None, default=0, name=False):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
+            traceName = func.__name__
+            if name:
+                traceName = args[0].name + "_" + func.__name__
             size = default
             if position:
                 size = args[position]
             elif keyword:
                 size = kwargs.get(keyword, default)
-            flag = ib.startTrace(func.__name__, size)
+            flag = ib.startTrace(traceName, size)
             result = func(*args, **kwargs)
             if flag:
                 ib.stopTrace()
@@ -144,7 +148,6 @@ def introspectTrace(position=None, keyword=None, default=0):
         return wrapper
 
     return decorator
-
 
 def introspect(func):
     @functools.wraps(func)

@@ -34,6 +34,8 @@ rank = comm.rank
 size = comm.size
 
 writeDir = lookup_params("introspector_dir")
+if writeDir is not None:
+    ibLoadReplacement(comm, writeDir)
 
 # Run the learner, measure time
 ib.start()

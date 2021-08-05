@@ -16,10 +16,11 @@ from exarl.base import ExaData
 from exarl.base.comm_base import ExaComm
 from exarl.network.simple_comm import ExaSimple
 from exarl.utils.typing import TypeUtils
+from exarl.utils.introspect import introspectTrace
 MPI = ExaSimple.MPI
 
 class ExaMPIConstant:
-    def __init__(self, comm, rank_mask, the_type):
+    def __init__(self, comm, rank_mask, the_type, name=None):
         self.comm = comm.raw()
         self.npType = TypeUtils.np_type_converter(the_type, promote=True)
         self.mpiType = TypeUtils.mpi_type_converter(the_type, promote=True)
@@ -31,25 +32,30 @@ class ExaMPIConstant:
         self.win = MPI.Win.Create(data, self.size, comm=self.comm)
         self.sum = np.ones(1, dtype=self.npType)
         self.buff = np.zeros(1, dtype=self.npType)
-
+        self.name=name
+    
+    @introspectTrace(name=True)
     def put(self, value, rank):
         data = np.array(value, dtype=self.npType)
         self.win.Lock(rank)
         self.win.Accumulate(data, target_rank=rank, op=MPI.REPLACE)
         self.win.Unlock(rank)
 
+    @introspectTrace(name=True)
     def get(self, rank):
         self.win.Lock(rank)
         self.win.Get_accumulate(self.sum, self.buff, target_rank=rank, op=MPI.NO_OP)
         self.win.Unlock(rank)
         return self.buff[0]
 
+    @introspectTrace(name=True)
     def inc(self, rank):
         self.win.Lock(rank)
         self.win.Get_accumulate(self.sum, self.buff, target_rank=rank, op=MPI.SUM)
         self.win.Unlock(rank)
         return self.buff[0]
 
+    @introspectTrace(name=True)
     def min(self, value, rank):
         data = np.array(value, dtype=self.npType)
         self.win.Lock(rank)
@@ -59,13 +65,13 @@ class ExaMPIConstant:
 
 class ExaMPIBuffUnchecked(ExaData):
     # This class will always succed a pop!
-    def __init__(self, comm, data, rank_mask=None, length=1, max_model_lag=None, failPush=False):
+    def __init__(self, comm, data, rank_mask=None, length=1, max_model_lag=None, failPush=False, name=None):
         self.comm = comm
 
         dataBytes = MPI.pickle.dumps(data)
         size = len(dataBytes)
 
-        super().__init__(bytes, size, comm_size=comm.size, max_model_lag=None)
+        super().__init__(bytes, size, comm_size=comm.size, max_model_lag=None, name=name)
 
         totalSize = 0
         if rank_mask:
@@ -81,6 +87,7 @@ class ExaMPIBuffUnchecked(ExaData):
     def __del__(self):
         self.win.Free()
 
+    @introspectTrace(name=True)
     def pop(self, rank, count=1):
         self.win.Lock(rank)
         self.win.Get_accumulate(
@@ -93,6 +100,7 @@ class ExaMPIBuffUnchecked(ExaData):
         self.win.Unlock(rank)
         return MPI.pickle.loads(self.buff)
 
+    @introspectTrace(name=True)
     def push(self, data, rank=None):
         if rank is None:
             rank = self.comm.rank
@@ -109,13 +117,13 @@ class ExaMPIBuffUnchecked(ExaData):
         return 1, 1
 
 class ExaMPIBuffChecked(ExaData):
-    def __init__(self, comm, data, rank_mask=None, length=1, max_model_lag=None, failPush=False):
+    def __init__(self, comm, data, rank_mask=None, length=1, max_model_lag=None, failPush=False, name=None):
         self.comm = comm
 
         self.dataBytes = bytearray(MPI.pickle.dumps((data, np.int64(0))))
         size = len(self.dataBytes)
 
-        super().__init__(bytes, size, comm_size=comm.size, max_model_lag=None)
+        super().__init__(bytes, size, comm_size=comm.size, max_model_lag=None, name=name)
 
         totalSize = 0
         if rank_mask:
@@ -133,6 +141,7 @@ class ExaMPIBuffChecked(ExaData):
     def __del__(self):
         self.win.Free()
 
+    @introspectTrace(name=True)
     def pop(self, rank, count=1):
         self.win.Lock(rank)
         self.win.Get_accumulate(
@@ -149,6 +158,7 @@ class ExaMPIBuffChecked(ExaData):
             return data
         return None
 
+    @introspectTrace(name=True)
     def push(self, data, rank=None):
         if rank is None:
             rank = self.comm.rank
@@ -169,7 +179,7 @@ class ExaMPIBuffChecked(ExaData):
         return 1, valid == 1
 
 class ExaMPIDistributedQueue(ExaData):
-    def __init__(self, comm, data=None, rank_mask=None, length=32, max_model_lag=None, failPush=False):
+    def __init__(self, comm, data=None, rank_mask=None, length=32, max_model_lag=None, failPush=False, name=None):
         self.comm = comm
         self.length = length
         # This lets us fail a push when at full capacity
@@ -179,7 +189,7 @@ class ExaMPIDistributedQueue(ExaData):
         dataBytes = MPI.pickle.dumps(data)
         size = len(dataBytes)
 
-        super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag)
+        super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag, name=name)
         self.buff = bytearray(self.dataSize)
         self.plus = np.array([1], dtype=np.int64)
         self.minus = np.array([-1], dtype=np.int64)
@@ -205,6 +215,7 @@ class ExaMPIDistributedQueue(ExaData):
     def __del__(self):
         self.win.Free()
 
+    @introspectTrace(name=True)
     def pop(self, rank, count=1):
         ret = True
         head = np.zeros(1, dtype=np.int64)
@@ -244,6 +255,7 @@ class ExaMPIDistributedQueue(ExaData):
             return MPI.pickle.loads(self.buff)
         return None
 
+    @introspectTrace(name=True)
     def push(self, data, rank=None):
         if rank is None:
             rank = self.comm.rank
@@ -292,7 +304,7 @@ class ExaMPIDistributedQueue(ExaData):
         return capacity, lost
 
 class ExaMPIDistributedStack(ExaData):
-    def __init__(self, comm, data, rank_mask=None, length=32, max_model_lag=None, failPush=False):
+    def __init__(self, comm, data, rank_mask=None, length=32, max_model_lag=None, failPush=False, name=None):
         self.comm = comm
         self.length = length
         # This lets us fail a push when at full capacity
@@ -301,7 +313,7 @@ class ExaMPIDistributedStack(ExaData):
 
         dataBytes = MPI.pickle.dumps(data)
         size = len(dataBytes)
-        super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag)
+        super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag, name=name)
 
         self.buff = bytearray(self.dataSize)
         self.plus = np.array([1], dtype=np.int64)
@@ -328,6 +340,7 @@ class ExaMPIDistributedStack(ExaData):
     def __del__(self):
         self.win.Free()
 
+    @introspectTrace(name=True)
     def pop(self, rank, count=1):
         ret = False
         head = np.zeros(1, dtype=np.int64)
@@ -369,6 +382,7 @@ class ExaMPIDistributedStack(ExaData):
             return MPI.pickle.loads(self.buff)
         return None
 
+    @introspectTrace(name=True)
     def push(self, data, rank=None):
         if rank is None:
             rank = self.comm.rank
@@ -420,7 +434,7 @@ class ExaMPIDistributedStack(ExaData):
         return capacity, lost
 
 class ExaMPICentralizedStack(ExaData):
-    def __init__(self, comm, data, rank_mask=None, length=32, max_model_lag=None, failPush=False):
+    def __init__(self, comm, data, rank_mask=None, length=32, max_model_lag=None, failPush=False, name=None):
         self.comm = comm
         if rank_mask:
             self.rank = self.comm.rank
@@ -431,7 +445,7 @@ class ExaMPICentralizedStack(ExaData):
 
         dataBytes = MPI.pickle.dumps(data)
         size = len(dataBytes)
-        super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag)
+        super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag, name=name)
 
         self.buff = bytearray(self.dataSize)
         self.plus = np.array([1], dtype=np.int64)
@@ -480,6 +494,7 @@ class ExaMPICentralizedStack(ExaData):
             self.win[i].Free()
             self.head[i].Free()
 
+    @introspectTrace(name=True)
     def pop(self, rank, count=1):
         ret = False
         head = np.zeros(1, dtype=np.int64)
@@ -521,6 +536,7 @@ class ExaMPICentralizedStack(ExaData):
             return MPI.pickle.loads(self.buff)
         return None
 
+    @introspectTrace(name=True)
     def push(self, data, rank=None):
         if rank is None:
             rank = self.comm.rank
@@ -572,7 +588,7 @@ class ExaMPICentralizedStack(ExaData):
         return capacity, lost
 
 class ExaMPICentralizedQueue(ExaData):
-    def __init__(self, comm, data, rank_mask=None, length=32, max_model_lag=None, failPush=False):
+    def __init__(self, comm, data, rank_mask=None, length=32, max_model_lag=None, failPush=False, name=None):
         self.comm = comm
         if rank_mask:
             self.rank = self.comm.rank
@@ -583,7 +599,7 @@ class ExaMPICentralizedQueue(ExaData):
 
         dataBytes = MPI.pickle.dumps(data)
         size = len(dataBytes)
-        super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag)
+        super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag, name=name)
 
         self.buff = bytearray(self.dataSize)
         self.plus = np.array([1], dtype=np.int64)
@@ -631,6 +647,7 @@ class ExaMPICentralizedQueue(ExaData):
             self.win[i].Free()
             self.head[i].Free()
 
+    @introspectTrace(name=True)
     def pop(self, rank, count=1):
         ret = True
         head = np.zeros(1, dtype=np.int64)
@@ -670,6 +687,7 @@ class ExaMPICentralizedQueue(ExaData):
             return MPI.pickle.loads(self.buff)
         return None
 
+    @introspectTrace(name=True)
     def push(self, data, rank=None):
         if rank is None:
             rank = self.comm.rank
