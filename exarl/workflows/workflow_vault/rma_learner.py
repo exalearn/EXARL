@@ -150,7 +150,7 @@ class RMA(erl.ExaWorkflow):
                         indices = np.array(indices, dtype=np.intc)
                         loss = np.array(loss, dtype=np.float64)
                         # Write indices to memory pool
-                        ind_loss_buffer.push((indices, loss), rank=actor_idx, name="Loss")
+                        ind_loss_buffer.push((indices, loss), rank=actor_idx)
                         ib.update("RMA_Learner_Loss_Push", 1)
                 learner_counter += 1
                 agent_data = None
