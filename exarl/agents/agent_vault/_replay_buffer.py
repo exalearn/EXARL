@@ -27,6 +27,7 @@ class ReplayBuffer(Replay):
 
     def sample_buffer(self, batch_size):
         record_range = min(len(self), self._memory_size)
+        record_range = max(1, record_range)
 
         # Randomly sample indices
         batch_indices = np.random.choice(record_range, batch_size)
