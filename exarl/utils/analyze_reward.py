@@ -24,7 +24,7 @@ import math
 import os
 import sys
 import matplotlib.pyplot as plt
-import exarl.utils.log as log
+from exarl.utils import log
 import exarl.utils.candleDriver as cd
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 

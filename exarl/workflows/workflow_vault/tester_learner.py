@@ -22,7 +22,7 @@ import exarl as erl
 import pickle
 from exarl.base.comm_base import ExaComm
 import tensorflow as tf
-import exarl.utils.log as log
+from exarl.utils import log
 import exarl.utils.candleDriver as cd
 from exarl.utils.profile import *
 from exarl.utils.introspect import *

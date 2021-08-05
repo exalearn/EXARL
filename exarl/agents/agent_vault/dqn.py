@@ -36,7 +36,7 @@ from datetime import datetime
 import numpy as np
 from exarl.agents.agent_vault._prioritized_replay import PrioritizedReplayBuffer
 import exarl.utils.candleDriver as cd
-import exarl.utils.log as log
+from exarl.utils import log
 from exarl.utils.introspect import introspectTrace
 from tensorflow.compat.v1.keras.backend import set_session
 

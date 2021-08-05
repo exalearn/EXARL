@@ -20,7 +20,7 @@
 #                    under Contract DE-AC05-76RL01830
 import argparse
 import json
-import exarl.utils.log as log
+from exarl.utils import log
 from pprint import pformat
 from tensorflow import keras
 import os

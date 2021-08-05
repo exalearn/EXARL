@@ -38,7 +38,7 @@ import tensorflow as tf
 # logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 # logger = logging.getLogger('RL-Logger')
 # logger.setLevel(logging.INFO)
-import exarl.utils.log as log
+from exarl.utils import log
 import exarl.utils.candleDriver as cd
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 

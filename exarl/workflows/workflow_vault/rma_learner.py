@@ -26,7 +26,7 @@ from tensorflow.python.ops.gen_batch_ops import batch
 import exarl as erl
 from exarl.utils.introspect import *
 from exarl.utils.profile import *
-import exarl.utils.log as log
+from exarl.utils import log
 import exarl.utils.candleDriver as cd
 from exarl.base.comm_base import ExaComm
 from exarl.network.data_structures import *

@@ -24,7 +24,7 @@ import numpy as np
 import exarl as erl
 from exarl.utils.introspect import ib
 from exarl.utils.profile import *
-import exarl.utils.log as log
+from exarl.utils import log
 import exarl.utils.candleDriver as cd
 from exarl.base.comm_base import ExaComm
 
