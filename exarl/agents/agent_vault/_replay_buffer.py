@@ -160,7 +160,7 @@ class PrioritedReplayBuffer(Replay):
         return self.state_buffer, self.action_buffer, self.reward_buffer, self.next_state_buffer, self.done_buffer, self.b_idx, self.weights
 
     def batch_update(self, tree_index, abs_errors):
-        self.alpha = np.min([1, self.alpha + PrioritedReplayBuffer.__PER_b_inc_sampling])
+        #self.alpha = np.min([1, self.alpha + PrioritedReplayBuffer.__PER_b_inc_sampling])
         abs_errors += PrioritedReplayBuffer.__MIN_EPSILON
         clipped_errors = np.minimum(abs_errors, PrioritedReplayBuffer.__ABSOLUTE_ERROR_UPPER)
         ps = np.power(clipped_errors, self.alpha)

@@ -134,6 +134,7 @@ class DDPG_V1(erl.ExaAgent):
         self.actor_optimizer = tf.keras.optimizers.Adam(self.actor_lr)
         np.random.seed(0) #
         tf.random.set_seed(0)
+        self.warm_up = self.batch_size
 
     def remember(self, state, action, reward, next_state, done):
         # If the counter exceeds the capacity then
@@ -146,7 +147,8 @@ class DDPG_V1(erl.ExaAgent):
             target_actions = self.target_actor(next_state_batch, training=True)
             y = reward_batch + self.gamma * self.target_critic(
                 [next_state_batch, target_actions], training=True
-            )* (1- terminal_batch)
+            )
+            #* (1- terminal_batch)
             critic_value = self.critic_model([state_batch, action_batch], training=True)
             #critic_loss = tf.math.reduce_mean(tf.math.square(y - critic_value))
             critic_loss = keras.losses.MSE(y , critic_value)
@@ -262,7 +264,7 @@ class DDPG_V1(erl.ExaAgent):
 
     def train(self, batch):
         if self.is_learner:
-            if batch and len(batch[0]) >= (self.batch_size):
+            if batch and len(batch[0]) >= (self.warm_up):
                 logger.warning('Training...')
                 if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
                     self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4])
