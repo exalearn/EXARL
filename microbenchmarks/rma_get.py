@@ -22,19 +22,19 @@ def get_time_original(epsilon_win, indices_win, loss_win, model_win, iter=100000
         start = MPI.Wtime()
         for _ in range(iter):
             model_win.Lock(0)
-            model_win.Rget(buff, target_rank=0)
+            model_win.Get(buff, target_rank=0)
             model_win.Unlock(0)
 
             epsilon_win.Lock(0)
-            epsilon_win.Rget(epsilon, target_rank=0)
+            epsilon_win.Get(epsilon, target_rank=0)
             epsilon_win.Unlock(0)
 
             indices_win.Lock(0)
-            indices_win.Rget(indices, target_rank=0)
+            indices_win.Get(indices, target_rank=0)
             indices_win.Unlock(0)
 
             loss_win.Lock(0)
-            loss_win.Rget(loss, target_rank=0)
+            loss_win.Get(loss, target_rank=0)
             loss_win.Unlock(0)
         end = MPI.Wtime()
 
