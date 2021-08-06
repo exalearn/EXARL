@@ -27,6 +27,7 @@ import json
 import exarl as erl
 # from envs.env_vault.computePI import computePI as cp
 import exarl.mpi_settings as mpi_settings
+import time
 
 
 def computePI(N, new_comm):
@@ -55,18 +56,15 @@ class ExaCartpoleStatic(gym.Env):
         time.sleep(0)  # Delay in seconds
 
         rank = self.env_comm.rank
-        if rank == 0:
-            N = 100
-        else:
-            N = None
+        N = 100000
 
         N = self.env_comm.bcast(N, root=0)
         myPI = computePI(N, self.env_comm)  # Calls python function
         # myPI = cp.compute_pi(N, self.env_comm) # Calls C++ function
         PI = self.env_comm.reduce(myPI, op=MPI.SUM, root=0)
 
-        if self.env_comm.rank == 0:
-            print(PI)  # Print PI for verification
+        #if self.env_comm.rank == 0:
+            #print(PI)  # Print PI for verification
 
         return next_state, reward, done, info
 

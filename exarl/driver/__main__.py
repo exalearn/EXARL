@@ -18,10 +18,13 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-# import mpi4py
-# mpi4py.rc.threads = False
-# mpi4py.rc.recv_mprobe = False
+#import mpi4py
+#mpi4py.rc.threads = False
+#mpi4py.rc.recv_mprobe = False
+#import mpi4py
+#mpi4py.rc.thread_level = 'serialized' # or perhaps 'serialized'
 from mpi4py import MPI
+
 import exarl.utils.analyze_reward as ar
 import time
 import exarl as erl

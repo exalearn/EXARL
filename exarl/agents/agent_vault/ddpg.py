@@ -244,6 +244,7 @@ class DDPG(erl.ExaAgent):
 
     def generate_data(self):
         record_range = max(1, min(self.buffer_counter, self.buffer_capacity))
+
         logger.info('record_range:{}'.format(record_range))
         # Randomly sample indices
         batch_indices = np.random.choice(record_range, self.batch_size)
