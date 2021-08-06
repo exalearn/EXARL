@@ -1,5 +1,5 @@
 # Microbenchmarks
-This folder contains RMA microbenchmarks used for evaluate the performance of different approaches.
+This folder contains RMA microbenchmarks used for searching possible optimizations for the RMA workflow.
 
 ## rma_get.py
 Based on the RMA workflow, the actor need to get data from four windows before each environment step. "RMA get" benchmark allows to compare 4 different approaches of getting data ("MPI.GET()") from RMA windows:
