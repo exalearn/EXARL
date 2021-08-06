@@ -126,3 +126,5 @@ results_dir
 
 # pkl files
 *.pkl
+# slurm
+slurm*
