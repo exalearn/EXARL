@@ -12,6 +12,6 @@ Based on the RMA workflow, the actor need to get data from four windows before e
 Identical with "rma_get.py" but measuring the "MPI.PUT()" operation.
 
 ## run_lock_test.py 
-Allows to compate the execution time of concurent "MPI.GET()" from a window with :
+Allows to compare the execution time of concurent "MPI.GET()" from a window with different LOCK types :
 - EXCLUSIVE LOCKS 
 - SHARED LOCKS
