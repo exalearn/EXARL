@@ -27,14 +27,9 @@ import pickle
 from datetime import datetime
 from exarl.utils.OUActionNoise import OUActionNoise
 from exarl.utils.OUActionNoise import OUActionNoise2
-<< << << < HEAD
 from exarl.utils.introspect import introspectTrace
-
 from ._replay_buffer import ReplayBuffer, HindsightExperienceReplayMemory, PrioritedReplayBuffer
 from exarl.utils.memory_type import MEMORY_TYPE
-== == == =
-
->>>>>> > cb8e6365... Added original DDPG
 import exarl as erl
 
 from exarl.utils import log
@@ -114,8 +109,6 @@ class DDPG(erl.ExaAgent):
         self.batch_size = cd.run_params['batch_size']
         # self.buffer_counter = cd.run_params['buffer_counter']
 
-
-<< << << < HEAD
         if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
             self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions)
         elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
@@ -125,14 +118,12 @@ class DDPG(erl.ExaAgent):
         else:
             print("Unrecognized replay buffer please specify 'uniform, priority or hindsight', using default uniform sampling")
             self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions)  # TODO : maybe exit()
-== == == =
+
         self.state_buffer = np.zeros((self.buffer_capacity, self.num_states))
         self.action_buffer = np.zeros((self.buffer_capacity, self.num_actions))
         self.reward_buffer = np.zeros((self.buffer_capacity, 1))
         self.next_state_buffer = np.zeros((self.buffer_capacity, self.num_states))
         self.done_buffer = np.zeros((self.buffer_capacity, 1))
-        self.memory = self.state_buffer  # BAD
->>>>>> > cb8e6365... Added original DDPG
 
         # Setup TF configuration to allow memory growth
         # tf.keras.backend.set_floatx('float64')
@@ -188,7 +179,6 @@ class DDPG(erl.ExaAgent):
         self.buffer_counter += 1
 
     # @tf.function
-<<<<<<< HEAD
     def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, b_idx=None, weights=None):
         """Update gradients - training step
 
@@ -205,19 +195,12 @@ class DDPG(erl.ExaAgent):
         policy_ratio = target_policy / behaviour_policy
         print(tf.reduce_mean(policy_ratio))
 
-=======
-    def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch):
->>>>>>> cb8e6365... Added original DDPG
         # Training and updating Actor & Critic networks.
         with tf.GradientTape() as tape:
             target_actions = self.target_actor(next_state_batch, training=True)
             y = reward_batch + self.gamma * self.target_critic(
                 [next_state_batch, target_actions], training=True
-<<<<<<< HEAD
             ) * (1 - terminal_batch)
-=======
-            )
->>>>>>> cb8e6365... Added original DDPG
             critic_value = self.critic_model([state_batch, action_batch], training=True)
             critic_loss = tf.math.reduce_mean(tf.math.square(y - critic_value))
 
