@@ -14,5 +14,4 @@ from exarl.workflows.workflow_vault.mlrma_queue_short_learner import ML_RMA_QUEU
 from exarl.workflows.workflow_vault.seed_learner import SEED
 from exarl.workflows.workflow_vault.seed_a2c_learner import SEED_A2C
 from exarl.workflows.workflow_vault.mlasync_learner import ML_ASYNC
-from exarl.workflows.workflow_vault.tester import DEMO
 from exarl.workflows.workflow_vault.mlrma_learner_v1 import ML_RMA_V1
