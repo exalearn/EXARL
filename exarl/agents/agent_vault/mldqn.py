@@ -107,8 +107,17 @@ class MLDQN(erl.ExaAgent):
         #self.clipnorm = cd.run_params["clipnorm"]
         #self.clipvalue = cd.run_params["clipvalue"]
 
+        if self.is_learner:
+            logger.info("Setting GPU rank", self.rank)
+            config = tf.compat.v1.ConfigProto(device_count={'GPU': 1, 'CPU': 1})
+        else:
+            logger.info("Setting no GPU rank", self.rank)
+            config = tf.compat.v1.ConfigProto(device_count={'GPU': 0, 'CPU': 1})
+
+
+
         # set TF session
-        config = tf.compat.v1.ConfigProto()
+        #config = tf.compat.v1.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.compat.v1.Session(config=config)
         tf.compat.v1.keras.backend.set_session(sess)
@@ -118,6 +127,7 @@ class MLDQN(erl.ExaAgent):
             # tf.debugging.set_log_device_placement(True)
             gpus = tf.config.experimental.list_physical_devices("GPU")
             logger.info("Available GPUs: {}".format(gpus))
+            print("Learner {} : Available GPUs: {}".format(self.learner_comm.rank,gpus))
             # Active model
             self.model = self._build_model()
             self.model._name = "learner"
@@ -315,6 +325,7 @@ class MLDQN(erl.ExaAgent):
         if self.ntraining_time > 0:
             logger.info("Agent[{}] - Average training time: {}".format(self.rank,
                                                                        self.training_time / self.ntraining_time))
+
         else:
             logger.info("Agent[{}] - Average training time: {}".format(self.rank, 0))
 
@@ -323,3 +334,14 @@ class MLDQN(erl.ExaAgent):
                                                                         self.dataprep_time / self.ndataprep_time))
         else:
             logger.info("Agent[{}] - Average data prep time: {}".format(self.rank, 0))
+
+
+    #Sai Chenna - print training time and device used for training for each learners
+    def learner_training_metrics(self):
+        if self.is_learner:
+            print("Learner {} - Total training time: {}".format(self.learner_comm.rank,
+                                                                       self.training_time))
+            print("Learner {} - Total batches trained: {}".format(self.learner_comm.rank,self.ntraining_time))
+            #print("Learner {} - Average training time: {}".format(self.learner_comm.rank,
+            #                                                           self.training_time / self.ntraining_time))
+            print("Learner {} - Device used for training: {}".format(self.learner_comm.rank,self.device))

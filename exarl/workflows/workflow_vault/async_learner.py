@@ -49,6 +49,7 @@ class ASYNC(erl.ExaWorkflow):
         #Sai Chenna: do this only for DQN agent
         if self.agent == 'DQN-v0':
             self.accelerate_datagen = True
+            #self.accelerate_datagen = False
 
         if self.agent == 'DQN-v0' and self.accelerate_datagen:
             self.model_type = cd.run_params["model_type"]
@@ -149,6 +150,10 @@ class ASYNC(erl.ExaWorkflow):
         # Round-Robin Scheduler
         if mpi_settings.is_learner():
             start = MPI.Wtime()
+            recv_counter = 0
+            send_counter = 0
+            train_counter = 0
+            training_time = 0.
             # worker_episodes = np.linspace(0, agent_comm.size - 2, agent_comm.size - 1)
             worker_episodes = np.arange(1, agent_comm.size)
             logger.debug('worker_episodes:{}'.format(worker_episodes))
@@ -162,6 +167,7 @@ class ASYNC(erl.ExaWorkflow):
                 episode = worker_episodes[s - 1]
                 agent_comm.send(
                     [episode, rank0_epsilon, target_weights, indices, loss], dest=s)
+                send_counter += 1
 
             init_nepisodes = episode
             logger.debug('init_nepisodes:{}'.format(init_nepisodes))
@@ -172,6 +178,7 @@ class ASYNC(erl.ExaWorkflow):
 
                 # Receive the rank of the worker ready for more work
                 recv_data = agent_comm.recv(source=MPI.ANY_SOURCE)
+                recv_counter += 1
 
                 whofrom = recv_data[0]
                 step = recv_data[1]
@@ -181,7 +188,10 @@ class ASYNC(erl.ExaWorkflow):
                 logger.debug('step:{}'.format(step))
                 logger.debug('done:{}'.format(done))
                 # Train
+                train_stime = MPI.Wtime()
                 train_return = workflow.agent.train(batch)
+                training_time += MPI.Wtime() - train_stime
+                train_counter += 1
                 if train_return is not None:
                     if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
                         indices, loss = train_return
@@ -215,11 +225,13 @@ class ASYNC(erl.ExaWorkflow):
 
                 agent_comm.send([worker_episodes[whofrom - 1],
                                  epsilon, target_weights, indices, loss], dest=whofrom)
+                send_counter += 1
 
             logger.info("Finishing up ...\n")
             episode = -1
             for s in range(1, agent_comm.size):
                 recv_data = agent_comm.recv(source=MPI.ANY_SOURCE)
+                recv_counter += 1
                 whofrom = recv_data[0]
                 step = recv_data[1]
                 batch = recv_data[2]
@@ -233,12 +245,17 @@ class ASYNC(erl.ExaWorkflow):
                     indices, loss = train_return
                 workflow.agent.target_train()
                 workflow.agent.save(workflow.results_dir + '/model.pkl')
-
-                send_data = [episode, 0, 0, indices, loss]
-                agent_comm.send(send_data, dest=s)
-                print("\n\n Learner [{}] : sending size {} \n\n".format(agent_comm.rank,sys.getsizeof(send_data)))
+                agent_comm.send([episode, 0, 0, indices, loss], dest=s)
+                send_counter += 1
 
             logger.info('Learner time: {}'.format(MPI.Wtime() - start))
+            print('Learner {} time: {}'.format(0,MPI.Wtime() - start))
+            print("Learner {} Total times data received from actors: {}".format(0,recv_counter))
+            print("Learner {} Total times data sent to actors: {}".format(0,send_counter))
+            print("Learner {} No of trainings done: {}".format(0,train_counter))
+            print("Learner {} Total time spent on training: {}".format(0,training_time))
+            print("Learner {} Training throughput: {} trainings/sec".format(0,train_counter/training_time))
+            workflow.agent.learner_training_metrics()
 
         else:
             if mpi_settings.is_actor():
@@ -248,6 +265,11 @@ class ASYNC(erl.ExaWorkflow):
                 train_file = open(workflow.results_dir + '/' +
                                   filename_prefix + ".log", 'w')
                 train_writer = csv.writer(train_file, delimiter=" ")
+                ac_sendtime = 0.
+                ac_recvtime = 0.
+                tmp = 0.
+                ac_send_counter = 0
+                ac_recv_counter = 0
 
             start = MPI.Wtime()
             while episode != -1:
@@ -265,7 +287,10 @@ class ASYNC(erl.ExaWorkflow):
                                  #.format(agent_comm.rank, steps, (workflow.nsteps - 1)))
                     if mpi_settings.is_actor():
                         # Receive target weights
+                        tmp = MPI.Wtime()
                         recv_data = agent_comm.recv(source=0)
+                        ac_recvtime += MPI.Wtime() - tmp
+                        ac_recv_counter += 1
                         # Update episode while beginning a new one i.e. step = 0
                         if steps == 0:
                             episode = recv_data[0]
@@ -334,10 +359,12 @@ class ASYNC(erl.ExaWorkflow):
 
                     if mpi_settings.is_actor():
                         # Send batched memories
-                        send_data = [agent_comm.rank, steps, batch_data, policy_type, done]
-                        agent_comm.send(send_data, dest=0)
-                        print("\n\n Actor [{}] : sending size {} batch_data {}\n\n".format(agent_comm.rank,sys.getsizeof(send_data), sys.getsizeof(batch_data)))
+                        tmp = MPI.Wtime()
+                        agent_comm.send(
+                            [agent_comm.rank, steps, batch_data, policy_type, done], dest=0)
                         # indices, loss = agent_comm.recv(source=MPI.ANY_SOURCE)
+                        ac_sendtime += MPI.Wtime() - tmp
+                        ac_send_counter += 1
                         indices, loss = recv_data[3:5]
                         if indices is not None:
                             workflow.agent.set_priorities(indices, loss)
@@ -368,6 +395,12 @@ class ASYNC(erl.ExaWorkflow):
         if mpi_settings.is_actor():
             logger.info(f'Agent[{agent_comm.rank}] timing info:\n')
             workflow.agent.print_timers()
+            print("Actor {} :  Total time : {}".format(agent_comm.rank,MPI.Wtime() - start))
+            print("Actor {} : Time spent sending data to learner 0 : {}".format(agent_comm.rank,ac_sendtime))
+            print("Actor {} : Time spent receving data to learner 0 : {}".format(agent_comm.rank,ac_recvtime))
+            print("Actor {} : Total batches sent to learner 0 : {}".format(agent_comm.rank,ac_send_counter))
+            print("Actor {} : Total model data received from learner 0 : {}".format(agent_comm.rank,ac_recv_counter))
+
 
     #Sai Chenna - parallelize generate_data method in DQN agent by distributing batchsize to all processes_per_env
     def get_data_parallel(self,workflow):

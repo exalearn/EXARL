@@ -105,8 +105,9 @@ class RMA_ASYNC(erl.ExaWorkflow):
             model_win.Put(serial_target_weights, target_rank=0)
             model_win.Unlock(0)
 
-        # Synchronize
-        agent_comm.Barrier()
+        if mpi_settings.is_agent():
+            # Synchronize
+            agent_comm.Barrier()
 
         # Learner
         if mpi_settings.is_learner():
@@ -182,6 +183,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
         # Actors
         else:
             local_actor_episode_counter = 0
+            episode_count_actor = 0
             if mpi_settings.is_actor():
                 # Logging files
                 filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
@@ -217,7 +219,8 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 # set of steps while terminating
                 if episode_count_actor >= workflow.nepisodes:
                     break
-                logger.info('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count_actor))
+                if mpi_settings.is_actor():
+                    logger.info('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count_actor))
 
                 # Episode initialization
                 workflow.env.seed(0)
@@ -308,7 +311,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                                                done, local_actor_episode_counter, steps, policy_type, workflow.agent.epsilon])
                         train_file.flush()
 
-                        current_state = next_state
+                    current_state = next_state
 
         if mpi_settings.is_agent():
             #print("Waiting ...")

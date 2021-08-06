@@ -67,7 +67,6 @@ elif agent == 'A2C-v1':
         id=agent,
         entry_point='exarl.agents.agent_vault:A2Cvtrace'
     )
-
 elif agent == 'A2C-v2':
     register(
         id=agent,
