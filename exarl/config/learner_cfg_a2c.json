@@ -1,0 +1,14 @@
+{
+    "agent": "A2C-v1",
+    "env": "CartPole-v0",
+    "workflow": "async2",
+    "n_episodes": 1000,
+    "n_steps": 200,
+    "output_dir": "./results_dir/a2c_vtrace_async_cartpole_4",
+    "learner_procs": 1,
+    "process_per_env": 1,
+    "model_type": "AC2",
+    "action_type": "variable",
+    "log_level": [3, 3],
+    "profile": "none"
+}

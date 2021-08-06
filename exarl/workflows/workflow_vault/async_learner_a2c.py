@@ -31,7 +31,7 @@ logger = log.setup_logger(__name__, cd.run_params['log_level'])
 import pickle
 import sys
 
-class ASYNC(erl.ExaWorkflow):
+class ASYNC2(erl.ExaWorkflow):
     def __init__(self):
         print('Creating ASYNC learner workflow...')
 
@@ -75,8 +75,7 @@ class ASYNC(erl.ExaWorkflow):
                 rank0_epsilon = workflow.agent.epsilon
                 target_weights = workflow.agent.get_weights()
                 episode = worker_episodes[s - 1]
-                agent_comm.send(
-                    [episode, rank0_epsilon, target_weights, indices, loss], dest=s)
+                agent_comm.send([episode, rank0_epsilon, target_weights, indices, loss], dest=s)
 
             init_nepisodes = episode
             logger.debug('init_nepisodes:{}'.format(init_nepisodes))
@@ -96,15 +95,14 @@ class ASYNC(erl.ExaWorkflow):
                 logger.debug('step:{}'.format(step))
                 logger.debug('done:{}'.format(done))
                 # Train
-                train_return = workflow.agent.train(batch)
-                if train_return is not None:
-                    if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
-                        indices, loss = train_return
+                if done:
+                    train_return = workflow.agent.train(batch)
+                    if train_return is not None:
+                        if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
+                            indices, loss = train_return
 
-                # agent_comm.send([indicies, loss], dest=whofrom)
+                    workflow.agent.target_train()
 
-                # TODO: Double check if this is already in the DQN code
-                workflow.agent.target_train()
                 if policy_type == 0:
                     workflow.agent.epsilon_adj()
                 epsilon = workflow.agent.epsilon
@@ -113,12 +111,14 @@ class ASYNC(erl.ExaWorkflow):
                 logger.debug('rank0_epsilon:{}'.format(epsilon))
 
                 target_weights = workflow.agent.get_weights()
+
                 with open('target_weights.pkl', 'wb') as f:
                     pickle.dump(target_weights, f)
 
                 # Increment episode when starting
                 if step == 0:
                     episode += 1
+                    print(episode)
                     logger.debug('if episode:{}'.format(episode))
 
                 # Increment the number of completed episodes
@@ -143,11 +143,15 @@ class ASYNC(erl.ExaWorkflow):
                 logger.debug('step:{}'.format(step))
                 logger.debug('done:{}'.format(done))
                 # Train
-                train_return = workflow.agent.train(batch)
-                if train_return is not None:
-                    indices, loss = train_return
-                workflow.agent.target_train()
-                workflow.agent.save(workflow.results_dir + '/model.pkl')
+
+                if done:
+                    train_return = workflow.agent.train(batch)
+                    if train_return is not None:
+                        indices, loss = train_return
+
+                    workflow.agent.target_train()
+                    workflow.agent.save(workflow.results_dir + '/model.pkl')
+
                 agent_comm.send([episode, 0, 0, indices, loss], dest=s)
 
             logger.info('Learner time: {}'.format(MPI.Wtime() - start))
@@ -173,6 +177,7 @@ class ASYNC(erl.ExaWorkflow):
 
                 # Steps in an episode
                 while steps < workflow.nsteps:
+
                     logger.debug('ASYNC::run() agent_comm.rank{}; step({} of {})'
                                  .format(agent_comm.rank, steps, (workflow.nsteps - 1)))
                     if mpi_settings.is_actor():
@@ -181,7 +186,6 @@ class ASYNC(erl.ExaWorkflow):
                         # Update episode while beginning a new one i.e. step = 0
                         if steps == 0:
                             episode = recv_data[0]
-                            # print(episode)
                         # This variable is used for kill check
                         episode_interim = recv_data[0]
 
@@ -197,13 +201,14 @@ class ASYNC(erl.ExaWorkflow):
 
                     if mpi_settings.is_actor():
                         workflow.agent.epsilon = recv_data[1]
-                        workflow.agent.set_weights(recv_data[2])
+
+                        if steps == 0:
+                            workflow.agent.set_weights(recv_data[2])
 
                         if workflow.action_type == 'fixed':
                             action, policy_type = 0, -11
                         else:
-                            action, policy_type = workflow.agent.action(
-                                current_state)
+                            action, policy_type = workflow.agent.action(current_state)
 
                     next_state, reward, done, _ = workflow.env.step(action)
 
@@ -218,11 +223,11 @@ class ASYNC(erl.ExaWorkflow):
                         workflow.agent.remember(
                             memory[0], memory[1], memory[2], memory[3], memory[4])
 
-                        batch_data = next(workflow.agent.generate_data())
+                        batch_data = workflow.agent.generate_data()
                         logger.info(
                             'Rank[{}] - Generated data: {}'.format(agent_comm.rank, len(batch_data[0])))
                         try:
-                            buffer_length = len(workflow.agent.memory)
+                            buffer_length = len(workflow.agent.state_memory)
                         except:
                             buffer_length = workflow.agent.replay_buffer.get_buffer_length()
                         logger.info(
@@ -233,9 +238,8 @@ class ASYNC(erl.ExaWorkflow):
 
                     if mpi_settings.is_actor():
                         # Send batched memories
-                        agent_comm.send(
-                            [agent_comm.rank, steps, batch_data, policy_type, done], dest=0)
-                        # indices, loss = agent_comm.recv(source=MPI.ANY_SOURCE)
+                        agent_comm.send([agent_comm.rank, steps, batch_data, policy_type, done], dest=0)
+
                         indices, loss = recv_data[3:5]
                         if indices is not None:
                             workflow.agent.set_priorities(indices, loss)
@@ -251,16 +255,19 @@ class ASYNC(erl.ExaWorkflow):
                     # Update state and step
                     current_state = next_state
                     steps += 1
-
+                    # print(agent_comm.rank, steps)
                     # Broadcast done
                     done = env_comm.bcast(done, root=0)
                     # Break for loop if done
                     if done:
+                        if mpi_settings.is_actor():
+                            workflow.agent.reset_lists()
                         break
+
             logger.info('Worker time = {}'.format(MPI.Wtime() - start))
             if mpi_settings.is_actor():
                 train_file.close()
 
         if mpi_settings.is_actor():
             logger.info(f'Agent[{agent_comm.rank}] timing info:\n')
-            workflow.agent.print_timers()
+            # workflow.agent.print_timers()

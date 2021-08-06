@@ -1,0 +1,17 @@
+{
+    "agent": "DQN-v0",
+    "env": "ExaCartPoleStatic-v0",
+    "workflow": "mlrma",
+    "n_episodes": 100,
+    "n_steps": 200,
+    "output_dir": "./results_dir/dqn_mlrma_1",
+    "learner_procs": 2,
+    "process_per_env": 4,
+    "model_type": "MLP",
+    "action_type": "variable",
+    "log_level": [
+        3,
+        3
+    ],
+    "profile": "none"
+}

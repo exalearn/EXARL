@@ -23,10 +23,12 @@ import tensorflow as tf
 from tensorflow.keras import layers
 import random
 import os
+import sys
 import pickle
 from datetime import datetime
 from exarl.utils.OUActionNoise import OUActionNoise
 from exarl.utils.OUActionNoise import OUActionNoise2
+from exarl.agents.agent_vault._prioritized_replay import PrioritizedReplayBuffer
 
 import exarl as erl
 
@@ -41,7 +43,7 @@ def update_target(target_weights, weights, tau):
         a.assign(b * tau + a * (1 - tau))
 
 
-class DDPG(erl.ExaAgent):
+class DDPG_PER(erl.ExaAgent):
     is_learner: bool
 
     def __init__(self, env, is_learner):
@@ -134,8 +136,18 @@ class DDPG(erl.ExaAgent):
         self.critic_optimizer = tf.keras.optimizers.Adam(self.critic_lr)
         self.actor_optimizer = tf.keras.optimizers.Adam(self.actor_lr)
 
+        self.priority_scale = cd.run_params['priority_scale']
+        self.replay_buffer = PrioritizedReplayBuffer(maxlen=self.buffer_capacity)
+        self.n_episodes = cd.run_params['n_episodes']
+        self.beta0 = cd.run_params['beta_0']
+        self.beta = np.linspace(self.beta0, 1, self.n_episodes)
+        self.episode_count = 0
+
     def remember(self, state, action, reward, next_state, done):
-        # If the counter exceeds the capacity then
+        lost_data = self.replay_buffer.add((state, action, reward, next_state, done))
+        if lost_data and self.priority_scale:
+            print("Priority replay buffer size too small. Data loss negates replay effect!", flush=True)
+
         index = self.buffer_counter % self.buffer_capacity
         self.state_buffer[index] = state
         self.action_buffer[index] = action[0]
@@ -145,13 +157,23 @@ class DDPG(erl.ExaAgent):
         self.buffer_counter += 1
 
     # @tf.function
-    def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch):
+    def update_grad(self, batch):
+
+        state_batch = batch[0]
+        action_batch = batch[1]
+        reward_batch = batch[2]
+        next_state_batch = batch[3]
+
+        if self.priority_scale > 0:
+            indices = batch[4]
+            importance = batch[5]
+            sample_weight = importance ** self.beta[self.episode_count]
 
         target_policy = self.target_actor(state_batch)
         behaviour_policy = self.actor_model(state_batch)
         policy_ratio = target_policy/behaviour_policy
 
-        print(tf.reduce_mean(policy_ratio))
+        # print(tf.reduce_mean(policy_ratio))
 
         # Training and updating Actor & Critic networks.
         with tf.GradientTape() as tape:
@@ -242,24 +264,42 @@ class DDPG(erl.ExaAgent):
 
         return model
 
-    def generate_data(self):
-        record_range = max(1, min(self.buffer_counter, self.buffer_capacity))
-        logger.info('record_range:{}'.format(record_range))
-        # Randomly sample indices
-        batch_indices = np.random.choice(record_range, self.batch_size)
-        logger.info('batch_indices:{}'.format(batch_indices))
-        state_batch = tf.convert_to_tensor(self.state_buffer[batch_indices])
-        action_batch = tf.convert_to_tensor(self.action_buffer[batch_indices])
-        reward_batch = tf.convert_to_tensor(self.reward_buffer[batch_indices])
-        reward_batch = tf.cast(reward_batch, dtype=tf.float32)
-        next_state_batch = tf.convert_to_tensor(self.next_state_buffer[batch_indices])
+    def has_data(self):
+        return (self.replay_buffer.get_buffer_length() >= self.batch_size)
 
-        yield state_batch, action_batch, reward_batch, next_state_batch
+    def generate_data(self):
+
+        if not self.has_data():
+            record_range = min(self.buffer_counter, self.buffer_capacity)
+            logger.info('record_range:{}'.format(record_range))
+            # Randomly sample indices
+            batch_indices = np.random.choice(record_range, self.batch_size)
+            logger.info('batch_indices:{}'.format(batch_indices))
+            state_batch = tf.convert_to_tensor(self.state_buffer[batch_indices])
+            action_batch = tf.convert_to_tensor(self.action_buffer[batch_indices])
+            reward_batch = tf.convert_to_tensor(self.reward_buffer[batch_indices])
+            reward_batch = tf.cast(reward_batch, dtype=tf.float32)
+            next_state_batch = tf.convert_to_tensor(self.next_state_buffer[batch_indices])
+            indices = -1 * np.ones(self.batch_size)
+            importance = np.ones(self.batch_size)
+
+        else:
+             minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=self.priority_scale)
+             state_batch = tf.convert_to_tensor(self.state_buffer[indices])
+             action_batch = tf.convert_to_tensor(self.action_buffer[indices])
+             reward_batch = tf.convert_to_tensor(self.reward_buffer[indices])
+             reward_batch = tf.cast(reward_batch, dtype=tf.float32)
+             next_state_batch = tf.convert_to_tensor(self.next_state_buffer[indices])
+
+        if self.priority_scale > 0:
+            yield state_batch, action_batch, reward_batch, next_state_batch, indices, importance
+        else:
+            yield state_batch, action_batch, reward_batch, next_state_batch
 
     def train(self, batch):
         if self.is_learner:
             logger.warning('Training...')
-            self.update_grad(batch[0], batch[1], batch[2], batch[3])
+            self.update_grad(batch)
 
     def target_train(self):
         # Update the target model
@@ -276,8 +316,9 @@ class DDPG(erl.ExaAgent):
         self.target_critic.set_weights(target_weights)
 
     def action(self, state):
-        policy_type = 1
+        policy_type = 0
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
+        tf_state = tf.expand_dims(tf_state, 0)
 
         sampled_actions = tf.squeeze(self.target_actor(tf_state))
         noise = self.ou_noise()
@@ -343,5 +384,6 @@ class DDPG(erl.ExaAgent):
         print("Implement print_timers method in ddpg.py")
 
     def epsilon_adj(self):
+        self.episode_count += 1
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay

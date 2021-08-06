@@ -1,0 +1,9 @@
+{
+    "parabola_variable_a": 2.0,
+    "parabola_variable_b": 4.0,
+    "parabola_variable_c": 1.0,
+    "max_action_range": 1.0,
+    "max_domain_range": 2.0,
+    "start_state_value": 0,
+    "tolerance": 0.1
+}

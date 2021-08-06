@@ -1,0 +1,21 @@
+{
+    "actor_lr" : 0.001,
+    "actor_out_act" : "tanh",
+    "actor_optimizer" : "adam",
+    "actor_lstm_layers": [128, 128, 128],
+    "actor_activation": "tanh",
+    "actor_gauss_noise": [0.1, 0.1, 0.1],
+    "actor_out_activation": "linear",
+    "actor_regularizer": [0.001, 0.001],
+    "critic_lr" : 0.001,
+    "critic_lstm_layers": [128, 128, 128],
+    "critic_activation": "tanh",
+    "critic_gauss_noise": [0.1, 0.1, 0.1],
+    "critic_regularizer": [0.001, 0.001],
+    "critic_concat_dense": [128, 128],
+    "critic_concat_dense_act" : "relu",
+    "critic_out_act" : "linear",
+    "critic_optimizer" : "adam",
+    "loss" : "mse",
+    "std_dev": 0.2
+}

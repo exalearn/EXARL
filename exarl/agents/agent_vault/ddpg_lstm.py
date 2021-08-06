@@ -23,6 +23,7 @@ import tensorflow as tf
 from tensorflow.keras import layers
 import random
 import os
+import sys
 import pickle
 from datetime import datetime
 from exarl.utils.OUActionNoise import OUActionNoise
@@ -41,7 +42,7 @@ def update_target(target_weights, weights, tau):
         a.assign(b * tau + a * (1 - tau))
 
 
-class DDPG(erl.ExaAgent):
+class DDPG_LSTM(erl.ExaAgent):
     is_learner: bool
 
     def __init__(self, env, is_learner):
@@ -64,20 +65,24 @@ class DDPG(erl.ExaAgent):
         self.tau = cd.run_params['tau']
 
         # model definitions
-        self.actor_dense = cd.run_params['actor_dense']
-        self.actor_dense_act = cd.run_params['actor_dense_act']
-        self.actor_out_act = cd.run_params['actor_out_act']
-        self.actor_optimizer = cd.run_params['actor_optimizer']
-        self.critic_state_dense = cd.run_params['critic_state_dense']
-        self.critic_state_dense_act = cd.run_params['critic_state_dense_act']
-        self.critic_action_dense = cd.run_params['critic_action_dense']
-        self.critic_action_dense_act = cd.run_params['critic_action_dense_act']
+        self.actor_lstm_layers = cd.run_params["actor_lstm_layers"]
+        self.actor_gauss_noise = cd.run_params["actor_gauss_noise"]
+        self.actor_regularizer = cd.run_params["actor_regularizer"]
+        self.actor_act = cd.run_params["actor_activation"]
+        self.actor_out_act = cd.run_params["actor_out_activation"]
+        self.actor_optimizer = cd.run_params["actor_optimizer"]
+
+        self.critic_lstm_layers = cd.run_params["critic_lstm_layers"]
+        self.critic_gauss_noise = cd.run_params["critic_gauss_noise"]
+        self.critic_regularizer = cd.run_params["critic_regularizer"]
+        self.critic_act = cd.run_params["critic_activation"]
+
         self.critic_concat_dense = cd.run_params['critic_concat_dense']
         self.critic_concat_dense_act = cd.run_params['critic_concat_dense_act']
         self.critic_out_act = cd.run_params['critic_out_act']
         self.critic_optimizer = cd.run_params['critic_optimizer']
-        self.tau = cd.run_params['tau']
 
+        self.tau = cd.run_params['tau']
         std_dev = 0.2
         ave_bound = (self.upper_bound + self.lower_bound) / 2
         print('ave_bound: {}'.format(ave_bound))
@@ -134,6 +139,8 @@ class DDPG(erl.ExaAgent):
         self.critic_optimizer = tf.keras.optimizers.Adam(self.critic_lr)
         self.actor_optimizer = tf.keras.optimizers.Adam(self.actor_lr)
 
+        self.c_bar, self.rho_bar = 1.0, 1.0
+
     def remember(self, state, action, reward, next_state, done):
         # If the counter exceeds the capacity then
         index = self.buffer_counter % self.buffer_capacity
@@ -147,20 +154,33 @@ class DDPG(erl.ExaAgent):
     # @tf.function
     def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch):
 
-        target_policy = self.target_actor(state_batch)
-        behaviour_policy = self.actor_model(state_batch)
+        target_policy = self.target_actor(tf.expand_dims(state_batch,1))
+        behaviour_policy = self.actor_model(tf.expand_dims(state_batch,1))
         policy_ratio = target_policy/behaviour_policy
 
-        print(tf.reduce_mean(policy_ratio))
+        # print(tf.reduce_mean(policy_ratio))
+
+        c, rho = [], []
+        for i in range(policy_ratio.shape[0]):
+            rho.append(min(self.rho_bar, policy_ratio[i].numpy()[0]))
+            c.append(min(self.c_bar, policy_ratio[i].numpy()[0]))
+
+        c = np.array(c)
+        rho = np.array(rho)
+        gamma_s = np.power(self.gamma, np.arange(0, rho.shape[0], 1))
 
         # Training and updating Actor & Critic networks.
         with tf.GradientTape() as tape:
-            target_actions = self.target_actor(next_state_batch, training=True)
-            y = reward_batch + self.gamma * self.target_critic(
-                [next_state_batch, target_actions], training=True
-            )
-            critic_value = self.critic_model([state_batch, action_batch], training=True)
-            critic_loss = tf.math.reduce_mean(tf.math.square(y - critic_value))
+
+            target_actions = self.target_actor(tf.expand_dims(next_state_batch,1), training=True)
+            target_values = self.target_critic([tf.expand_dims(next_state_batch,1), tf.expand_dims(target_actions,1)], training=True)
+            critic_values = self.critic_model([tf.expand_dims(state_batch,1), tf.expand_dims(action_batch,1)], training=True)
+
+            TDerror = reward_batch + self.gamma*target_values - critic_values
+            vs = critic_values + self.gamma*c*rho*TDerror
+            # gamma_vs2 = (1.0/c)*(vs - critic_values + self.gamma*c*target_values - rho*TDerror)
+
+            critic_loss = tf.math.reduce_mean(tf.math.square(vs))
 
         logger.warning("Critic loss: {}".format(critic_loss))
         critic_grad = tape.gradient(critic_loss, self.critic_model.trainable_variables)
@@ -169,10 +189,11 @@ class DDPG(erl.ExaAgent):
         )
 
         with tf.GradientTape() as tape:
-            actions = self.actor_model(state_batch, training=True)
-            critic_value = self.critic_model([state_batch, actions], training=True)
-            actor_loss = -tf.math.reduce_mean(critic_value)
-            # actor_loss = tf.math.reduce_mean(critic_value)
+            actions = self.actor_model(tf.expand_dims(state_batch,1), training=True)
+            actions_next = self.actor_model(tf.expand_dims(next_state_batch,1), training=True)
+            critic_values = self.critic_model([tf.expand_dims(state_batch,1), tf.expand_dims(actions,1)], training=True)
+            critic_values_next = self.critic_model([tf.expand_dims(next_state_batch,1), tf.expand_dims(actions_next,1)], training=True)
+            actor_loss = -tf.math.reduce_mean(critic_values)
 
         logger.warning("Actor loss: {}".format(actor_loss))
         actor_grad = tape.gradient(actor_loss, self.actor_model.trainable_variables)
@@ -181,69 +202,34 @@ class DDPG(erl.ExaAgent):
         )
 
     def get_actor(self):
-        # State as input
-        inputs = layers.Input(shape=(self.num_states,))
-        # first layer takes inputs
-        out = layers.Dense(self.actor_dense[0], activation=self.actor_dense_act)(inputs)
-        # loop over remaining layers
-        for i in range(1, len(self.actor_dense)):
-            out = layers.Dense(self.actor_dense[i], activation=self.actor_dense_act)(out)
-        # output layer has dimension actions, separate activation setting
-        out = layers.Dense(self.num_actions, activation=self.actor_out_act,
-                           kernel_initializer=tf.random_uniform_initializer())(out)
+
+        inputs = layers.Input(shape=(1,self.num_states))
+        out = layers.Dense(self.actor_lstm_layers[0], activation='relu', kernel_initializer='he_uniform')(inputs)
+        out = layers.LSTM(self.actor_lstm_layers[1], return_sequences=True)(out)
+        out = layers.BatchNormalization()(out)
+        out = layers.Dropout(self.actor_gauss_noise[0])(out)
+        out = layers.Dense(self.num_actions, activation='tanh')(out)
         outputs = layers.Lambda(lambda i: i * self.upper_bound)(out)
         model = tf.keras.Model(inputs, outputs)
-        # model.summary()
 
         return model
 
     def get_critic(self):
-        # State as input
-        state_input = layers.Input(shape=self.num_states)
-        # first layer takes inputs
-        state_out = layers.Dense(self.critic_state_dense[0],
-                                 activation=self.critic_state_dense_act)(state_input)
-        # loop over remaining layers
-        for i in range(1, len(self.critic_state_dense)):
-            state_out = layers.Dense(self.critic_state_dense[i],
-                                     activation=self.critic_state_dense_act)(state_out)
 
-        # Action as input
-        action_input = layers.Input(shape=self.num_actions)
-
-        # first layer takes inputs
-        action_out = layers.Dense(self.critic_action_dense[0],
-                                  activation=self.critic_action_dense_act)(action_input)
-        # loop over remaining layers
-        for i in range(1, len(self.critic_action_dense)):
-            action_out = layers.Dense(self.critic_action_dense[i],
-                                      activation=self.critic_action_dense_act)(action_out)
-
-        # Both are passed through seperate layer before concatenating
-        concat = layers.Concatenate()([state_out, action_out])
-
-        # assumes at least 2 post-concat layers
-        # first layer takes concat layer as input
-        concat_out = layers.Dense(self.critic_concat_dense[0],
-                                  activation=self.critic_concat_dense_act)(concat)
-        # loop over remaining inner layers
-        for i in range(1, len(self.critic_concat_dense) - 1):
-            concat_out = layers.Dense(self.critic_concat_dense[i],
-                                      activation=self.critic_concat_dense_act)(concat_out)
-
-        # last layer has different activation
-        concat_out = layers.Dense(self.critic_concat_dense[-1], activation=self.critic_out_act,
-                                  kernel_initializer=tf.random_uniform_initializer())(concat_out)
+        state_input = layers.Input(shape=(1,self.num_states))
+        action_input = layers.Input(shape=(1,self.num_actions))
+        concat = layers.Concatenate()([state_input, action_input])
+        concat_out =  layers.Dense(self.critic_concat_dense[0], activation='relu', kernel_initializer='he_uniform')(concat)
+        concat_out = layers.LSTM(self.critic_lstm_layers[0], activation=self.critic_act, return_sequences=True)(concat_out)
+        concat_out = layers.BatchNormalization()(concat_out)
+        concat_out = layers.Dropout(self.critic_gauss_noise[0])(concat_out)
         outputs = layers.Dense(1)(concat_out)
-
-        # Outputs single value for give state-action
         model = tf.keras.Model([state_input, action_input], outputs)
-        # model.summary()
 
         return model
 
     def generate_data(self):
-        record_range = max(1, min(self.buffer_counter, self.buffer_capacity))
+        record_range = min(self.buffer_counter, self.buffer_capacity)
         logger.info('record_range:{}'.format(record_range))
         # Randomly sample indices
         batch_indices = np.random.choice(record_range, self.batch_size)
@@ -278,6 +264,7 @@ class DDPG(erl.ExaAgent):
     def action(self, state):
         policy_type = 1
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
+        tf_state = tf.expand_dims(tf_state, 0)
 
         sampled_actions = tf.squeeze(self.target_actor(tf_state))
         noise = self.ou_noise()
