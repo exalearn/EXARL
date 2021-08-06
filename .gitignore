@@ -129,4 +129,6 @@ results_dir
 # slurm
 slurm*
 optimization_results/
+
+#weights
 *.pkl
