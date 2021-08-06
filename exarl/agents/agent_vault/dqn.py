@@ -583,3 +583,13 @@ class DQN(erl.ExaAgent):
         #    "Agent[{}] - Minibatch time: {} ".format(self.rank, (end_time - start_time))
         # )
         yield batch_states, batch_target
+
+    #Sai Chenna - print training time and device used for training for learner
+    def learner_training_metrics(self):
+        if self.is_learner:
+            print("Learner {} - Total training time: {}".format(self.rank,
+                                                                       self.training_time))
+            print("Learner {} - Total batches trained: {}".format(self.rank,self.ntraining_time))
+            print("Learner {} - Average training time: {}".format(self.rank,
+                                                                       self.training_time / self.ntraining_time))
+            print("Learner {} - Device used for training: {}".format(self.rank,self.device))

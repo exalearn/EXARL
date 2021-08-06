@@ -1,0 +1,2 @@
+/tmp/slurmd/job13111811/slurm_script: line 21: EXPORT: command not found
+srun: error: Only allocated 1 nodes asked for 2

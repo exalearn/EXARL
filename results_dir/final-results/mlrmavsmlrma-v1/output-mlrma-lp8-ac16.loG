@@ -1,0 +1,790 @@
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Importing candle utils for keras
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Additional definitions built from json files
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Learner parameters from  /vast/home/schenna/EXARL/exarl/config/learner_cfg.json
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Workflow overwitten from command line:  mlrma
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+_________________________________________________________________
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+_________________________________________________________________
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+Workflow overwitten from command line:  mlrma
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+_________________________________________________________________
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+_________________________________________________________________
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+_________________________________________________________________
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+_________________________________________________________________
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+_________________________________________________________________
+_________________________________________________________________
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+Agent overwitten from command line:  MLDQN-v0
+Environment overwitten from command line:  ExaBoosterDiscrete-v0
+Model overwitten from command line:  LSTM
+Workflow overwitten from command line:  mlrma
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+_________________________________________________________________
+Running - MLDQN-v0, ExaBoosterDiscrete-v0, and mlrma
+_________________________________________________________________
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Agent parameters from  /vast/home/schenna/EXARL/exarl/config/agent_cfg/MLDQN-v0.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Model parameters from  /vast/home/schenna/EXARL/exarl/config/model_cfg/LSTM.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Environment parameters from  /vast/home/schenna/EXARL/exarl/config/env_cfg/ExaBoosterDiscrete-v0.json
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Workflow configuration does not exist, using default configuration
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+{}
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+Configuration file:  /vast/home/schenna/EXARL/exarl/utils/
+{}
+{}
+{}
+{}
+{}
+{}
+{}
+{}
+{}
+{}
+{}
+{}
+{}
+{}
+{}
+{}
+{}
+{}
+{}
+{}
+{}
+{}
+{}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+/home/schenna/EXARL/exarl/base
+Attempting to load exarl.agents.agent_vault with MLDQN
+Learner 1 : Available GPUs: []
+Learner 7 : Available GPUs: []
+Learner 5 : Available GPUs: []
+Learner 6 : Available GPUs: []
+Learner 4 : Available GPUs: []
+Learner 2 : Available GPUs: []
+Learner 0 : Available GPUs: []
+Learner 3 : Available GPUs: []
+
+Creating ML_RMA workflow
+
+Creating ML_RMA workflow
+
+Creating ML_RMA workflow
+
+Model: "learner"
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #   
+=================================================================
+lstm (LSTM)                  (None, 1, 56)             13888     
+_________________________________________________________________
+batch_normalization (BatchNo (None, 1, 56)             224       
+_________________________________________________________________
+dropout (Dropout)            (None, 1, 56)             0         
+_________________________________________________________________
+lstm_1 (LSTM)                (None, 1, 56)             25312     
+_________________________________________________________________
+dropout_1 (Dropout)          (None, 1, 56)             0         
+_________________________________________________________________
+lstm_2 (LSTM)                (None, 56)                25312     
+_________________________________________________________________
+dropout_2 (Dropout)          (None, 56)                0         
+_________________________________________________________________
+dense (Dense)                (None, 30)                1710      
+=================================================================
+Total params: 66,446
+Trainable params: 66,334
+Non-trainable params: 112
+_________________________________________________________________
+
+
+Creating ML_RMA workflow
+Creating ML_RMA workflow
+
+
+
+Creating ML_RMA workflow
+
+
+
+Creating ML_RMA workflow
+Model: "learner"
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #   
+=================================================================
+lstm (LSTM)                  (None, 1, 56)             13888     
+_________________________________________________________________
+batch_normalization (BatchNo (None, 1, 56)             224       
+_________________________________________________________________
+dropout (Dropout)            (None, 1, 56)             0         
+_________________________________________________________________
+lstm_1 (LSTM)                (None, 1, 56)             25312     
+_________________________________________________________________
+dropout_1 (Dropout)          (None, 1, 56)             0         
+_________________________________________________________________
+lstm_2 (LSTM)                (None, 56)                25312     
+_________________________________________________________________
+dropout_2 (Dropout)          (None, 56)                0         
+_________________________________________________________________
+dense (Dense)                (None, 30)                1710      
+=================================================================
+Total params: 66,446
+Trainable params: 66,334
+Non-trainable params: 112
+_________________________________________________________________
+Model: "learner"
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #   
+=================================================================
+lstm (LSTM)                  (None, 1, 56)             13888     
+_________________________________________________________________
+batch_normalization (BatchNo (None, 1, 56)             224       
+_________________________________________________________________
+dropout (Dropout)            (None, 1, 56)             0         
+_________________________________________________________________
+lstm_1 (LSTM)                (None, 1, 56)             25312     
+_________________________________________________________________
+dropout_1 (Dropout)          (None, 1, 56)             0         
+_________________________________________________________________
+lstm_2 (LSTM)                (None, 56)                25312     
+_________________________________________________________________
+dropout_2 (Dropout)          (None, 56)                0         
+_________________________________________________________________
+Creating ML_RMA workflow
+dense (Dense)                (None, 30)                1710      
+=================================================================
+Total params: 66,446
+Trainable params: 66,334
+Non-trainable params: 112
+_________________________________________________________________
+Creating ML_RMA workflow
+
+
+Creating ML_RMA workflow
+Creating ML_RMA workflow
+
+Model: "learner"
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #   
+=================================================================
+lstm (LSTM)                  (None, 1, 56)             13888     
+_________________________________________________________________
+batch_normalization (BatchNo (None, 1, 56)             224       
+_________________________________________________________________
+dropout (Dropout)            (None, 1, 56)             0         
+_________________________________________________________________
+lstm_1 (LSTM)                (None, 1, 56)             25312     
+_________________________________________________________________
+dropout_1 (Dropout)          (None, 1, 56)             0         
+_________________________________________________________________
+lstm_2 (LSTM)                (None, 56)                25312     
+_________________________________________________________________
+dropout_2 (Dropout)          (None, 56)                0         
+_________________________________________________________________
+dense (Dense)                (None, 30)                1710      
+=================================================================
+
+Total params: 66,446
+Trainable params: 66,334
+Non-trainable params: 112
+_________________________________________________________________
+Model: "learner"
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #   
+=================================================================
+lstm (LSTM)                  (None, 1, 56)             13888     
+_________________________________________________________________
+batch_normalization (BatchNo (None, 1, 56)             224       
+_________________________________________________________________
+dropout (Dropout)            (None, 1, 56)             0         
+_________________________________________________________________
+lstm_1 (LSTM)                (None, 1, 56)             25312     
+_________________________________________________________________
+dropout_1 (Dropout)          (None, 1, 56)             0         
+_________________________________________________________________
+lstm_2 (LSTM)                (None, 56)                25312     
+_________________________________________________________________
+dropout_2 (Dropout)          (None, 56)                0         
+_________________________________________________________________
+dense (Dense)                (None, 30)                1710      
+=================================================================
+Total params: 66,446
+Trainable params: 66,334
+Non-trainable params: 112
+_________________________________________________________________
+
+
+
+Model: "learner"
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #   
+=================================================================
+lstm (LSTM)                  (None, 1, 56)             13888     
+_________________________________________________________________
+batch_normalization (BatchNo (None, 1, 56)             224       
+_________________________________________________________________
+dropout (Dropout)            (None, 1, 56)             0         
+_________________________________________________________________
+lstm_1 (LSTM)                (None, 1, 56)             25312     
+_________________________________________________________________
+dropout_1 (Dropout)          (None, 1, 56)             0         
+_________________________________________________________________
+lstm_2 (LSTM)                (None, 56)                25312     
+_________________________________________________________________
+dropout_2 (Dropout)          (None, 56)                0         
+_________________________________________________________________
+dense (Dense)                (None, 30)                1710      
+=================================================================
+Total params: 66,446
+Trainable params: 66,334
+Non-trainable params: 112
+_________________________________________________________________
+Model: "learner"
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #   
+=================================================================
+lstm (LSTM)                  (None, 1, 56)             13888     
+_________________________________________________________________
+batch_normalization (BatchNo (None, 1, 56)             224       
+_________________________________________________________________
+dropout (Dropout)            (None, 1, 56)             0         
+_________________________________________________________________
+lstm_1 (LSTM)                (None, 1, 56)             25312     
+_________________________________________________________________
+dropout_1 (Dropout)          (None, 1, 56)             0         
+_________________________________________________________________
+lstm_2 (LSTM)                (None, 56)                25312     
+_________________________________________________________________
+dropout_2 (Dropout)          (None, 56)                0         
+_________________________________________________________________
+Model: "learner"
+_________________________________________________________________
+dense (Dense)                (None, 30)                1710      
+=================================================================
+Layer (type)                 Output Shape              Param #   
+=================================================================
+lstm (LSTM)                  (None, 1, 56)             13888     
+_________________________________________________________________
+Total params: 66,446
+Trainable params: 66,334
+Non-trainable params: 112
+
+batch_normalization (BatchNo (None, 1, 56)             224       
+_________________________________________________________________
+_________________________________________________________________
+dropout (Dropout)            (None, 1, 56)             0         
+_________________________________________________________________
+lstm_1 (LSTM)                (None, 1, 56)             25312     
+_________________________________________________________________
+dropout_1 (Dropout)          (None, 1, 56)             0         
+_________________________________________________________________
+lstm_2 (LSTM)                (None, 56)                25312     
+_________________________________________________________________
+dropout_2 (Dropout)          (None, 56)                0         
+_________________________________________________________________
+dense (Dense)                (None, 30)                1710      
+=================================================================
+Total params: 66,446
+Trainable params: 66,334
+Non-trainable params: 112
+_________________________________________________________________
+Creating ML_RMA workflow
+
+
+Creating ML_RMA workflow
+
+Creating ML_RMA workflow
+
+Creating ML_RMA workflow
+Creating ML_RMA workflow
+
+
+
+
+
+
+
+
+Creating ML_RMA workflow
+Creating ML_RMA workflow
+Creating ML_RMA workflow
+Creating ML_RMA workflow
+Creating ML_RMA workflow
+Creating ML_RMA workflow
+Creating ML_RMA workflow
+Creating ML_RMA workflow
+Actor 19 : Total time: 202.4802097901702 
+Actor 19 : RMA window put counter: 126 
+Learner 5 : Total time: 202.50130113912746
+Learner 7 : Total time: 202.50133292400278
+Learner 4 : Total time: 202.50132818310522
+Learner 3 : Total time: 202.50136208091862
+Learner 2 : Total time: 202.5013917631004
+Learner 6 : Total time: 202.50134991691448
+Learner 1 : Total time: 202.50145779596642
+Learner 0 : Total time: 202.52389954193495
+Learner 0 : Total time spent on training : 49.725730834528804
+Learner 0 : Total horovod trainings done : 6217
+Learner 3 - Total training time: 49.47329521179199
+Learner 3 - Total batches trained: 6217
+Learner 3 - Average training time: 0.007957744122855395
+Learner 3 - Device used for training: None
+Learner 1 - Total training time: 49.45489716529846
+Learner 1 - Total batches trained: 6217
+Learner 1 - Average training time: 0.007954784810245853
+Learner 1 - Device used for training: None
+Learner 5 - Total training time: 49.42945432662964
+Learner 5 - Total batches trained: 6217
+Learner 5 - Average training time: 0.00795069234785743
+Learner 5 - Device used for training: None
+Learner 7 - Total training time: 49.41768503189087
+Learner 7 - Total batches trained: 6217
+Learner 2 - Total training time: 49.489306688308716
+Learner 2 - Total batches trained: 6217
+Learner 2 - Average training time: 0.007960319557392426
+Learner 2 - Device used for training: None
+Learner 4 - Total training time: 49.538551330566406
+Learner 4 - Total batches trained: 6217
+Learner 4 - Average training time: 0.00796824052285128
+Learner 4 - Device used for training: None
+Learner 6 - Total training time: 49.49245524406433
+Learner 6 - Total batches trained: 6217
+Learner 6 - Average training time: 0.007960826000332046
+Learner 6 - Device used for training: None
+Learner 0 : Training throughput : 1000.2065161295541 batches trained/sec
+Learner 0: Average RMA Get Access time on all learners: 0.15190381853608415
+Learner 0 - Total training time: 49.47648572921753
+Learner 0 - Total batches trained: 6217
+Learner 0 - Average training time: 0.007958257315299587
+Learner 0 - Device used for training: None
+Learner 7 - Average training time: 0.007948799265222916
+Learner 7 - Device used for training: None
+Actor 9 : Total time: 202.81577127194032 
+Actor 9 : RMA window put counter: 124 
+Actor 11 : Total time: 203.29878858989105 
+Actor 11 : RMA window put counter: 124 
+Actor 16 : Total time: 203.57479225983843 
+Actor 16 : RMA window put counter: 124 
+Actor 18 : Total time: 203.60557382786646 
+Actor 18 : RMA window put counter: 124 
+Actor 17 : Total time: 203.76027748803608 
+Actor 17 : RMA window put counter: 126 
+Actor 15 : Total time: 203.918704188196 
+Actor 15 : RMA window put counter: 124 
+Actor 14 : Total time: 204.0315180949401 
+Actor 14 : RMA window put counter: 126 
+Actor 23 : Total time: 204.05176543281414 
+Actor 23 : RMA window put counter: 124 
+Actor 22 : Total time: 204.3907523988746 
+Actor 22 : RMA window put counter: 126 
+Actor 13 : Total time: 204.42056019208394 
+Actor 13 : RMA window put counter: 126 
+Actor 21 : Total time: 204.7767320519779 
+Actor 21 : RMA window put counter: 126 
+Actor 12 : Total time: 205.0660344089847 
+Actor 12 : RMA window put counter: 124 
+Actor 10 : Total time: 205.26266823196784 
+Actor 10 : RMA window put counter: 124 
+Actor 8 : Total time: 205.71685178019106 
+Actor 8 : RMA window put counter: 126 
+Actor 20 : Total time: 206.31242001405917 
+Actor 20 : RMA window put counter: 126 
+Average elapsed time = 206.92612273494402 s
+Maximum elapsed time = 207.65572929382324 s

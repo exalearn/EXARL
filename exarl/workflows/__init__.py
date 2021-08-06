@@ -63,3 +63,13 @@ register(
     id='mlasync',
     entry_point='exarl.workflows.workflow_vault:ML_ASYNC'
 )
+
+register(
+    id='demo',
+    entry_point='exarl.workflows.workflow_vault:DEMO'
+)
+
+register(
+    id='mlrma-v1',
+    entry_point='exarl.workflows.workflow_vault:ML_RMA_V1'
+)
