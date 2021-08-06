@@ -6,8 +6,8 @@ import sys
 # Global constants
 #################################################################
 comm = MPI.COMM_WORLD
-batch_size = 50
-model_size = 50
+batch_size = 64
+model_size = 208
 #################################################################
 # Functions
 #################################################################
@@ -22,19 +22,19 @@ def get_time_original(epsilon_win, indices_win, loss_win, model_win, iter=100000
         start = MPI.Wtime()
         for _ in range(iter):
             model_win.Lock(0)
-            model_win.Get(buff, target_rank=0)
+            model_win.Put(buff, target_rank=0)
             model_win.Unlock(0)
 
             epsilon_win.Lock(0)
-            epsilon_win.Get(epsilon, target_rank=0)
+            epsilon_win.Put(epsilon, target_rank=0)
             epsilon_win.Unlock(0)
 
             indices_win.Lock(0)
-            indices_win.Get(indices, target_rank=0)
+            indices_win.Put(indices, target_rank=0)
             indices_win.Unlock(0)
 
             loss_win.Lock(0)
-            loss_win.Get(loss, target_rank=0)
+            loss_win.Put(loss, target_rank=0)
             loss_win.Unlock(0)
         end = MPI.Wtime()
 
@@ -79,11 +79,11 @@ def single_win_pickle(iter=100000):
             recv_buf = bytearray(serial_size)
             start = MPI.Wtime()
             for _ in range(iter):
+                buf =  (MPI.pickle.dumps([epsilon,indices,loss,model]))
                 single_win.Lock(0)
-                single_win.Get(recv_buf, target_rank=0)
+                single_win.Put(buf, target_rank=0)
                 single_win.Unlock(0)
                 #print(buf)
-                l = MPI.pickle.loads(recv_buf)
                 #print(l)
                 #print(model)
             end = MPI.Wtime()
@@ -131,12 +131,14 @@ def single_win_pack(iter=100000):
             buf = bytearray(win_size)
             start = MPI.Wtime()
             for _ in range(iter):
+                buf = struct.pack(buf_format,*epsilon,*indices,*loss)
+                buf += model
                 single_win.Lock(0)
-                single_win.Get(buf, target_rank=0)
+                single_win.Put(buf, target_rank=0)
                 single_win.Unlock(0)
                 #print(buf)
-                model = buf[-model_size:]
-                l = list(struct.unpack(buf_format,buf[:len(buf)-model_size]))
+                #model = buf[-model_size:]
+                #l = list(struct.unpack(buf_format,buf[:len(buf)-model_size]))
                 #epsilon = l[0]
                 #indices = l[1:51]
                 #loss = l[52:102]
@@ -165,10 +167,12 @@ if __name__=="__main__":
         epsilon = np.zeros(1, dtype=np.float64)
         indices = np.zeros(batch_size, dtype=np.intc)
         loss = np.zeros(batch_size, dtype=np.float64)
+        model = np.zeros(model_size, dtype=np.float64)
     else:
         epsilon = None
         indices = None
         loss = None
+        model = None
 
     disp = MPI.DOUBLE.Get_size()
     epsilon_win = MPI.Win.Create(epsilon, disp, comm=comm)
@@ -179,12 +183,8 @@ if __name__=="__main__":
     disp = MPI.DOUBLE.Get_size()
     loss_win = MPI.Win.Create(loss, disp, comm=comm)
 
-    model_win = MPI.Win.Allocate(model_size, 1, comm=comm)
-    if comm.rank == 0:
-        buffer = bytearray(model_size)
-        model_win.Lock(0)
-        model_win.Put(buffer, target_rank=0)
-        model_win.Unlock(0)
+    disp = MPI.DOUBLE.Get_size()
+    model_win = MPI.Win.Create(model, disp, comm=comm)
 
     # time mesurements
     get_time_original(epsilon_win, indices_win, loss_win, model_win)
@@ -265,7 +265,7 @@ if __name__=="__main__":
         loss_win.Unlock(0)
 
     # time mesurements
-    get_time_original(epsilon_win, indices_win, loss_win, model_win,out_prefix=" Allocated Shared")
+    get_time_original(epsilon_win, indices_win, loss_win, model_win,out_prefix="Allocated Shared")
     comm.Barrier()
 
     epsilon_win.Free()

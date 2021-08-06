@@ -31,9 +31,9 @@ logger = log.setup_logger(__name__, cd.run_params['log_level'])
 import pickle
 
 
-class ASYNC_v2(erl.ExaWorkflow):
+class NON_BLOCKING_ASYNC_v2(erl.ExaWorkflow):
     def __init__(self):
-        print('Creating ASYNC learner workflow...')
+        print('Creating NON_BLOCKING_ASYNC_v2 learner workflow...')
 
     @PROFILE
     def run(self, workflow):
@@ -128,13 +128,6 @@ class ASYNC_v2(erl.ExaWorkflow):
 
         # Variables for all
         episode = 0
-        episode_done = 0
-        episode_interim = 0
-
-        # temp vars
-        local_episode = 0
-        waiting_start = 0
-        waiting_end = 0
 
         # Round-Robin Scheduler
         if mpi_settings.is_learner():
@@ -317,9 +310,6 @@ class ASYNC_v2(erl.ExaWorkflow):
                     if steps >= workflow.nsteps - 1:
                         done = True
 
-                    if done :
-                        local_episode += 1
-
                     if mpi_settings.is_actor():
                         # Send batched memories
                         req = agent_comm.isend([0, batch_data, policy_type], dest=0)
@@ -351,7 +341,6 @@ class ASYNC_v2(erl.ExaWorkflow):
             logger.info('Worker time = {}'.format(MPI.Wtime() - start))
             if mpi_settings.is_actor():
                 train_file.close()
-                waiting_start = MPI.Wtime()
                 # wait for transfers completition
                 for req in requests:
                     req.wait()
@@ -361,14 +350,10 @@ class ASYNC_v2(erl.ExaWorkflow):
             workflow.agent.print_timers()
 
 
-
         if mpi_settings.is_agent():
             agent_comm.Barrier()
-            waiting_end = MPI.Wtime()
             episode_win.Free()
             epsilon_win.Free()
             indices_win.Free()
             loss_win.Free()
             model_win.Free()
-            if mpi_settings.is_actor():
-                print(" -- async v2 local_episode : ", local_episode, " wainting : ", (waiting_end-waiting_start))

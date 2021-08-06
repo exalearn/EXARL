@@ -32,6 +32,7 @@ def init(comm, learner_procs, procs_per_env):
     global learner_comm
     learner_color = MPI.UNDEFINED
     if global_rank < num_learners:
+    #if global_rank%35 < 5:
         learner_color = 0
     learner_comm = global_comm.Split(learner_color, global_rank)
 

@@ -110,6 +110,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
 
         # Learner
         if mpi_settings.is_learner():
+            start = MPI.Wtime()
             # Initialize batch data buffer
             data_buffer = bytearray(serial_agent_batch_size)
             episode_count_learner = np.zeros(1, dtype=np.float64)
@@ -121,6 +122,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
             epsilon_win.Flush(0)
             epsilon_win.Unlock(0)
 
+            local_episode_done = 0
             while episode_count_learner < workflow.nepisodes:
                 # Check episode counter
                 episode_win.Lock(0)
@@ -171,7 +173,10 @@ class RMA_ASYNC(erl.ExaWorkflow):
                 model_win.Put(serial_target_weights, target_rank=0)
                 model_win.Unlock(0)
                 #learner_counter += 1
+                local_episode_done+=1
 
+            end = MPI.Wtime()
+            print("Exec time = {} , episodes done = {}, episode/sec = {}".format(end-start, local_episode_done, local_episode_done/(end-start)))
             logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_data))
 
         # Actors
@@ -272,6 +277,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         else:
                             action, policy_type = workflow.agent.action(current_state)
 
+
                     # Broadcast action to all procs in env_comm
                     action = env_comm.bcast(action, root=0)
 
@@ -305,6 +311,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
                         current_state = next_state
 
         if mpi_settings.is_agent():
+            #print("Waiting ...")
             agent_comm.Barrier()
             model_win.Free()
             data_win.Free()
@@ -314,7 +321,7 @@ class RMA_ASYNC(erl.ExaWorkflow):
             agent_comm.Reduce(total_time_buf, aggregate_comm_time, op=MPI.SUM, root=0)
 
             if mpi_settings.is_actor():
-                print("[{}] Total communication time (Get()) : {} s ".format(agent_comm.rank, total_comm_time))
+                print("[{}] RMA 1 Total communication time (Get()) : {} s ".format(agent_comm.rank, total_comm_time))
 
             if agent_comm.rank == 0 :
                 print("Total aggregated communication time : {} s. Average time : {} s".format(aggregate_comm_time[0],aggregate_comm_time[0]/(agent_comm.size - learner_comm.size)))

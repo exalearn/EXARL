@@ -61,9 +61,9 @@ class ASYNC(erl.ExaWorkflow):
         episode_done = 0
         episode_interim = 0
 
-        # temp vars
-        local_episode = 0
-
+        inference_time = 0.0
+        inference_nb = 0
+        fixed_action =  [np.array(0.0)]
         # Round-Robin Scheduler
         if mpi_settings.is_learner():
             start = MPI.Wtime()
@@ -151,7 +151,10 @@ class ASYNC(erl.ExaWorkflow):
                     indices, loss = train_return
                 workflow.agent.target_train()
                 workflow.agent.save(workflow.results_dir + '/model.pkl')
-                agent_comm.send([episode, 0, 0, indices, loss], dest=s)
+
+                send_data = [episode, 0, 0, indices, loss]
+                agent_comm.send(send_data, dest=s)
+                print("\n\n Learner [{}] : sending size {} \n\n".format(agent_comm.rank,sys.getsizeof(send_data)))
 
             logger.info('Learner time: {}'.format(MPI.Wtime() - start))
 
@@ -201,13 +204,14 @@ class ASYNC(erl.ExaWorkflow):
                     if mpi_settings.is_actor():
                         workflow.agent.epsilon = recv_data[1]
                         workflow.agent.set_weights(recv_data[2])
-
+                        inference_time -= MPI.Wtime()
                         if workflow.action_type == 'fixed':
-                            action, policy_type = 0, -11
+                            #action, policy_type = 0, -11
+                            action, policy_type = fixed_action, 1
                         else:
-                            action, policy_type = workflow.agent.action(
-                                current_state)
-
+                            action, policy_type = workflow.agent.action(current_state)
+                        inference_time += MPI.Wtime()
+                        inference_nb += 1
                     action = env_comm.bcast(action, root=0)
                     next_state, reward, done, _ = workflow.env.step(action)
 
@@ -235,13 +239,11 @@ class ASYNC(erl.ExaWorkflow):
                     if steps >= workflow.nsteps - 1:
                         done = True
 
-                    if done :
-                        local_episode += 1
-
                     if mpi_settings.is_actor():
                         # Send batched memories
-                        agent_comm.send(
-                            [agent_comm.rank, steps, batch_data, policy_type, done], dest=0)
+                        send_data = [agent_comm.rank, steps, batch_data, policy_type, done]
+                        agent_comm.send(send_data, dest=0)
+                        print("\n\n Actor [{}] : sending size {} batch_data {}\n\n".format(agent_comm.rank,sys.getsizeof(send_data), sys.getsizeof(batch_data)))
                         # indices, loss = agent_comm.recv(source=MPI.ANY_SOURCE)
                         indices, loss = recv_data[3:5]
                         if indices is not None:
@@ -268,10 +270,8 @@ class ASYNC(erl.ExaWorkflow):
             if mpi_settings.is_actor():
                 train_file.close()
 
-        if mpi_settings.is_agent():
-            agent_comm.Barrier()
+                print("[{}] total_inference_time : {} , total_inference_nb : {}, inferences/sec {}".format(agent_comm.rank,inference_time, inference_nb, inference_nb/inference_time))
 
         if mpi_settings.is_actor():
             logger.info(f'Agent[{agent_comm.rank}] timing info:\n')
             workflow.agent.print_timers()
-            print(" -- async v1 local_episode : ", local_episode)
