@@ -113,8 +113,15 @@ class MLDQN(erl.ExaAgent):
         else:
             logger.info("Setting no GPU rank", self.rank)
             config = tf.compat.v1.ConfigProto(device_count={'GPU': 0, 'CPU': 1})
-
-
+        cpus = tf.config.experimental.list_physical_devices('CPU')
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        ngpus = len(gpus)
+        logger.info('Number of available GPUs: {}'.format(ngpus))
+        if ngpus > 0:
+            gpu_id = self.rank % ngpus
+            self.device = '/GPU:{}'.format(gpu_id)
+        else:
+            self.device = '/CPU:0'
 
         # set TF session
         #config = tf.compat.v1.ConfigProto()
@@ -134,7 +141,8 @@ class MLDQN(erl.ExaAgent):
             self.model.compile(loss=self.loss, optimizer=self.optimizer)
             logger.info("Active model: \n".format(self.model.summary()))
             # Target model
-            with tf.device("/CPU:0"):
+            #with tf.device("/CPU:0"):
+            with tf.device(self.device):
                 self.target_model = self._build_model()
                 self.target_model._name = "target_model"
                 self.target_model.compile(loss=self.loss, optimizer=self.optimizer)
@@ -342,6 +350,6 @@ class MLDQN(erl.ExaAgent):
             print("Learner {} - Total training time: {}".format(self.learner_comm.rank,
                                                                        self.training_time))
             print("Learner {} - Total batches trained: {}".format(self.learner_comm.rank,self.ntraining_time))
-            #print("Learner {} - Average training time: {}".format(self.learner_comm.rank,
-            #                                                           self.training_time / self.ntraining_time))
+            print("Learner {} - Average training time: {}".format(self.learner_comm.rank,
+                                                                       self.training_time / self.ntraining_time))
             print("Learner {} - Device used for training: {}".format(self.learner_comm.rank,self.device))

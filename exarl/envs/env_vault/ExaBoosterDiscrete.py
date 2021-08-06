@@ -322,6 +322,9 @@ class ExaBooster_v1(gym.Env):
         plt.rcParams['font.family'] = [u'serif']
         plt.rcParams['font.size'] = 16
 
+
+        #Sai Chenna - # DEBUG:
+        print("Reached inside ExaBoost custom render function!")
         logger.debug('render()')
         logger.debug('Save path:{}'.format(self.save_dir))
         render_dir = os.path.join(self.save_dir, 'render')
