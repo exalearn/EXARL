@@ -338,7 +338,7 @@ class ASYNC(erl.ExaWorkflow):
                             s_gendata = MPI.Wtime()
                             batch_data = next(workflow.agent.generate_data())
                             #e_gendata = MPI.Wtime()
-                            print("Time taken to generate data(serially) of batch size %s on 1 actor rank is %s)" % (str(workflow.agent.batch_size),str(MPI.Wtime()-s_gendata)))
+                            #print("Time taken to generate data(serially) of batch size %s on 1 actor rank is %s)" % (str(workflow.agent.batch_size),str(MPI.Wtime()-s_gendata)))
                             logger.info(
                                 'Rank[{}] - Generated data: {}'.format(agent_comm.rank, len(batch_data[0])))
                             try:
@@ -441,8 +441,8 @@ class ASYNC(erl.ExaWorkflow):
         model_weights = env_comm.bcast(model_weights,root=0)
         if (early_stop == True):
             batch_data = env_comm.bcast(batch_data,root=0)
-            if (env_comm.rank == 0):
-                print("Early stop Time taken to generate data(parallely) of batch size %s on %s ranks is %s)" % (str(batch_size),str(env_comm.size),str(MPI.Wtime()-s_gendata_par)))
+            #if (env_comm.rank == 0):
+                #print("Early stop Time taken to generate data(parallely) of batch size %s on %s ranks is %s)" % (str(batch_size),str(env_comm.size),str(MPI.Wtime()-s_gendata_par)))
             return batch_data
 
         self.gamma = env_comm.bcast(self.gamma,root=0)
@@ -476,8 +476,8 @@ class ASYNC(erl.ExaWorkflow):
         batch_target = env_comm.gather(batch_target,root=0)
 
 
-        if (env_comm.rank == 0):
-            print("Time taken to generate data(parallely) of batch size %s on %s ranks is %s)" % (str(batch_size),str(env_comm.size),str(MPI.Wtime()-s_gendata_par)))
+        #if (env_comm.rank == 0):
+            #print("Time taken to generate data(parallely) of batch size %s on %s ranks is %s)" % (str(batch_size),str(env_comm.size),str(MPI.Wtime()-s_gendata_par)))
 
 
         return batch_states, batch_target
