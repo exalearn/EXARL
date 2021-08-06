@@ -146,13 +146,6 @@ class DDPG(erl.ExaAgent):
 
     # @tf.function
     def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch):
-
-        target_policy = self.target_actor(state_batch)
-        behaviour_policy = self.actor_model(state_batch)
-        policy_ratio = target_policy/behaviour_policy
-
-        print(tf.reduce_mean(policy_ratio))
-
         # Training and updating Actor & Critic networks.
         with tf.GradientTape() as tape:
             target_actions = self.target_actor(next_state_batch, training=True)
@@ -256,6 +249,19 @@ class DDPG(erl.ExaAgent):
         next_state_batch = tf.convert_to_tensor(self.next_state_buffer[batch_indices])
 
         yield state_batch, action_batch, reward_batch, next_state_batch
+
+        if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
+            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self.memory.sample_buffer(self.batch_size) #done_batch might improve experience
+            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self._convert_to_tensor(state_batch, action_batch, reward_batch, next_state_batch, terminal_batch)
+            yield state_batch, action_batch, reward_batch, next_state_batch, terminal_batch
+
+        elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
+            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch , btx_idx, weights = self.memory.sample_buffer(self.batch_size)
+            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self._convert_to_tensor(state_batch, action_batch, reward_batch, next_state_batch,terminal_batch)
+            weights = tf.convert_to_tensor(weights,dtype=tf.float32)
+            yield state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, btx_idx, weights
+        else:
+            raise ValueError('Support for the replay buffer type not implemented yet!')
 
     def train(self, batch):
         if self.is_learner:

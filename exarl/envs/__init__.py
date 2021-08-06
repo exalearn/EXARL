@@ -46,6 +46,7 @@ elif env == 'ExaWaterClusterDiscrete-v0':
         id=env,
         entry_point='exarl.envs.env_vault:ExaWaterClusterDiscrete'
     )
+<<<<<<< HEAD
 
 elif env == "ExaConvexProblemSai-v0":
     register(

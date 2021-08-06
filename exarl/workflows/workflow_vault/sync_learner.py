@@ -107,7 +107,7 @@ class SYNC(erl.ExaWorkflow):
                     if train_return is not None:
                         # indices, loss = train_return
                         workflow.agent.set_priorities(*train_return)
-                    workflow.agent.target_train()
+                    #workflow.agent.target_train()
                     rank0_epsilon = workflow.agent.epsilon
                     target_weights = workflow.agent.get_weights()
                     # if rank0_memories%(comm.size) == 0:

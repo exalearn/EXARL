@@ -34,7 +34,7 @@ class ActorModel(keras.Model):
         self.fc1 = Dense(self.fc1_dims, activation=activation_in)
         self.fc2 = Dense(self.fc2_dims, activation=activation_in)
         self.mu = Dense(self.n_action, activation=activation_out)
-
+    
     def call(self, state):
         probability = self.fc1(state)
         probability = self.fc2(probability)

@@ -21,7 +21,12 @@ elif agent == 'DDPG-v0':
         entry_point='exarl.agents.agent_vault:DDPG'
     )
 
-elif agent == 'DDPG-v1':
+elif agent == 'DDPG-v4':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:DDPG_V4'
+    )
+elif agent == 'DDDQN-v0':
     register(
         id=agent,
         entry_point='exarl.agents.agent_vault:DDPGvtrace'
@@ -43,6 +48,11 @@ elif agent == 'TD3-v0':
     register(
         id=agent,
         entry_point='exarl.agents.agent_vault:TD3'
+    )
+elif agent == 'SAC-v0':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:SAC'
     )
 
 elif agent == 'DDDQN-v0':
