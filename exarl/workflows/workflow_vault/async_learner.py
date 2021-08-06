@@ -81,9 +81,6 @@ class ASYNC(erl.ExaWorkflow):
         episode_done = 0
         episode_interim = 0
 
-        # temp vars
-        local_episode = 0
-
         # Round-Robin Scheduler
         if ExaComm.is_learner():
             start = agent_comm.time()
@@ -210,7 +207,6 @@ class ASYNC(erl.ExaWorkflow):
                         # Update episode while beginning a new one i.e. step = 0
                         if steps == 0:
                             episode = recv_data[0]
-                            # print(episode)
                         # This variable is used for kill check
                         episode_interim = recv_data[0]
 
@@ -226,7 +222,6 @@ class ASYNC(erl.ExaWorkflow):
                             )
                         break
 
-<<<<<<< HEAD
                     send_data = False
                     done = False
                     while send_data == False and done == False:
@@ -301,72 +296,6 @@ class ASYNC(erl.ExaWorkflow):
                         # Broadcast done
                         done = env_comm.bcast(done, 0)
                     # Break loop if done
-=======
-                    if mpi_settings.is_actor():
-                        workflow.agent.epsilon = recv_data[1]
-                        workflow.agent.set_weights(recv_data[2])
-
-                        if workflow.action_type == 'fixed':
-                            action, policy_type = 0, -11
-                        else:
-                            action, policy_type = workflow.agent.action(
-                                current_state)
-
-                    action = env_comm.bcast(action, root=0)
-                    next_state, reward, done, _ = workflow.env.step(action)
-
-                    if mpi_settings.is_actor():
-                        total_reward += reward
-                        memory = (current_state, action, reward,
-                                  next_state, done, total_reward)
-
-                        with open('experience.pkl', 'wb') as f:
-                            pickle.dump(memory, f)
-                        # batch_data = []
-                        workflow.agent.remember(
-                            memory[0], memory[1], memory[2], memory[3], memory[4])
-
-                        batch_data = next(workflow.agent.generate_data())
-                        logger.info(
-                            'Rank[{}] - Generated data: {}'.format(agent_comm.rank, len(batch_data[0])))
-                        try:
-                            buffer_length = len(workflow.agent.memory)
-                        except:
-                            buffer_length = workflow.agent.replay_buffer.get_buffer_length()
-                        logger.info(
-                            'Rank[{}] - # Memories: {}'.format(agent_comm.rank, buffer_length))
-
-                    if steps >= workflow.nsteps - 1:
-                        done = True
-
-                    if done :
-                        local_episode += 1
-
-                    if mpi_settings.is_actor():
-                        # Send batched memories
-                        agent_comm.send(
-                            [agent_comm.rank, steps, batch_data, policy_type, done], dest=0)
-                        # indices, loss = agent_comm.recv(source=MPI.ANY_SOURCE)
-                        indices, loss = recv_data[3:5]
-                        if indices is not None:
-                            workflow.agent.set_priorities(indices, loss)
-                        logger.info('Rank[%s] - Total Reward:%s' %
-                                    (str(agent_comm.rank), str(total_reward)))
-                        logger.info(
-                            'Rank[%s] - Episode/Step/Status:%s/%s/%s' % (str(agent_comm.rank), str(episode), str(steps), str(done)))
-
-                        train_writer.writerow([time.time(), current_state, action, reward, next_state, total_reward,
-                                               done, episode, steps, policy_type, workflow.agent.epsilon])
-                        train_file.flush()
-
-                    # Update state and step
-                    current_state = next_state
-                    steps += 1
-
-                    # Broadcast done
-                    done = env_comm.bcast(done, root=0)
-                    # Break for loop if done
->>>>>>> 08a3c1ed... seed + scripts
                     if done:
                         break
                 episode_reward_list.append(total_reward)
@@ -377,14 +306,3 @@ class ASYNC(erl.ExaWorkflow):
             logger.info("Worker time = {}".format(env_comm.time() - start))
             if ExaComm.is_actor():
                 train_file.close()
-<<<<<<< HEAD
-=======
-
-        if mpi_settings.is_agent():
-            agent_comm.Barrier()
-
-        if mpi_settings.is_actor():
-            logger.info(f'Agent[{agent_comm.rank}] timing info:\n')
-            workflow.agent.print_timers()
-            print(" -- async v1 local_episode : ", local_episode)
->>>>>>> 08a3c1ed... seed + scripts

@@ -54,10 +54,7 @@ class ExaCartpoleStatic(gym.Env):
         time.sleep(0)  # Delay in seconds
 
         rank = self.env_comm.rank
-        if rank == 0:
-            N = 100
-        else:
-            N = None
+        N = 100000
 
         N = self.env_comm.bcast(N, 0)
         myPI = computePI(N, self.env_comm)  # Calls python function

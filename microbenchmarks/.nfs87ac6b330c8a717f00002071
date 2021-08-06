@@ -1,0 +1,140 @@
+from mpi4py import MPI
+import numpy as np
+import time
+
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+N = 10000
+
+def test1():
+    if rank == 0: # learmer
+        l = list(range(N))
+        data = {'a': 7, 'b': 3.14, 'c': l }
+        req = comm.isend(l, dest=1, tag=11)
+        time.sleep(1)
+        start = MPI.Wtime()
+        req.wait()
+        end = MPI.Wtime()
+    elif rank == 1:
+        req = comm.irecv(source=0, tag=11)
+        time.sleep(1.5)
+        start = MPI.Wtime()
+        data = req.wait()
+        end = MPI.Wtime()
+        #print("rank {} :".format(rank),data)
+
+
+    print("Exec time : " , end - start )
+
+def test2():
+    if rank == 0: # learmer
+        time.sleep(15)
+        recv_data = comm.recv(source=MPI.ANY_SOURCE)
+        print("[{}] recieved : {}".format(rank, recv_data))
+
+        recv_data = comm.recv(source=MPI.ANY_SOURCE)
+        print("[{}] recieved : {}".format(rank, recv_data))
+
+    elif rank == 1:
+        time.sleep(1)
+        data = ["Hello from :",rank]
+        req = comm.isend(data, dest=0)
+        print("[{}] Isend started ...".format(rank))
+
+        time.sleep(1)
+        print("[{}] Before test ...".format(rank))
+        res = req.test()
+        print("[{}] Res = {} ".format(rank, res))
+
+        #print("rank {} :".format(rank),data)
+    elif rank == 2:
+        time.sleep(1)
+        data = ["Hello from :",rank]
+        req = comm.isend(data, dest=0)
+        print("[{}] Isend started ...".format(rank))
+
+        time.sleep(1)
+        print("[{}] Before test ...".format(rank))
+        res = req.test()
+        print("[{}] Res = {} ".format(rank, res))
+
+
+def test3(iter = 100):
+    if rank == 0: # learmer
+        time.sleep(3)
+        status = MPI.Status()
+        for i in range(iter* (comm.size - 1)):
+            recv_data = comm.recv(source=MPI.ANY_SOURCE,status=status)
+            print("[{}] recieved : {}, from {}".format(rank, recv_data,status.source))
+
+    else:
+        t_req = 0
+        f_req = 0
+        requests = []
+        for i in range(iter):
+            data = ["Hello from {} , iter = {}".format(rank,i)]
+            req = comm.isend(data, dest=0)
+            if req.test()[0] :
+                t_req +=1
+            else :
+                f_req +=1
+                requests.append(req)
+        for r in requests:
+            print(r.wait())
+        print("[{}] true : {}, false {}".format(rank, t_req, f_req))
+
+def test4(iter = 100):
+    if rank == 0: # learmer
+        time.sleep(3)
+        status = MPI.Status()
+        data = np.empty(2, dtype='i')
+        for i in range(iter* (comm.size - 1)):
+            comm.recv([data, MPI.INT], source=MPI.ANY_SOURCE, status=status)
+            print("[{}] recieved : {}, from {}".format(rank, recv_data,status.source))
+
+    else:
+        t_req = 0
+        f_req = 0
+        requests = []
+        data = np.empty(2, dtype='i')
+        data[0] = rank
+        for i in range(iter):
+            data[1] = i
+            req = comm.isend([data, MPI.INT], dest=0)
+            if req.test()[0] :
+                t_req +=1
+            else :
+                f_req +=1
+                requests.append(req)
+        for r in requests:
+            print(r.wait())
+        print("[{}] true : {}, false {}".format(rank, t_req, f_req))
+
+def test5():
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+
+    # passing MPI datatypes explicitly
+    if rank == 0:
+        data = np.arange(1000, dtype='i')
+        req = comm.Isend([data, MPI.INT], dest=1, tag=77)
+    elif rank == 1:
+        data = np.empty(1000, dtype='i')
+        comm.Recv([data, MPI.INT], source=0, tag=77)
+        print(data)
+
+    # automatic MPI datatype discovery
+    if rank == 0:
+        data = np.arange(1000, dtype=np.float64)
+        comm.Send(data, dest=1, tag=13)
+    elif rank == 1:
+        data = np.empty(1000, dtype=np.float64)
+        comm.Recv(data, source=0, tag=13)
+
+    print("ok")
+
+#################################################################
+# Main
+#################################################################
+if __name__=="__main__":
+    test5()

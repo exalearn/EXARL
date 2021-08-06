@@ -71,8 +71,7 @@ class SEED_A2C(erl.ExaWorkflow):
         # Variables for all
         episode = 0
         episode_done = 0
-        local_episode = 0
-        generate_data_time = 0
+
         # Round-Robin Scheduler
         if mpi_settings.is_learner():
 
@@ -120,10 +119,8 @@ class SEED_A2C(erl.ExaWorkflow):
                         episode_done+=1
                         logger.debug('episode_done:{}'.format(episode_done))
 
-
-
             logger.info('Learner time: {}'.format(MPI.Wtime() - start))
-            print("[Learner] total time : {} , generate data time : {}".format(MPI.Wtime() - start,generate_data_time))
+
 
         else:
             if mpi_settings.is_actor():
@@ -189,9 +186,6 @@ class SEED_A2C(erl.ExaWorkflow):
                     if steps >= workflow.nsteps - 1:
                         done = True
 
-                    if done :
-                        local_episode += 1
-
                     if mpi_settings.is_actor():
                         # Send observation
                         if done :
@@ -225,4 +219,3 @@ class SEED_A2C(erl.ExaWorkflow):
         if mpi_settings.is_actor():
             logger.info(f'Agent[{agent_comm.rank}] timing info:\n')
             #workflow.agent.print_timers()
-            print(" -- local_episode : ", local_episode)
