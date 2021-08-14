@@ -19,3 +19,8 @@ register(
     id='tester',
     entry_point='exarl.workflows.workflow_vault:TESTER'
 )
+
+register(
+    id='random',
+    entry_point='exarl.workflows.workflow_vault:RANDOM'
+)

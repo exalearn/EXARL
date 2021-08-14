@@ -1,0 +1,82 @@
+# This material was prepared as an account of work sponsored by an agency of the
+# United States Government.  Neither the United States Government nor the United
+# States Department of Energy, nor Battelle, nor any of their employees, nor any
+# jurisdiction or organization that has cooperated in the development of these
+# materials, makes any warranty, express or implied, or assumes any legal
+# liability or responsibility for the accuracy, completeness, or usefulness or
+# any information, apparatus, product, software, or process disclosed, or
+# represents that its use would not infringe privately owned rights. Reference
+# herein to any specific commercial product, process, or service by trade name,
+# trademark, manufacturer, or otherwise does not necessarily constitute or imply
+# its endorsement, recommendation, or favoring by the United States Government
+# or any agency thereof, or Battelle Memorial Institute. The views and opinions
+# of authors expressed herein do not necessarily state or reflect those of the
+# United States Government or any agency thereof.
+#                 PACIFIC NORTHWEST NATIONAL LABORATORY
+#                            operated by
+#                             BATTELLE
+#                             for the
+#                   UNITED STATES DEPARTMENT OF ENERGY
+#                    under Contract DE-AC05-76RL01830
+import exarl as erl
+import pandas as pd
+from os.path import join
+from exarl.base.comm_base import ExaComm
+import tensorflow as tf
+from exarl.utils import log
+import exarl.utils.candleDriver as cd
+from exarl.utils.profile import *
+from exarl.utils.introspect import *
+from exarl.network.simple_comm import ExaSimple
+MPI = ExaSimple.MPI
+
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
+
+class RANDOM(erl.ExaWorkflow):
+    def __init__(self):
+        print('Class Random learner')
+        data_dir = cd.lookup_params("output_dir", ".")
+        data_file = cd.lookup_params("random_results_file", "random_learner_out.txt")
+        self.out_file = join(data_dir, data_file)
+
+    def run(self, workflow):
+        agent_comm = ExaComm.agent_comm
+        env_comm = ExaComm.env_comm
+
+        episodesPerActor = int(workflow.nepisodes / ( agent_comm.size - 1 ))
+        if workflow.nepisodes % ( agent_comm.size - 1 ):
+            episodesPerActor+=1
+
+        df = pd.DataFrame(columns=['rank', 'episode', 'step', 'reward', 'totalReward', 'done'])
+        
+        if not ExaComm.is_learner():
+            for episode in range(episodesPerActor):
+                total_reward = 0
+                workflow.env.seed(0)
+                current_state = workflow.env.reset()
+                
+                for step in range(workflow.nsteps):
+                    if ExaComm.env_comm.rank == 0:
+                        action = workflow.env.action_space.sample()
+                    action = env_comm.bcast(action, root=0)
+                    next_state, reward, done, _ = workflow.env.step(action)
+                    current_state = next_state
+
+                    done = env_comm.bcast(done, 0)
+                    if ExaComm.env_comm.rank == 0:
+                        total_reward += reward
+                    
+                    df = df.append({'rank':agent_comm.rank, 'episode': episode, 'step':step, 'reward':reward, 'totalReward':total_reward, 'done':done}, ignore_index=True)
+                    if done:
+                        break
+            agent_comm.send(df, 0)
+
+        else:
+            recv_data = None
+            for i in range(1, agent_comm.size):
+                recv_data = agent_comm.recv(recv_data, source=i)
+                df = df.append(recv_data)
+            
+            print("Writing to", self.out_file)
+            df.to_csv(path_or_buf=self.out_file)
+            print("Done.")
