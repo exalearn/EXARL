@@ -34,3 +34,8 @@ elif env == 'ExaWaterClusterDiscrete-v0':
         id=env,
         entry_point='exarl.envs.env_vault:ExaWaterClusterDiscrete'
     )
+elif env == 'ExaMultiRotor-v0':
+    register(
+        id=env,
+        entry_point='exarl.envs.env_vault:ExaMultiRotor'
+    )

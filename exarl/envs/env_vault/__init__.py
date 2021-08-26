@@ -12,3 +12,5 @@ elif env == 'ExaBoosterDiscrete-v0':
     from exarl.envs.env_vault.ExaBoosterDiscrete import ExaBooster_v1 as ExaBooster
 elif env == 'ExaWaterClusterDiscrete-v0':
     from exarl.envs.env_vault.ExaWaterClusterDiscrete import ExaWaterClusterDiscrete
+elif env == 'ExaMultiRotor-v0':
+    from exarl.envs.env_vault.ExaMultiRotor import ExaMultiRotor

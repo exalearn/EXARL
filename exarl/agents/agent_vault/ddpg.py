@@ -51,8 +51,11 @@ class DDPG(erl.ExaAgent):
 
         # Environment space and action parameters
         self.env = env
+        print("OBS SPACE ----------- ", env.observation_space)
+
         self.num_states = env.observation_space.shape[0]
         self.num_actions = env.action_space.shape[0]
+        print("OBS:", self.num_states, "ACT:", self.num_actions)
         self.upper_bound = env.action_space.high
         self.lower_bound = env.action_space.low
 
@@ -257,7 +260,7 @@ class DDPG(erl.ExaAgent):
         reward_batch = tf.convert_to_tensor(self.reward_buffer[batch_indices])
         reward_batch = tf.cast(reward_batch, dtype=tf.float32)
         next_state_batch = tf.convert_to_tensor(self.next_state_buffer[batch_indices])
-        
+
         yield state_batch, action_batch, reward_batch, next_state_batch
 
     @introspectTrace()
@@ -265,6 +268,8 @@ class DDPG(erl.ExaAgent):
         if self.is_learner:
             logger.warning('Training...')
             self.update_grad(batch[0], batch[1], batch[2], batch[3])
+        else:
+            logger.warning('Why is is_learner false...')
 
     @introspectTrace()
     def target_train(self):
@@ -284,9 +289,11 @@ class DDPG(erl.ExaAgent):
     @introspectTrace()
     def action(self, state):
         policy_type = 1
+        print(state)
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
-
-        sampled_actions = tf.squeeze(self.target_actor(tf_state))
+        print(tf_state)
+        temp = self.target_actor(tf_state)
+        sampled_actions = tf.squeeze(temp)
         noise = self.ou_noise()
         sampled_actions_wn = sampled_actions.numpy() + noise
         legal_action = sampled_actions_wn
