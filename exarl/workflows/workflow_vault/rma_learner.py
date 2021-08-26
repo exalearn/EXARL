@@ -61,7 +61,7 @@ class RMA(erl.ExaWorkflow):
         self.ind_loss_data_structure = data_exchange_constructors[cd.lookup_params('loss_data_structure', default='buff_unchecked')]
         logger.info('Creating RMA loss exchange workflow with ', self.de)
 
-        priority_scale = cd.run_params['priority_scale']
+        priority_scale = cd.lookup_params('priority_scale', 0)
         self.use_priority_replay = (priority_scale is not None and priority_scale > 0)
 
     @PROFILE

@@ -1,14 +1,13 @@
 {
-    "agent": "DQN-v0",
-    "env": "ExaCartPoleStatic-v0",
+    "agent": "DDPG-v0",
+    "env": "Pendulum-v0",
     "workflow": "rma",
-    "n_episodes": 10,
-    "n_steps": 10,
+    "n_episodes": 30,
+    "n_steps": 30,
     "output_dir": "./results_dir/",
-    "learner_procs": 1,
     "process_per_env": 1,
-    "model_type": "LSTM",
+    "model_type": "AC",
     "action_type": "variable",
-    "log_level": [3, 3],
+    "log_level": [3, 1],
     "profile": "none"
 }

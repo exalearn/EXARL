@@ -27,6 +27,7 @@ import pickle
 from datetime import datetime
 from exarl.utils.OUActionNoise import OUActionNoise
 from exarl.utils.OUActionNoise import OUActionNoise2
+from exarl.utils.introspect import introspectTrace
 
 import exarl as erl
 
@@ -46,7 +47,7 @@ class DDPG(erl.ExaAgent):
 
     def __init__(self, env, is_learner):
         # Distributed variables
-        self.is_learner = False
+        self.is_learner = is_learner
 
         # Environment space and action parameters
         self.env = env
@@ -237,19 +238,26 @@ class DDPG(erl.ExaAgent):
 
         return model
 
+    def has_data(self):
+        return (self.buffer_counter > 0)
+
     @introspectTrace()
     def generate_data(self):
-        record_range = min(self.buffer_counter, self.buffer_capacity)
-        logger.info('record_range:{}'.format(record_range))
-        # Randomly sample indices
-        batch_indices = np.random.choice(record_range, self.batch_size)
+        if self.has_data():
+            record_range = min(self.buffer_counter, self.buffer_capacity)
+            logger.info('record_range:{}'.format(record_range))
+            # Randomly sample indices
+            batch_indices = np.random.choice(record_range, self.batch_size)
+        else:
+            batch_indices = [0] * self.batch_size
+
         logger.info('batch_indices:{}'.format(batch_indices))
         state_batch = tf.convert_to_tensor(self.state_buffer[batch_indices])
         action_batch = tf.convert_to_tensor(self.action_buffer[batch_indices])
         reward_batch = tf.convert_to_tensor(self.reward_buffer[batch_indices])
         reward_batch = tf.cast(reward_batch, dtype=tf.float32)
         next_state_batch = tf.convert_to_tensor(self.next_state_buffer[batch_indices])
-
+        
         yield state_batch, action_batch, reward_batch, next_state_batch
 
     @introspectTrace()
@@ -299,15 +307,6 @@ class DDPG(erl.ExaAgent):
 
     def set_weights(self, weights):
         self.target_actor.set_weights(weights)
-
-    def set_learner(self):
-        self.is_learner = True
-        self.actor_model = self.get_actor()
-        self.critic_model = self.get_critic()
-        self.target_actor = self.get_actor()
-        self.target_critic = self.get_critic()
-        self.target_actor.set_weights(self.actor_model.get_weights())
-        self.target_critic.set_weights(self.critic_model.get_weights())
 
     # Extra methods
     def update(self):
