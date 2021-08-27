@@ -1,13 +1,12 @@
 {
-    "agent": "DDPG-v0",
-    "env": "ExaMultiRotor-v0",
+    "agent": "DQN-v0",
+    "env": "CartPole-v0",
     "workflow": "async",
-    "n_episodes": 3,
+    "n_episodes": 10,
     "n_steps": 10,
     "output_dir": "./results_dir/",
-    "introspector_dir": "./results_dir/",
     "process_per_env": 1,
-    "model_type": "AC",
+    "model_type": "LSTM",
     "action_type": "variable",
     "log_level": [3, 3],
     "profile": "none"

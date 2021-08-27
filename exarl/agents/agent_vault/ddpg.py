@@ -289,11 +289,8 @@ class DDPG(erl.ExaAgent):
     @introspectTrace()
     def action(self, state):
         policy_type = 1
-        print(state)
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
-        print(tf_state)
-        temp = self.target_actor(tf_state)
-        sampled_actions = tf.squeeze(temp)
+        sampled_actions = tf.squeeze(self.target_actor(tf_state))
         noise = self.ou_noise()
         sampled_actions_wn = sampled_actions.numpy() + noise
         legal_action = sampled_actions_wn
@@ -303,10 +300,8 @@ class DDPG(erl.ExaAgent):
             policy_type = 0
             logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn, legal_action))
             logger.warning('Policy action: {}; noise: {}'.format(sampled_actions, noise))
-
-        return_action = [np.squeeze(legal_action)]
-        logger.warning('Legal action:{}'.format(return_action))
-        return return_action, policy_type
+            
+        return legal_action, policy_type
 
     # For distributed actors #
     def get_weights(self):
