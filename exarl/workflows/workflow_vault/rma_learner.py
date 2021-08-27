@@ -264,4 +264,3 @@ class RMA(erl.ExaWorkflow):
         agent_comm.barrier()
         if ExaComm.is_actor():
             train_file.close()
-        

@@ -23,7 +23,7 @@ class ExaData(ABC):
         if max_model_lag == "none":
             max_model_lag = None
         self.max_model_lag = max_model_lag
-        self.name=name
+        self.name = name
 
     @abstractmethod
     def pop(self, rank, count=1):

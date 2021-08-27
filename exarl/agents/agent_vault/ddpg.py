@@ -300,7 +300,7 @@ class DDPG(erl.ExaAgent):
             policy_type = 0
             logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn, legal_action))
             logger.warning('Policy action: {}; noise: {}'.format(sampled_actions, noise))
-            
+
         return legal_action, policy_type
 
     # For distributed actors #

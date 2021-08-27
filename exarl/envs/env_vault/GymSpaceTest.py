@@ -17,23 +17,23 @@ class GymSpaceTest(gym.Env):
         spaceDict = {
             "Discrete": spaces.Discrete(5),
             "Box_One": spaces.Box(low=-1, high=1, shape=(1,), dtype=np.float64),
-            "Box_Two": spaces.Box(low=-1, high=1, shape=(1,2), dtype=np.float64),
+            "Box_Two": spaces.Box(low=-1, high=1, shape=(1, 2), dtype=np.float64),
             "Box": spaces.Box(low=-high, high=high, dtype=np.float64),
-            "MultiBinary": spaces.MultiBinary([2,3]),
-            "MultiDiscrete": spaces.MultiDiscrete([3,2]),
+            "MultiBinary": spaces.MultiBinary([2, 3]),
+            "MultiDiscrete": spaces.MultiDiscrete([3, 2]),
             "Dict": spaces.Dict({
-                    "discrete": spaces.Discrete(100), 
-                    "box": spaces.Box(low=-1, high=1, shape=(3, 4), dtype=np.float64),
-                    "multiBinary": spaces.MultiBinary([2,3]),
-                    "multiDiscrete": spaces.MultiDiscrete([3,2])
-                })
+                "discrete": spaces.Discrete(100),
+                "box": spaces.Box(low=-1, high=1, shape=(3, 4), dtype=np.float64),
+                "multiBinary": spaces.MultiBinary([2, 3]),
+                "multiDiscrete": spaces.MultiDiscrete([3, 2])
+            })
         }
 
         boolDict = {
-            "True" : True,
-            "true" : True,
-            "False" : False,
-            "false" : False
+            "True": True,
+            "true": True,
+            "False": False,
+            "false": False
         }
 
         actSpace = spaceDict[cd.lookup_params('action_space', default='Box')]
@@ -45,7 +45,7 @@ class GymSpaceTest(gym.Env):
             self.action_space = spaces.Tuple((actSpace, actSpace))
         else:
             self.action_space = actSpace
-            
+
         if obvTuple:
             self.observation_space = spaces.Tuple((obvSpace, obvSpace))
         else:
@@ -59,7 +59,7 @@ class GymSpaceTest(gym.Env):
     def step(self, action):
         next_state = self.observation_space.sample()
         # while True:
-        #     try: 
+        #     try:
         #         gym.spaces.utils.flatten(self.observation_space, next_state)
         #         print("GOOD")
         #         break
@@ -70,7 +70,7 @@ class GymSpaceTest(gym.Env):
         print("ACTION", type(action), action)
         print("OBSERVATION", type(self.observation_space), next_state)
 
-        self.score+=1
+        self.score += 1
         reward = self.score
         done = False
         return next_state, reward, done, {}

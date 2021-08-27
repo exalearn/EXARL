@@ -43,18 +43,18 @@ class RANDOM(erl.ExaWorkflow):
         agent_comm = ExaComm.agent_comm
         env_comm = ExaComm.env_comm
 
-        episodesPerActor = int(workflow.nepisodes / ( agent_comm.size - 1 ))
-        if workflow.nepisodes % ( agent_comm.size - 1 ):
-            episodesPerActor+=1
+        episodesPerActor = int(workflow.nepisodes / (agent_comm.size - 1))
+        if workflow.nepisodes % (agent_comm.size - 1):
+            episodesPerActor += 1
 
         df = pd.DataFrame(columns=['rank', 'episode', 'step', 'reward', 'totalReward', 'done'])
-        
+
         if not ExaComm.is_learner():
             for episode in range(episodesPerActor):
                 total_reward = 0
                 workflow.env.seed(0)
                 current_state = workflow.env.reset()
-                
+
                 for step in range(workflow.nsteps):
                     if ExaComm.env_comm.rank == 0:
                         action = workflow.env.action_space.sample()
@@ -65,8 +65,9 @@ class RANDOM(erl.ExaWorkflow):
                     done = env_comm.bcast(done, 0)
                     if ExaComm.env_comm.rank == 0:
                         total_reward += reward
-                    
-                    df = df.append({'rank':agent_comm.rank, 'episode': episode, 'step':step, 'reward':reward, 'totalReward':total_reward, 'done':done}, ignore_index=True)
+
+                    df = df.append({'rank': agent_comm.rank, 'episode': episode, 'step': step, 'reward': reward,
+                                    'totalReward': total_reward, 'done': done}, ignore_index=True)
                     if done:
                         break
             agent_comm.send(df, 0)
@@ -76,7 +77,7 @@ class RANDOM(erl.ExaWorkflow):
             for i in range(1, agent_comm.size):
                 recv_data = agent_comm.recv(recv_data, source=i)
                 df = df.append(recv_data)
-            
+
             print("Writing to", self.out_file)
             df.to_csv(path_or_buf=self.out_file)
             print("Done.")

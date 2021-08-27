@@ -50,7 +50,7 @@ except:
 
         def stop():
             if ib.replace:
-                print("---------------STOPPING REPLACEMENT IB" , ib.rank, "---------------", flush=True)
+                print("---------------STOPPING REPLACEMENT IB", ib.rank, "---------------", flush=True)
                 ib.end_time = globalTimeStamp()
 
         def update(name, toAdd):
