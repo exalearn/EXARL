@@ -262,3 +262,6 @@ class RMA(erl.ExaWorkflow):
 
         # mpi4py may miss MPI Finalize sometimes -- using a barrier
         agent_comm.barrier()
+        if ExaComm.is_actor():
+            train_file.close()
+        
