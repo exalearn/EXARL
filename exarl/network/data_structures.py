@@ -32,8 +32,8 @@ class ExaMPIConstant:
         self.win = MPI.Win.Create(data, self.size, comm=self.comm)
         self.sum = np.ones(1, dtype=self.npType)
         self.buff = np.zeros(1, dtype=self.npType)
-        self.name=name
-    
+        self.name = name
+
     @introspectTrace(name=True)
     def put(self, value, rank):
         data = np.array(value, dtype=self.npType)
