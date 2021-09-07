@@ -116,7 +116,10 @@ class ASYNC(erl.ExaWorkflow):
                 logger.debug('rank0_epsilon:{}'.format(epsilon))
                 target_weights = workflow.agent.get_weights()
                 agent_comm.send([worker_episodes[whofrom - 1], epsilon, target_weights, indices, loss], whofrom)
-
+            
+            filename_prefix = 'ExaLearner_Episodes%s_Steps%s_Rank%s_memory_v1' \
+                % (str(workflow.nepisodes), str(workflow.nsteps), str(agent_comm.rank))
+            workflow.agent.save(workflow.results_dir + '/' + filename_prefix + '.h5')
             logger.info("Finishing up ...\n")
             episode = -1
             for s in range(1, agent_comm.size):

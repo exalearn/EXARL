@@ -20,6 +20,7 @@
 #                    under Contract DE-AC05-76RL01830
 import exarl as erl
 import pandas as pd
+import csv
 from os.path import join
 from exarl.base.comm_base import ExaComm
 import tensorflow as tf
@@ -37,6 +38,7 @@ class RANDOM(erl.ExaWorkflow):
         print('Class Random learner')
         data_dir = cd.lookup_params("output_dir", ".")
         data_file = cd.lookup_params("random_results_file", "random_learner_out.txt")
+        self.load_data = cd.lookup_params("weight_file", None)
         self.out_file = join(data_dir, data_file)
 
     def run(self, workflow):
@@ -50,6 +52,14 @@ class RANDOM(erl.ExaWorkflow):
         df = pd.DataFrame(columns=['rank', 'episode', 'step', 'reward', 'totalReward', 'done'])
 
         if not ExaComm.is_learner():
+            if ExaComm.env_comm.rank == 0:
+                # Setup logger
+                filename_prefix = 'ExaLearner_Episodes%s_Steps%s_Rank%s_memory_v1' \
+                    % (str(workflow.nepisodes), str(workflow.nsteps), str(agent_comm.rank))
+                train_file = open(workflow.results_dir + '/' +
+                                  filename_prefix + ".log", 'w')
+                train_writer = csv.writer(train_file, delimiter=" ")
+
             for episode in range(episodesPerActor):
                 total_reward = 0
                 workflow.env.seed(0)
@@ -57,20 +67,31 @@ class RANDOM(erl.ExaWorkflow):
 
                 for step in range(workflow.nsteps):
                     if ExaComm.env_comm.rank == 0:
-                        action = workflow.env.action_space.sample()
+                        if self.load_data is None:
+                            action = workflow.env.action_space.sample()
+                        else:
+                            action, _ = workflow.agent.action(current_state)
                     action = env_comm.bcast(action, root=0)
                     next_state, reward, done, _ = workflow.env.step(action)
                     current_state = next_state
+
+                    if step + 1 == workflow.nsteps:
+                        done = True
 
                     done = env_comm.bcast(done, 0)
                     if ExaComm.env_comm.rank == 0:
                         total_reward += reward
 
+                    train_writer.writerow([time.time(), current_state, action, reward, next_state, total_reward,
+                                                   done, episode, step, 1, workflow.agent.epsilon])
+                    train_file.flush()
+                    
                     df = df.append({'rank': agent_comm.rank, 'episode': episode, 'step': step, 'reward': reward,
                                     'totalReward': total_reward, 'done': done}, ignore_index=True)
                     if done:
                         break
             agent_comm.send(df, 0)
+            train_file.close()
 
         else:
             recv_data = None
