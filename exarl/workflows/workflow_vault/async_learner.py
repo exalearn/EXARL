@@ -116,7 +116,7 @@ class ASYNC(erl.ExaWorkflow):
                 logger.debug('rank0_epsilon:{}'.format(epsilon))
                 target_weights = workflow.agent.get_weights()
                 agent_comm.send([worker_episodes[whofrom - 1], epsilon, target_weights, indices, loss], whofrom)
-            
+
             filename_prefix = 'ExaLearner_Episodes%s_Steps%s_Rank%s_memory_v1' \
                 % (str(workflow.nepisodes), str(workflow.nsteps), str(agent_comm.rank))
             workflow.agent.save(workflow.results_dir + '/' + filename_prefix + '.h5')
@@ -137,6 +137,10 @@ class ASYNC(erl.ExaWorkflow):
                 if train_return is not None:
                     indices, loss = train_return
                 workflow.agent.target_train()
+                # Save weights
+                if ExaComm.learner_comm.rank == 0:
+                    target_weights = workflow.agent.get_weights()
+                    workflow.agent.save(workflow.results_dir + '/target_weights.pkl')
                 agent_comm.send([episode, 0, 0, indices, loss], s)
 
             logger.info("Learner time: {}".format(agent_comm.time() - start))

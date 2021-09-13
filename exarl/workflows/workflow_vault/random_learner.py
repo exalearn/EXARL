@@ -70,6 +70,7 @@ class RANDOM(erl.ExaWorkflow):
                         if self.load_data is None:
                             action = workflow.env.action_space.sample()
                         else:
+                            workflow.agent.load(self.load_data)
                             action, _ = workflow.agent.action(current_state)
                     action = env_comm.bcast(action, root=0)
                     next_state, reward, done, _ = workflow.env.step(action)
@@ -83,9 +84,9 @@ class RANDOM(erl.ExaWorkflow):
                         total_reward += reward
 
                     train_writer.writerow([time.time(), current_state, action, reward, next_state, total_reward,
-                                                   done, episode, step, 1, workflow.agent.epsilon])
+                                           done, episode, step, 1, workflow.agent.epsilon])
                     train_file.flush()
-                    
+
                     df = df.append({'rank': agent_comm.rank, 'episode': episode, 'step': step, 'reward': reward,
                                     'totalReward': total_reward, 'done': done}, ignore_index=True)
                     if done:

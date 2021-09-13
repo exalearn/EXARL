@@ -370,7 +370,7 @@ class DQN(erl.ExaAgent):
             pickle_list = pickle.load(f)
 
         for layerId in range(len(layers)):
-            assert(layers[layerId].name == pickle_list[layerId][0])
+            # assert(layers[layerId].name == pickle_list[layerId][0])
             layers[layerId].set_weights(pickle_list[layerId][1])
 
     def save(self, filename):
