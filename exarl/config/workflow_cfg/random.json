@@ -1,0 +1,5 @@
+{
+    "learner_procs": 1,
+    "process_per_env": 1,
+    "weight_file": "/projects/users/vinayr/ExaLearn/ExaRL/results_dir/EXP000/RUN000/target_weights.pkl"
+}
