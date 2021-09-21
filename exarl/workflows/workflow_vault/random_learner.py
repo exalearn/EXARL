@@ -39,6 +39,8 @@ class RANDOM(erl.ExaWorkflow):
         data_dir = cd.lookup_params("output_dir", ".")
         data_file = cd.lookup_params("random_results_file", "random_learner_out.txt")
         self.load_data = cd.lookup_params("weight_file", None)
+        if self.load_data == "None":
+            self.load_data = None
         self.out_file = join(data_dir, data_file)
 
     def run(self, workflow):

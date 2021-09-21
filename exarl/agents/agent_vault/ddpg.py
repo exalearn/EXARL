@@ -86,6 +86,7 @@ class DDPG(erl.ExaAgent):
         std_dev = 0.2
         ave_bound = (self.upper_bound + self.lower_bound) / 2
         print('ave_bound: {}'.format(ave_bound))
+        # Ornstein-Uhlenbeck process
         self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(std_dev) * np.ones(1))
 
         # Not used by agent but required by the learner class
@@ -293,13 +294,14 @@ class DDPG(erl.ExaAgent):
         sampled_actions = tf.squeeze(self.target_actor(tf_state))
         noise = self.ou_noise()
         sampled_actions_wn = sampled_actions.numpy() + noise
-        legal_action = sampled_actions_wn
-        isValid = self.env.action_space.contains(sampled_actions_wn)
-        if isValid == False:
-            legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
-            policy_type = 0
-            logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn, legal_action))
-            logger.warning('Policy action: {}; noise: {}'.format(sampled_actions, noise))
+        legal_action = np.clip(sampled_actions_wn, self.lower_bound, self.upper_bound)
+        # legal_action = sampled_actions_wn
+        # isValid = self.env.action_space.contains(sampled_actions_wn)
+        # if isValid == False:
+        #     legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
+        #     policy_type = 0
+        #     logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn, legal_action))
+        #     logger.warning('Policy action: {}; noise: {}'.format(sampled_actions, noise))
 
         return legal_action, policy_type
 

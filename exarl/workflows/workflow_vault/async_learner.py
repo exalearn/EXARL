@@ -163,6 +163,7 @@ class ASYNC(erl.ExaWorkflow):
                 total_reward = 0
                 steps = 0
                 action = 0
+                episode_reward_list = []
 
                 # Steps in an episode
                 while steps < workflow.nsteps:
@@ -265,6 +266,10 @@ class ASYNC(erl.ExaWorkflow):
                     # Break loop if done
                     if done:
                         break
+                episode_reward_list.append(total_reward)
+                # Mean of last 40 episodes
+                average_reward = np.mean(episode_reward_list[-40:])
+                print("Episode * {} * Avg Reward is ==> {}".format(episode, average_reward))
             ib.update("Async_Env_Episode", 1)
             logger.info("Worker time = {}".format(env_comm.time() - start))
             if ExaComm.is_actor():
