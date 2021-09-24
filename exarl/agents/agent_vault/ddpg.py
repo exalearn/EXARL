@@ -84,7 +84,8 @@ class DDPG(erl.ExaAgent):
 
         # TODO: Parameterize these
         std_dev = 0.2
-        ave_bound = (self.upper_bound + self.lower_bound) / 2
+        # ave_bound = (self.upper_bound + self.lower_bound) / 2
+        ave_bound = np.zeros(1)
         print('ave_bound: {}'.format(ave_bound))
         # Ornstein-Uhlenbeck process
         self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(std_dev) * np.ones(1))
@@ -153,6 +154,7 @@ class DDPG(erl.ExaAgent):
 
     # @tf.function
     def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch):
+        # tf.print(state_batch.shape)
         # Training and updating Actor & Critic networks.
         with tf.GradientTape() as tape:
             target_actions = self.target_actor(next_state_batch, training=True)
@@ -292,6 +294,7 @@ class DDPG(erl.ExaAgent):
         policy_type = 1
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
         sampled_actions = tf.squeeze(self.target_actor(tf_state))
+        # sampled_actions = tf.squeeze(self.actor_model(tf_state))
         noise = self.ou_noise()
         sampled_actions_wn = sampled_actions.numpy() + noise
         legal_action = np.clip(sampled_actions_wn, self.lower_bound, self.upper_bound)

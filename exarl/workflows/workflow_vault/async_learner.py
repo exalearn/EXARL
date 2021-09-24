@@ -157,7 +157,7 @@ class ASYNC(erl.ExaWorkflow):
             start = env_comm.time()
             while episode != -1:
                 # Reset variables each episode
-                workflow.env.seed(0)
+                # workflow.env.seed(0)
                 # TODO: optimize some of these variables out for env processes
                 current_state = workflow.env.reset()
                 total_reward = 0
@@ -213,16 +213,16 @@ class ASYNC(erl.ExaWorkflow):
 
                         if ExaComm.env_comm.rank == 0:
                             total_reward += reward
-                            memory = (
-                                current_state,
-                                action,
-                                reward,
-                                next_state,
-                                done,
-                                total_reward,
-                            )
-                            workflow.agent.remember(
-                                memory[0], memory[1], memory[2], memory[3], memory[4])
+                            # memory = (
+                            #     current_state,
+                            #     action,
+                            #     reward,
+                            #     next_state,
+                            #     done,
+                            #     total_reward,
+                            # )
+                            # workflow.agent.remember(memory[0], memory[1], memory[2], memory[3], memory[4])
+                            workflow.agent.remember(current_state, action, reward, next_state, done)
 
                             batch_data = next(workflow.agent.generate_data())
                             ib.update("Async_Env_Generate_Data", 1)

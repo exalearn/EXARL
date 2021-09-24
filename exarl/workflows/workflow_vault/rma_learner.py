@@ -187,7 +187,7 @@ class RMA(erl.ExaWorkflow):
                 logger.info('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count_actor))
 
                 # Episode initialization
-                workflow.env.seed(0)
+                # workflow.env.seed(0)
                 current_state = workflow.env.reset()
                 total_rewards = 0
                 steps = 0
