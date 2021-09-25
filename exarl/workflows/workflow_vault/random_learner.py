@@ -64,7 +64,6 @@ class RANDOM(erl.ExaWorkflow):
 
             for episode in range(episodesPerActor):
                 total_reward = 0
-                workflow.env.seed(0)
                 current_state = workflow.env.reset()
 
                 for step in range(workflow.nsteps):
