@@ -53,6 +53,16 @@ class RANDOM(erl.ExaWorkflow):
 
         df = pd.DataFrame(columns=['rank', 'episode', 'step', 'reward', 'totalReward', 'done'])
 
+        if self.load_data is not None:
+            if ExaComm.is_learner():
+                workflow.agent.load(self.load_data)
+
+            target_weights = workflow.agent.get_weights()
+            target_weights = agent_comm.bcast(target_weights, 0)
+
+            if not ExaComm.is_learner():
+                workflow.agent.set_weights(target_weights)
+
         if not ExaComm.is_learner():
             if ExaComm.env_comm.rank == 0:
                 # Setup logger
@@ -71,9 +81,8 @@ class RANDOM(erl.ExaWorkflow):
                         if self.load_data is None:
                             action = workflow.env.action_space.sample()
                         else:
-                            workflow.agent.load(self.load_data)
                             action, _ = workflow.agent.action(current_state)
-                    action = env_comm.bcast(action, root=0)
+                    action = env_comm.bcast(action, 0)
                     next_state, reward, done, _ = workflow.env.step(action)
                     current_state = next_state
 
