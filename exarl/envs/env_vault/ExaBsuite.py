@@ -41,6 +41,12 @@ class ExaBsuite(gym.Env):
 		self.env = gym_wrapper.GymFromDMEnv(env)
 		self.action_space = self.env.action_space
 		self.observation_space = self.env.observation_space
+		print("action space: ", type(self.action_space))
+		print("obs space: ", type(self.observation_space))
+		print("action space size: ", self.action_space.n)
+		print("obs space size: ", self.observation_space.shape)
+
+
 
 	def step(self, action) -> _GymTimestep:
 		time.sleep(0)
