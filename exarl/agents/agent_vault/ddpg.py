@@ -51,11 +51,9 @@ class DDPG(erl.ExaAgent):
 
         # Environment space and action parameters
         self.env = env
-        print("OBS SPACE ----------- ", env.observation_space)
 
         self.num_states = env.observation_space.shape[0]
         self.num_actions = env.action_space.shape[0]
-        print("OBS:", self.num_states, "ACT:", self.num_actions)
         self.upper_bound = env.action_space.high
         self.lower_bound = env.action_space.low
 
@@ -320,6 +318,7 @@ class DDPG(erl.ExaAgent):
         print("Implement update method in ddpg.py")
 
     def load(self, filename):
+        print("Loading from: ", filename)
         layers = self.target_actor.layers
         with open(filename, "rb") as f:
             pickle_list = pickle.load(f)

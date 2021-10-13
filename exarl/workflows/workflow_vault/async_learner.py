@@ -204,7 +204,7 @@ class ASYNC(erl.ExaWorkflow):
                                 action, policy_type = 0, -11
 
                         # Broadcast episode count to all procs in env_comm
-                        action = env_comm.bcast(action, root=0)
+                        action = env_comm.bcast(action, root)
 
                         ib.startTrace("step", 0)
                         next_state, reward, done, _ = workflow.env.step(action)
