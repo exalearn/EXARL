@@ -34,3 +34,10 @@ elif env == 'ExaWaterClusterDiscrete-v0':
         id=env,
         entry_point='exarl.envs.env_vault:ExaWaterClusterDiscrete'
     )
+
+# TODO: Make more general for any bsuite env. Currently using one bandit problem.
+elif env == 'ExaBsuite-v0':
+    register(
+        id=env,
+        entry_point='exarl.envs.env_vault:ExaBsuite'
+    )
