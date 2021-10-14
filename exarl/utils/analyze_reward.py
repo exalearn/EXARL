@@ -63,7 +63,7 @@ def save_reward_plot():
     df_merged['rel_time'] = [idx - time_min for idx in df_merged.time]
     df_merged.sort_values(by=['rel_time'], inplace=True)
 
-    rolling_setting = 25
+    rolling_setting = 1
     fig, ax = plt.subplots(1, 1, figsize=(10, 8))
     episodes_per_nodes = []
     logger.info('Node path:{}'.format(results_dir))
@@ -76,3 +76,20 @@ def save_reward_plot():
     if not os.path.exists(results_dir + '/Plots'):
         os.makedirs(results_dir + '/Plots')
     fig.savefig(results_dir + '/Plots/Reward_plot.png')
+
+    # Terminal plot
+    try:
+        import plotille
+        figure = plotille.Figure()
+        figure.width = 60
+        figure.height = 30
+        figure.y_label = 'Rolling reward'
+        figure.x_label = 'Episodes'
+        figure.color_mode = 'byte'
+        figure.set_x_limits(min_=0, max_=len(df_merged['total_reward_roll']))
+        figure.set_y_limits(min_=min(df_merged['total_reward_roll'].replace(np.nan, 0)), max_=max(df_merged['total_reward_roll'].replace(np.nan, 0)))
+        figure.plot(range(len(df_merged['total_reward_roll'])), df_merged['total_reward_roll'].replace(np.nan, 0), lc=200, label='rolling reward')
+        # range(len(df_merged['time']))
+        print(figure.show(legend=True))
+    except:
+        print("Terminal plot error: Check if you have plotille installed or for other errors.")
