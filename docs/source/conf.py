@@ -13,13 +13,13 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../..'))
-
+sys.path.append('../../exarl/config/')
 
 # -- Project information -----------------------------------------------------
 
 project = 'EXARL'
-copyright = '2021, Vinay Ramakrishnaiah'
-author = 'Vinay Ramakrishnaiah'
+copyright = '2021, ExaLearn Control Team'
+author = 'ExaLearn Control Team'
 
 
 # -- General configuration ---------------------------------------------------
@@ -27,8 +27,14 @@ author = 'Vinay Ramakrishnaiah'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = [
-]
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.coverage',
+              'sphinx.ext.doctest', 'sphinx.ext.intersphinx',
+              'sphinx.ext.todo',  'sphinx.ext.autosummary',
+              'sphinx.ext.ifconfig', 'sphinx.ext.viewcode',
+              'sphinx.ext.inheritance_diagram'
+              ]
+# Configuration of sphinx.ext.coverage
+coverage_show_missing_items = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
