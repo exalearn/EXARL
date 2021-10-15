@@ -34,7 +34,15 @@ MPI = ExaSimple.MPI
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class RANDOM(erl.ExaWorkflow):
+    """Random workflow class: inherits from Exaworkflow base class.
+    Used for testing inference against random actions.
+
+    """
+
     def __init__(self):
+        """Random workflow class constructor. The weight file gets loaded for
+        inference.
+        """
         print('Class Random learner')
         data_dir = cd.lookup_params("output_dir", ".")
         data_file = cd.lookup_params("random_results_file", "random_learner_out.txt")
@@ -44,6 +52,14 @@ class RANDOM(erl.ExaWorkflow):
         self.out_file = join(data_dir, data_file)
 
     def run(self, workflow):
+        """This function implements the random workflow in EXARL.
+        Args:
+            workflow (ExaLearner type object): The ExaLearner object is used to access
+            different members of the base class.
+
+        Returns:
+            None
+        """
         agent_comm = ExaComm.agent_comm
         env_comm = ExaComm.env_comm
 

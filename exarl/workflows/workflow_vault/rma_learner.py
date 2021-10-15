@@ -36,7 +36,19 @@ MPI = ExaSimple.MPI
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class RMA(erl.ExaWorkflow):
+    """RMA workflow class: inherits from ExaWorkflow base class.
+    The RMA worflow uses one-sided MPI communication for exchanging data
+    between learners and actors. The data is written into an RMA window or 
+    ”memory pool” and the learners and actors can read/write from this pool,
+    independent of each other.
+
+    """
+
     def __init__(self):
+        """RMA class constructor. Contrains a list of different data structures
+        that can be used for the "memory pool".
+
+        """
         print("Creating RMA workflow")
         data_exchange_constructors = {
             "buff_unchecked": ExaMPIBuffUnchecked,
@@ -66,6 +78,16 @@ class RMA(erl.ExaWorkflow):
 
     @PROFILE
     def run(self, workflow):
+        """This function implements the RMA workflow in EXARL using one-sided
+        MPI communcation.
+
+        Args:
+            workflow (ExaLearner type object): The ExaLearner object is used to access
+            different members of the base class.
+
+        Returns:
+            None
+        """
         # Number of learner processes
         num_learners = ExaComm.num_learners
 

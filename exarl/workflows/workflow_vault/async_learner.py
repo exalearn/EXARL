@@ -31,13 +31,45 @@ from exarl.base.comm_base import ExaComm
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class ASYNC(erl.ExaWorkflow):
+    """Asynchronous workflow class: inherits from ExaWorkflow base class.
+    In this approach, the EXARL architecture is separated into “learner” and “actors”.
+    Actor refers to the part of the agent with only the target network.  A simple
+    round-robin scheduling scheme is used to distribute work from the learner to the actors.
+    The learner consists of a target model that is  trained  using  experiences  collected
+    by  the  actors.   Each  actor  consists  of  a model replica that receives the updated
+    weights from the learner.  This model is used to infer the next action given a state of
+    the environment.  The environment can be rendered/simulated to update the state using this
+    action.  In contrast to other architectures, each actor in EXARL independently stores
+    experiences and runs the Bellman equation to generate training data. The training
+    data is sent back to the learner (once enough data is collected).  By locally running the
+    Bellman equations in each actor in parallel, the load is equally distributed among all actor
+    processes. The learner distributes work by parallelizing across episodes, and actors request
+    work in a round-robin fashion. Each actor runs all of the steps in an episode to completion
+    before requesting more work from the learner. This process is repeated until the learner
+    gathers experiences from all episodes.
+
+
+    """
+
     def __init__(self):
+        """Async class constructor.
+        """
         print('Creating ASYNC learner workflow...')
         priority_scale = cd.lookup_params('priority_scale')
         self.use_priority_replay = (priority_scale is not None and priority_scale > 0)
 
     @PROFILE
     def run(self, workflow):
+        """This function implements the asynchronous workflow in EXARL using two-sided 
+        point-to-point MPI communication.
+
+        Args:
+            workflow (ExaLearner type object): The ExaLearner object is used to access
+            different members of the base class.
+
+        Returns:
+            None
+        """
         # MPI communicators
         agent_comm = ExaComm.agent_comm
         env_comm = ExaComm.env_comm

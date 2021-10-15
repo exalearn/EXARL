@@ -4,7 +4,7 @@
 # base_dir = '/projects/users/vinayr/ExaLearn/ExaRL/summit_results_exabooster/'
 # nodes_dir = ['ExaBooster_RMA_learner_1_nodes', 'ExaBooster_RMA_learner_4_nodes']
 
-base_dir           = 'results_dir1'  # '/gpfs/alpine/scratch/aik07/ast153/results_dir_a1_mp16_e10_t10'
+base_dir           = 'results_dir'  # '/gpfs/alpine/scratch/aik07/ast153/results_dir_a1_mp16_e10_t10'
 nodes_dir          = ['']
 episodes_per_nodes = []
 IS_SHOW = False
@@ -93,7 +93,7 @@ def set_reward_plot_info(results_dir):
 # a script to to show the reward plot
 
 rolling_setting = 25
-fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+figure, ax = plt.subplots(1, 1, figsize=(10, 8))
 plt.title('Rewards over time')
 
 
@@ -113,6 +113,7 @@ for node_dir in nodes_dir:
     # merged_df = merged_df.cummax
 
     plt.plot(merged_df['time'], merged_df['reward'])
+    fig.plot(merged_df['rel_time'], merged_df['total_reward_roll'], lc=25)
 
     # plt.plot(merged_df['rel_time'], merged_df['total_reward_roll'], label='{}'.format(node_dir))
 
@@ -130,4 +131,4 @@ plt.legend(loc="lower right")
 if IS_SHOW:
     plt.show()
 
-fig.savefig('reward.png')
+figure.savefig('reward.png')
