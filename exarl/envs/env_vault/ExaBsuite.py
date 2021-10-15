@@ -19,6 +19,7 @@
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
 import gym
+import gym.spaces as spaces
 import time
 import numpy as np
 import sys
@@ -37,26 +38,29 @@ class ExaBsuite(gym.Env):
 	def __init__(self) -> None:
 		super().__init__()
 		self.env_comm = ExaComm.env_comm
-		env = bsuite.load_from_id(bsuite_id='mnist/0')
+		env = bsuite.load_from_id(bsuite_id='mountain_car/0')
 		self.env = gym_wrapper.GymFromDMEnv(env)
 		self.action_space = self.env.action_space
-		self.observation_space = self.env.observation_space
+		obs_length = self.env.observation_space.shape[-1]
+		low = np.array([-np.inf] * obs_length)
+		high = np.array([np.inf] * obs_length)
+		self.observation_space = spaces.Box(low, high, dtype=np.float32)
 		print("action space: ", type(self.action_space))
 		print("obs space: ", type(self.observation_space))
 		print("action space size: ", self.action_space.n)
-		print("obs space size: ", self.observation_space.shape)
+		print("obs space: ", self.observation_space)
 
 
 
 	def step(self, action) -> _GymTimestep:
 		time.sleep(0)
 		next_state, reward, done, info = self.env.step(action)
-		print(next_state)
+		# print(next_state)
 		# return self.env.step(action)
-		return next_state, reward, done, info
+		return next_state[0], reward, done, info
 
 	def reset(self) -> np.ndarray:
-		return self.env.reset()
+		return self.env.reset()[0]
 
 	def render(self, mode: str = 'human') -> Union[np.ndarray, bool]:
 		return self.env.render(mode)

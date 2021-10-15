@@ -123,3 +123,6 @@ venv.bak/
 
 # VSCode
 ._*
+
+# Directories
+.results_dir
