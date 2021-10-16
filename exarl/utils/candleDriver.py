@@ -101,20 +101,18 @@ def lookup_params(arg, default=None):
 
 def base_parser(params):
     """
-    The base_parser is needed to intercept command line overwrites of the
-    basic configuration files only. All other additional keywords are
-    generated automatically by the parser_from_json function.
-    The configuration files which can be set here correspond to the
-    essential components of an EXARL run: agent, env (environment),
-    model (model_type) and workflow.
+        The base_parser is needed to intercept command line overwrites of the
+        basic configuration files only. All other additional keywords are
+        generated automatically by the parser_from_json function.
+        The configuration files which can be set here correspond to the
+        essential components of an EXARL run: agent, env (environment),
+        model (model_type) and workflow.
 
-    Parameters
-    ----------
-    params: Dictionary of parameters
+        Arguments :
+            params : Dictionary of parameters
 
-    Return
-    ----------
-    params: Updated dictionary of parameters
+        Returns :
+            Updated dictionary of parameters
     """
 
     # checks for env or agent command line override before reading json files
@@ -169,18 +167,18 @@ def base_parser(params):
 
 
 def parser_from_json(json_file):
-    """ Custom parser to read a json file and return the list of included keywords.
+    """
+        Custom parser to read a json file and return the list of included keywords.
         Special case for True/False since these are not handled correctly by the default
         python command line parser.
         All keywords defined in json files are subsequently available to be overwritten
         from the command line, using the CANDLE command line parser.
-    Parameters
-    ----------
-    json_file: File to be parsed
 
-    Return
-    ----------
-    new_defs: Dictionary of parameters
+        Arguments :
+            json_file : File to be parsed
+
+        Returns :
+            Dictionary of parameters
 
     """
     file = open(json_file,)
