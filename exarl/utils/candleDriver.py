@@ -35,13 +35,13 @@ import exarl.candlelib.candle as candle
 required = ['agent', 'model_type', 'env', 'workflow']
 
 def resolve_path(*path_components) -> str:
-    '''Resolve path to configuration files.
+    """ Resolve path to configuration files.
     Priority is as follows:
 
       1. <current working directory>/exarl/config
       2. ~/.exarl/config
       3. <site-packages dir>/exarl/config
-    '''
+    """
     if len(path_components) == 1:
         path = path_components[0]
     else:
@@ -62,7 +62,7 @@ def resolve_path(*path_components) -> str:
 class BenchmarkDriver(candle.Benchmark):
 
     def set_locals(self):
-        """Functionality to set variables specific for the benchmark
+        """ Functionality to set variables specific for the benchmark
         - required: set of required parameters for the benchmark.
         - additional_definitions: list of dictionaries describing the additional parameters for the
         benchmark.
@@ -100,7 +100,24 @@ def lookup_params(arg, default=None):
         return default
 
 def base_parser(params):
-    # checks for env or agent command line override before reasing json files
+    """
+    The base_parser is needed to intercept command line overwrites of the
+    basic configuration files only. All other additional keywords are
+    generated automatically by the parser_from_json function.
+    The configuration files which can be set here correspond to the
+    essential components of an EXARL run: agent, env (environment),
+    model (model_type) and workflow.
+
+    Parameters
+    ----------
+    params: Dictionary of parameters
+
+    Return
+    ----------
+    params: Updated dictionary of parameters
+    """
+
+    # checks for env or agent command line override before reading json files
     parser = argparse.ArgumentParser(description="Base parser")
     parser.add_argument("--agent")
     parser.add_argument("--env")
@@ -129,6 +146,9 @@ def base_parser(params):
         params['workflow'] = args.workflow
         print("Workflow overwitten from command line: ", args.workflow)
 
+    # all the code below this shouldn't really be here
+    # since the keywords are not used by get_driver_params
+    # leaving for now, will file an issue
     if args.data_structure is not None:
         params['data_structure'] = args.data_structure
         print("Data_structure overwitten from command line: ", args.data_structure)
@@ -149,6 +169,20 @@ def base_parser(params):
 
 
 def parser_from_json(json_file):
+    """ Custom parser to read a json file and return the list of included keywords.
+        Special case for True/False since these are not handled correctly by the default
+        python command line parser.
+        All keywords defined in json files are subsequently available to be overwritten
+        from the command line, using the CANDLE command line parser.
+    Parameters
+    ----------
+    json_file: File to be parsed
+
+    Return
+    ----------
+    new_defs: Dictionary of parameters
+
+    """
     file = open(json_file,)
     params = json.load(file)
     new_defs = []
@@ -163,6 +197,12 @@ def parser_from_json(json_file):
 
 
 def get_driver_params():
+    """ Build the full set of run parameters by sequentially parsing the config files
+        for agent, model, env and workflow.
+        Unless overwritten from the command line (via base_parser), the names for
+        these config files are defined in the learner_cfg.json file.
+    """
+
     learner_cfg = resolve_path('learner_cfg.json')
     learner_defs = parser_from_json(learner_cfg)
     print('Learner parameters from ', learner_cfg)
