@@ -213,6 +213,7 @@ class DQN(erl.ExaAgent):
         )
 
     def remember(self, state, action, reward, next_state, done):
+        print("REMEMBER:", state.shape, next_state.shape)
         lost_data = self.replay_buffer.add((state, action, reward, next_state, done))
         if lost_data and self.priority_scale:
             # logger.warning("Priority replay buffer size too small. Data loss negates replay effect!")
@@ -232,13 +233,13 @@ class DQN(erl.ExaAgent):
             
             return action, 0
         else:
+            # JS: This returns an np array with dim (x,) where x is the length of a flat state
             np_state = flatten(self.env.observation_space, state)
-            # np_state = np.array(state).reshape(1, 1, len(state))
+            np_state = np_state.reshape(1, 1, np_state.shape[0])
             with tf.device(self.device):
-                act_values = self.target_model.predict(np_state)
-                print("ACT_VALUES")
-                print(act_values)            
-            action = np.argmax(act_values)
+                act_values = self.target_model.predict(np_state)   
+            # JS: Since our model takes a list of states (length is 1) we get a list back        
+            action = np.argmax(act_values[0])
             return action, 1
 
     @introspectTrace()
@@ -255,8 +256,15 @@ class DQN(erl.ExaAgent):
         state, action, reward, next_state, done = exp
         # np_state = np.array(state, dtype=self.dtype_observation).reshape(1, 1, len(state))
         # np_next_state = np.array(next_state, dtype=self.dtype_observation).reshape(1, 1, len(next_state))
+        print("np_state before:", state)
         np_state = flatten(self.env.observation_space, state)
+        print("np_state:", np_state)
+        np_state = np_state.reshape(1, 1, np_state.shape[0])
+
         np_next_state = flatten(self.env.observation_space, next_state)
+        print("np_next_state:", np_next_state)
+        np_next_state = np_next_state.reshape(1, 1, np_next_state.shape[0])
+
         print("THE SHAPES", np_state.shape, np_next_state.shape)
         expectedQ = 0
         if not done:
@@ -286,8 +294,14 @@ class DQN(erl.ExaAgent):
         else:
             minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=self.priority_scale)
             batch_target = list(map(self.calc_target_f, minibatch))
-            batch_states = [ np.array(exp[0], dtype=self.dtype_observation).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
-            batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
+            # batch_states = [ np.array(exp[0], dtype=self.dtype_observation).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
+            batch_states = []
+            for exp in minibatch:
+                temp = flatten(self.env.observation_space, exp[0])
+                dim = temp.shape[0]
+                batch_states.append(temp.reshape(1, 1, dim))
+
+            batch_states = np.reshape(batch_states, [len(minibatch), 1, dim])
             batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
 
         if self.priority_scale > 0:

@@ -73,10 +73,13 @@ class ExaBsuite(gym.Env):
 		# print("state type: ", next_state.dtype)
 		if self.has_extra_dim:
 			next_state = next_state[0]
+		print("STEP:", next_state.shape)
 		return next_state, reward, done, info
 
 	def reset(self) -> np.ndarray:
-		return self.env.reset()[0]
+		if self.has_extra_dim:
+			return self.env.reset()[0]
+		return self.env.reset()
 
 	def render(self, mode: str = 'human') -> Union[np.ndarray, bool]:
 		return self.env.render(mode)
