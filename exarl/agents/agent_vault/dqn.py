@@ -27,6 +27,7 @@ import random
 import tensorflow as tf
 import sys
 import gym
+from gym.spaces.utils import flatten
 import pickle
 import exarl as erl
 from exarl.base.comm_base import ExaComm
@@ -130,8 +131,10 @@ class DQN(erl.ExaAgent):
             self.actions = np.linspace(env.action_space.low, env.action_space.high, self.n_actions)
 
         # Data types of action and observation space
+        # TODO: JS DOUBLE CHECK THIS
         self.dtype_action = np.array(self.env.action_space.sample()).dtype
         self.dtype_observation = self.env.observation_space.sample().dtype
+
 
         # Setup GPU cfg
         if ExaComm.is_learner():
@@ -222,27 +225,39 @@ class DQN(erl.ExaAgent):
         rdm = np.random.rand()
         if rdm <= self.epsilon:
             self.epsilon_adj()
-            action = random.randrange(self.env.action_space.n)
+
+            # JS I think this is the wrong way to get a random action
+            # action = random.randrange(self.env.action_space.n)
+            action = self.env.action_space.sample()
+            
             return action, 0
         else:
-            np_state = np.array(state).reshape(1, 1, len(state))
+            np_state = flatten(self.env.observation_space, state)
+            # np_state = np.array(state).reshape(1, 1, len(state))
             with tf.device(self.device):
                 act_values = self.target_model.predict(np_state)
-            action = np.argmax(act_values[0])
+                print("ACT_VALUES")
+                print(act_values)            
+            action = np.argmax(act_values)
             return action, 1
 
     @introspectTrace()
     def action(self, state):
         action, policy = self.get_action(state)
-        if not self.is_discrete:
-            action = [self.actions[action]]
+
+        # JS WE IGNORE FOR NOW
+        # if not self.is_discrete:
+        #     action = [self.actions[action]]
         return action, policy
 
     @introspectTrace()
     def calc_target_f(self, exp):
         state, action, reward, next_state, done = exp
-        np_state = np.array(state, dtype=self.dtype_observation).reshape(1, 1, len(state))
-        np_next_state = np.array(next_state, dtype=self.dtype_observation).reshape(1, 1, len(next_state))
+        # np_state = np.array(state, dtype=self.dtype_observation).reshape(1, 1, len(state))
+        # np_next_state = np.array(next_state, dtype=self.dtype_observation).reshape(1, 1, len(next_state))
+        np_state = flatten(self.env.observation_space, state)
+        np_next_state = flatten(self.env.observation_space, next_state)
+        print("THE SHAPES", np_state.shape, np_next_state.shape)
         expectedQ = 0
         if not done:
             with tf.device(self.device):
@@ -253,6 +268,7 @@ class DQN(erl.ExaAgent):
         # For handling continuous to discrete actions
         action_idx = action if self.is_discrete else np.where(self.actions == action)[1]
         target_f[0][action_idx] = target
+        print("THIS PART WORKED")
         return target_f[0]
 
     def has_data(self):
@@ -270,7 +286,7 @@ class DQN(erl.ExaAgent):
         else:
             minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=self.priority_scale)
             batch_target = list(map(self.calc_target_f, minibatch))
-            batch_states = [np.array(exp[0], dtype=self.dtype_observation).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
+            batch_states = [ np.array(exp[0], dtype=self.dtype_observation).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
             batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
             batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
 

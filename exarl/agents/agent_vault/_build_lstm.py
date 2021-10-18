@@ -21,7 +21,7 @@
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, BatchNormalization, LSTM
 from tensorflow.keras.regularizers import l1_l2
-
+from gym.spaces.utils import flatdim
 
 def build_model(self):
 
@@ -29,8 +29,9 @@ def build_model(self):
 
     model = Sequential()
     # special case for input layer
-    model.add(LSTM(self.lstm_layers[0], activation=self.activation,
-                   return_sequences=True, input_shape=(1, self.env.observation_space.shape[0])))
+    # model.add(LSTM(self.lstm_layers[0], activation=self.activation, return_sequences=True, input_shape=(1, self.env.observation_space.shape[0])))
+    print("FLATDIM!!!!!!!!!!!", flatdim(self.env.observation_space))
+    model.add(LSTM(self.lstm_layers[0], activation=self.activation, return_sequences=True, input_shape=(1, flatdim(self.env.observation_space))))
     model.add(BatchNormalization())
     model.add(Dropout(self.gauss_noise[0]))
 
