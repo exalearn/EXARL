@@ -213,7 +213,6 @@ class DQN(erl.ExaAgent):
         )
 
     def remember(self, state, action, reward, next_state, done):
-        print("REMEMBER:", state.shape, next_state.shape)
         lost_data = self.replay_buffer.add((state, action, reward, next_state, done))
         if lost_data and self.priority_scale:
             # logger.warning("Priority replay buffer size too small. Data loss negates replay effect!")
@@ -256,16 +255,12 @@ class DQN(erl.ExaAgent):
         state, action, reward, next_state, done = exp
         # np_state = np.array(state, dtype=self.dtype_observation).reshape(1, 1, len(state))
         # np_next_state = np.array(next_state, dtype=self.dtype_observation).reshape(1, 1, len(next_state))
-        print("np_state before:", state)
         np_state = flatten(self.env.observation_space, state)
-        print("np_state:", np_state)
         np_state = np_state.reshape(1, 1, np_state.shape[0])
 
         np_next_state = flatten(self.env.observation_space, next_state)
-        print("np_next_state:", np_next_state)
         np_next_state = np_next_state.reshape(1, 1, np_next_state.shape[0])
 
-        print("THE SHAPES", np_state.shape, np_next_state.shape)
         expectedQ = 0
         if not done:
             with tf.device(self.device):
@@ -276,7 +271,6 @@ class DQN(erl.ExaAgent):
         # For handling continuous to discrete actions
         action_idx = action if self.is_discrete else np.where(self.actions == action)[1]
         target_f[0][action_idx] = target
-        print("THIS PART WORKED")
         return target_f[0]
 
     def has_data(self):

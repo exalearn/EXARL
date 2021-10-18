@@ -6,7 +6,7 @@
     "n_steps": 10,
     "output_dir": "./results_dir/bsuite",
     "process_per_env": 1,
-    "model_type": "LSTM",
+    "model_type": "MLP",
     "action_type": "variable",
     "log_level": [3, 3],
     "profile": "none"
