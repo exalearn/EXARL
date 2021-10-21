@@ -25,12 +25,6 @@ Each method in TestClass, with a prefix test_*, will be run by the pytest framew
 
    def test_init(self)
 
-* Test case 3: Tests if the set_learner() method of the DQN agent is correctly executed.
-
-.. code-block:: python
-
-   def test_set_learner(self)
-
 * Test case 4: Test if remember() method of the DQN agent is correctly executed.
 
 .. code-block:: python

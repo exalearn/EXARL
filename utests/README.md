@@ -13,10 +13,6 @@ def test_initialize_parameters(self)
 ```
 def test_init(self)
 ```
-* Test case 3: Tests if the set_learner() method of the DQN agent is correctly executed.
-```
-def test_set_learner(self)
-```
 * Test case 4: Test if remember() method of the DQN agent is correctly executed.
 ```
 def test_remember(self)

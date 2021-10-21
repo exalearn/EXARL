@@ -195,16 +195,6 @@ class TestClass:
             pytest.fail("Bad DQN()", pytrace=True)
             sys.exit()
 
-    # 3: test set_learner() for agent
-    def test_set_learner(self):
-
-        try:
-            test_agent.set_learner()
-            assert test_agent.is_learner is True
-
-        except ValueError:
-            pytest.fail('Invalid argumensts for optimizer, loss, or metrics in compile()', pytrace=True)
-
     # 4: test remember() for agent
     def test_remember(self):
 

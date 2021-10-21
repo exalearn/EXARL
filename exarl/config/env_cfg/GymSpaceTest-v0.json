@@ -1,6 +1,6 @@
 {
-    "action_space": "Box_One",
-    "observation_space" : "Box",
+    "action_space": "MultiBinary_One",
+    "observation_space" : "MultiDiscrete_One",
     "action_Tuple" : "false",
-    "observation_Tuple" : "false"
+    "observation_Tuple" : "true"
 }

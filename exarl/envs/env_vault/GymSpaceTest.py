@@ -19,7 +19,9 @@ class GymSpaceTest(gym.Env):
             "Box_One": spaces.Box(low=-1, high=1, shape=(1,), dtype=np.float64),
             "Box_Two": spaces.Box(low=-1, high=1, shape=(1, 2), dtype=np.float64),
             "Box": spaces.Box(low=-high, high=high, dtype=np.float64),
+            "MultiBinary_One": spaces.MultiBinary(5),
             "MultiBinary": spaces.MultiBinary([2, 3]),
+            "MultiDiscrete_One": spaces.MultiDiscrete(5),
             "MultiDiscrete": spaces.MultiDiscrete([3, 2]),
             "Dict": spaces.Dict({
                 "discrete": spaces.Discrete(100),
@@ -53,7 +55,7 @@ class GymSpaceTest(gym.Env):
 
         self.initial_state = self.observation_space.sample()
         self.score = 0
-
+        print("OBSERVATION SPACE", type(self.observation_space), type(self.observation_space.sample()))
         print("ACTION SPACE", type(self.action_space), type(self.action_space.sample()))
 
     def step(self, action):

@@ -57,8 +57,6 @@ class TESTER(erl.ExaWorkflow):
                     data = pickle.load(input_file)
                 print(len(data))
 
-                workflow.agent.set_learner()
-
                 times = []
                 for i in range(10):
                     times.append(train_time(data[0], self.epocs))
@@ -68,7 +66,6 @@ class TESTER(erl.ExaWorkflow):
                 comm = ExaComm.agent_comm
                 target_weights = None
                 if ExaComm.is_learner():
-                    workflow.agent.set_learner()
                     target_weights = workflow.agent.get_weights()
 
                 current_weights = comm.bcast(target_weights, 0)

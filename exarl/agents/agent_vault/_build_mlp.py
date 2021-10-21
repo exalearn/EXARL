@@ -20,12 +20,13 @@
 #                    under Contract DE-AC05-76RL01830
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, Input, Flatten
-from gym.spaces.utils import flatdim
+from gym.spaces.utils import flatten
 
 def build_model(self):
     # Input: state
     layers = []
-    state_input = Input(shape=(1, flatdim(self.env.observation_space)))
+    dim = flatten(self.env.observation_space, self.env.observation_space.sample()).shape[0]
+    state_input = Input(shape=(1, dim))
     layers.append(state_input)
     length = len(self.dense)
     # for i, layer_width in enumerate(self.dense):

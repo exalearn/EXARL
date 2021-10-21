@@ -12,6 +12,8 @@ elif env == 'ExaBoosterDiscrete-v0':
     from exarl.envs.env_vault.ExaBoosterDiscrete import ExaBooster_v1 as ExaBooster
 elif env == 'ExaWaterClusterDiscrete-v0':
     from exarl.envs.env_vault.ExaWaterClusterDiscrete import ExaWaterClusterDiscrete
+elif env == 'GymSpaceTest-v0':
+    from exarl.envs.env_vault.GymSpaceTest import GymSpaceTest
 # TODO: Make more general for any bsuite env. Currently using one bandit problem.
 elif env == 'ExaBsuite-v0':
     from exarl.envs.env_vault.ExaBsuite import ExaBsuite
