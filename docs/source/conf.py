@@ -13,7 +13,7 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../..'))
-sys.path.append('../../exarl/config/')
+sys.path.append('../../exarl/')
 
 # -- Project information -----------------------------------------------------
 
@@ -31,8 +31,18 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.coverage',
               'sphinx.ext.doctest', 'sphinx.ext.intersphinx',
               'sphinx.ext.todo',  'sphinx.ext.autosummary',
               'sphinx.ext.ifconfig', 'sphinx.ext.viewcode',
+              'sphinx.ext.napoleon',
               'sphinx.ext.inheritance_diagram'
               ]
+
+# napoleon settings
+napoleon_google_docstring = True
+napoleon_numpy_docstring = True
+napoleon_use_ivar = True
+napoleon_use_rtype = False
+
+add_module_names = False
+
 # Configuration of sphinx.ext.coverage
 coverage_show_missing_items = True
 
@@ -42,7 +52,7 @@ templates_path = ['_templates']
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = []
+exclude_patterns = [] # ['__init__.py','__main__.py']
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -52,6 +62,10 @@ exclude_patterns = []
 #
 # html_theme = 'alabaster'
 html_theme = 'sphinx_rtd_theme'
+html_theme_options = {
+    'collapse_navigation': True,
+    'display_version': True
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
