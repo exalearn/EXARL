@@ -108,10 +108,14 @@ def base_parser(params):
         essential components of an EXARL run: agent, env (environment),
         model (model_type) and workflow.
 
-        Arguments :
-            params : Dictionary of parameters
+        Parameters
+        ----------
+        params : dictionary object
+                Dictionary of parameters
 
-        Returns :
+        Returns
+        -------
+        params : dictionary object
             Updated dictionary of parameters
     """
 
@@ -174,10 +178,14 @@ def parser_from_json(json_file):
         All keywords defined in json files are subsequently available to be overwritten
         from the command line, using the CANDLE command line parser.
 
-        Arguments :
-            json_file : File to be parsed
+        Parameters
+        ----------
+        json_file : str
+            File to be parsed
 
-        Returns :
+        Returns
+        -------
+        new_defs : dictionary
             Dictionary of parameters
 
     """
