@@ -1,12 +1,12 @@
 {
     "agent": "DQN-v0",
-    "env": "GymSpaceTest-v0",
-    "workflow": "async",
+    "env": "ExaBsuite-v0",
+    "workflow": "simple",
     "n_episodes": 10,
     "n_steps": 10,
-    "output_dir": "./results_dir/gym",
+    "output_dir": "./results_dir/simple",
     "process_per_env": 1,
-    "model_type": "LSTM",
+    "model_type": "MLP",
     "action_type": "variable",
     "log_level": [3, 3],
     "profile": "none"

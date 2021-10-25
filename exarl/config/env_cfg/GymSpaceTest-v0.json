@@ -1,6 +1,6 @@
 {
-    "action_space": "MultiBinary_One",
-    "observation_space" : "MultiDiscrete_One",
+    "action_space": "Discrete",
+    "observation_space" : "MultiBinary",
     "action_Tuple" : "false",
     "observation_Tuple" : "true"
 }

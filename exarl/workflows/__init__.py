@@ -24,3 +24,8 @@ register(
     id='random',
     entry_point='exarl.workflows.workflow_vault:RANDOM'
 )
+
+register(
+    id='simple',
+    entry_point='exarl.workflows.workflow_vault:SIMPLE'
+)
