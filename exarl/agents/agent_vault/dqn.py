@@ -131,10 +131,12 @@ class DQN(erl.ExaAgent):
             self.actions = np.linspace(env.action_space.low, env.action_space.high, self.n_actions)
 
         # Data types of action and observation space
-        # TODO: JS DOUBLE CHECK THIS
-        self.dtype_action = np.array(self.env.action_space.sample()).dtype
-        self.dim_observation = self.env.observation_space.sample().dtype
+        # TODO: JS DOUBLE CHECK THIS 
+        self.dim_action = np.array(self.env.action_space.sample()).dtype
 
+        flat_sample = flatten(self.env.observation_space, self.env.observation_space.sample())
+        self.dtype_observation = flat_sample.dtype
+        self.dim_observation = flat_sample.shape[0]
 
         # Setup GPU cfg
         if ExaComm.is_learner():
@@ -207,7 +209,8 @@ class DQN(erl.ExaAgent):
             sys.exit("Oops! That was not a valid model type. Try again...")
 
     def flatten_observation(self, state):
-        return flatten(self.env.observation_space, state).reshape(1, state.shape[0])
+        state = flatten(self.env.observation_space, state)
+        return state.reshape(1, state.shape[0])
 
     def remember(self, state, action, reward, next_state, done):
         lost_data = self.replay_buffer.add((state, action, reward, next_state, done))
@@ -274,8 +277,8 @@ class DQN(erl.ExaAgent):
         # Has data checks if the buffer is greater than batch size for training
         if not self.has_data():
             # Worker method to create samples for training
-            batch_states = np.zeros((self.batch_size, self.dim_observation), dtype=self.dtype_observation)
-            batch_target = np.zeros((self.batch_size, self.env.action_space.n), dtype=self.dtype_action)
+            batch_states = np.zeros((self.batch_size, np.prod(self.dim_observation)), dtype=self.dtype_observation)
+            batch_target = np.zeros((self.batch_size, self.env.action_space.n), dtype=self.dim_action)
             indices = -1 * np.ones(self.batch_size)
             importance = np.ones(self.batch_size)
         else:
