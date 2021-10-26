@@ -28,7 +28,6 @@ import tensorflow as tf
 import sys
 import gym
 from gym.spaces.utils import flatten
-from gym.spaces.utils import flatdim
 import pickle
 import exarl as erl
 from exarl.base.comm_base import ExaComm
@@ -132,11 +131,12 @@ class DQN(erl.ExaAgent):
             self.actions = np.linspace(env.action_space.low, env.action_space.high, self.n_actions)
 
         # Data types of action and observation space
-        # TODO: JS DOUBLE CHECK THIS
-        self.dtype_action = np.array(self.env.action_space.sample()).dtype
-        flatSample = flatten(self.env.observation_space, self.env.observation_space.sample())
-        self.dtype_observation = flatSample.dtype
-        self.dim_observation = flatSample.shape[0]
+        # TODO: JS DOUBLE CHECK THIS 
+        self.dim_action = np.array(self.env.action_space.sample()).dtype
+
+        flat_sample = flatten(self.env.observation_space, self.env.observation_space.sample())
+        self.dtype_observation = flat_sample.dtype
+        self.dim_observation = flat_sample.shape[0]
 
         # Setup GPU cfg
         if ExaComm.is_learner():
@@ -209,9 +209,8 @@ class DQN(erl.ExaAgent):
             sys.exit("Oops! That was not a valid model type. Try again...")
 
     def flatten_observation(self, state):
-        temp = flatten(self.env.observation_space, state)
-        ret = temp.reshape(1, 1, temp.shape[0])
-        return ret
+        state = flatten(self.env.observation_space, state)
+        return state.reshape(1, state.shape[0])
 
     def remember(self, state, action, reward, next_state, done):
         lost_data = self.replay_buffer.add((state, action, reward, next_state, done))
@@ -253,6 +252,8 @@ class DQN(erl.ExaAgent):
     @introspectTrace()
     def calc_target_f(self, exp):
         state, action, reward, next_state, done = exp
+        # np_state = np.array(state, dtype=self.dtype_observation).reshape(1, 1, len(state))
+        # np_next_state = np.array(next_state, dtype=self.dtype_observation).reshape(1, 1, len(next_state))
         np_state = self.flatten_observation(state)
         np_next_state = self.flatten_observation(next_state)
 
@@ -276,15 +277,16 @@ class DQN(erl.ExaAgent):
         # Has data checks if the buffer is greater than batch size for training
         if not self.has_data():
             # Worker method to create samples for training
-            batch_states = np.zeros((self.batch_size, 1, self.dim_observation), dtype=self.dtype_observation)
-            batch_target = np.zeros((self.batch_size, self.env.action_space.n), dtype=self.dtype_action)
+            batch_states = np.zeros((self.batch_size, np.prod(self.dim_observation)), dtype=self.dtype_observation)
+            batch_target = np.zeros((self.batch_size, self.env.action_space.n), dtype=self.dim_action)
             indices = -1 * np.ones(self.batch_size)
             importance = np.ones(self.batch_size)
         else:
             minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=self.priority_scale)
             batch_target = list(map(self.calc_target_f, minibatch))
-            batch_states = [self.flatten_observation(exp[0]).reshape(1, 1, self.dim_observation) for exp in minibatch]
-            batch_states = np.reshape(batch_states, [len(minibatch), 1, self.dim_observation])
+            batch_states = [self.flatten_observation(exp[0]).reshape(1, self.dim_observation) for exp in minibatch]
+            batch_states = np.reshape(batch_states, [len(minibatch), self.dim_observation])
+
             batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
 
         if self.priority_scale > 0:
