@@ -43,12 +43,7 @@ class ExaBsuite(gym.Env):
 		self.env = gym_wrapper.GymFromDMEnv(env)
 		self.action_space = self.env.action_space
 		self.has_extra_dim = False
-		if self.env.observation_space.shape[0] == 1:
-			shape = self.env.observation_space.shape[1]
-			self.observation_space = spaces.Box(-np.inf, np.inf, shape=[shape])
-			self.has_extra_dim = True
-		else:
-			self.observation_space = self.env.observation_space
+		self.observation_space = self.env.observation_space
 		
 		print("action space: ", type(self.action_space))
 		print("obs space: ", type(self.observation_space))
@@ -59,13 +54,9 @@ class ExaBsuite(gym.Env):
 	def step(self, action) -> _GymTimestep:
 		time.sleep(0)
 		next_state, reward, done, info = self.env.step(action)
-		if self.has_extra_dim:
-			next_state = next_state[0]
 		return next_state, reward, done, info
 
 	def reset(self) -> np.ndarray:
-		if self.has_extra_dim:
-			return self.env.reset()[0]
 		return self.env.reset()
 
 	def render(self, mode: str = 'human') -> Union[np.ndarray, bool]:

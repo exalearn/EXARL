@@ -27,6 +27,7 @@ from exarl.utils.profile import *
 from exarl.utils import log
 import exarl.utils.candleDriver as cd
 from exarl.base.comm_base import ExaComm
+from exarl.utils.typing import TypeUtils
 
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
@@ -35,10 +36,10 @@ class SIMPLE(erl.ExaWorkflow):
         print('Creating SIMPLE learner workflow...')
 
         # Do we wait for an episode from each actor
-        self.block = cd.lookup_params('episode_block', default=True)
+        self.block = TypeUtils.get_bool(cd.lookup_params('episode_block', default=True))
 
         # Save weights after each episode
-        self.save_weights_per_episode = cd.lookup_params('save_weights_per_episode', default=False)
+        self.save_weights_per_episode = TypeUtils.get_bool(cd.lookup_params('save_weights_per_episode', default=False))
 
     def save_weights(self, workflow, episode):
         if self.save_weights_per_episode and episode != self.nepisodes:

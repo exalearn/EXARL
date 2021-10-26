@@ -1,4 +1,6 @@
 {
     "learner_procs": 1,
-    "process_per_env": 1
+    "process_per_env": 1,
+    "episode_block": "true",
+    "save_weights_per_episode": "false"
 }

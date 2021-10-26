@@ -181,3 +181,13 @@ class TypeUtils:
             elif data.dtype == np.int32:
                 return data.astype(np.int64)
         return data
+
+    def get_bool(val, default=False):
+        if isinstance(val, bool):
+            return val
+        
+        bool_map = {"true": True, "True": True, "false": False, "False": False}
+        if val in bool_map:
+            return bool_map[val]
+        
+        return defualt
