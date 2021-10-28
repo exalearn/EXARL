@@ -28,6 +28,7 @@ import exarl as erl
 from typing import Any, Dict, Optional, Tuple, Union
 
 from exarl.base.comm_base import ExaComm
+import exarl.utils.candleDriver as cd
 
 import bsuite
 from bsuite.utils import gym_wrapper
@@ -39,7 +40,11 @@ class ExaBsuite(gym.Env):
 		super().__init__()
 		self.env_comm = ExaComm.env_comm
 		# TODO: Might also want to account for bounded envs too (like catch).
-		env = bsuite.load_from_id(bsuite_id='cartpole/0')
+		bsuite_id = cd.lookup_params('bsuite_id', default='cartpole')
+		seed_number = cd.lookup_params('seed_number', default='0')
+		env_name = bsuite_id + "/" + seed_number
+		print("Loading", env_name)
+		env = bsuite.load_from_id(bsuite_id=env_name)
 		self.env = gym_wrapper.GymFromDMEnv(env)
 		self.action_space = self.env.action_space
 		self.has_extra_dim = False
