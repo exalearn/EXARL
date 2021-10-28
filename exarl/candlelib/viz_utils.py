@@ -366,9 +366,17 @@ def plot_percentile_predictions(Ypred, Ypred_Lp, Ypred_Hp, percentile_list, pred
 # plot training and validation metrics together and generate one chart per metrics
 def plot_metrics(history, title=None, skip_ep=0, outdir='.', add_lr=False):
     """ Plots keras training curves history.
-    Args:
-        skip_ep: number of epochs to skip when plotting metrics
-        add_lr: add curve of learning rate progression over epochs
+    Parameters
+    ----------
+        history : history object
+        title : str
+            Title for plot
+        skip_ep : integer
+            number of epochs to skip when plotting metrics
+        outdir : str
+            Relative path to output directory
+        add_lr : Boolean
+            add curve of learning rate progression over epochs
     """
 
     def capitalize_metric(met):

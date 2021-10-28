@@ -21,14 +21,21 @@ from exarl.candlelib.default_utils import DEFAULT_DATATYPE
 # TAKEN from tensorflow
 def to_categorical(y, num_classes=None):
     """Converts a class vector (integers) to binary class matrix.
-    E.g. for use with categorical_crossentropy.
-    Arguments:
-        y: class vector to be converted into a matrix
+        E.g. for use with categorical_crossentropy.
+
+        Parameters
+        ----------
+        y: numpy array
+            Class vector to be converted into a matrix
             (integers from 0 to num_classes).
-        num_classes: total number of classes.
-    Returns:
-        A binary matrix representation of the input. The classes axis is placed
-        last.
+
+        num_classes: integer
+            Total number of classes.
+
+        Returns
+        -------
+            Returns a binary matrix representation of the input. \
+            The classes axis is placed last.
     """
     y = np.array(y, dtype='int')
     input_shape = y.shape
@@ -63,7 +70,7 @@ def convert_to_class(y_one_hot, dtype=int):
 
         Return
         ----------
-        Returns a numpy array with an integer class encoding.
+            Returns a numpy array with an integer class encoding.
     """
 
     maxi = lambda a: a.argmax()
@@ -88,9 +95,9 @@ def scale_array(mat, scaling=None):
 
         Return
         ----------
-        Returns the numpy array scaled by the method specified. \
-        If no scaling method is specified, it returns the numpy \
-        array unmodified.
+            Returns the numpy array scaled by the method specified. \
+            If no scaling method is specified, it returns the numpy \
+            array unmodified.
     """
 
     if scaling is None or scaling.lower() == 'none':
@@ -127,9 +134,9 @@ def impute_and_scale_array(mat, scaling=None):
 
         Return
         ----------
-        Returns the numpy array imputed with the mean value of the \
-        column and scaled by the method specified. If no scaling method is specified, \
-        it returns the imputed numpy array.
+            Returns the numpy array imputed with the mean value of the \
+            column and scaled by the method specified. If no scaling method is specified, \
+            it returns the imputed numpy array.
     """
 
 #    imputer = Imputer(strategy='mean', axis=0, copy=False)
@@ -167,7 +174,7 @@ def drop_impute_and_scale_dataframe(df, scaling='std', imputing='mean', dropna='
 
     Return
     ----------
-    Returns the data frame after handling missing values and scaling.
+        Returns the data frame after handling missing values and scaling.
 
     """
 
@@ -221,8 +228,8 @@ def discretize_dataframe(df, col, bins=2, cutoffs=None):
 
     Return
     ----------
-    Returns the data frame with the values of the specified column binned, i.e. the values
-    are replaced by the associated bin number.
+        Returns the data frame with the values of the specified column binned, i.e. the values
+        are replaced by the associated bin number.
 
     """
 
@@ -249,8 +256,8 @@ def discretize_array(y, bins=5):
 
     Return
     ----------
-    Returns an array with the bin number associated to the values in the
-    original array.
+        Returns an array with the bin number associated to the values in the
+        original array.
 
     """
 
@@ -279,8 +286,8 @@ def lookup(df, query, ret, keys, match='match'):
 
     Return
     ----------
-    Returns a list of the values in the dataframe whose columns match
-    the specified query and have been selected to be returned.
+        Returns a list of the values in the dataframe whose columns match
+        the specified query and have been selected to be returned.
 
     """
 
@@ -946,10 +953,10 @@ def load_csv_data(train_path, test_path=None, sep=',', nrows=None,
 
         Return
         ----------
-        Tuples of data features and labels are returned, for \
-        train, validation and testing partitions, together with the column \
-        names (headers). The specific objects to return depend \
-        on the options selected.
+            Tuples of data features and labels are returned, for \
+            train, validation and testing partitions, together with the column \
+            names (headers). The specific objects to return depend \
+            on the options selected.
     """
 
     if x_cols is None and drop_cols is None and n_cols is None:
