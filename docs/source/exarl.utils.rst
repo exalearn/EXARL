@@ -60,7 +60,6 @@ exarl.utils.typing module
    :undoc-members:
    :show-inheritance:
 
-
 Module contents
 ---------------
 

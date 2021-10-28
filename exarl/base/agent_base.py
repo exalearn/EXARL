@@ -37,34 +37,52 @@ lib_path = os.path.abspath(os.path.join(file_path, '..', 'candlelib'))
 sys.path.append(lib_path)
 
 class ExaAgent(ABC):
+    """Agent base class: Inherits from abstract base class for mandating
+    functionality (pure virtual functions).
+
+    """
 
     def __init__(self, **kwargs):
         pass
 
     @abstractmethod
     def get_weights(self):
+        """get target model weights
+    """
         pass
 
     @abstractmethod
     def set_weights(self):
+        """set target model weights
+        """
         pass
 
     @abstractmethod
     def train(self):
+        """train the agent
+        """
         pass
 
     @abstractmethod
     def action(self):
+        """next action based on current state
+        """
         pass
 
     @abstractmethod
     def load(self):
+        """load weights
+        """
         pass
 
     @abstractmethod
     def save(self, results_dir):
+        """save weights
+        """
         pass
 
     @abstractmethod
     def has_data(self):
+        """return true if agent has experiences from simulation
+        """
         pass

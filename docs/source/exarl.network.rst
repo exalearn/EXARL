@@ -28,7 +28,6 @@ exarl.network.simple\_comm module
    :undoc-members:
    :show-inheritance:
 
-
 Module contents
 ---------------
 

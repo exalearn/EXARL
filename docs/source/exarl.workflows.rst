@@ -5,6 +5,7 @@ Subpackages
 -----------
 
 .. toctree::
+   :maxdepth: 4
 
    exarl.workflows.workflow_vault
 
@@ -18,7 +19,6 @@ exarl.workflows.registration module
    :members:
    :undoc-members:
    :show-inheritance:
-
 
 Module contents
 ---------------

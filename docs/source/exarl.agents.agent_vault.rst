@@ -28,7 +28,6 @@ exarl.agents.agent\_vault.dqn module
    :undoc-members:
    :show-inheritance:
 
-
 Module contents
 ---------------
 

@@ -25,6 +25,7 @@ from exarl.utils.candleDriver import lookup_params
 from exarl.utils.introspect import *
 import numpy as np
 
+
 # Create learner object and run
 exa_learner = erl.ExaLearner()
 

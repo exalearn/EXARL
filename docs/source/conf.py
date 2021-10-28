@@ -13,7 +13,40 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../..'))
-sys.path.append('../../exarl/config/')
+sys.path.append('../../exarl/config')
+sys.path.append('../../exarl/envs')
+sys.path.append('../../exarl/envs/env_vault')
+sys.path.append('../../exarl/envs/env_vault/ExaCartpoleStatic')
+sys.path.append('../../exarl/envs/env_vault/ExaWaterClusterDiscrete')
+sys.path.append('../../exarl/envs/env_vault/ExaCH')
+sys.path.append('../../exarl/envs/env_vault/ExaCOVID')
+sys.path.append('../../exarl/envs/env_vault/ExaBoosterDiscrete')
+sys.path.append('../../exarl/workflows')
+sys.path.append('../../exarl/workflows/registration')
+sys.path.append('../../exarl/agents/agent_vault')
+sys.path.append('../../exarl/agents/registration')
+sys.path.append('../../exarl/agents/')
+sys.path.append('../../exarl/agents/agent_vault/dqn')
+sys.path.append('../../exarl/agents/agent_vault/ddpg_vtrace')
+sys.path.append('../../exarl/agents/agent_vault/ddpg')
+sys.path.append('../../exarl/base')
+sys.path.append('../../exarl/base/workflow_base')
+sys.path.append('../../exarl/base/test_state')
+sys.path.append('../../exarl/base/test_action')
+sys.path.append('../../exarl/base/state')
+sys.path.append('../../exarl/base/learner_base')
+sys.path.append('../../exarl/base/env_base')
+sys.path.append('../../exarl/base/dataset_base')
+sys.path.append('../../exarl/base/data_exchange')
+sys.path.append('../../exarl/base/agent_base')
+sys.path.append('../../exarl/base/action')
+sys.path.append('../../exarl/utils/OUActionNoise')
+sys.path.append('../../exarl/utils/analyze_reward')
+sys.path.append('../../exarl/utils/introspect')
+sys.path.append('../../exarl/utils/profile')
+sys.path.append('../../exarl/utils/typing')
+sys.path.append('../../exarl/utils')
+sys.path.append('../../exarl/config/learner_cfg.json')
 
 # -- Project information -----------------------------------------------------
 
@@ -31,8 +64,9 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.coverage',
               'sphinx.ext.doctest', 'sphinx.ext.intersphinx',
               'sphinx.ext.todo',  'sphinx.ext.autosummary',
               'sphinx.ext.ifconfig', 'sphinx.ext.viewcode',
-              'sphinx.ext.inheritance_diagram'
-              ]
+              'sphinx.ext.inheritance_diagram']
+# extensions = ['sphinx.ext.autodoc']
+
 # Configuration of sphinx.ext.coverage
 coverage_show_missing_items = True
 

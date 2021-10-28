@@ -5,6 +5,7 @@ Subpackages
 -----------
 
 .. toctree::
+   :maxdepth: 4
 
    exarl.agents.agent_vault
 
@@ -18,7 +19,6 @@ exarl.agents.registration module
    :members:
    :undoc-members:
    :show-inheritance:
-
 
 Module contents
 ---------------

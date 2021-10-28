@@ -5,6 +5,7 @@ Subpackages
 -----------
 
 .. toctree::
+   :maxdepth: 4
 
    exarl.candlelib.candle
    exarl.candlelib.candle_keras
@@ -107,7 +108,6 @@ exarl.candlelib.viz\_utils module
    :members:
    :undoc-members:
    :show-inheritance:
-
 
 Module contents
 ---------------

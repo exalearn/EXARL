@@ -63,7 +63,7 @@ def save_reward_plot():
     df_merged['rel_time'] = [idx - time_min for idx in df_merged.time]
     df_merged.sort_values(by=['rel_time'], inplace=True)
 
-    rolling_setting = 1
+    rolling_setting = 25
     fig, ax = plt.subplots(1, 1, figsize=(10, 8))
     episodes_per_nodes = []
     logger.info('Node path:{}'.format(results_dir))
