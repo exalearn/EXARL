@@ -49,6 +49,9 @@ else:
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class LossHistory(keras.callbacks.Callback):
+    """Loss history for training
+    """
+
     def on_train_begin(self, logs={}):
         self.loss = []
 
@@ -57,7 +60,17 @@ class LossHistory(keras.callbacks.Callback):
 
 # The Multi-Learner Discrete Double Deep Q-Network
 class DQN(erl.ExaAgent):
+    """Multi-Learner Discrete Double Deep Q-Network with Prioritized Experience Replay
+    """
+
     def __init__(self, env, is_learner):
+        """DQN Constructor
+
+        Args:
+            env (OpenAI Gym environment object): env object indicates the RL environment
+            is_learner (bool): Used to indicate if the agent is a learner or an actor
+        """
+
         # Initial values
         self.is_learner = is_learner
         self.model = None
@@ -183,6 +196,11 @@ class DQN(erl.ExaAgent):
         self.replay_buffer = PrioritizedReplayBuffer(maxlen=self.maxlen)
 
     def _get_device(self):
+        """Get device type (CPU/GPU)
+
+        Returns:
+            string: device type
+        """
         cpus = tf.config.experimental.list_physical_devices('CPU')
         gpus = tf.config.experimental.list_physical_devices('GPU')
         ngpus = len(gpus)
@@ -194,6 +212,11 @@ class DQN(erl.ExaAgent):
             return '/CPU:0'
 
     def _build_model(self):
+        """Build NN model based on parametes provided in the config file
+
+        Returns:
+            [type]: [description]
+        """
         if self.model_type == 'MLP':
             from exarl.agents.agent_vault._build_mlp import build_model
             return build_model(self)
@@ -210,12 +233,29 @@ class DQN(erl.ExaAgent):
         )
 
     def remember(self, state, action, reward, next_state, done):
+        """Add experience to replay buffer
+
+        Args:
+            state (list or array): Current state of the system
+            action (list or array): Action to take
+            reward (list or array): Environment reward
+            next_state (list or array): Next state of the system
+            done (bool): Indicates episode completion
+        """
         lost_data = self.replay_buffer.add((state, action, reward, next_state, done))
         if lost_data and self.priority_scale:
             # logger.warning("Priority replay buffer size too small. Data loss negates replay effect!")
             print("Priority replay buffer size too small. Data loss negates replay effect!", flush=True)
 
     def get_action(self, state):
+        """Use epsilon-greedy approach to generate actions
+
+        Args:
+            state (list or array): Current state of the system
+
+        Returns:
+            (list or array): Action to take
+        """
         random.seed(datetime.now())
         random_data = os.urandom(4)
         np.random.seed(int.from_bytes(random_data, byteorder="big"))
@@ -233,6 +273,15 @@ class DQN(erl.ExaAgent):
 
     @introspectTrace()
     def action(self, state):
+        """Discretizes 1D continuous actions to work with DQN
+
+        Args:
+            state (list or array): Current state of the system
+
+        Returns:
+            action (list or array): Action to take
+            policy (int): random (0) or inference (1)
+        """
         action, policy = self.get_action(state)
         if not self.is_discrete:
             action = [self.actions[action]]
@@ -240,6 +289,14 @@ class DQN(erl.ExaAgent):
 
     @introspectTrace()
     def calc_target_f(self, exp):
+        """Bellman equation calculations
+
+        Args:
+            exp (list of experience): contains state, action, reward, next state, done
+
+        Returns:
+            target Q value (array): [description]
+        """
         state, action, reward, next_state, done = exp
         np_state = np.array(state, dtype=self.dtype_observation).reshape(1, 1, len(state))
         np_next_state = np.array(next_state, dtype=self.dtype_observation).reshape(1, 1, len(next_state))
@@ -256,10 +313,24 @@ class DQN(erl.ExaAgent):
         return target_f[0]
 
     def has_data(self):
+        """Indicates if the buffer has data of size batch_size or more
+
+        Returns:
+            bool: True if replay_buffer length >= self.batch_size
+        """
         return (self.replay_buffer.get_buffer_length() >= self.batch_size)
 
     @introspectTrace()
     def generate_data(self):
+        """Unpack and yield training data
+
+        Yields:
+            batch_states (numpy array): training input
+            batch_target (numpy array): training labels
+            With PER:
+                indices (numpy array): data indices
+                importance (numpy array): importance weights
+        """
         # Has data checks if the buffer is greater than batch size for training
         if not self.has_data():
             # Worker method to create samples for training
@@ -281,6 +352,18 @@ class DQN(erl.ExaAgent):
 
     @introspectTrace()
     def train(self, batch):
+        """Train the NN
+
+        Args:
+            batch (list): sampled batch of experiences
+
+        Returns:
+            if PER:
+                indices (numpy array): data indices
+                loss: training loss
+            else:
+                None
+        """
         ret = None
         if self.is_learner:
             start_time = time.time()
@@ -311,6 +394,14 @@ class DQN(erl.ExaAgent):
 
     @tf.function
     def training_step(self, batch):
+        """Training step for multi-learner using Horovod
+
+        Args:
+            batch (list): sampled batch of experinces
+
+        Returns:
+            loss_value: loss value per training step for multi-learner
+        """
         with tf.GradientTape() as tape:
             probs = self.model(batch[0], training=True)
             if len(batch) > 2:
@@ -331,13 +422,29 @@ class DQN(erl.ExaAgent):
         return loss_value
 
     def set_priorities(self, indicies, loss):
+        """Set priorities for training data
+
+        Args:
+            indicies (array): data indices
+            loss (array): Losses
+        """
         self.replay_buffer.set_priorities(indicies, loss)
 
     def get_weights(self):
+        """Get weights from target model
+
+        Returns:
+            weights (list): target model weights
+        """
         logger.debug("Agent[%s] - get target weight." % str(self.rank))
         return self.target_model.get_weights()
 
     def set_weights(self, weights):
+        """Set model weights
+
+        Args:
+            weights (list): model weights
+        """
         logger.info("Agent[%s] - set target weight." % str(self.rank))
         logger.debug("Agent[%s] - set target weight: %s" % (str(self.rank), weights))
         with tf.device(self.device):
@@ -345,6 +452,8 @@ class DQN(erl.ExaAgent):
 
     @introspectTrace()
     def target_train(self):
+        """Update target model
+        """
         if self.is_learner:
             logger.info("Agent[%s] - update target weights." % str(self.rank))
             with tf.device(self.device):
@@ -361,10 +470,17 @@ class DQN(erl.ExaAgent):
             )
 
     def epsilon_adj(self):
+        """Update epsilon value
+        """
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
     def load(self, filename):
+        """Load model weights from pickle file
+
+        Args:
+            filename (string): full path of model file
+        """
         layers = self.target_model.layers
         with open(filename, 'rb') as f:
             pickle_list = pickle.load(f)
@@ -374,6 +490,11 @@ class DQN(erl.ExaAgent):
             layers[layerId].set_weights(pickle_list[layerId][1])
 
     def save(self, filename):
+        """Save model weights to pickle file
+
+        Args:
+            filename (string): full path of model file
+        """
         layers = self.target_model.layers
         pickle_list = []
         for layerId in range(len(layers)):
