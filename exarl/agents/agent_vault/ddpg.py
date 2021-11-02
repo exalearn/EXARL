@@ -43,9 +43,18 @@ def update_target(target_weights, weights, tau):
 
 
 class DDPG(erl.ExaAgent):
+    """Deep deterministic policy gradient agent. 
+    Inherits from ExaAgent base class.
+    """
     is_learner: bool
 
     def __init__(self, env, is_learner):
+        """DDPG constructor
+
+        Args:
+            env (OpenAI Gym environment object): env object indicates the RL environment
+            is_learner (bool): Used to indicate if the agent is a learner or an actor
+        """
         # Distributed variables
         self.is_learner = is_learner
 
@@ -141,6 +150,15 @@ class DDPG(erl.ExaAgent):
         self.actor_optimizer = tf.keras.optimizers.Adam(self.actor_lr)
 
     def remember(self, state, action, reward, next_state, done):
+        """Add experience to replay buffer
+
+        Args:
+            state (list or array): Current state of the system
+            action (list or array): Action to take
+            reward (list or array): Environment reward
+            next_state (list or array): Next state of the system
+            done (bool): Indicates episode completion
+        """
         # If the counter exceeds the capacity then
         index = self.buffer_counter % self.buffer_capacity
         self.state_buffer[index] = state
@@ -152,6 +170,14 @@ class DDPG(erl.ExaAgent):
 
     # @tf.function
     def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch):
+        """Update gradients - training step
+
+        Args:
+            state_batch (list): list of states
+            action_batch (list): list of actions
+            reward_batch (list): list of rewards
+            next_state_batch (list): list of next states
+        """
         # tf.print(state_batch.shape)
         # Training and updating Actor & Critic networks.
         with tf.GradientTape() as tape:
@@ -181,6 +207,11 @@ class DDPG(erl.ExaAgent):
         )
 
     def get_actor(self):
+        """Define actor network
+
+        Returns:
+            model: actor model
+        """
         # State as input
         inputs = layers.Input(shape=(self.num_states,))
         # first layer takes inputs
@@ -198,6 +229,11 @@ class DDPG(erl.ExaAgent):
         return model
 
     def get_critic(self):
+        """Define critic network
+
+        Returns:
+            model: critic network
+        """
         # State as input
         state_input = layers.Input(shape=self.num_states)
         # first layer takes inputs
@@ -243,10 +279,23 @@ class DDPG(erl.ExaAgent):
         return model
 
     def has_data(self):
+        """Indicates if the buffer has data
+
+        Returns:
+            bool: True if buffer has data
+        """
         return (self.buffer_counter > 0)
 
     @introspectTrace()
     def generate_data(self):
+        """Generate data for training
+
+        Yields:
+            state_batch (list): list of states
+            action_batch (list): list of actions
+            reward_batch (list): list of rewards
+            next_state_batch (list): list of next states
+        """
         if self.has_data():
             record_range = min(self.buffer_counter, self.buffer_capacity)
             logger.info('record_range:{}'.format(record_range))
@@ -266,6 +315,11 @@ class DDPG(erl.ExaAgent):
 
     @introspectTrace()
     def train(self, batch):
+        """Train the NN
+
+        Args:
+            batch (list): sampled batch of experiences
+        """
         if self.is_learner:
             logger.warning('Training...')
             self.update_grad(batch[0], batch[1], batch[2], batch[3])
@@ -274,6 +328,8 @@ class DDPG(erl.ExaAgent):
 
     @introspectTrace()
     def target_train(self):
+        """Update target model
+        """
         # Update the target model
         model_weights = self.actor_model.get_weights()
         target_weights = self.target_actor.get_weights()
@@ -289,6 +345,15 @@ class DDPG(erl.ExaAgent):
 
     @introspectTrace()
     def action(self, state):
+        """Returns sampled action with added noise
+
+        Args:
+            state (list or array): Current state of the system
+
+        Returns:
+            action (list or array): Action to take
+            policy (int): random (0) or inference (1)
+        """
         policy_type = 1
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
         sampled_actions = tf.squeeze(self.target_actor(tf_state))
@@ -308,9 +373,19 @@ class DDPG(erl.ExaAgent):
 
     # For distributed actors #
     def get_weights(self):
+        """Get weights from target model
+
+        Returns:
+            weights (list): target model weights
+        """
         return self.target_actor.get_weights()
 
     def set_weights(self, weights):
+        """Set model weights
+
+        Args:
+            weights (list): model weights
+        """
         self.target_actor.set_weights(weights)
 
     # Extra methods
@@ -318,6 +393,11 @@ class DDPG(erl.ExaAgent):
         print("Implement update method in ddpg.py")
 
     def load(self, filename):
+        """Load model weights from pickle file
+
+        Args:
+            filename (string): full path of model file
+        """
         print("Loading from: ", filename)
         layers = self.target_actor.layers
         with open(filename, "rb") as f:
@@ -328,6 +408,11 @@ class DDPG(erl.ExaAgent):
             layers[layerId].set_weights(pickle_list[layerId][1])
 
     def save(self, filename):
+        """Save model weights to pickle file
+
+        Args:
+            filename (string): full path of model file
+        """
         layers = self.target_actor.layers
         pickle_list = []
         for layerId in range(len(layers)):
@@ -347,5 +432,7 @@ class DDPG(erl.ExaAgent):
     #     print("Implement print_timers method in ddpg.py")
 
     def epsilon_adj(self):
+        """Update epsilon value
+        """
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
