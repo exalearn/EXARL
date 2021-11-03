@@ -1,0 +1,8 @@
+{
+    "action_space" : "Discrete",
+    "function_type" : "pulse",
+    "function" : [10, -1],
+    "L" : [-1, 100],
+    "x0" : [0, 7],
+    "x1" : [5.5, 10]
+}

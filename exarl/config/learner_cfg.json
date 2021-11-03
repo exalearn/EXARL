@@ -1,6 +1,6 @@
 {
     "agent": "DQN-v0",
-    "env": "ExaBsuite-v0",
+    "env": "Marshmallow-v0",
     "workflow": "simple",
     "n_episodes": 10,
     "n_steps": 10,

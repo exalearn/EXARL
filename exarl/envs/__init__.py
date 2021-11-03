@@ -40,9 +40,14 @@ elif env == 'GymSpaceTest-v0':
         entry_point='exarl.envs.env_vault:GymSpaceTest'
     )
 
-# TODO: Make more general for any bsuite env. Currently using one bandit problem.
 elif env == 'ExaBsuite-v0':
     register(
         id=env,
         entry_point='exarl.envs.env_vault:ExaBsuite'
+    )
+
+elif env == 'Marshmallow-v0':
+    register(
+        id=env,
+        entry_point='exarl.envs.env_vault:Marshmallow'
     )
