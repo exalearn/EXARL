@@ -26,7 +26,7 @@ class Marshmallow(gym.Env):
 
         Polynomial:
             function - list of polynomial coefficents
-            i.e. [1, 2, -4, .5] -> f(t) = 1*t^0 + 2*t^2 - 4*t^3 + .5*t^4
+            i.e. [1, 2, -4, .5] -> f(t) = 1*t^0 + 2*t^1 - 4*t^2 + .5*t^3
 
         Unit:
             L - Height of the step
@@ -61,7 +61,7 @@ class Marshmallow(gym.Env):
 
         Box:
             0 -> stops the episode
-            0 < x >= 1 -> Scales the reward
+            0 < x <= 1 -> Scales the reward
     
     Reward:
         The reward is the value f(t) at step t

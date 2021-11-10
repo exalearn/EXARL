@@ -41,8 +41,8 @@ class SIMPLE(erl.ExaWorkflow):
         # Save weights after each episode
         self.save_weights_per_episode = TypeUtils.get_bool(cd.lookup_params('save_weights_per_episode', default=False))
 
-    def save_weights(self, workflow, episode):
-        if self.save_weights_per_episode and episode != self.nepisodes:
+    def save_weights(self, workflow, episode, nepisodes):
+        if self.save_weights_per_episode and episode != nepisodes:
            workflow.agent.save(workflow.results_dir + '/' + self.filename_prefix + '_' + str(episode) + '.h5')
         else:
             workflow.agent.save(workflow.results_dir + '/' + self.filename_prefix + '.h5')
@@ -96,7 +96,7 @@ class SIMPLE(erl.ExaWorkflow):
             for dst in range(1, block_size):
                 self.send_model(workflow, episode_per_rank[dst], dst)
 
-            self.save_weights(workflow, done_episode)
+            self.save_weights(workflow, done_episode, nepisodes)
 
     def actor(self, workflow, nepisodes):
         while True:
