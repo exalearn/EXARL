@@ -36,6 +36,7 @@ Example of how bsuite usually works:
 .. code-block:: python
 
   import bsuite
+  from bsuite.utils import gym_wrapper
   SAVE_PATH_RAND = '/tmp/bsuite/rand'
   raw_env = bsuite.load_and_record('bandit_noise/0', save_path=SAVE_PATH_RAND, overwrite=True)
   env = gym_wrapper.GymFromDMEnv(raw_env)
