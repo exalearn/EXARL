@@ -2,16 +2,14 @@
 
 ######## Double check this works for your set up ########
 module purge
-module load gcc/10.2.0
-module load spectrum-mpi/10.3.1.2-20200121
-module load cuda/10.2.89
-# Latest open-ce / default June 24 2021
-module load open-ce/1.1.3-py38-0
+module load spectrum-mpi/10.4.0.3-20210112
+module load cuda/11.0.3
+module load open-ce/1.4.0-py37-0
 
 ######## This is user specific conda env! ########
-conda activate exaRL_clone
-export PYTHONPATH=/ccs/home/suet688/ExaRL/gym:$PYTHONPATH
-export EXARL_ROOT="/ccs/home/suet688/ExaRL/EXARL"
+conda activate exarl_summit
+export PYTHONPATH=/ccs/home/vinayr/ExaLearn/EXARL:$PYTHONPATH
+export EXARL_ROOT="/ccs/home/vinayr/ExaLearn/EXARL"
 
 # Print time with timezone
 export RUNDATE=`date +"%FT%H%M%z"`
@@ -28,13 +26,13 @@ export OUT_LOG=${OUT_DIR}/output_${RUNDATE}.log
 # p - EXA_BCP
 # b - EXA_BOOSTER
 # w - EXA_WATER_CLUSTER
-WHICH_ENV="-b"
+WHICH_ENV="-c"
 
 export TASKS_PER_RS=1
 export CPUS_PER_RS=7
 export GPUS_PER_RS=1
 export RS_PER_HOST=6
-export WORKFLOW=rma
+export WORKFLOW=async
 
 for NODES in 1 2 4 8 16 32 64
 do

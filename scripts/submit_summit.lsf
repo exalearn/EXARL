@@ -24,7 +24,7 @@ if [[ -n $EXA_CARTPOLE ]]; then
 	DIR_NAME=Exa_CartPole
 	OUTPUT_DIR=${OUT_DIR}/${DIR_NAME}_results/nodes_${NODES}/
 
-	jsrun --nrs $NUM_RES_SET --tasks_per_rs $TASKS_PER_RS --cpu_per_rs $CPUS_PER_RS --gpu_per_rs $GPUS_PER_RS --rs_per_host $RS_PER_HOST --latency_priority GPU-CPU --launch_distribution packed --bind packed:$CPUS_PER_RS python ${EXARL_ROOT}/exarl/driver/__main__.py --output_dir $OUTPUT_DIR --env ExaCartPole-v1 --n_episodes 100 --n_steps 100 --workflow $WORKFLOW --agent DQN-v0
+	jsrun --nrs $NUM_RES_SET --tasks_per_rs $TASKS_PER_RS --cpu_per_rs $CPUS_PER_RS --gpu_per_rs $GPUS_PER_RS --rs_per_host $RS_PER_HOST --latency_priority GPU-CPU --launch_distribution packed --bind packed:$CPUS_PER_RS python ${EXARL_ROOT}/exarl/driver/__main__.py --output_dir $OUTPUT_DIR --env CartPole-v0 --n_episodes 100 --n_steps 100 --workflow $WORKFLOW --agent DQN-v0
 fi
 
 if [[ -n $EXA_BCP ]]; then

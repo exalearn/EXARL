@@ -4,9 +4,12 @@ from exarl.base.comm_base import ExaComm
 import os
 import numpy as np
 
-import mpi4py.rc
-# mpi4py.rc.threads = False
-# mpi4py.rc.recv_mprobe = False
+import exarl.utils.candleDriver as cd
+workflow = cd.run_params['workflow']
+if workflow == 'async':
+    import mpi4py.rc
+    mpi4py.rc.threads = False
+    mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
 
 class ExaSimple(ExaComm):
