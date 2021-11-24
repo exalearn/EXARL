@@ -7,24 +7,19 @@ Welcome to EXARL's documentation!
 =================================
 
 .. toctree::
-   :maxdepth: 2
    :caption: Contents:
+   :maxdepth: 2
 
-   requirements
-   directory
-   install
-   candle
-   run
-   envs
-   agents
-   workflows
-   base
-   utils
-   utests
-   tutorial
-
-   modules
-
+   usage/requirements
+   usage/directory
+   usage/install
+   usage/candle
+   usage/run
+   usage/envs_doc
+   usage/base_doc
+   usage/agent_doc
+   usage/tutorial
+   usage/utests
 
 Indices and tables
 ==================
