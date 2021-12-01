@@ -5,8 +5,9 @@ import os
 import numpy as np
 
 import exarl.utils.candleDriver as cd
-workflow = cd.run_params['workflow']
+workflow = cd.lookup_params('workflow')
 if workflow == 'async':
+    print("Turning mpi4py.rc.threads and mpi4py.rc.recv_mprobe to false!")
     import mpi4py.rc
     mpi4py.rc.threads = False
     mpi4py.rc.recv_mprobe = False

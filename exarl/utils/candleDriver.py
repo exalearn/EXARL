@@ -126,8 +126,6 @@ def base_parser(params):
     parser.add_argument("--model_type")
     parser.add_argument("--workflow")
     parser.add_argument("--data_structure")
-    parser.add_argument("--tester_data_file")
-    parser.add_argument("--tester_epocs")
     parser.add_argument("--batch_size")
 
     args, leftovers = parser.parse_known_args()
@@ -147,25 +145,6 @@ def base_parser(params):
     if args.workflow is not None:
         params['workflow'] = args.workflow
         print("Workflow overwitten from command line: ", args.workflow)
-
-    # all the code below this shouldn't really be here
-    # since the keywords are not used by get_driver_params
-    # leaving for now, will file an issue
-    if args.data_structure is not None:
-        params['data_structure'] = args.data_structure
-        print("Data_structure overwitten from command line: ", args.data_structure)
-
-    if args.tester_data_file is not None:
-        params['tester_data_file'] = args.tester_data_file
-        print("tester_data_file overwitten from command line: ", args.tester_data_file)
-
-    if args.tester_epocs is not None:
-        params['tester_epocs'] = args.tester_epocs
-        print("tester_epocs overwitten from command line: ", args.tester_epocs)
-
-    if args.batch_size is not None:
-        params['batch_size'] = args.tester_epocs
-        print("batch_size overwitten from command line: ", args.batch_size)
 
     return params
 

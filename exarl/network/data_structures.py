@@ -15,7 +15,7 @@ import numpy as np
 from exarl.base import ExaData
 from exarl.base.comm_base import ExaComm
 from exarl.network.simple_comm import ExaSimple
-from exarl.utils.typing import TypeUtils
+from exarl.network.typing import TypeUtils
 from exarl.utils.introspect import introspectTrace
 MPI = ExaSimple.MPI
 

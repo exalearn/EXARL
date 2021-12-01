@@ -33,7 +33,7 @@ from exarl.network.data_structures import *
 from exarl.network.simple_comm import ExaSimple
 MPI = ExaSimple.MPI
 
-logger = log.setup_logger(__name__, cd.run_params['log_level'])
+logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3,3]))
 
 class RMA(erl.ExaWorkflow):
     """RMA workflow class: inherits from ExaWorkflow base class.
