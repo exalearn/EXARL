@@ -55,10 +55,12 @@ from exarl.candlelib.profiling_utils import stop_profiling
 
 # exarl
 from exarl.candlelib.exarl_utils import get_default_exarl_parser
+from exarl.candlelib.helper_utils import search
 
 # import benchmark-dependent utils
 import sys
-if 'keras' in sys.modules or 'tensorflow.keras' in sys.modules:
+
+if search(sys.modules, 'keras'):
     print('Importing candle utils for keras')
 
     # import from keras_utils
@@ -84,7 +86,7 @@ if 'keras' in sys.modules or 'tensorflow.keras' in sys.modules:
     from exarl.candlelib.solr_keras import compute_trainable_params
     from exarl.candlelib.solr_keras import TerminateOnTimeOut
 
-elif 'torch' in sys.modules:
+elif search(sys.modules, 'torch'):
     print('Importing candle utils for pytorch')
     from exarl.candlelib.pytorch_utils import set_seed
     from exarl.candlelib.pytorch_utils import build_optimizer
