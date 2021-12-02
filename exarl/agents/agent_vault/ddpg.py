@@ -33,7 +33,7 @@ import exarl as erl
 
 from exarl.utils import log
 import exarl.utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3,3]))
+logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
 
 
 @tf.function
@@ -43,7 +43,7 @@ def update_target(target_weights, weights, tau):
 
 
 class DDPG(erl.ExaAgent):
-    """Deep deterministic policy gradient agent. 
+    """Deep deterministic policy gradient agent.
     Inherits from ExaAgent base class.
     """
     is_learner: bool

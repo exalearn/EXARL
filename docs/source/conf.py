@@ -41,14 +41,14 @@ extensions = [
     'autoapi.extension',
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.inheritance_diagram'
+    'sphinx.ext.napoleon'
 ]
 
 # autoapi options here
 autoapi_type = 'python'
 autoapi_dirs = ['../../exarl']
 autoapi_keep_files = True  # enable incremental build, keep files for examination
+# autoapi_options = ['show-inheritance-diagram']
 
 # autosummary triggers autodoc which forces code execution
 autosummary_generate = False

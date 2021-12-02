@@ -31,7 +31,7 @@ from exarl.utils.introspect import *
 from exarl.network.simple_comm import ExaSimple
 MPI = ExaSimple.MPI
 
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3,3]))
+logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
 
 class RANDOM(erl.ExaWorkflow):
     """Random workflow class: inherits from Exaworkflow base class.
