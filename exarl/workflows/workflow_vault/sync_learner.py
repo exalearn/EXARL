@@ -25,7 +25,7 @@ from exarl.base.comm_base import ExaComm
 from exarl.utils import log
 import exarl.utils.candleDriver as cd
 from exarl.utils.profile import *
-logger = log.setup_logger(__name__, cd.run_params['log_level'])
+logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3,3]))
 
 
 class SYNC(erl.ExaWorkflow):

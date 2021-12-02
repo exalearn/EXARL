@@ -31,7 +31,7 @@ from exarl.utils.introspect import *
 from exarl.network.simple_comm import ExaSimple
 MPI = ExaSimple.MPI
 
-logger = log.setup_logger(__name__, cd.run_params['log_level'])
+logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3,3]))
 
 class RANDOM(erl.ExaWorkflow):
     """Random workflow class: inherits from Exaworkflow base class.
@@ -46,7 +46,7 @@ class RANDOM(erl.ExaWorkflow):
         print('Class Random learner')
         data_dir = cd.lookup_params("output_dir", ".")
         data_file = cd.lookup_params("random_results_file", "random_learner_out.txt")
-        self.load_data = cd.lookup_params("weight_file", None)
+        self.load_data = cd.lookup_params("weight_file")
         if self.load_data == "None":
             self.load_data = None
         self.out_file = join(data_dir, data_file)
