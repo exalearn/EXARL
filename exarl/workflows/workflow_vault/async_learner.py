@@ -28,7 +28,7 @@ from exarl.utils import log
 import exarl.utils.candleDriver as cd
 from exarl.base.comm_base import ExaComm
 
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3,3]))
+logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
 
 class ASYNC(erl.ExaWorkflow):
     """Asynchronous workflow class: inherits from ExaWorkflow base class.
@@ -60,7 +60,7 @@ class ASYNC(erl.ExaWorkflow):
 
     @PROFILE
     def run(self, workflow):
-        """This function implements the asynchronous workflow in EXARL using two-sided 
+        """This function implements the asynchronous workflow in EXARL using two-sided
         point-to-point MPI communication.
 
         Args:

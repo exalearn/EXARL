@@ -46,7 +46,7 @@ if ExaComm.num_learners > 1:
 else:
     multiLearner = False
 
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3,3]))
+logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
 
 class LossHistory(keras.callbacks.Callback):
     """Loss history for training

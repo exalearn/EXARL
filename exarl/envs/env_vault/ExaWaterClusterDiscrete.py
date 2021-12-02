@@ -26,7 +26,7 @@ from gym import error, spaces, utils
 from gym.utils import seeding
 from exarl.utils import log
 import exarl.utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3,3]))
+logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
 
 from ase.io import read, write
 from ase import Atom, Atoms

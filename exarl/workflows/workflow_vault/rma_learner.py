@@ -33,12 +33,12 @@ from exarl.network.data_structures import *
 from exarl.network.simple_comm import ExaSimple
 MPI = ExaSimple.MPI
 
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3,3]))
+logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
 
 class RMA(erl.ExaWorkflow):
     """RMA workflow class: inherits from ExaWorkflow base class.
     The RMA worflow uses one-sided MPI communication for exchanging data
-    between learners and actors. The data is written into an RMA window or 
+    between learners and actors. The data is written into an RMA window or
     ”memory pool” and the learners and actors can read/write from this pool,
     independent of each other.
 
