@@ -75,5 +75,25 @@ elif agent == 'A2C-v2':
         id=agent,
         entry_point='exarl.agents.agent_vault:A2Ccontinuous'
     )
+<< << << < HEAD
 else:
     print("No agent selected!")
+== == == =
+
+elif agent == 'A2C-v0':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:A2C'
+    )
+
+elif agent == 'A2C-v1':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:A2Cvtrace'
+    )
+elif agent == 'A2C-v2':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:A2Ccontinuous'
+    )
+>>>>>> > d5065f6f841f4c7431f648e003539e121ee0356e

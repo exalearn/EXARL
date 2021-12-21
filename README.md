@@ -68,7 +68,10 @@ A scalable software framework for reinforcement learning environments and agents
 ```
 git clone --recursive -b CDSS21 https://gitlab.lanl.gov/codesignsummerschool2021/EXARL.git
 cd EXARL
+<<<<<<< HEAD
 git lfs install # install git lfs if you haven't
+=======
+>>>>>>> d5065f6f841f4c7431f648e003539e121ee0356e
 
 (for older versions of git)
 git lfs fetch

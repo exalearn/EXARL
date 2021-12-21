@@ -3,8 +3,9 @@ import tensorflow as tf
 from tensorflow.keras import layers
 import random
 import os
-from datetime import datetime
+import sys
 import pickle
+from datetime import datetime
 from exarl.utils.OUActionNoise import OUActionNoise
 from exarl.utils.OUActionNoise import OUActionNoise2
 
@@ -21,7 +22,7 @@ def update_target(target_weights, weights, tau):
         a.assign(b * tau + a * (1 - tau))
 
 
-class DDPG_Vtrace(erl.ExaAgent):
+class DDPGvtrace(erl.ExaAgent):
     is_learner: bool
 
     def __init__(self, env, is_learner):
@@ -59,14 +60,55 @@ class DDPG_Vtrace(erl.ExaAgent):
         self.buffer_capacity = 5000
         self.batch_size = 64
         self.buffer_counter = 0
+        self.num_actions = env.action_space.shape[0]
+        self.upper_bound = env.action_space.high
+        self.lower_bound = env.action_space.low
+
+        logger.info("Size of State Space:  {}".format(self.num_states))
+        logger.info("Size of Action Space:  {}".format(self.num_actions))
+        logger.info('Env upper bounds: {}'.format(self.upper_bound))
+        logger.info('Env lower bounds: {}'.format(self.lower_bound))
+
+        self.gamma = cd.run_params['gamma']
+        self.tau = cd.run_params['tau']
+
+        # model definitions
+        self.actor_dense = cd.run_params['actor_dense']
+        self.actor_dense_act = cd.run_params['actor_dense_act']
+        self.actor_out_act = cd.run_params['actor_out_act']
+        self.actor_optimizer = cd.run_params['actor_optimizer']
+        self.critic_state_dense = cd.run_params['critic_state_dense']
+        self.critic_state_dense_act = cd.run_params['critic_state_dense_act']
+        self.critic_action_dense = cd.run_params['critic_action_dense']
+        self.critic_action_dense_act = cd.run_params['critic_action_dense_act']
+        self.critic_concat_dense = cd.run_params['critic_concat_dense']
+        self.critic_concat_dense_act = cd.run_params['critic_concat_dense_act']
+        self.critic_out_act = cd.run_params['critic_out_act']
+        self.critic_optimizer = cd.run_params['critic_optimizer']
+        self.tau = cd.run_params['tau']
+
+        std_dev = 0.2
+        ave_bound = (self.upper_bound + self.lower_bound) / 2
+        print('ave_bound: {}'.format(ave_bound))
+        self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(std_dev) * np.ones(1))
+
+        # Not used by agent but required by the learner class
+        self.epsilon = cd.run_params['epsilon']
+        self.epsilon_min = cd.run_params['epsilon_min']
+        self.epsilon_decay = cd.run_params['epsilon_decay']
+
+        # Experience data
+        self.buffer_counter = 0
+        self.buffer_capacity = cd.run_params['buffer_capacity']
+        self.batch_size = cd.run_params['batch_size']
+        # self.buffer_counter = cd.run_params['buffer_counter']
 
         self.state_buffer = np.zeros((self.buffer_capacity, self.num_states))
         self.action_buffer = np.zeros((self.buffer_capacity, self.num_actions))
         self.reward_buffer = np.zeros((self.buffer_capacity, 1))
-        self.next_state_buffer = np.zeros(
-            (self.buffer_capacity, self.num_states))
+        self.next_state_buffer = np.zeros((self.buffer_capacity, self.num_states))
         self.done_buffer = np.zeros((self.buffer_capacity, 1))
-        self.memory = self.state_buffer  # BAD from the original code whoever wrote DDPG
+        self.memory = self.state_buffer  # BAD
 
         # Setup TF configuration to allow memory growth
         # tf.keras.backend.set_floatx('float64')
@@ -78,7 +120,6 @@ class DDPG_Vtrace(erl.ExaAgent):
         # Training model only required by the learners
         self.actor_model = None
         self.critic_model = None
-
         if self.is_learner:
             self.actor_model = self.get_actor()
             self.critic_model = self.get_critic()
@@ -86,7 +127,6 @@ class DDPG_Vtrace(erl.ExaAgent):
         # Every agent needs this, however, actors only use the CPU (for now)
         self.target_critic = None
         self.target_actor = None
-
         if self.is_learner:
             self.target_actor = self.get_actor()
             self.target_critic = self.get_critic()
@@ -96,12 +136,6 @@ class DDPG_Vtrace(erl.ExaAgent):
             with tf.device('/CPU:0'):
                 self.target_actor = self.get_actor()
                 self.target_critic = self.get_critic()
-
-        # Learning rate for actor-critic models
-        critic_lr = 0.002
-        actor_lr = 0.001
-        self.critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
-        self.actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
         # Vtrace
         self.time_step = -1
@@ -114,6 +148,12 @@ class DDPG_Vtrace(erl.ExaAgent):
 
         # should this be called somewhere?
         self.set_learner()
+        self.critic_lr = cd.run_params['critic_lr']
+        self.actor_lr = cd.run_params['actor_lr']
+        self.critic_optimizer = tf.keras.optimizers.Adam(self.critic_lr)
+        self.actor_optimizer = tf.keras.optimizers.Adam(self.actor_lr)
+
+        self.c_bar, self.rho_bar = 1.0, 1.0
 
     def remember(self, state, action, reward, next_state, done):
         # If the counter exceeds the capacity then
@@ -126,48 +166,38 @@ class DDPG_Vtrace(erl.ExaAgent):
         self.buffer_counter += 1
 
     # @tf.function
-    def update_grad(
-            self,
-            state_batch,
-            action_batch,
-            reward_batch,
-            next_state_batch):
-        # print("curr_state_batch: ", state_batch)
-        # print("next_state_batch: ", next_state_batch)
+    def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch):
+
+        target_policy = self.target_actor(state_batch)
+        behaviour_policy = self.actor_model(state_batch)
+        policy_ratio = target_policy / behaviour_policy
+
+        print(tf.reduce_mean(policy_ratio))
+
+        c, rho = [], []
+        for i in range(policy_ratio.shape[0]):
+            rho.append(min(self.rho_bar, policy_ratio[i].numpy()[0]))
+            c.append(min(self.c_bar, policy_ratio[i].numpy()[0]))
+
+        c = np.array(c)
+        rho = np.array(rho)
+        gamma_s = np.power(self.gamma, np.arange(0, rho.shape[0], 1))
 
         # Training and updating Actor & Critic networks.
         with tf.GradientTape() as tape:
 
-            curr_state_val = self.critic_model([state_batch], training=True)
-            next_state_val = self.critic_model([next_state_batch])
+            target_actions = self.target_actor(next_state_batch, training=True)
+            target_values = self.target_critic([next_state_batch, target_actions], training=True)
+            critic_values = self.critic_model([state_batch, action_batch], training=True)
 
-            # print("curr_state_val: ", curr_state_val )
-            # print("next_state_val: ", next_state_val )
+            TDerror = reward_batch + self.gamma * target_values - critic_values
+            vs = critic_values + self.gamma * c * rho * TDerror
+            # gamma_vs2 = (1.0/c)*(vs - critic_values + self.gamma*c*target_values - rho*TDerror)
 
-            # TODO: compute the product of C, but here 1-step
-            self.prodC = self.truncImpSampC[self.time_step]
-
-            # print("prodC",          self.prodC)
-            # print("truncImpSampR",  self.truncImpSampR[self.time_step])
-
-            # Vtace target
-            # TODO: need to sum for n-step backup
-            # + \sum self.gamma * self.prodC * self.truncImpSampR[self.time_step] ...
-
-            y = curr_state_val \
-                + self.prodC * self.truncImpSampR[self.time_step] \
-                * (reward_batch + self.gamma * next_state_val - curr_state_val)
-
-            # print("y: ", y)
-
-            critic_loss = tf.math.reduce_mean(
-                tf.math.square(y - curr_state_val))
+            critic_loss = tf.math.reduce_mean(tf.math.square(vs - target_values))
 
         logger.warning("Critic loss: {}".format(critic_loss))
-
-        critic_grad = tape.gradient(
-            critic_loss, self.critic_model.trainable_variables)
-
+        critic_grad = tape.gradient(critic_loss, self.critic_model.trainable_variables)
         self.critic_optimizer.apply_gradients(
             zip(critic_grad, self.critic_model.trainable_variables)
         )
@@ -221,52 +251,68 @@ class DDPG_Vtrace(erl.ExaAgent):
 
     def get_actor(self):
         # State as input
-        inputs = layers.Input(shape=(self.num_states, ))
-        out = layers.Dense(256, activation="relu")(inputs)
-        out = layers.Dense(256, activation="relu")(out)
-
-        # out = layers.Dense(self.num_actions, activation="tanh", kernel_initializer=tf.random_uniform_initializer())(out)
-        out = layers.Dense(self.num_disc_actions, activation="softmax")(out)
-
-        # out = layers.Dense(self.num_actions, activation="sigmoid", kernel_initializer=tf.random_uniform_initializer())(out)
-
-        # outputs = layers.Lambda(lambda i: i * self.upper_bound)(out)
-
-        # model = tf.keras.Model(inputs, outputs)
-        model = tf.keras.Model(inputs, out)
+        inputs = layers.Input(shape=(self.num_states,))
+        # first layer takes inputs
+        out = layers.Dense(self.actor_dense[0], activation=self.actor_dense_act)(inputs)
+        # loop over remaining layers
+        for i in range(1, len(self.actor_dense)):
+            out = layers.Dense(self.actor_dense[i], activation=self.actor_dense_act)(out)
+        # output layer has dimension actions, separate activation setting
+        out = layers.Dense(self.num_actions, activation=self.actor_out_act,
+                           kernel_initializer=tf.random_uniform_initializer())(out)
+        outputs = layers.Lambda(lambda i: i * self.upper_bound)(out)
+        model = tf.keras.Model(inputs, outputs)
+        # model.summary()
 
         return model
 
     def get_critic(self):
-
         # State as input
         state_input = layers.Input(shape=self.num_states)
-        state_out = layers.Dense(16, activation="relu")(state_input)
-        state_out = layers.Dense(32, activation="relu")(state_out)
+        # first layer takes inputs
+        state_out = layers.Dense(self.critic_state_dense[0],
+                                 activation=self.critic_state_dense_act)(state_input)
+        # loop over remaining layers
+        for i in range(1, len(self.critic_state_dense)):
+            state_out = layers.Dense(self.critic_state_dense[i],
+                                     activation=self.critic_state_dense_act)(state_out)
 
         # Action as input
-        # action_input = layers.Input(shape=self.num_actions)
-        # action_out = layers.Dense(32, activation="relu")(action_input)
+        action_input = layers.Input(shape=self.num_actions)
+
+        # first layer takes inputs
+        action_out = layers.Dense(self.critic_action_dense[0],
+                                  activation=self.critic_action_dense_act)(action_input)
+        # loop over remaining layers
+        for i in range(1, len(self.critic_action_dense)):
+            action_out = layers.Dense(self.critic_action_dense[i],
+                                      activation=self.critic_action_dense_act)(action_out)
 
         # Both are passed through seperate layer before concatenating
-        # concat = layers.Concatenate()([state_out, action_out])
+        concat = layers.Concatenate()([state_out, action_out])
 
-        # out = layers.Dense(256, activation="relu")(concat)
+        # assumes at least 2 post-concat layers
+        # first layer takes concat layer as input
+        concat_out = layers.Dense(self.critic_concat_dense[0],
+                                  activation=self.critic_concat_dense_act)(concat)
+        # loop over remaining inner layers
+        for i in range(1, len(self.critic_concat_dense) - 1):
+            concat_out = layers.Dense(self.critic_concat_dense[i],
+                                      activation=self.critic_concat_dense_act)(concat_out)
 
-        out = layers.Dense(256, activation="relu")(state_out)
-        out = layers.Dense(
-            256,
-            activation="linear",
-            kernel_initializer=tf.random_uniform_initializer())(out)
-        outputs = layers.Dense(1)(out)
+        # last layer has different activation
+        concat_out = layers.Dense(self.critic_concat_dense[-1], activation=self.critic_out_act,
+                                  kernel_initializer=tf.random_uniform_initializer())(concat_out)
+        outputs = layers.Dense(1)(concat_out)
 
         # Outputs single value for give state-action
-        model = tf.keras.Model([state_input], outputs)
+        model = tf.keras.Model([state_input, action_input], outputs)
+        # model.summary()
 
         return model
 
     def generate_data(self):
-        record_range = min(self.buffer_counter, self.buffer_capacity)
+        record_range = max(1, min(self.buffer_counter, self.buffer_capacity))
         logger.info('record_range:{}'.format(record_range))
         # Randomly sample indices
         batch_indices = np.random.choice(record_range, self.batch_size)
@@ -275,15 +321,11 @@ class DDPG_Vtrace(erl.ExaAgent):
         action_batch = tf.convert_to_tensor(self.action_buffer[batch_indices])
         reward_batch = tf.convert_to_tensor(self.reward_buffer[batch_indices])
         reward_batch = tf.cast(reward_batch, dtype=tf.float32)
-        next_state_batch = tf.convert_to_tensor(
-            self.next_state_buffer[batch_indices])
+        next_state_batch = tf.convert_to_tensor(self.next_state_buffer[batch_indices])
 
         yield state_batch, action_batch, reward_batch, next_state_batch
 
     def train(self, batch):
-        # self.epsilon_adj()
-        # if len(batch[0]) >= self.batch_size:
-        #     logger.info('Training...')
         if self.is_learner:
             logger.warning('Training...')
             self.update_grad(batch[0], batch[1], batch[2], batch[3])
@@ -403,9 +445,6 @@ class DDPG_Vtrace(erl.ExaAgent):
         self.target_actor.set_weights(weights)
 
     def set_learner(self):
-        # print("##############")
-        # print("set_learner")
-        # print("##############")
         self.is_learner = True
         self.actor_model = self.get_actor()
         self.critic_model = self.get_critic()
@@ -443,8 +482,8 @@ class DDPG_Vtrace(erl.ExaAgent):
     def set_agent(self):
         print("Implement set_agent method in ddpg.py")
 
-    # def print_timers(self):
-    #     print("Implement print_timers method in ddpg.py")
+    def print_timers(self):
+        print("Implement print_timers method in ddpg.py")
 
     def epsilon_adj(self):
         if self.epsilon > self.epsilon_min:

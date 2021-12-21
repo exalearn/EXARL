@@ -98,7 +98,11 @@ class ExaLearner:
         # Only agent_comm processes will create agents
         if ExaComm.is_learner():
             agent = exarl.agents.make(self.agent_id, env=env, is_learner=True)
+<<<<<<< HEAD
         elif "seed" not in self.workflow_id and ExaComm.is_actor():
+=======
+        elif  mpi_settings.is_actor(): # "seed" not in self.workflow_id and
+>>>>>>> d5065f6f841f4c7431f648e003539e121ee0356e
             agent = exarl.agents.make(self.agent_id, env=env, is_learner=False)
         else:
             logger.debug('Does not contain an agent')

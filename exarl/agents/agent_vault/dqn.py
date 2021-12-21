@@ -75,6 +75,10 @@ class DQN(erl.ExaAgent):
         random_data = os.urandom(4)
         np.random.seed(int.from_bytes(random_data, byteorder="big"))
 
+        random.seed(datetime.now())
+        random_data = os.urandom(4)
+        np.random.seed(int.from_bytes(random_data, byteorder="big"))
+
         # Initial values
         self.is_learner = is_learner
         self.model = None
@@ -237,6 +241,9 @@ class DQN(erl.ExaAgent):
         )
 
     def remember(self, state, action, reward, next_state, done):
+
+
+<< << << < HEAD
         """Add experience to replay buffer
 
         Args:
@@ -263,6 +270,11 @@ class DQN(erl.ExaAgent):
         random.seed(datetime.now())
         random_data = os.urandom(4)
         np.random.seed(int.from_bytes(random_data, byteorder="big"))
+=======
+        self.memory.append((state, action, reward, next_state, done))
+
+    def action(self, state):
+>>>>>>> d5065f6f841f4c7431f648e003539e121ee0356e
         rdm = np.random.rand()
         if rdm <= self.epsilon:
             self.epsilon_adj()
@@ -358,6 +370,10 @@ class DQN(erl.ExaAgent):
     # Return the minibatch
     def get_minibatch(self):
         return random.sample(self.memory, self.batch_size)
+
+    # Sai Chenna - return the minibatch
+    def get_minibatch(self):
+        return random.sample(self.memory,self.batch_size)
 
     def train(self, batch):
         """Train the NN
@@ -584,7 +600,7 @@ class DQN(erl.ExaAgent):
         # )
         yield batch_states, batch_target
 
-    #Sai Chenna - print training time and device used for training for learner
+    # Sai Chenna - print training time and device used for training for learner
     def learner_training_metrics(self):
         if self.is_learner:
             print("Learner {} - Total training time: {}".format(self.rank,
