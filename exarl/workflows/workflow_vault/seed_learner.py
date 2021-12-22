@@ -70,7 +70,7 @@ class SEED(erl.ExaWorkflow):
 
         # Global variables (for learner and actor)
         episode = 0
-        fixed_action_ddpg =  [np.array(0.0)]
+        fixed_action_ddpg = [np.array(0.0)]
 
         # Round-Robin Scheduler
         if mpi_settings.is_learner():
@@ -81,7 +81,7 @@ class SEED(erl.ExaWorkflow):
 
             # Send the initial action to the actors
             for s in range(1, agent_comm.size):
-                action, policy_type = workflow.agent.action(init_state) # inference action
+                action, policy_type = workflow.agent.action(init_state)  # inference action
                 agent_comm.send([action, policy_type, workflow.agent.epsilon], dest=s)
 
             actors_ended = 0
@@ -91,7 +91,7 @@ class SEED(erl.ExaWorkflow):
             while actors_ended < total_actors:
                 # Receive on observation from the actor
                 recv_data = agent_comm.recv(source=MPI.ANY_SOURCE, status=status)
-                if recv_data[0]  == -1 : # actors done
+                if recv_data[0]  == -1:  # actors done
                     actors_ended += 1
                     continue
 
@@ -105,12 +105,11 @@ class SEED(erl.ExaWorkflow):
 
                 # Train
                 train_return = workflow.agent.train(batch)
-                #if train_return is not None:
-                    #if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
-                        #indices, loss = train_return
+                # if train_return is not None:
+                # if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
+                # indices, loss = train_return
 
                 workflow.agent.target_train()
-
 
                 logger.debug('rank0_epsilon:{}'.format(workflow.agent.epsilon))
                 # dump target weights
@@ -124,7 +123,7 @@ class SEED(erl.ExaWorkflow):
                 state = recv_data[4]
                 if workflow.action_type == 'fixed':
                     action, policy_type = 0, -11
-                    #action, policy_type = fixed_action_ddpg, 1
+                    # action, policy_type = fixed_action_ddpg, 1
                 else:
                     action, policy_type = workflow.agent.action(state)
 
@@ -166,13 +165,13 @@ class SEED(erl.ExaWorkflow):
                     # Atomic Get_accumulate to increment the episode counter
                     episode_win.Get_accumulate(one, episode_recv, target_rank=0, op=MPI.SUM)
                     episode_win.Unlock(0)
-                    episode=episode_recv[0]
+                    episode = episode_recv[0]
 
                 episode = env_comm.bcast(episode, root=0)
                 # end loop
-                if episode >= workflow.nepisodes :
+                if episode >= workflow.nepisodes:
                     recv_data = agent_comm.recv(source=0)
-                    #agent_comm.send([-1], dest=0) # inform the learner
+                    # agent_comm.send([-1], dest=0) # inform the learner
                     agent_comm.send([-1], dest=0)
                     break
 
@@ -187,7 +186,6 @@ class SEED(erl.ExaWorkflow):
                         policy_type = recv_data[1]
                         epsilon = recv_data[2]
 
-
                     action = env_comm.bcast(action, root=0)
                     next_state, reward, done, _ = workflow.env.step(action)
 
@@ -197,7 +195,6 @@ class SEED(erl.ExaWorkflow):
 
                         with open('experience.pkl', 'wb') as f:
                             pickle.dump(memory, f)
-
 
                     if steps >= workflow.nsteps - 1:
                         done = True

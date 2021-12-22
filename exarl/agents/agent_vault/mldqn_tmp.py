@@ -85,11 +85,10 @@ class MLDQN(erl.ExaAgent):
         self.model_type = cd.run_params["model_type"]
 
         # for mlp
-        #Sai Chenna - added the if flag to make it work for both MLP and LSTM models
+        # Added the if flag to make it work for both MLP and LSTM models
         if self.model_type == "MLP":
 
             self.dense = cd.run_params["dense"]
-
 
         # for lstm
         if self.model_type == "LSTM":
@@ -104,8 +103,8 @@ class MLDQN(erl.ExaAgent):
         self.out_activation = cd.run_params["out_activation"]
         self.optimizer = cd.run_params["optimizer"]
         self.loss = cd.run_params["loss"]
-        #self.clipnorm = cd.run_params["clipnorm"]
-        #self.clipvalue = cd.run_params["clipvalue"]
+        # self.clipnorm = cd.run_params["clipnorm"]
+        # self.clipvalue = cd.run_params["clipvalue"]
 
         if self.is_learner:
             logger.info("Setting GPU rank", self.rank)
@@ -124,7 +123,7 @@ class MLDQN(erl.ExaAgent):
             self.device = '/CPU:0'
 
         # set TF session
-        #config = tf.compat.v1.ConfigProto()
+        # config = tf.compat.v1.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.compat.v1.Session(config=config)
         tf.compat.v1.keras.backend.set_session(sess)
@@ -134,14 +133,14 @@ class MLDQN(erl.ExaAgent):
             # tf.debugging.set_log_device_placement(True)
             gpus = tf.config.experimental.list_physical_devices("GPU")
             logger.info("Available GPUs: {}".format(gpus))
-            print("Learner {} : Available GPUs: {}".format(self.learner_comm.rank,gpus))
+            print("Learner {} : Available GPUs: {}".format(self.learner_comm.rank, gpus))
             # Active model
             self.model = self._build_model()
             self.model._name = "learner"
             self.model.compile(loss=self.loss, optimizer=self.optimizer)
             logger.info("Active model: \n".format(self.model.summary()))
             # Target model
-            #with tf.device("/CPU:0"):
+            # with tf.device("/CPU:0"):
             with tf.device(self.device):
                 self.target_model = self._build_model()
                 self.target_model._name = "target_model"
@@ -343,13 +342,13 @@ class MLDQN(erl.ExaAgent):
         else:
             logger.info("Agent[{}] - Average data prep time: {}".format(self.rank, 0))
 
+    # Print training time and device used for training for each learners
 
-    #Sai Chenna - print training time and device used for training for each learners
     def learner_training_metrics(self):
         if self.is_learner:
             print("Learner {} - Total training time: {}".format(self.learner_comm.rank,
-                                                                       self.training_time))
-            print("Learner {} - Total batches trained: {}".format(self.learner_comm.rank,self.ntraining_time))
+                                                                self.training_time))
+            print("Learner {} - Total batches trained: {}".format(self.learner_comm.rank, self.ntraining_time))
             print("Learner {} - Average training time: {}".format(self.learner_comm.rank,
-                                                                       self.training_time / self.ntraining_time))
-            print("Learner {} - Device used for training: {}".format(self.learner_comm.rank,self.device))
+                                                                  self.training_time / self.ntraining_time))
+            print("Learner {} - Device used for training: {}".format(self.learner_comm.rank, self.device))

@@ -120,7 +120,7 @@ class ML_RMA(erl.ExaWorkflow):
             lr_stime = MPI.Wtime()
             if learner_comm.rank == 0:
 
-                #Sai chenna - to check number of horovod train steps
+                # Sai chenna - to check number of horovod train steps
                 hvd_counter = 0
                 train_time = 0.
                 epsilon_win.Lock(0)
@@ -150,9 +150,9 @@ class ML_RMA(erl.ExaWorkflow):
                 low = learner_comm.size  # start
                 high = agent_comm.size  # stop + 1
                 s = np.random.randint(low=low, high=high, size=1)
-                #print(s)
+                # print(s)
 
-                #Sai Chenna
+                # Sai Chenna
                 s_gtime = MPI.Wtime()
                 # Get data
                 data_win.Lock(s)
@@ -173,16 +173,16 @@ class ML_RMA(erl.ExaWorkflow):
                     continue
 
                 # Train & Target train
-                #Sai Chenna - for debug purposes
+                # Sai Chenna - for debug purposes
                 if learner_comm.rank == 0:
                     s_time = MPI.Wtime()
                 train_return = workflow.agent.train(agent_data)
-                learner_iterations+=1
+                learner_iterations += 1
 
                 if learner_comm.rank == 0:
                     hvd_counter += 1
                     train_time += MPI.Wtime() - s_time
-                    #print("ML_RMA: Time taken to train (horovod) is {}. No of hvd trains = {}".format(MPI.Wtime()-s_time,hvd_counter))
+                    # print("ML_RMA: Time taken to train (horovod) is {}. No of hvd trains = {}".format(MPI.Wtime()-s_time,hvd_counter))
 
                 if train_return is not None:
                     if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
@@ -211,19 +211,19 @@ class ML_RMA(erl.ExaWorkflow):
                     model_win.Unlock(0)
                 # learner_counter += 1
 
-
             end = MPI.Wtime()
-            print("[{}] ML Exec time = {} , iterations done = {}, throughput = {}".format(agent_comm.rank, end-start, learner_iterations, learner_iterations/(end-start)))
+            print("[{}] ML Exec time = {} , iterations done = {}, throughput = {}".format(
+                agent_comm.rank, end - start, learner_iterations, learner_iterations / (end - start)))
             logger.info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_data))
-            print("Learner {} : Total time: {}".format(learner_comm.rank,MPI.Wtime() - lr_stime))
-            tmp = learner_comm.allreduce(get_time,op=MPI.SUM)
+            print("Learner {} : Total time: {}".format(learner_comm.rank, MPI.Wtime() - lr_stime))
+            tmp = learner_comm.allreduce(get_time, op=MPI.SUM)
             if learner_comm.rank == 0:
                 print("Learner 0 : Total time spent on training : {}".format(train_time))
                 print("Learner 0 : Total horovod trainings done : {}".format(hvd_counter))
-                print("Learner 0 : Training throughput : {} batches trained/sec".format((hvd_counter*learner_comm.size)/train_time))
-                print("Learner 0: Average RMA Get Access time on all learners: {}".format(tmp/learner_comm.size))
+                print("Learner 0 : Training throughput : {} batches trained/sec".format((hvd_counter * learner_comm.size) / train_time))
+                print("Learner 0: Average RMA Get Access time on all learners: {}".format(tmp / learner_comm.size))
 
-            #print("Learner {} exited successfully!".format(learner_comm.rank))
+            # print("Learner {} exited successfully!".format(learner_comm.rank))
             workflow.agent.learner_training_metrics()
 
         # Actors
@@ -354,7 +354,7 @@ class ML_RMA(erl.ExaWorkflow):
                         data_win.Put(serial_agent_batch, target_rank=agent_comm.rank)
                         data_win.Unlock(agent_comm.rank)
                         put_counter += 1
-                        #print("Actor {} : RMA window put counter: {} ".format(agent_comm.rank,put_counter))
+                        # print("Actor {} : RMA window put counter: {} ".format(agent_comm.rank,put_counter))
 
                         # Log state, action, reward, ...
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
@@ -364,9 +364,8 @@ class ML_RMA(erl.ExaWorkflow):
                     current_state = next_state
 
         if mpi_settings.is_actor():
-            print("Actor {} : Total time: {} ".format(agent_comm.rank,MPI.Wtime()-ac_stime))
-            print("Actor {} : RMA window put counter: {} ".format(agent_comm.rank,put_counter))
-
+            print("Actor {} : Total time: {} ".format(agent_comm.rank, MPI.Wtime() - ac_stime))
+            print("Actor {} : RMA window put counter: {} ".format(agent_comm.rank, put_counter))
 
         if mpi_settings.is_agent():
             model_win.Free()

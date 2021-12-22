@@ -31,7 +31,7 @@ import pickle
 from datetime import datetime
 from exarl.utils.OUActionNoise import OUActionNoise
 from exarl.utils.OUActionNoise import OUActionNoise2
-#from ._network_sac import CriticModel, ValueModel, ActorModel
+# from ._network_sac import CriticModel, ValueModel, ActorModel
 from exarl.utils.memory_type import MEMORY_TYPE
 from ._replay_buffer import ReplayBuffer, HindsightExperienceReplayMemory, PrioritedReplayBuffer
 
@@ -44,7 +44,7 @@ logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class SAC(erl.ExaAgent):
 
-    def __init__(self, env, is_learner=False,scale=10):
+    def __init__(self, env, is_learner=False, scale=10):
         self.is_learner = is_learner
         self.env = env
         self.num_states = env.observation_space.shape[0]
@@ -61,7 +61,6 @@ class SAC(erl.ExaAgent):
         self.gamma = cd.run_params['gamma']
         self.tau = cd.run_params['tau']
         self.repram = cd.run_params['repram']
-        
 
         # model definitions
         self.actor_dense = cd.run_params['actor_dense']
@@ -87,9 +86,9 @@ class SAC(erl.ExaAgent):
         self.value_optimizer = cd.run_params['value_optimizer']
 
         self.replay_buffer_type = cd.run_params['replay_buffer_type']
-        #self.directory = cd.run_params["output_dir"]
-        #print(self.actor_dense, self.actor_dense_act, self.actor_out_act,self.value_dense,self.value_dense_act,self.critic_out_act )
-        
+        # self.directory = cd.run_params["output_dir"]
+        # print(self.actor_dense, self.actor_dense_act, self.actor_out_act,self.value_dense,self.value_dense_act,self.critic_out_act )
+
         # Noise for SAC model
         std_dev = cd.run_params['std_dev']
         ave_bound = (self.upper_bound + self.lower_bound) / 2
@@ -104,16 +103,15 @@ class SAC(erl.ExaAgent):
         self.buffer_capacity = cd.run_params['buffer_capacity']
         self.batch_size = cd.run_params['batch_size']
 
-        
         if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
             self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions)
         elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
             self.memory = PrioritedReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions, self.batch_size)
-        elif self.replay_buffer_type == MEMORY_TYPE.HINDSIGHT_REPLAY: # TODO: Double check if the environment has goal state
+        elif self.replay_buffer_type == MEMORY_TYPE.HINDSIGHT_REPLAY:  # TODO: Double check if the environment has goal state
             self.memory = HindsightExperienceReplayMemory(self.buffer_capacity, self.num_states, self.num_actions)
         else:
             print("Unrecognized replay buffer please specify 'uniform, priority or hindsight', using default uniform sampling")
-            raise ValueError("Unrecognized Memory type {}".format(self.replay_buffer_type)) 
+            raise ValueError("Unrecognized Memory type {}".format(self.replay_buffer_type))
 
         # Setup TF configuration to allow memory growth
         # tf.keras.backend.set_floatx('float64')
@@ -129,12 +127,12 @@ class SAC(erl.ExaAgent):
             self.actor_model = self.get_actor()
             self.target_value = self.get_value()
             self.target_value.set_weights(self.value_model.get_weights())
-            
+
         else:
             with tf.device('/CPU:0'):
                 self.target_value = self.get_value()
                 self.actor_model = self.get_actor()
-        
+
         self.critic_lr = cd.run_params['critic_lr']
         self.actor_lr = cd.run_params['actor_lr']
         self.value_lr = cd.run_params['value_lr']
@@ -142,19 +140,18 @@ class SAC(erl.ExaAgent):
         self.actor_optimizer = tf.keras.optimizers.Adam(self.actor_lr)
         self.value_optimizer = tf.keras.optimizers.Adam(self.value_lr)
 
-
     def remember(self, state, action, reward, next_state, done):
         # If the counter exceeds the capacity then
         self.memory.store(state, action, reward, next_state, done)
 
-    def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch,b_idx=None,weights=None):
+    def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, b_idx=None, weights=None):
 
         with tf.GradientTape() as tape:
             value = self.value_model(state_batch, training=True)
-            #print(value)
+            # print(value)
             value_next = self.target_value(next_state_batch, training=True)
             policy_actions, log_probs = self.sample_normal(state_batch, reparameterize=False)
-            #log_probs = tf.squeeze(log_probs, 1)
+            # log_probs = tf.squeeze(log_probs, 1)
             q1_new_policy = self.critic_model_1([state_batch, policy_actions], training=True)
             q2_new_policy = self.critic_model_2([state_batch, policy_actions], training=True)
             critic_value = tf.math.minimum(q1_new_policy, q2_new_policy)
@@ -167,8 +164,8 @@ class SAC(erl.ExaAgent):
         )
 
         with tf.GradientTape() as tape:
-            new_policy_actions , log_probs = self.sample_normal(state_batch, reparameterize=True)
-            #log_probs = tf.squeeze(log_probs, 1)
+            new_policy_actions, log_probs = self.sample_normal(state_batch, reparameterize=True)
+            # log_probs = tf.squeeze(log_probs, 1)
             q1_new_policy = self.critic_model_1([state_batch, new_policy_actions], training=True)
             q2_new_policy = self.critic_model_2([state_batch, new_policy_actions], training=True)
             critic_value = tf.math.minimum(q1_new_policy, q2_new_policy)
@@ -181,17 +178,17 @@ class SAC(erl.ExaAgent):
         )
 
         with tf.GradientTape(persistent=True) as tape:
-            q_hat = self.scale*reward_batch + self.gamma*value_next*(1-terminal_batch)
+            q_hat = self.scale * reward_batch + self.gamma * value_next * (1 - terminal_batch)
             q1_old_policy = self.critic_model_1([state_batch, action_batch], training=True)
             q2_old_policy = self.critic_model_2([state_batch, action_batch], training=True)
             critic_1_loss = 0.5 * keras.losses.MSE(q1_old_policy, q_hat)
             critic_2_loss = 0.5 * keras.losses.MSE(q2_old_policy, q_hat)
-            #print(critic_1_loss,critic_2_loss)
-            
+            # print(critic_1_loss,critic_2_loss)
+
             if self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
                 error_1 = tf.squeeze(q_hat - q1_old_policy).numpy()
                 error_2 = tf.squeeze(q_hat - q2_old_policy).numpy()
-                error = np.abs(error_1 + error_2)/2.0
+                error = np.abs(error_1 + error_2) / 2.0
                 print(critic_1_loss, critic_2_loss)
                 critic_1_loss *= weights
                 critic_2_loss *= weights
@@ -210,7 +207,6 @@ class SAC(erl.ExaAgent):
         )
         self.target_train()
 
-
     def get_actor(self):
         # State as input
         inputs = layers.Input(shape=(self.num_states,))
@@ -222,11 +218,11 @@ class SAC(erl.ExaAgent):
         # output layer has dimension actions, separate activation setting
         out = layers.Dense(self.num_actions, activation=self.actor_out_act,
                            kernel_initializer=tf.random_uniform_initializer())(out)
-        mu = layers.Lambda(lambda i: i * self.upper_bound)(out) # For mu
-        sigma = layers.Lambda(lambda i: i * self.upper_bound)(out) # For sigma
+        mu = layers.Lambda(lambda i: i * self.upper_bound)(out)  # For mu
+        sigma = layers.Lambda(lambda i: i * self.upper_bound)(out)  # For sigma
         model = tf.keras.Model(inputs, [mu, sigma])
-        #model.summary()
-        #exit()
+        # model.summary()
+        # exit()
         return model
 
     def get_critic(self):
@@ -270,7 +266,7 @@ class SAC(erl.ExaAgent):
 
         # Outputs single value for give state-action
         model = tf.keras.Model([state_input, action_input], outputs)
-        #model.summary()
+        # model.summary()
 
         return model
 
@@ -301,7 +297,7 @@ class SAC(erl.ExaAgent):
 
         # Outputs single value for give state-action
         model = tf.keras.Model(state_input, outputs)
-        #model.summary()
+        # model.summary()
         return model
 
     def sample_normal(self, state_batch, reparameterize=True):
@@ -311,62 +307,66 @@ class SAC(erl.ExaAgent):
         sigma = tf.clip_by_value(sigma, self.repram, 1)
         probabilities = tfp.distributions.Normal(mu, sigma)
         if reparameterize:
-            actions = probabilities.sample() # TODO: add reparameterization here, maybe this will improve accuracy
+            actions = probabilities.sample()  # TODO: add reparameterization here, maybe this will improve accuracy
         else:
             actions = probabilities.sample()
-        
-        action = tf.math.tanh(actions)*self.upper_bound
-        #action = tf.math.scalar_mul(tf.constant(self.upper_bound, dtype=tf.float32),tf.math.tanh(actions))
+
+        action = tf.math.tanh(actions) * self.upper_bound
+        # action = tf.math.scalar_mul(tf.constant(self.upper_bound, dtype=tf.float32),tf.math.tanh(actions))
         log_probs = probabilities.log_prob(actions)
-        log_probs -= tf.math.log(1-tf.math.pow(action, 2) + self.repram) #noise to avoid taking log of zero
-        #log_probs -= tf.math.log(1-tf.math.pow(action, 2) + self.ou_noise)
+        log_probs -= tf.math.log(1 - tf.math.pow(action, 2) + self.repram)  # noise to avoid taking log of zero
+        # log_probs -= tf.math.log(1-tf.math.pow(action, 2) + self.ou_noise)
         log_probs = tf.math.reduce_sum(log_probs, axis=1, keepdims=True)
         print(action[0], log_probs[0])
 
         return action, log_probs
 
     def _convert_to_tensor(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch):
-        state_batch = tf.convert_to_tensor(state_batch,dtype=tf.float32)
-        action_batch = tf.convert_to_tensor(action_batch,dtype=tf.float32)
-        reward_batch = tf.convert_to_tensor(reward_batch,dtype=tf.float32)
-        next_state_batch = tf.convert_to_tensor(next_state_batch,dtype=tf.float32)
-        terminal_batch = tf.convert_to_tensor(terminal_batch,dtype=tf.float32)
+        state_batch = tf.convert_to_tensor(state_batch, dtype=tf.float32)
+        action_batch = tf.convert_to_tensor(action_batch, dtype=tf.float32)
+        reward_batch = tf.convert_to_tensor(reward_batch, dtype=tf.float32)
+        next_state_batch = tf.convert_to_tensor(next_state_batch, dtype=tf.float32)
+        terminal_batch = tf.convert_to_tensor(terminal_batch, dtype=tf.float32)
         return state_batch, action_batch, reward_batch, next_state_batch, terminal_batch
 
     def generate_data(self):
-        #TODO: Think of a better way to do this.
+        # TODO: Think of a better way to do this.
         if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
-            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self.memory.sample_buffer(self.batch_size) #done_batch might improve experience
-            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self._convert_to_tensor(state_batch, action_batch, reward_batch, next_state_batch, terminal_batch)
+            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self.memory.sample_buffer(
+                self.batch_size)  # done_batch might improve experience
+            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self._convert_to_tensor(
+                state_batch, action_batch, reward_batch, next_state_batch, terminal_batch)
             yield state_batch, action_batch, reward_batch, next_state_batch, terminal_batch
 
         elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
-            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch , btx_idx ,weights = self.memory.sample_buffer(self.batch_size)
+            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, btx_idx, weights = self.memory.sample_buffer(self.batch_size)
 
-            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self._convert_to_tensor(state_batch, action_batch, reward_batch, next_state_batch,terminal_batch)
-            weights = tf.convert_to_tensor(weights,dtype=tf.float32)
+            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self._convert_to_tensor(
+                state_batch, action_batch, reward_batch, next_state_batch, terminal_batch)
+            weights = tf.convert_to_tensor(weights, dtype=tf.float32)
             yield state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, btx_idx, weights
         else:
             raise ValueError('Support for the replay buffer type not implemented yet!')
-    #TODO: Replace alot of if-else statement with switch statement
+    # TODO: Replace alot of if-else statement with switch statement
+
     def train(self, batch):
         if self.is_learner:
             if batch and len(batch[0]) >= (self.batch_size):
                 logger.warning('Training...')
                 if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
-                    self.update_grad(batch[0], batch[1], batch[2], batch[3],batch[4])
+                    self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4])
                 elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
                     self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4], batch[5], batch[6])
                 else:
                     raise ValueError('Support for the replay buffer type not implemented yet!')
-        
+
     def target_train(self):
         model_weights = self.value_model.get_weights()
         target_weights = self.target_value.get_weights()
         for i in range(len(target_weights)):
-            target_weights[i] = self.tau * model_weights[i] + (1 - self.tau)* target_weights[i]
+            target_weights[i] = self.tau * model_weights[i] + (1 - self.tau) * target_weights[i]
         self.target_value.set_weights(target_weights)
-    
+
     def action(self, state):
         policy_type = 1
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
@@ -378,13 +378,13 @@ class SAC(erl.ExaAgent):
             legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
             policy_type = 0
             logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn, legal_action))
-            #logger.warning('Policy action: {}; noise: {}'.format(sampled_actions, noise))
+            # logger.warning('Policy action: {}; noise: {}'.format(sampled_actions, noise))
 
         return_action = [np.squeeze(legal_action)]
         logger.warning('Legal action:{}'.format(return_action))
         return return_action, policy_type
 
-    # For distributed actors #    
+    # For distributed actors #
     def get_weights(self):
         return self.target_value.get_weights()
 
@@ -404,7 +404,7 @@ class SAC(erl.ExaAgent):
         print("Implement update method in sac.py")
 
     def load(self, file_name):
-        #TODO: Sanity check to verify the model is there
+        # TODO: Sanity check to verify the model is there
         try:
             print("... loading Models ...")
             self.actor_model.load_weights(file_name)
@@ -413,7 +413,7 @@ class SAC(erl.ExaAgent):
             self.value_model.load_weights(file_name)
             self.target_value.load_weights(file_name)
         except:
-            #TODO: Could be improved, but ok for now
+            # TODO: Could be improved, but ok for now
             print("One of the model not present")
 
     def save(self, file_name):
@@ -426,7 +426,7 @@ class SAC(erl.ExaAgent):
             self.value_model.save_weights(file_name)
             self.target_value.save_weights(file_name)
         except:
-            #TODO: Could be improved, but ok for now
+            # TODO: Could be improved, but ok for now
             print("One of the model not present")
 
     def monitor(self):

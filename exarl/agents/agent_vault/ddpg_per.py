@@ -171,7 +171,7 @@ class DDPG_PER(erl.ExaAgent):
 
         target_policy = self.target_actor(state_batch)
         behaviour_policy = self.actor_model(state_batch)
-        policy_ratio = target_policy/behaviour_policy
+        policy_ratio = target_policy / behaviour_policy
 
         # print(tf.reduce_mean(policy_ratio))
 
@@ -284,12 +284,12 @@ class DDPG_PER(erl.ExaAgent):
             importance = np.ones(self.batch_size)
 
         else:
-             minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=self.priority_scale)
-             state_batch = tf.convert_to_tensor(self.state_buffer[indices])
-             action_batch = tf.convert_to_tensor(self.action_buffer[indices])
-             reward_batch = tf.convert_to_tensor(self.reward_buffer[indices])
-             reward_batch = tf.cast(reward_batch, dtype=tf.float32)
-             next_state_batch = tf.convert_to_tensor(self.next_state_buffer[indices])
+            minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=self.priority_scale)
+            state_batch = tf.convert_to_tensor(self.state_buffer[indices])
+            action_batch = tf.convert_to_tensor(self.action_buffer[indices])
+            reward_batch = tf.convert_to_tensor(self.reward_buffer[indices])
+            reward_batch = tf.cast(reward_batch, dtype=tf.float32)
+            next_state_batch = tf.convert_to_tensor(self.next_state_buffer[indices])
 
         if self.priority_scale > 0:
             yield state_batch, action_batch, reward_batch, next_state_batch, indices, importance

@@ -25,12 +25,7 @@ import sys
 import json
 import exarl as erl
 # from envs.env_vault.computePI import computePI as cp
-<< << << < HEAD
 from exarl.base.comm_base import ExaComm
-== == == =
-import exarl.mpi_settings as mpi_settings
-import time
->>>>>> > d5065f6f841f4c7431f648e003539e121ee0356e
 
 
 def computePI(N, new_comm):

@@ -29,7 +29,7 @@ from datetime import datetime
 from exarl.utils.OUActionNoise import OUActionNoise
 from exarl.utils.OUActionNoise import OUActionNoise2
 from exarl.utils.memory_type import MEMORY_TYPE
-#from ._networks_td3 import ActorModel, CriticModel
+# from ._networks_td3 import ActorModel, CriticModel
 from ._replay_buffer import ReplayBuffer, HindsightExperienceReplayMemory, PrioritedReplayBuffer
 
 import exarl as erl
@@ -39,10 +39,9 @@ import exarl.utils.candleDriver as cd
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 
-
 class TD3(erl.ExaAgent):
 
-    def __init__(self, env, is_learner=False,update_actor_iter=2):
+    def __init__(self, env, is_learner=False, update_actor_iter=2):
         # Distributed variables
         self.is_learner = is_learner
 
@@ -95,11 +94,11 @@ class TD3(erl.ExaAgent):
             self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions)
         elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
             self.memory = PrioritedReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions, self.batch_size)
-        elif self.replay_buffer_type == MEMORY_TYPE.HINDSIGHT_REPLAY: # TODO: Double check if the environment has goal state
+        elif self.replay_buffer_type == MEMORY_TYPE.HINDSIGHT_REPLAY:  # TODO: Double check if the environment has goal state
             self.memory = HindsightExperienceReplayMemory(self.buffer_capacity, self.num_states, self.num_actions)
         else:
             print("Unrecognized replay buffer please specify 'uniform, priority or hindsight', using default uniform sampling")
-            raise ValueError("Unrecognized Memory type {}".format(self.replay_buffer_type))  
+            raise ValueError("Unrecognized Memory type {}".format(self.replay_buffer_type))
 
         # Setup TF configuration to allow memory growth
         # tf.keras.backend.set_floatx('float64')
@@ -134,49 +133,48 @@ class TD3(erl.ExaAgent):
         self.critic_optimizer = tf.keras.optimizers.Adam(self.critic_lr)
         self.actor_optimizer = tf.keras.optimizers.Adam(self.actor_lr)
 
-        self.update_actor_iter = update_actor_iter #Updates actor every other n (2) learning rate
+        self.update_actor_iter = update_actor_iter  # Updates actor every other n (2) learning rate
         self.learn_step_counter = 0
-        np.random.seed(0) #
+        np.random.seed(0)
         tf.random.set_seed(0)
 
     def remember(self, state, action, reward, next_state, done):
         # If the counter exceeds the capacity then
         self.memory.store(state, action, reward, next_state, done)
 
-
     # @tf.function
-    #Just a hack for now:
-    def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch,b_idx=None, weights=None):
+    # Just a hack for now:
+    def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, b_idx=None, weights=None):
         # Training and updating Actor & Critic networks.
         with tf.GradientTape(persistent=True) as tape:
             target_actions = self.target_actor(next_state_batch, training=True)
-            target_actions = target_actions + tf.clip_by_value(np.random.normal(scale=0.2), -0.5, 0.5) # TODO: Might remove this 
-            target_actions = tf.clip_by_value(target_actions, self.lower_bound, self.upper_bound) #TODO: Same
+            target_actions = target_actions + tf.clip_by_value(np.random.normal(scale=0.2), -0.5, 0.5)  # TODO: Might remove this
+            target_actions = tf.clip_by_value(target_actions, self.lower_bound, self.upper_bound)  # TODO: Same
             q1_ = self.target_critic_1([next_state_batch, target_actions], training=True)
             q2_ = self.target_critic_2([next_state_batch, target_actions], training=True)
-            # For priroritized experience 
+            # For priroritized experience
 
             q1 = self.critic_model_1([state_batch, action_batch], training=True)
             q2 = self.critic_model_2([state_batch, action_batch], training=True)
 
             critic_value_ = tf.math.minimum(q1_, q2_)
-            #print(reward_batch.shape)
-            #exit()
-            #reward_batch = tf.squeeze(reward_batch,1)
+            # print(reward_batch.shape)
+            # exit()
+            # reward_batch = tf.squeeze(reward_batch,1)
 
-            y = reward_batch + self.gamma * critic_value_ * (1- terminal_batch)
+            y = reward_batch + self.gamma * critic_value_ * (1 - terminal_batch)
 
-            critic_loss_1 = keras.losses.MSE(y , q1)
-            critic_loss_2 = keras.losses.MSE(y , q2)
+            critic_loss_1 = keras.losses.MSE(y, q1)
+            critic_loss_2 = keras.losses.MSE(y, q2)
             if self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
                 error_1 = np.abs(tf.squeeze(y - q1).numpy())
                 error_2 = np.abs(tf.squeeze(y - q2).numpy())
-                error = np.abs(error_1 + error_2)/2.0
+                error = np.abs(error_1 + error_2) / 2.0
                 critic_loss_1 *= weights
                 critic_loss_2 *= weights
                 self.memory.batch_update(b_idx, error)
 
-        logger.warning("Critic loss 1: {}, Critic loss 2: {} ".format(critic_loss_1,critic_loss_2))
+        logger.warning("Critic loss 1: {}, Critic loss 2: {} ".format(critic_loss_1, critic_loss_2))
 
         critic_grad_1 = tape.gradient(critic_loss_1, self.critic_model_1.trainable_variables)
         self.critic_optimizer.apply_gradients(
@@ -277,38 +275,39 @@ class TD3(erl.ExaAgent):
         return model
 
     def _convert_to_tensor(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch):
-        state_batch = tf.convert_to_tensor(state_batch,dtype=tf.float32)
-        action_batch = tf.convert_to_tensor(action_batch,dtype=tf.float32)
-        reward_batch = tf.convert_to_tensor(reward_batch,dtype=tf.float32)
-        next_state_batch = tf.convert_to_tensor(next_state_batch,dtype=tf.float32)
-        terminal_batch = tf.convert_to_tensor(terminal_batch,dtype=tf.float32)
+        state_batch = tf.convert_to_tensor(state_batch, dtype=tf.float32)
+        action_batch = tf.convert_to_tensor(action_batch, dtype=tf.float32)
+        reward_batch = tf.convert_to_tensor(reward_batch, dtype=tf.float32)
+        next_state_batch = tf.convert_to_tensor(next_state_batch, dtype=tf.float32)
+        terminal_batch = tf.convert_to_tensor(terminal_batch, dtype=tf.float32)
         return state_batch, action_batch, reward_batch, next_state_batch, terminal_batch
 
     def generate_data(self):
 
         if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
-            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self.memory.sample_buffer(self.batch_size) #done_batch might improve experience
-            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self._convert_to_tensor(state_batch, action_batch, reward_batch, next_state_batch, terminal_batch)
+            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self.memory.sample_buffer(
+                self.batch_size)  # done_batch might improve experience
+            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self._convert_to_tensor(
+                state_batch, action_batch, reward_batch, next_state_batch, terminal_batch)
             yield state_batch, action_batch, reward_batch, next_state_batch, terminal_batch
 
         elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
-            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch , btx_idx, weights = self.memory.sample_buffer(self.batch_size)
-            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self._convert_to_tensor(state_batch, action_batch, reward_batch, next_state_batch, terminal_batch)
-            weights = tf.convert_to_tensor(weights,dtype=tf.float32)
+            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, btx_idx, weights = self.memory.sample_buffer(self.batch_size)
+            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self._convert_to_tensor(
+                state_batch, action_batch, reward_batch, next_state_batch, terminal_batch)
+            weights = tf.convert_to_tensor(weights, dtype=tf.float32)
             yield state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, btx_idx, weights
         else:
             raise ValueError('Support for the replay buffer type not implemented yet!')
-
 
     def train(self, batch):
         if self.is_learner:
             if batch and len(batch[0]) >= (self.batch_size):
                 logger.warning('Training...')
                 if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
-                    self.update_grad(batch[0], batch[1], batch[2], batch[3],batch[4])
+                    self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4])
                 elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
                     self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4], batch[5], batch[6])
-            
 
     def target_train(self):
         # Update the target model
@@ -386,9 +385,8 @@ class TD3(erl.ExaAgent):
                 pickle.dump(pickle_list, f, -1)
 
         except:
-            #TODO: Could be improve, but ok for now
+            # TODO: Could be improve, but ok for now
             print("One of the model not present")
-
 
     def save(self, file_name):
         try:
@@ -401,9 +399,9 @@ class TD3(erl.ExaAgent):
                 assert layers[layerId].name == pickle_list[layerId][0]
                 layers[layerId].set_weights(pickle_list[layerId][1])
         except:
-            #TODO: Could be improve, but ok for now
+            # TODO: Could be improve, but ok for now
             print("One of the model not present")
-    
+
     def monitor(self):
         print("Implement monitor method in td3.py")
 

@@ -54,32 +54,31 @@ class ExaConvexProblemSai(gym.Env):
         self.a = 2
         self.b = 4
         self.c = 1
-        self.f = lambda x: self.a*x**2 + self.b*x + self.c
+        self.f = lambda x: self.a * x**2 + self.b * x + self.c
 
-        self.xmin = -(self.b/(2.0*self.a))
+        self.xmin = -(self.b / (2.0 * self.a))
         self.ymin = self.f(self.xmin)
 
         self.time_steps = 100
 
-	#setup the action and state space
+        # setup the action and state space
 
         self.high = 2
         self.low = -(self.high)
         self.action_space = gym.spaces.Discrete(2)
-        self.observation_space = gym.spaces.Box(low=np.array([self.low]),high=np.array([self.high]))
+        self.observation_space = gym.spaces.Box(low=np.array([self.low]), high=np.array([self.high]))
 
-       #initial state
-        #self.state = [random.uniform(self.low,self.high)]
+        # initial state
+        # self.state = [random.uniform(self.low,self.high)]
         self.state = [0]
 
-       #for plotting
-       #self.x = linspace(self.low,self.high,100)
-       #self.y = self.f(self.x)
-
+        # for plotting
+        # self.x = linspace(self.low,self.high,100)
+        # self.y = self.f(self.x)
 
     def step(self, action):
         action_step_size = 0.1
-        if action == 1 :
+        if action == 1:
             self.state[0] += action_step_size
         else:
             self.state[0] -= action_step_size
@@ -88,14 +87,13 @@ class ExaConvexProblemSai(gym.Env):
 
         y_pred = self.f(self.state[0])
 
-        ydiff = abs(self.ymin-y_pred)
+        ydiff = abs(self.ymin - y_pred)
 
         # set the tolerance limit
 
         tol = 0.1
 
         reward = 1.0 - ydiff**2
-
 
         time.sleep(0)  # Delay in seconds
 
@@ -106,50 +104,46 @@ class ExaConvexProblemSai(gym.Env):
             N = None
 
         N = self.env_comm.bcast(N, root=0)
-        myPI = computePI(N,self.env_comm) # calls python function
-        #logger.info('Computin PI Rank[%s] - Step:%s PI= %s' %
+        myPI = computePI(N, self.env_comm)  # calls python function
+        # logger.info('Computin PI Rank[%s] - Step:%s PI= %s' %
         #                                (str(self.env_comm.rank), str(100-self.time_steps), str(myPI)))
-        #print("Debug: Env Rank: %s , PI: %s" %  (str(rank),str(myPI)))
+        # print("Debug: Env Rank: %s , PI: %s" %  (str(rank),str(myPI)))
 
-        #myPI = cp.compute_pi(N, self.env_comm) # Calls C++ function
+        # myPI = cp.compute_pi(N, self.env_comm) # Calls C++ function
         PI = self.env_comm.reduce(myPI, op=MPI.SUM, root=0)
 
-        #if self.env_comm.rank == 0:
+        # if self.env_comm.rank == 0:
         #    print(PI)  # Print PI for verification
 
-
-
-        if ydiff <= tol :
+        if ydiff <= tol:
             done = True
-            return self.state,reward,done, {}
+            return self.state, reward, done, {}
 
         if self.time_steps <= 0:
             done = True
         else:
             done = False
 
-        return self.state,reward,done, {}
-
+        return self.state, reward, done, {}
 
     def reset(self):
         # self.env._max_episode_steps=self._max_episode_steps
         # print('Max steps: %s' % str(self._max_episode_steps))
-        #self.state = [random.uniform(self.low,self.high)]
+        # self.state = [random.uniform(self.low,self.high)]
         self.state = [0]
         self.time_steps = 100
         return self.state
 
     def render(self, mode='human', close=False):
-        #return self.env.render()
-        #plt.clf()
-        #plt.title("Convex problem example")
-        #plt.plot(self.x,self.y)
-        #plt.plot(self.xmin,self.ymin,"g*",label="Minimum")
-        #plt.plot(self.state,self.f(self.state),"r*",label="Current")
-        #plt.legend()
-        #plt.pause(0.01)
+        # return self.env.render()
+        # plt.clf()
+        # plt.title("Convex problem example")
+        # plt.plot(self.x,self.y)
+        # plt.plot(self.xmin,self.ymin,"g*",label="Minimum")
+        # plt.plot(self.state,self.f(self.state),"r*",label="Current")
+        # plt.legend()
+        # plt.pause(0.01)
         return
-
 
     def set_env(self):
         print('Use this function to set hyper-parameters, if any')

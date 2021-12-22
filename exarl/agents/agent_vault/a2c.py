@@ -92,7 +92,7 @@ class A2C(erl.ExaAgent):
         reward.reverse()
 
         for r in reward:
-            sum_rewards = r + self.gamma*sum_rewards
+            sum_rewards = r + self.gamma * sum_rewards
             discount_rewards.append(sum_rewards)
 
         discount_rewards.reverse()
@@ -107,7 +107,7 @@ class A2C(erl.ExaAgent):
             TDerror = tf.math.subtract(discount_rewards, v)
 
             a_loss = self.actor_loss(p, actions, TDerror)
-            c_loss = self.v_const*tf.keras.losses.mean_squared_error(discount_rewards, v)
+            c_loss = self.v_const * tf.keras.losses.mean_squared_error(discount_rewards, v)
 
             grads1 = tape1.gradient(a_loss, self.actor.trainable_variables)
             grads2 = tape2.gradient(c_loss, self.critic.trainable_variables)
@@ -130,15 +130,15 @@ class A2C(erl.ExaAgent):
 
         for pb, t, lpb in zip(probability, TDerror, log_probability):
             t = tf.constant(t)
-            policy_loss = tf.math.multiply(lpb,t)
-            entropy_loss = tf.math.negative(tf.math.multiply(pb,lpb))
+            policy_loss = tf.math.multiply(lpb, t)
+            entropy_loss = tf.math.negative(tf.math.multiply(pb, lpb))
             p_loss.append(policy_loss)
             e_loss.append(entropy_loss)
 
         p_loss = tf.reduce_mean(tf.stack(p_loss))
         e_loss = tf.reduce_mean(tf.stack(e_loss))
 
-        return -p_loss - self.e_const*e_loss
+        return -p_loss - self.e_const * e_loss
 
     def target_train(self):
         pass

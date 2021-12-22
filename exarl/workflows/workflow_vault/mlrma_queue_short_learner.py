@@ -145,21 +145,21 @@ class ML_RMA_QUEUE_SHORT(erl.ExaWorkflow):
                 pop_succes = False
                 attempts = 0
                 process_has_data = 1
-                while not pop_succes: # get data from the queue
+                while not pop_succes:  # get data from the queue
                     pop_succes, agent_data = data_queue.pop(agent_comm.rank)
-                    attempts+=1
+                    attempts += 1
 
-                    if not pop_succes and attempts >= pop_attempts :
+                    if not pop_succes and attempts >= pop_attempts:
                         # check if all the actors are done
                         actors_ended_win.Lock(0)
                         actors_ended_win.Get(actors_ended, target_rank=0)
                         actors_ended_win.Unlock(0)
 
-                        if actors_ended >= total_actors_number : # all actors ended
-                            process_has_data = 0 # there is no more data in the queue
+                        if actors_ended >= total_actors_number:  # all actors ended
+                            process_has_data = 0  # there is no more data in the queue
                             break
                         else:
-                            attempts = 0 # continue trying getting data
+                            attempts = 0  # continue trying getting data
 
                 # Synchronize learners
                 sum_process_has_data = learner_comm.allreduce(process_has_data, op=MPI.SUM)
@@ -304,7 +304,6 @@ class ML_RMA_QUEUE_SHORT(erl.ExaWorkflow):
                     if steps >= workflow.nsteps - 1:
                         done = True
 
-
                     if mpi_settings.is_actor():
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
                                                done, episode_count_actor[0], steps, policy_type, workflow.agent.epsilon])
@@ -331,7 +330,6 @@ class ML_RMA_QUEUE_SHORT(erl.ExaWorkflow):
             # increment the number of actors done
             actors_ended_win.Accumulate(one, 0, op=MPI.SUM)
             actors_ended_win.Unlock(0)
-
 
         if mpi_settings.is_agent():
             agent_comm.Barrier()

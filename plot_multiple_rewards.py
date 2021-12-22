@@ -35,6 +35,7 @@ def get_merged_df(results_dir):
     df_merged.sort_values(by=['rel_time'], inplace=True)
     return df_merged
 
+
 if __name__ == "__main__":
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 8))

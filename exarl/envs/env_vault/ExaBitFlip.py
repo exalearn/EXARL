@@ -24,7 +24,7 @@ def computePI(N, new_comm):
 
 class BitFlip(gym.Env):
 
-    metadata = {'render.modes': ['human']
+    metadata = {'render.modes': ['human']}
 
     def __init__(self, bit_length=16, max_steps=100, mean_zero=False):
         super(BitFlip, self).__init__()
@@ -45,7 +45,7 @@ class BitFlip(gym.Env):
         return (self.state == self.goal).all() or self.steps >= self.max_steps
 
     def _reward(self):
-        #For sparse reward
+        # For sparse reward
         return -1 if (self.state != self.goal).any() else 0
 
     def step(self, action):
@@ -69,25 +69,25 @@ class BitFlip(gym.Env):
         if self.env_comm.rank == 0:
             print(PI)  # Print PI for verification
 
-
         return self._get_obs(), self._reward(), self._terminate(), {}
-
 
     def _get_obs(self):
 
         return {
             'state': self.state,
-            'goal' : self.goal,
+            'goal': self.goal,
         }
+
     def __str__(self):
         return "State: {}, Goal: {}, Bit length: {}, Max Steps {}, Action Space {}"\
-                .format(self.state, self.goal, self.bit_length, self.max_steps, self.action_space)
+            .format(self.state, self.goal, self.bit_length, self.max_steps, self.action_space)
+
     def render(self, mode='human', close=False):
-        #return self.env.render()
+        # return self.env.render()
         pass
 
     def generate_states(self):
-        return np.random.choice(2,self.bit_length)
+        return np.random.choice(2, self.bit_length)
 
     def reset(self):
         self.steps = 0
@@ -96,6 +96,3 @@ class BitFlip(gym.Env):
         while (self.goal == self.state).all():
             self.goal = self.generate_states()
         return self.state, self.goal
-    
-
-    

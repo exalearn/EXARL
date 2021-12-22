@@ -25,10 +25,10 @@ import tensorflow.keras as keras
 import tensorflow_probability as tfp
 from tensorflow.keras.layers import Dense
 
-#TODO : Have to improve the model later 
+# TODO : Have to improve the model later
 class CriticModel(keras.Model):
-    def __init__(self, n_actions, fc_dims=[512, 512], name='Critic', activation_in='relu',activation_out=None):
-        super(CriticModel,self).__init__()
+    def __init__(self, n_actions, fc_dims=[512, 512], name='Critic', activation_in='relu', activation_out=None):
+        super(CriticModel, self).__init__()
         self.fc1_dims = fc_dims[0]
         self.fc2_dims = fc_dims[1]
         self.n_actions = n_actions
@@ -38,19 +38,18 @@ class CriticModel(keras.Model):
         self.activation_out = activation_out
         self.fc1 = Dense(self.fc1_dims, activation=activation_in)
         self.fc2 = Dense(self.fc2_dims, activation=activation_in)
-        self.q = Dense(1,activation=None)
+        self.q = Dense(1, activation=None)
 
     def call(self, state, action):
         action_value = self.fc1(tf.concat([state, action], axis=1))
         action_value = self.fc2(action_value)
 
         return self.q(action_value)
-    
 
 
 class ValueModel(keras.Model):
-    def __init__(self, fc_dims=[256, 256], name='Value', activation_in='relu',activation_out=None):
-        super(ValueModel,self).__init__()
+    def __init__(self, fc_dims=[256, 256], name='Value', activation_in='relu', activation_out=None):
+        super(ValueModel, self).__init__()
         self.fc1_dims = fc_dims[0]
         self.fc2_dims = fc_dims[1]
 
@@ -59,7 +58,7 @@ class ValueModel(keras.Model):
         self.activation_out = activation_out
         self.fc1 = Dense(self.fc1_dims, activation=activation_in)
         self.fc2 = Dense(self.fc2_dims, activation=activation_in)
-        self.v = Dense(1,activation=None)
+        self.v = Dense(1, activation=None)
 
     def call(self, state):
         state_value = self.fc1(state)
@@ -69,8 +68,8 @@ class ValueModel(keras.Model):
     # TODO: Remove repeatability
 
 class ActorModel(keras.Model):
-    def __init__(self, max_action, fc_dims=[256,256], n_action=3, name='Actor', activation_in='relu',activation_out=None, noise=1e-6):
-        super(ActorModel,self).__init__()
+    def __init__(self, max_action, fc_dims=[256, 256], n_action=3, name='Actor', activation_in='relu', activation_out=None, noise=1e-6):
+        super(ActorModel, self).__init__()
         self.fc1_dims = fc_dims[0]
         self.fc2_dims = fc_dims[1]
         self.n_action = n_action
@@ -78,12 +77,12 @@ class ActorModel(keras.Model):
         self.max_action = max_action
         self.activation_in = activation_in
         self.activation_out = activation_out
-        self.noise = noise #TODO: Change this to use the OAUNoise, might add this later
+        self.noise = noise  # TODO: Change this to use the OAUNoise, might add this later
         self.fc1 = Dense(self.fc1_dims, activation=activation_in)
         self.fc2 = Dense(self.fc2_dims, activation=activation_in)
         self.mu = Dense(self.n_action, activation=activation_out)
         self.sigma = Dense(self.n_action, activation=activation_out)
-    
+
     def call(self, state):
         probability = self.fc1(state)
         probability = self.fc2(probability)
@@ -93,22 +92,16 @@ class ActorModel(keras.Model):
 
         return mu, sigma
 
-
     def sample_normal(self, state, reparameterize=True):
         mu, sigma = self.call(state)
         probabilities = tfp.distributions.Normal(mu, sigma)
         if reparameterize:
-            actions = probabilities.sample() #TODO: double check type of reparameterization
+            actions = probabilities.sample()  # TODO: double check type of reparameterization
         else:
             actions = probabilities.sample()
-        action = tf.math.tanh(actions)*self.max_action
+        action = tf.math.tanh(actions) * self.max_action
         log_probs = probabilities.log_prob(actions)
-        log_probs -= tf.math.log(1-tf.math.pow(action, 2) + self.noise) #noise to avoid taking log of zero
+        log_probs -= tf.math.log(1 - tf.math.pow(action, 2) + self.noise)  # noise to avoid taking log of zero
         log_probs = tf.math.reduce_sum(log_probs, axis=1, keepdims=True)
 
         return action, log_probs
-
-
-
-
-

@@ -100,12 +100,11 @@ class DDPG_V4(erl.ExaAgent):
             self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions)
         elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
             self.memory = PrioritedReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions, self.batch_size)
-        elif self.replay_buffer_type == MEMORY_TYPE.HINDSIGHT_REPLAY: # TODO: Double check if the environment has goal state
+        elif self.replay_buffer_type == MEMORY_TYPE.HINDSIGHT_REPLAY:  # TODO: Double check if the environment has goal state
             self.memory = HindsightExperienceReplayMemory(self.buffer_capacity, self.num_states, self.num_actions)
         else:
             print("Unrecognized replay buffer please specify 'uniform, priority or hindsight', using default uniform sampling")
-            self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions) #TODO : maybe exit()  
-
+            self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions)  # TODO : maybe exit()
 
         # Setup TF configuration to allow memory growth
         # tf.keras.backend.set_floatx('float64')
@@ -132,7 +131,7 @@ class DDPG_V4(erl.ExaAgent):
         self.actor_lr = cd.run_params['actor_lr']
         self.critic_optimizer = tf.keras.optimizers.Adam(self.critic_lr)
         self.actor_optimizer = tf.keras.optimizers.Adam(self.actor_lr)
-        np.random.seed(0) #
+        np.random.seed(0)
         tf.random.set_seed(0)
         self.warm_up = self.batch_size
 
@@ -141,23 +140,22 @@ class DDPG_V4(erl.ExaAgent):
         self.memory.store(state, action, reward, next_state, done)
 
     # @tf.function
-    def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch,terminal_batch,b_idx=None,weights=None):
+    def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, b_idx=None, weights=None):
         # Training and updating Actor & Critic networks.
         with tf.GradientTape() as tape:
             target_actions = self.target_actor(next_state_batch, training=True)
             y = reward_batch + self.gamma * self.target_critic(
                 [next_state_batch, target_actions], training=True
             )
-            #* (1- terminal_batch)
+            # * (1- terminal_batch)
             critic_value = self.critic_model([state_batch, action_batch], training=True)
-            #critic_loss = tf.math.reduce_mean(tf.math.square(y - critic_value))
-            critic_loss = keras.losses.MSE(y , critic_value)
+            # critic_loss = tf.math.reduce_mean(tf.math.square(y - critic_value))
+            critic_loss = keras.losses.MSE(y, critic_value)
 
             if self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
                 critic_loss = weights * critic_loss
                 error = np.abs(tf.squeeze(y - critic_value).numpy())
                 self.memory.batch_update(b_idx, error)
-                
 
         logger.warning("Critic loss: {}".format(critic_loss))
         critic_grad = tape.gradient(critic_loss, self.critic_model.trainable_variables)
@@ -240,24 +238,27 @@ class DDPG_V4(erl.ExaAgent):
         return model
 
     def _convert_to_tensor(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch):
-        state_batch = tf.convert_to_tensor(state_batch,dtype=tf.float32)
-        action_batch = tf.convert_to_tensor(action_batch,dtype=tf.float32)
-        reward_batch = tf.convert_to_tensor(reward_batch,dtype=tf.float32)
-        next_state_batch = tf.convert_to_tensor(next_state_batch,dtype=tf.float32)
-        terminal_batch = tf.convert_to_tensor(terminal_batch,dtype=tf.float32)
+        state_batch = tf.convert_to_tensor(state_batch, dtype=tf.float32)
+        action_batch = tf.convert_to_tensor(action_batch, dtype=tf.float32)
+        reward_batch = tf.convert_to_tensor(reward_batch, dtype=tf.float32)
+        next_state_batch = tf.convert_to_tensor(next_state_batch, dtype=tf.float32)
+        terminal_batch = tf.convert_to_tensor(terminal_batch, dtype=tf.float32)
         return state_batch, action_batch, reward_batch, next_state_batch, terminal_batch
 
     def generate_data(self):
 
         if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
-            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self.memory.sample_buffer(self.batch_size) #done_batch might improve experience
-            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self._convert_to_tensor(state_batch, action_batch, reward_batch, next_state_batch, terminal_batch)
+            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self.memory.sample_buffer(
+                self.batch_size)  # done_batch might improve experience
+            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self._convert_to_tensor(
+                state_batch, action_batch, reward_batch, next_state_batch, terminal_batch)
             yield state_batch, action_batch, reward_batch, next_state_batch, terminal_batch
 
         elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
-            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch , btx_idx, weights = self.memory.sample_buffer(self.batch_size)
-            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self._convert_to_tensor(state_batch, action_batch, reward_batch, next_state_batch,terminal_batch)
-            weights = tf.convert_to_tensor(weights,dtype=tf.float32)
+            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, btx_idx, weights = self.memory.sample_buffer(self.batch_size)
+            state_batch, action_batch, reward_batch, next_state_batch, terminal_batch = self._convert_to_tensor(
+                state_batch, action_batch, reward_batch, next_state_batch, terminal_batch)
+            weights = tf.convert_to_tensor(weights, dtype=tf.float32)
             yield state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, btx_idx, weights
         else:
             raise ValueError('Support for the replay buffer type not implemented yet!')

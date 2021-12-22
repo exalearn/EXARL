@@ -17,14 +17,14 @@ elif env == 'ExaCartPoleStatic-v0':
 
 elif env == 'ExaParabola-v0':
     register(
-	id=env,
-	entry_point='exarl.envs.env_vault:ExaParabola'
+        id=env,
+        entry_point='exarl.envs.env_vault:ExaParabola'
     )
 
 elif env == 'ExaParabolaContinuous-v0':
     register(
-	id=env,
-	entry_point='exarl.envs.env_vault:ExaParabolaContinuous'
+        id=env,
+        entry_point='exarl.envs.env_vault:ExaParabolaContinuous'
     )
 
 elif env == 'ExaCovid-v0':
@@ -44,10 +44,9 @@ elif env == 'ExaWaterClusterDiscrete-v0':
         id=env,
         entry_point='exarl.envs.env_vault:ExaWaterClusterDiscrete'
     )
-<<<<<<< HEAD
 
 elif env == "ExaConvexProblemSai-v0":
     register(
-	id=env,
-	entry_point='exarl.envs.env_vault:ExaConvexProblemSai'
+        id=env,
+        entry_point='exarl.envs.env_vault:ExaConvexProblemSai'
     )

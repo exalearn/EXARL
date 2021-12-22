@@ -80,7 +80,7 @@ class NON_BLOCKING_ASYNC_v2(erl.ExaWorkflow):
             win_size = 0
             if mpi_settings.is_learner() and learner_comm.rank == 0:
                 indices = -1 * np.ones(workflow.agent.batch_size, dtype=np.intc)
-                win_size = workflow.agent.batch_size*disp
+                win_size = workflow.agent.batch_size * disp
             # Create indices window
             indices_win = MPI.Win.Allocate(win_size, disp, comm=agent_comm)
             # Initialize indices window
@@ -95,7 +95,7 @@ class NON_BLOCKING_ASYNC_v2(erl.ExaWorkflow):
             win_size = 0
             if mpi_settings.is_learner() and learner_comm.rank == 0:
                 loss = np.zeros(workflow.agent.batch_size, dtype=np.float64)
-                win_size = workflow.agent.batch_size*disp
+                win_size = workflow.agent.batch_size * disp
             # Create loss window
             loss_win = MPI.Win.Allocate(win_size, disp, comm=agent_comm)
             # Initialize loss window
@@ -124,7 +124,6 @@ class NON_BLOCKING_ASYNC_v2(erl.ExaWorkflow):
         if mpi_settings.is_learner():
             workflow.agent.set_learner()
             workflow.agent.set_weights(target_weights)
-
 
         # Variables for all
         episode = 0
@@ -180,7 +179,7 @@ class NON_BLOCKING_ASYNC_v2(erl.ExaWorkflow):
 
                 # -- send
                 # Get epsilon
-                a_epsilon= np.array(epsilon, dtype=np.float64)
+                a_epsilon = np.array(epsilon, dtype=np.float64)
                 epsilon_win.Lock(0)
                 epsilon_win.Put(a_epsilon, target_rank=0)
                 epsilon_win.Unlock(0)
@@ -199,7 +198,6 @@ class NON_BLOCKING_ASYNC_v2(erl.ExaWorkflow):
                 loss_win.Lock(0)
                 loss_win.Put(loss, target_rank=0)
                 loss_win.Unlock(0)
-
 
             logger.info('Learner time: {}'.format(MPI.Wtime() - start))
             print('Learner time: {}'.format(MPI.Wtime() - start))
@@ -238,12 +236,11 @@ class NON_BLOCKING_ASYNC_v2(erl.ExaWorkflow):
                     episode_win.Get_accumulate(one, episode_recv, target_rank=0, op=MPI.SUM)
                     episode_win.Unlock(0)
 
-                episode = env_comm.bcast(episode_recv, root = 0)[0]
-                if episode >= workflow.nepisodes :
-                    if mpi_settings.is_actor(): # inform the learner
+                episode = env_comm.bcast(episode_recv, root=0)[0]
+                if episode >= workflow.nepisodes:
+                    if mpi_settings.is_actor():  # inform the learner
                         agent_comm.send([-1], dest=0)
-                    break # end
-
+                    break  # end
 
                 # Steps in an episode
                 while steps < workflow.nsteps:
@@ -270,7 +267,6 @@ class NON_BLOCKING_ASYNC_v2(erl.ExaWorkflow):
                         loss_win.Lock(0, lock_type=MPI.LOCK_SHARED)
                         loss_win.Get(loss, target_rank=0)
                         loss_win.Unlock(0)
-
 
                     if mpi_settings.is_actor():
                         workflow.agent.epsilon = epsilon[0]
@@ -313,7 +309,7 @@ class NON_BLOCKING_ASYNC_v2(erl.ExaWorkflow):
                     if mpi_settings.is_actor():
                         # Send batched memories
                         req = agent_comm.isend([0, batch_data, policy_type], dest=0)
-                        #agent_comm.send([0, batch_data, policy_type], dest=0)
+                        # agent_comm.send([0, batch_data, policy_type], dest=0)
 
                         if not req.test()[0]:
                             requests.append(req)
@@ -326,7 +322,7 @@ class NON_BLOCKING_ASYNC_v2(erl.ExaWorkflow):
                             'Rank[%s] - Episode/Step/Status:%s/%s/%s' % (str(agent_comm.rank), str(episode), str(steps), str(done)))
 
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_reward,
-                                               done, episode , steps, policy_type, workflow.agent.epsilon])
+                                               done, episode, steps, policy_type, workflow.agent.epsilon])
                         train_file.flush()
 
                     # Update state and step
@@ -348,7 +344,6 @@ class NON_BLOCKING_ASYNC_v2(erl.ExaWorkflow):
         if mpi_settings.is_actor():
             logger.info(f'Agent[{agent_comm.rank}] timing info:\n')
             workflow.agent.print_timers()
-
 
         if mpi_settings.is_agent():
             agent_comm.Barrier()

@@ -92,7 +92,6 @@ class DQNparallel(erl.ExaAgent):
         self.optimizer = cd.run_params["optimizer"]
         self.loss = cd.run_params["loss"]
 
-        #
         config = tf.compat.v1.ConfigProto()
         config.gpu_options.allow_growth = True
         sess = tf.compat.v1.Session(config=config)
@@ -235,9 +234,9 @@ class DQNparallel(erl.ExaAgent):
         )
         yield batch_states, batch_target
 
-    #Sai Chenna - return the minibatch
+    # Return the minibatch
     def get_minibatch(self):
-        return random.sample(self.memory,self.batch_size)
+        return random.sample(self.memory, self.batch_size)
 
     def train(self, batch):
         if self.is_learner:
@@ -321,7 +320,7 @@ class DQNparallel(erl.ExaAgent):
     def monitor(self):
         logger.info("Implement monitor method in dqn.py")
 
-    #Sai Chenna - test method to check if env processes can access agent methods
+    # Test method to check if env processes can access agent methods
     def test(self):
         print("Debug: Success! Environment process can call agent method!")
 
@@ -353,7 +352,7 @@ class DQNparallel(erl.ExaAgent):
         else:
             logger.info("Agent[{}] - Average data prep time: {}".format(self.rank, 0))
 
-    def generate_data_part(self,bz):
+    def generate_data_part(self, bz):
         # Worker method to create samples for training
         # TODO: This method is the most expensive and takes 90% of the agent compute time
         # TODO: Reduce computational time
@@ -367,7 +366,7 @@ class DQNparallel(erl.ExaAgent):
         # Return empty batch
         if len(self.memory) < bz:
             yield batch_states, batch_target
-        #start_time = time.time()
+        # start_time = time.time()
         minibatch = random.sample(self.memory, bz)
         batch_target = list(map(self.calc_target_f, minibatch))
         batch_states = [
@@ -379,10 +378,10 @@ class DQNparallel(erl.ExaAgent):
         batch_target = np.reshape(
             batch_target, [len(minibatch), self.env.action_space.n]
         ).astype("float64")
-        #end_time = time.time()
-        #self.dataprep_time += end_time - start_time
-        #self.ndataprep_time += 1
-        #logger.debug(
+        # end_time = time.time()
+        # self.dataprep_time += end_time - start_time
+        # self.ndataprep_time += 1
+        # logger.debug(
         #    "Agent[{}] - Minibatch time: {} ".format(self.rank, (end_time - start_time))
-        #)
+        # )
         yield batch_states, batch_target

@@ -30,8 +30,6 @@ import exarl.utils.candleDriver as cd
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 import pickle
 
-#Sai Chenna - for visualization
-#from PIL import Image
 
 class ML_ASYNC(erl.ExaWorkflow):
     def __init__(self):
@@ -47,17 +45,17 @@ class ML_ASYNC(erl.ExaWorkflow):
 
         actor_procs = 0
 
-        #Sai Chenna: number of learner procs
+        # number of learner procs
         learner_procs = int(cd.run_params['learner_procs'])
         if mpi_settings.is_agent():
             actor_procs = agent_comm.size - learner_procs
 
-        actor_procs = env_comm.bcast(actor_procs,root=0)
+        actor_procs = env_comm.bcast(actor_procs, root=0)
 
         # Set target model
         target_weights = None
-        #actr_recv_counter = 0
-        #actr_send_counter = 0
+        # actr_recv_counter = 0
+        # actr_send_counter = 0
         if mpi_settings.is_learner():
             workflow.agent.set_learner()
             target_weights = workflow.agent.get_weights()
@@ -85,30 +83,30 @@ class ML_ASYNC(erl.ExaWorkflow):
             counter = 0
             index = 0
 
-            #print("Learner {} beginning!".format(learner_comm.rank))
+            # print("Learner {} beginning!".format(learner_comm.rank))
             lr_stime = MPI.Wtime()
             lr0_sendtime = 0.
             lrs_recvtime = 0.
             tmp = 0.
             if learner_comm.rank == 0:
-                #Sai chenna - counter to check number of horovod train steps
+                # Counter to check number of horovod train steps
                 hvd_counter = 0
                 send_counter = 0
                 recv_counter = 0
                 hvd_traintime = 0.
 
                 start = MPI.Wtime()
-                worker_episodes = np.arange(1, actor_procs+1)
-                #lr_recv_counter = dict()
-                #lr_send_counter = dict()
-                #recv_data = None
-                #recv_data = np.zeros(learner_procs)
-                recv_data = [[]]*learner_procs
-                dest_ranks = np.zeros(learner_procs,dtype=int)
+                worker_episodes = np.arange(1, actor_procs + 1)
+                # lr_recv_counter = dict()
+                # lr_send_counter = dict()
+                # recv_data = None
+                # recv_data = np.zeros(learner_procs)
+                recv_data = [[]] * learner_procs
+                dest_ranks = np.zeros(learner_procs, dtype=int)
                 logger.debug('worker_episodes:{}'.format(worker_episodes))
 
                 logger.info("Initializing ...\n")
-                #Sai Chenna - Send initial episode numbers to all actors
+                # Send initial episode numbers to all actors
                 for s in range(learner_procs, agent_comm.size):
                     # Send target weights
                     indices, loss = None, None
@@ -118,17 +116,16 @@ class ML_ASYNC(erl.ExaWorkflow):
                     agent_comm.send(
                         [episode, rank0_epsilon, target_weights, indices, loss], dest=s)
                     send_counter += 1
-                    #lr_send_counter[s] = lr_send_counter.get(s,0)+1
+                    # lr_send_counter[s] = lr_send_counter.get(s,0)+1
 
                 init_nepisodes = episode
                 logger.debug('init_nepisodes:{}'.format(init_nepisodes))
 
-
-            #Sai Chenna - Broadcast necessary information to other learners
-            indices = learner_comm.bcast(indices,root=0)
-            loss = learner_comm.bcast(loss,root=0)
-            rank0_epsilon = learner_comm.bcast(rank0_epsilon,root=0)
-            target_weights = learner_comm.bcast(target_weights,root=0)
+            # Broadcast necessary information to other learners
+            indices = learner_comm.bcast(indices, root=0)
+            loss = learner_comm.bcast(loss, root=0)
+            rank0_epsilon = learner_comm.bcast(rank0_epsilon, root=0)
+            target_weights = learner_comm.bcast(target_weights, root=0)
 
             logger.debug("Learner {} Continuing ...\n".format(learner_comm.rank))
             while episode_done < workflow.nepisodes:
@@ -138,12 +135,12 @@ class ML_ASYNC(erl.ExaWorkflow):
                     # Receive the rank of the worker ready for more work
                     recv_data[index] = agent_comm.recv(source=MPI.ANY_SOURCE)
                     recv_counter += 1
-                    #tmp = agent_comm.recv(source=MPI.ANY_SOURCE)
-                    #print(len(tmp))
-                    #print(tmp)
-                    #recv_data[index] = tmp
+                    # tmp = agent_comm.recv(source=MPI.ANY_SOURCE)
+                    # print(len(tmp))
+                    # print(tmp)
+                    # recv_data[index] = tmp
                     whofrom = recv_data[index][0]
-                    #lr_recv_counter[whofrom] = lr_recv_counter.get(whofrom,0)+1
+                    # lr_recv_counter[whofrom] = lr_recv_counter.get(whofrom,0)+1
                     dest_ranks[index] = whofrom
                     step = recv_data[index][1]
                     batch = recv_data[index][2]
@@ -151,25 +148,24 @@ class ML_ASYNC(erl.ExaWorkflow):
                     done = recv_data[index][4]
                     logger.debug('step:{}'.format(step))
                     logger.debug('done:{}'.format(done))
-                    counter+=1
-                    #print("ML Async: counter = {} Actor = {}".format(counter,whofrom))
+                    counter += 1
+                    # print("ML Async: counter = {} Actor = {}".format(counter,whofrom))
                     index = counter % learner_procs
 
-                counter = learner_comm.bcast(counter,root=0)
-                #print("Learner {} counter value = {}".format(learner_comm.rank,counter))
+                counter = learner_comm.bcast(counter, root=0)
+                # print("Learner {} counter value = {}".format(learner_comm.rank,counter))
 
-
-                #Sai Chenna - check if enough data is received for all learners
-                if (counter %learner_procs == 0):
+                # Check if enough data is received for all learners
+                if (counter % learner_procs == 0):
                     if learner_comm.rank == 0:
-                        #Send the data to all the other learners
-                        #print("Printing Receive data!")
-                        #print(recv_data)
+                        # Send the data to all the other learners
+                        # print("Printing Receive data!")
+                        # print(recv_data)
                         data_buff = recv_data[0]
                         tmp = MPI.Wtime()
-                        for s in range(1,learner_comm.size):
-                            learner_comm.send(recv_data[s],dest=s)
-                        #lr0_sendtime += MPI.Wtime() - tmp
+                        for s in range(1, learner_comm.size):
+                            learner_comm.send(recv_data[s], dest=s)
+                        # lr0_sendtime += MPI.Wtime() - tmp
                     else:
                         tmp = MPI.Wtime()
                         data_buff = learner_comm.recv(source=0)
@@ -178,24 +174,23 @@ class ML_ASYNC(erl.ExaWorkflow):
                         policy_type = data_buff[3]
                         done = data_buff[4]
 
-                    #Sai Chenna - synchronize before starting the training
+                    # Synchronize before starting the training
                     learner_comm.Barrier()
                     if learner_comm.rank == 0:
                         lr0_sendtime += MPI.Wtime() - tmp
                     else:
                         lrs_recvtime += MPI.Wtime() - tmp
-                    #print("Learner {} data_buff {}".format(learner_comm.rank,data_buff))
+                    # print("Learner {} data_buff {}".format(learner_comm.rank,data_buff))
                     if learner_comm.rank == 0:
-                        #print("Starting training!")
+                        # print("Starting training!")
                         s_time = MPI.Wtime()
                     train_return = workflow.agent.train(batch)
 
                     if learner_comm.rank == 0:
-                        #hvd_counter += 1
+                        # hvd_counter += 1
                         hvd_traintime += MPI.Wtime() - s_time
                         hvd_counter += 1
-                        #print("ML Async: Time taken to train (horovod) is {}. No of hvd trains = {}".format(MPI.Wtime()-s_time,hvd_counter))
-
+                        # print("ML Async: Time taken to train (horovod) is {}. No of hvd trains = {}".format(MPI.Wtime()-s_time,hvd_counter))
 
                     if train_return is not None:
                         if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
@@ -210,7 +205,7 @@ class ML_ASYNC(erl.ExaWorkflow):
                     epsilon = workflow.agent.epsilon
 
                     # Send target weights
-                    logger.debug('Learner {} rank0_epsilon:{}'.format(learner_comm.rank,epsilon))
+                    logger.debug('Learner {} rank0_epsilon:{}'.format(learner_comm.rank, epsilon))
 
                     if learner_comm.rank == 0:
                         target_weights = workflow.agent.get_weights()
@@ -230,33 +225,32 @@ class ML_ASYNC(erl.ExaWorkflow):
                         worker_episodes[whofrom - learner_procs] = latest_episode + 1
                         logger.debug('episode_done:{}'.format(episode_done))
 
-
                     if counter % learner_procs == 0:
                         for dest in dest_ranks:
-                            #print("Comm debug: learner to actor: {} --> {}".format(0,dest))
-                            #lr_send_counter[dest] = lr_send_counter.get(dest,0)+1
+                            # print("Comm debug: learner to actor: {} --> {}".format(0,dest))
+                            # lr_send_counter[dest] = lr_send_counter.get(dest,0)+1
                             agent_comm.send([worker_episodes[dest - learner_procs],
-                                        epsilon, target_weights, indices, loss], dest=dest)
+                                             epsilon, target_weights, indices, loss], dest=dest)
                             send_counter += 1
 
-                episode_done = learner_comm.bcast(episode_done,root=0)
-                #print("Learner {} episode_done value = {}".format(learner_comm.rank,episode_done))
+                episode_done = learner_comm.bcast(episode_done, root=0)
+                # print("Learner {} episode_done value = {}".format(learner_comm.rank,episode_done))
 
-            #Sai Chenna - check if there are any actors waiting
+            # Check if there are any actors waiting
             rem = counter % learner_procs
 
             if rem != 0:
-                #train for one last time
+                # train for one last time
                 if learner_comm.rank == 0:
-                    #Send the data to all the other learners
-                    #print("Printing Receive data!")
-                    #print(recv_data)
+                    # Send the data to all the other learners
+                    # print("Printing Receive data!")
+                    # print(recv_data)
                     print("Remaining data chunks received: {}".format(rem))
                     data_buff = recv_data[0]
                     tmp = MPI.Wtime()
-                    for s in range(1,learner_comm.size):
-                        #print("Comm debug: learner to learner {} --> {}".format(0,s))
-                        learner_comm.send(recv_data[s],dest=s)
+                    for s in range(1, learner_comm.size):
+                        # print("Comm debug: learner to learner {} --> {}".format(0,s))
+                        learner_comm.send(recv_data[s], dest=s)
                 else:
                     tmp = MPI.Wtime()
                     data_buff = learner_comm.recv(source=0)
@@ -265,7 +259,7 @@ class ML_ASYNC(erl.ExaWorkflow):
                     policy_type = data_buff[3]
                     done = data_buff[4]
 
-                #Sai Chenna - synchronize before starting the training
+                # Synchronize before starting the training
                 learner_comm.Barrier()
 
                 if learner_comm.rank == 0:
@@ -273,9 +267,9 @@ class ML_ASYNC(erl.ExaWorkflow):
 
                 else:
                     lrs_recvtime += MPI.Wtime() - tmp
-                #print("Learner {} data_buff {}".format(learner_comm.rank,data_buff))
+                # print("Learner {} data_buff {}".format(learner_comm.rank,data_buff))
                 if learner_comm.rank == 0:
-                #    print("Starting training!")
+                    #    print("Starting training!")
                     s_time = MPI.Wtime()
                 train_return = workflow.agent.train(batch)
 
@@ -297,38 +291,33 @@ class ML_ASYNC(erl.ExaWorkflow):
                 epsilon = workflow.agent.epsilon
 
                 # Send target weights
-                logger.debug('Learner {} rank0_epsilon:{}'.format(learner_comm.rank,epsilon))
-
+                logger.debug('Learner {} rank0_epsilon:{}'.format(learner_comm.rank, epsilon))
 
                 if learner_comm.rank == 0:
                     target_weights = workflow.agent.get_weights()
                     with open('target_weights.pkl', 'wb') as f:
                         pickle.dump(target_weights, f)
 
-
                 if learner_comm.rank == 0:
                     for i in range(rem):
 
-                        #print("Comm debug: learner to actor: {} --> {}".format(0,dest_ranks[i]))
+                        # print("Comm debug: learner to actor: {} --> {}".format(0,dest_ranks[i]))
                         agent_comm.send([worker_episodes[dest_ranks[i] - learner_procs],
-                                    epsilon, target_weights, indices, loss], dest=dest_ranks[i])
+                                         epsilon, target_weights, indices, loss], dest=dest_ranks[i])
                         send_counter += 1
-                        #lr_send_counter[dest_ranks[i]] = lr_send_counter.get(dest_ranks[i],0)+1
+                        # lr_send_counter[dest_ranks[i]] = lr_send_counter.get(dest_ranks[i],0)+1
 
-
-
-
-            #Sai Chenna - Learner 0 will take care of finishing up
-            #Will not be using other learners to train as the number of new batches received are not guaranteed to be exact multiple
+            # Sai Chenna - Learner 0 will take care of finishing up
+            # Will not be using other learners to train as the number of new batches received are not guaranteed to be exact multiple
             # of total number of learners
             if learner_comm.rank == 0:
-                #print("Finishing up!")
+                # print("Finishing up!")
                 logger.info("Finishing up ...\n")
                 episode = -1
                 for s in range(learner_procs, agent_comm.size):
                     recv_data = agent_comm.recv(source=MPI.ANY_SOURCE)
                     whofrom = recv_data[0]
-                    #lr_recv_counter[dest] = lr_recv_counter.get(whofrom,0)+1
+                    # lr_recv_counter[dest] = lr_recv_counter.get(whofrom,0)+1
                     step = recv_data[1]
                     batch = recv_data[2]
                     epsilon = recv_data[3]
@@ -336,38 +325,35 @@ class ML_ASYNC(erl.ExaWorkflow):
                     logger.debug('step:{}'.format(step))
                     logger.debug('done:{}'.format(done))
                     # Train
-                    #train_return = workflow.agent.train(batch)
-                    #if train_return is not None:
+                    # train_return = workflow.agent.train(batch)
+                    # if train_return is not None:
                     #    indices, loss = train_return
-                    #workflow.agent.target_train()
-                    #workflow.agent.save(workflow.results_dir + '/model.pkl')
-                    #print("Comm debug: learner to actor: {} --> {} ".format(0,s))
+                    # workflow.agent.target_train()
+                    # workflow.agent.save(workflow.results_dir + '/model.pkl')
+                    # print("Comm debug: learner to actor: {} --> {} ".format(0,s))
                     agent_comm.send([episode, 0, 0, indices, loss], dest=s)
-                    #lr_send_counter[s] = lr_send_counter.get(s,0)+1
-
+                    # lr_send_counter[s] = lr_send_counter.get(s,0)+1
 
                 logger.info('Learner time: {}'.format(MPI.Wtime() - start))
 
-                #print("Learner 0 Send counter")
-                #print(lr_send_counter)
-                #print("Learner 0 Receive counter")
-                #print(lr_recv_counter)
+                # print("Learner 0 Send counter")
+                # print(lr_send_counter)
+                # print("Learner 0 Receive counter")
+                # print(lr_recv_counter)
 
-
-            print("Learner {} : Total time: {}".format(learner_comm.rank,MPI.Wtime() - lr_stime))
+            print("Learner {} : Total time: {}".format(learner_comm.rank, MPI.Wtime() - lr_stime))
             if learner_comm.rank == 0:
-                print("Learner 0 : Total number of data batches received from actors : {}".format(recv_counter+len(range(learner_procs,agent_comm.size))))
-                print("Learner 0 : Total number of data batches sent to actors : {}".format(send_counter+len(range(learner_procs,agent_comm.size))))
+                print("Learner 0 : Total number of data batches received from actors : {}".format(recv_counter + len(range(learner_procs, agent_comm.size))))
+                print("Learner 0 : Total number of data batches sent to actors : {}".format(send_counter + len(range(learner_procs, agent_comm.size))))
                 print("Learner 0 : Total time spent on training : {}".format(hvd_traintime))
                 print("Learner 0 : Total time spent sending data to other learners : {}".format(lr0_sendtime))
                 print("Learner 0 : Total horovod trainings done : {}".format(hvd_counter))
-                print("Learner 0 : Training throughput : {} batches trained/sec".format((hvd_counter*learner_procs)/hvd_traintime))
+                print("Learner 0 : Training throughput : {} batches trained/sec".format((hvd_counter * learner_procs) / hvd_traintime))
 
             else:
-                print("Learner {} : Total time spent receiving batch data from Learner 0 : {}".format(learner_comm.rank,lrs_recvtime))
-            #print("Learner {} exited successfully!".format(learner_comm.rank))
+                print("Learner {} : Total time spent receiving batch data from Learner 0 : {}".format(learner_comm.rank, lrs_recvtime))
+            # print("Learner {} exited successfully!".format(learner_comm.rank))
             workflow.agent.learner_training_metrics()
-
 
         else:
             if mpi_settings.is_actor():
@@ -393,22 +379,22 @@ class ML_ASYNC(erl.ExaWorkflow):
                 steps = 0
                 action = 0
 
-                #images = []
-                #filename = "cartpole-demo-episode{}.gif".format(episode)
+                # images = []
+                # filename = "cartpole-demo-episode{}.gif".format(episode)
 
                 # Steps in an episode
                 while steps < workflow.nsteps:
-                    #logger.debug('ASYNC::run() agent_comm.rank{}; step({} of {})'
+                    # logger.debug('ASYNC::run() agent_comm.rank{}; step({} of {})'
                     #             .format(agent_comm.rank, steps, (workflow.nsteps - 1)))
                     if mpi_settings.is_actor():
                         # Receive target weights
-                        #print("Actor with Rank {} total number of msgs received from Rank 0 = {}".format(agent_comm.rank,actr_recv_counter))
-                        #print("Actor with Rank {} total number of msgs sent to Rank 0 = {}".format(agent_comm.rank,actr_send_counter))
+                        # print("Actor with Rank {} total number of msgs received from Rank 0 = {}".format(agent_comm.rank,actr_recv_counter))
+                        # print("Actor with Rank {} total number of msgs sent to Rank 0 = {}".format(agent_comm.rank,actr_send_counter))
                         tmp = MPI.Wtime()
                         recv_data = agent_comm.recv(source=0)
                         ac_recvtime += MPI.Wtime() - tmp
                         ac_recv_counter += 1
-                        #actr_recv_counter += 1
+                        # actr_recv_counter += 1
 
                         # Update episode while beginning a new one i.e. step = 0
                         if steps == 0:
@@ -438,10 +424,10 @@ class ML_ASYNC(erl.ExaWorkflow):
 
                     next_state, reward, done, _ = workflow.env.step(action)
 
-                    #workflow.env.render(mode='human')
+                    # workflow.env.render(mode='human')
 
-                    #screen = workflow.env.render(mode='rgb_array')
-                    #images.append(Image.fromarray(screen))
+                    # screen = workflow.env.render(mode='rgb_array')
+                    # images.append(Image.fromarray(screen))
 
                     if mpi_settings.is_actor():
                         total_reward += reward
@@ -454,9 +440,10 @@ class ML_ASYNC(erl.ExaWorkflow):
                         workflow.agent.remember(
                             memory[0], memory[1], memory[2], memory[3], memory[4])
 
-                        #s_gendata = MPI.Wtime()
+                        # s_gendata = MPI.Wtime()
                         batch_data = next(workflow.agent.generate_data())
-                        #print("Time taken to generate data(serially) of batch size %s on 1 actor rank is %s)" % (str(workflow.agent.batch_size),str(MPI.Wtime()-s_gendata)))
+                        # print("Time taken to generate data(serially) of batch size %s on 1 actor rank is %s)"
+                        # % (str(workflow.agent.batch_size),str(MPI.Wtime()-s_gendata)))
                         logger.info(
                             'Rank[{}] - Generated data: {}'.format(agent_comm.rank, len(batch_data[0])))
                         try:
@@ -475,7 +462,7 @@ class ML_ASYNC(erl.ExaWorkflow):
                             [agent_comm.rank, steps, batch_data, policy_type, done], dest=0)
                         ac_sendtime += MPI.Wtime() - tmp
                         ac_send_counter += 1
-                        #actr_send_counter += 1
+                        # actr_send_counter += 1
                         # indices, loss = agent_comm.recv(source=MPI.ANY_SOURCE)
                         indices, loss = recv_data[3:5]
                         if indices is not None:
@@ -499,7 +486,7 @@ class ML_ASYNC(erl.ExaWorkflow):
                     if done:
                         break
 
-                #images[0].save(filename,save_all=True, append_images=images[1:],loop=0, duration=1)
+                # images[0].save(filename,save_all=True, append_images=images[1:],loop=0, duration=1)
             logger.info('Worker time = {}'.format(MPI.Wtime() - start))
             if mpi_settings.is_actor():
                 train_file.close()
@@ -507,11 +494,10 @@ class ML_ASYNC(erl.ExaWorkflow):
         if mpi_settings.is_actor():
             logger.info(f'Agent[{agent_comm.rank}] timing info:\n')
             workflow.agent.print_timers()
-            print("Actor {} :  Total time : {}".format(agent_comm.rank,MPI.Wtime() - start))
-            print("Actor {} : Time spent sending data to learner 0 : {}".format(agent_comm.rank,ac_sendtime))
-            print("Actor {} : Time spent receiving data to learner 0 : {}".format(agent_comm.rank,ac_recvtime))
-            print("Actor {} : Total batches sent to learner 0 : {}".format(agent_comm.rank,ac_send_counter))
-            print("Actor {} : Total model data received from learner 0 : {}".format(agent_comm.rank,ac_recv_counter))
+            print("Actor {} :  Total time : {}".format(agent_comm.rank, MPI.Wtime() - start))
+            print("Actor {} : Time spent sending data to learner 0 : {}".format(agent_comm.rank, ac_sendtime))
+            print("Actor {} : Time spent receiving data to learner 0 : {}".format(agent_comm.rank, ac_recvtime))
+            print("Actor {} : Total batches sent to learner 0 : {}".format(agent_comm.rank, ac_send_counter))
+            print("Actor {} : Total model data received from learner 0 : {}".format(agent_comm.rank, ac_recv_counter))
 
-
-            #print("Actor with Rank = {} exited successfully!".format(agent_comm.rank))
+            # print("Actor with Rank = {} exited successfully!".format(agent_comm.rank))

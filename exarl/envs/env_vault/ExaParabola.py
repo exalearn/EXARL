@@ -45,10 +45,10 @@ class ExaParabola(gym.Env):
         self.a = cd.run_params['parabola_variable_a']
         self.b = cd.run_params['parabola_variable_b']
         self.c = cd.run_params['parabola_variable_c']
-        self.f = lambda x: self.a*x**2.0 + self.b*x + self.c
+        self.f = lambda x: self.a * x**2.0 + self.b * x + self.c
 
         try:
-            self.x_min = -self.b/(2.0*self.a)
+            self.x_min = -self.b / (2.0 * self.a)
         except:
             print('Parabola variable "a" must be non-zero.')
             sys.exit()
@@ -72,11 +72,9 @@ class ExaParabola(gym.Env):
         # Define action and observation space
         self.action_space = gym.spaces.Discrete(2)
         self.observation_space = gym.spaces.Box(low=np.array([self.low]), high=np.array([self.high]), dtype=np.float64)
-        self.state = [0]#[random.uniform(self.low, self.high)]
-
+        self.state = [0]  # [random.uniform(self.low, self.high)]
 
     def step(self, action):
-
 
         if action == 1:
             self.state[0] += self.action_step_size
@@ -100,10 +98,10 @@ class ExaParabola(gym.Env):
         return self.state
 
     def render(self, mode='human', close=False):
-#        plt.clf()
-#        plt.plot(self.x, self.y)
-#        plt.plot(self.x_min, self.y_min, 'g*', label='minimum value')
-#        plt.plot(self.state, self.f(self.state), 'r*', label='current state')
-#        plt.legend()
-#        plt.show()
+        #        plt.clf()
+        #        plt.plot(self.x, self.y)
+        #        plt.plot(self.x_min, self.y_min, 'g*', label='minimum value')
+        #        plt.plot(self.state, self.f(self.state), 'r*', label='current state')
+        #        plt.legend()
+        #        plt.show()
         pass

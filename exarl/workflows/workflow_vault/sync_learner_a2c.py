@@ -88,7 +88,7 @@ class SYNC2(erl.ExaWorkflow):
                 # Update state
                 current_state = next_state
                 logger.info('Rank[%s] - Total Reward:%s' %
-                (str(comm.rank), str(total_reward)))
+                            (str(comm.rank), str(total_reward)))
 
                 steps += 1
                 if steps >= workflow.nsteps:

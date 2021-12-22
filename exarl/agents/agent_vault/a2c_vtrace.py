@@ -90,7 +90,7 @@ class A2Cvtrace(erl.ExaAgent):
         sum_rewards = 0.0
         reward.reverse()
         for r in reward:
-            sum_rewards = r + self.gamma*sum_rewards
+            sum_rewards = r + self.gamma * sum_rewards
             discount_rewards.append(sum_rewards)
 
         discount_rewards.reverse()
@@ -102,12 +102,12 @@ class A2Cvtrace(erl.ExaAgent):
             p = self.actor(states, training=True)
             v = self.critic(states, training=True)
             v = tf.reshape(v, (len(v),))
-            TDerror = tf.math.subtract(discount_rewards,v)
+            TDerror = tf.math.subtract(discount_rewards, v)
             vs = tf.math.add(v, tf.math.multiply(self.gamma, TDerror))
             vs2 = tf.math.add(TDerror, tf.math.multiply(self.gamma, vs))
 
             a_loss = self.actor_loss(p, actions, vs2)
-            c_loss = self.v_const*tf.keras.losses.mean_squared_error(vs, v)
+            c_loss = self.v_const * tf.keras.losses.mean_squared_error(vs, v)
 
             grads1 = tape1.gradient(a_loss, self.actor.trainable_variables)
             grads2 = tape2.gradient(c_loss, self.critic.trainable_variables)
@@ -137,7 +137,7 @@ class A2Cvtrace(erl.ExaAgent):
 
         p_loss = tf.reduce_mean(tf.stack(p_loss))
         e_loss = tf.reduce_mean(tf.stack(e_loss))
-        return -p_loss - self.e_const*e_loss
+        return -p_loss - self.e_const * e_loss
 
     def target_train(self):
         pass

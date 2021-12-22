@@ -45,10 +45,10 @@ class ExaParabolaContinuous(gym.Env):
         self.a = cd.run_params['parabola_variable_a']
         self.b = cd.run_params['parabola_variable_b']
         self.c = cd.run_params['parabola_variable_c']
-        self.f = lambda x: self.a*x**2.0 + self.b*x + self.c
+        self.f = lambda x: self.a * x**2.0 + self.b * x + self.c
 
         try:
-            self.x_min = -self.b/(2.0*self.a)
+            self.x_min = -self.b / (2.0 * self.a)
         except:
             print('Parabola variable "a" must be non-zero.')
             sys.exit()
@@ -90,10 +90,10 @@ class ExaParabolaContinuous(gym.Env):
         return self.state
 
     def render(self, mode='human', close=False):
-#        plt.clf()
-#        plt.plot(self.x, self.y)
-#        plt.plot(self.x_min, self.y_min, 'g*', label='minimum value')
-#        plt.plot(self.state, self.f(self.state), 'r*', label='current state')
-#        plt.legend()
-#        plt.show()
+        #        plt.clf()
+        #        plt.plot(self.x, self.y)
+        #        plt.plot(self.x_min, self.y_min, 'g*', label='minimum value')
+        #        plt.plot(self.state, self.f(self.state), 'r*', label='current state')
+        #        plt.legend()
+        #        plt.show()
         pass

@@ -85,7 +85,7 @@ class RMA_QUEUE_POP_ALL(erl.ExaWorkflow):
             win_size = 0
             if mpi_settings.is_learner() and learner_comm.rank == 0:
                 indices = -1 * np.ones(workflow.agent.batch_size, dtype=np.intc)
-                win_size = workflow.agent.batch_size*disp
+                win_size = workflow.agent.batch_size * disp
             # Allocate indices window
             indices_win = MPI.Win.Allocate(win_size, disp, comm=agent_comm)
             # Initialize indices window
@@ -100,16 +100,15 @@ class RMA_QUEUE_POP_ALL(erl.ExaWorkflow):
             win_size = 0
             if mpi_settings.is_learner() and learner_comm.rank == 0:
                 loss = np.zeros(workflow.agent.batch_size, dtype=np.float64)
-                win_size = workflow.agent.batch_size*disp
+                win_size = workflow.agent.batch_size * disp
             # Allocate loss window
             loss_win = MPI.Win.Allocate(win_size, disp, comm=agent_comm)
             # Initialize loss window
             if mpi_settings.is_learner() and learner_comm.rank == 0:
-                temp =  np.zeros(workflow.agent.batch_size, dtype=np.float64)
+                temp = np.zeros(workflow.agent.batch_size, dtype=np.float64)
                 loss_win.Lock(0)
                 loss_win.Put(temp, target_rank=0)
                 loss_win.Unlock(0)
-
 
             # Get serialized target weights size
             target_weights = workflow.agent.get_weights()
@@ -129,7 +128,6 @@ class RMA_QUEUE_POP_ALL(erl.ExaWorkflow):
             # Initialize the queue data structure
             data_queue = MPI_RMA_QUEUE(agent_comm, mpi_settings.is_learner(), data=agent_batch, length=512, failPush=True, usePopAll=True)
 
-
         if mpi_settings.is_learner() and learner_comm.rank == 0:
             # Write target weight to model window of learner
             model_win.Lock(0)
@@ -148,7 +146,6 @@ class RMA_QUEUE_POP_ALL(erl.ExaWorkflow):
             episode_count_learner = 0
             epsilon = np.array(workflow.agent.epsilon, dtype=np.float64)
 
-
             # initialize epsilon
             epsilon_win.Lock(0)
             epsilon_win.Put(epsilon, target_rank=0)
@@ -158,7 +155,7 @@ class RMA_QUEUE_POP_ALL(erl.ExaWorkflow):
             req_successefully = False
             # request data from an actor
             while not req_successefully:
-                next_s = random.sample(actor_ranks,1)[0]
+                next_s = random.sample(actor_ranks, 1)[0]
                 req_successefully = data_queue.request_pop_all(next_s)
             s = next_s
 
@@ -166,18 +163,18 @@ class RMA_QUEUE_POP_ALL(erl.ExaWorkflow):
                 # wait for getting data
                 grouped_agent_data = data_queue.wait_pop_all(s)
                 # directly request for new data
-                if episode_count_learner < actor_numbers - 1 or not None in grouped_agent_data:
+                if episode_count_learner < actor_numbers - 1 or None not in grouped_agent_data:
                     req_successefully = False
                     while not req_successefully:
-                        next_s = random.sample(actor_ranks,1)[0]
+                        next_s = random.sample(actor_ranks, 1)[0]
                         req_successefully = data_queue.request_pop_all(next_s)
 
                 # Train on previously requested data
                 for agent_data in grouped_agent_data:
-                    if agent_data is None : # the actor ended all episodes
+                    if agent_data is None:  # the actor ended all episodes
                         episode_count_learner += 1
                         actor_ranks.remove(s)
-                    else :
+                    else:
                         # Train
                         train_return = workflow.agent.train(agent_data)
                         if train_return is not None:
@@ -307,12 +304,11 @@ class RMA_QUEUE_POP_ALL(erl.ExaWorkflow):
 
                         # Write data to queue
                         capacity, lost = data_queue.push(batch_data, agent_comm.rank)
-                        while lost: # blocking wait if the queue is full
+                        while lost:  # blocking wait if the queue is full
                             capacity, lost = data_queue.push(batch_data, agent_comm.rank)
 
                     if steps >= workflow.nsteps - 1:
                         done = True
-
 
                     if mpi_settings.is_actor():
                         train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
@@ -338,7 +334,6 @@ class RMA_QUEUE_POP_ALL(erl.ExaWorkflow):
             capacity, lost = data_queue.push(None, agent_comm.rank)
             while lost:
                 capacity, lost = data_queue.push(None, agent_comm.rank)
-
 
         if mpi_settings.is_agent():
             agent_comm.Barrier()

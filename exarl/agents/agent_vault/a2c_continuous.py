@@ -92,7 +92,7 @@ class A2Ccontinuous(erl.ExaAgent):
         sum_rewards = 0.0
         reward.reverse()
         for r in reward:
-            sum_rewards = r + self.gamma*sum_rewards
+            sum_rewards = r + self.gamma * sum_rewards
             discount_rewards.append(sum_rewards)
 
         discount_rewards.reverse()
@@ -110,7 +110,7 @@ class A2Ccontinuous(erl.ExaAgent):
             vs2 = tf.math.add(TDerror, tf.math.multiply(self.gamma, vs))
 
             a_loss = self.actor_loss(mu, std, actions, vs2)
-            c_loss = self.v_const*tf.keras.losses.mean_squared_error(vs, v)
+            c_loss = self.v_const * tf.keras.losses.mean_squared_error(vs, v)
 
             grads1 = tape1.gradient(a_loss, self.actor.trainable_variables)
             grads2 = tape2.gradient(c_loss, self.critic.trainable_variables)
@@ -136,9 +136,9 @@ class A2Ccontinuous(erl.ExaAgent):
         std = tf.clip_by_value(std, self.std_bound[0], self.std_bound[1])
         normal_dist = tf.compat.v1.distributions.Normal(mu, std)
         log_prob = normal_dist.log_prob(actions)
-        policy_loss = log_prob*vs
+        policy_loss = log_prob * vs
         entropy = normal_dist.entropy()
-        policy_loss = tf.reduce_sum(self.e_const*entropy + policy_loss)
+        policy_loss = tf.reduce_sum(self.e_const * entropy + policy_loss)
         return tf.negative(policy_loss)
 
     def target_train(self):
@@ -188,7 +188,7 @@ class Actor(tf.keras.Model):
         self.d1 = tf.keras.layers.Dense(ndense, activation=act, kernel_initializer=kinit)
         self.d2 = tf.keras.layers.Dense(ndense, activation=act, kernel_initializer=kinit)
         self.mu = tf.keras.layers.Dense(nactions, activation='tanh')
-        self.mu_output = tf.keras.layers.Lambda(lambda x: x*act_high)
+        self.mu_output = tf.keras.layers.Lambda(lambda x: x * act_high)
         self.std_output = tf.keras.layers.Dense(nactions, activation='softplus')
 
     def call(self, input_data):

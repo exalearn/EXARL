@@ -57,7 +57,7 @@ class ML_RMA_QUEUE(erl.ExaWorkflow):
             if mpi_settings.is_learner() and learner_comm.rank == 0:
                 actors_number = agent_comm.size - learner_comm.size
                 actors_ended_bitmap = np.zeros(actors_number, dtype=np.byte)
-                win_size = disp*actors_number
+                win_size = disp * actors_number
             # Allocate actors_ended_bitma window
             actors_ended_bitmap_win = MPI.Win.Allocate(win_size, disp, comm=agent_comm)
             # Initialize actors_ended_bitma window
@@ -101,7 +101,7 @@ class ML_RMA_QUEUE(erl.ExaWorkflow):
             win_size = 0
             if mpi_settings.is_learner() and learner_comm.rank == 0:
                 indices = -1 * np.ones(workflow.agent.batch_size, dtype=np.intc)
-                win_size = workflow.agent.batch_size*disp
+                win_size = workflow.agent.batch_size * disp
             # Allocate indices window
             indices_win = MPI.Win.Allocate(win_size, disp, comm=agent_comm)
             # Initialize indices window
@@ -116,12 +116,12 @@ class ML_RMA_QUEUE(erl.ExaWorkflow):
             win_size = 0
             if mpi_settings.is_learner() and learner_comm.rank == 0:
                 loss = np.zeros(workflow.agent.batch_size, dtype=np.float64)
-                win_size = workflow.agent.batch_size*disp
+                win_size = workflow.agent.batch_size * disp
             # Allocate loss window
             loss_win = MPI.Win.Allocate(win_size, disp, comm=agent_comm)
             # Initialize loss window
             if mpi_settings.is_learner() and learner_comm.rank == 0:
-                temp =  np.zeros(workflow.agent.batch_size, dtype=np.float64)
+                temp = np.zeros(workflow.agent.batch_size, dtype=np.float64)
                 loss_win.Lock(0)
                 loss_win.Put(temp, target_rank=0)
                 loss_win.Unlock(0)
@@ -136,7 +136,6 @@ class ML_RMA_QUEUE(erl.ExaWorkflow):
             # Allocate model window
             model_win = MPI.Win.Allocate(target_weights_size, 1, comm=agent_comm)
 
-
             try:
                 rma_queue_length = cd.run_params['rma_queue_length']
             except:
@@ -145,7 +144,6 @@ class ML_RMA_QUEUE(erl.ExaWorkflow):
             agent_batch = next(workflow.agent.generate_data())
             # Allocate data_queue
             data_queue = MPI_RMA_QUEUE(agent_comm, mpi_settings.is_learner(), data=agent_batch, length=rma_queue_length, failPush=True)
-
 
         if mpi_settings.is_learner() and learner_comm.rank == 0:
             # Write target weight to model window of learner
@@ -167,16 +165,16 @@ class ML_RMA_QUEUE(erl.ExaWorkflow):
             agent_data = None
 
             # compute the actors_umber per learner
-            learner_actors_number = total_actors_number//learner_comm.size
-            actor_rest = total_actors_number%learner_comm.size
+            learner_actors_number = total_actors_number // learner_comm.size
+            actor_rest = total_actors_number % learner_comm.size
 
             # distribute the rest of the actors amoung the learners
-            if learner_comm.rank < actor_rest : # distribute the rest
+            if learner_comm.rank < actor_rest:  # distribute the rest
                 learner_actors_number += 1
-                actor_rank_start = learner_comm.size + learner_actors_number*learner_comm.rank
+                actor_rank_start = learner_comm.size + learner_actors_number * learner_comm.rank
                 actor_rank_end   = actor_rank_start + learner_actors_number
             else:
-                actor_rank_start = learner_comm.size + actor_rest + learner_actors_number*learner_comm.rank
+                actor_rank_start = learner_comm.size + actor_rest + learner_actors_number * learner_comm.rank
                 actor_rank_end   = actor_rank_start + learner_actors_number
 
             # create a local set data structure for each learner
@@ -198,44 +196,43 @@ class ML_RMA_QUEUE(erl.ExaWorkflow):
                 if len(actor_ranks) > 0:
                     pop_succes = False
                     while not pop_succes:
-                        s = random.sample(actor_ranks, 1)[0] # get randomly an active actor
-                        pop_succes, agent_data = data_queue.pop(s) # try to get data from the queue
-                else : # there is no more active actors for the current learner
+                        s = random.sample(actor_ranks, 1)[0]  # get randomly an active actor
+                        pop_succes, agent_data = data_queue.pop(s)  # try to get data from the queue
+                else:  # there is no more active actors for the current learner
                     # get the shared bitmap of all active actors
                     actors_ended_bitmap_win.Lock(0)
-                    #actors_ended_bitmap_win.Get_accumulate(one, actors_ended_bitmap, target_rank=0, op=MPI.NO_OP)
+                    # actors_ended_bitmap_win.Get_accumulate(one, actors_ended_bitmap, target_rank=0, op=MPI.NO_OP)
                     actors_ended_bitmap_win.Get(actors_ended_bitmap, target_rank=0)
                     actors_ended_bitmap_win.Unlock(0)
 
                     # compute the active actors
                     current_active_actors = np.where(actors_ended_bitmap == 0)[0] + learner_comm.size
 
-                    if current_active_actors.size == 0 : # No more active actors
-                        agent_data = [1] # dummy agent_data to pass the "if agent_data is None" test
-                        process_has_data = 0 # stop training
-                        #(we stop the training once there is no enough data to perform a new parallel horovod training)
+                    if current_active_actors.size == 0:  # No more active actors
+                        agent_data = [1]  # dummy agent_data to pass the "if agent_data is None" test
+                        process_has_data = 0  # stop training
+                        # (we stop the training once there is no enough data to perform a new parallel horovod training)
 
                     else:
                         got_data = False
-                        for active_actor in current_active_actors :
+                        for active_actor in current_active_actors:
                             pop_succes, agent_data = data_queue.pop(active_actor)
-                            if pop_succes :
+                            if pop_succes:
                                 if agent_data is None:
-                                    data_queue.push(None, active_actor) # push back to notify the corresponding learner
-                                else :
+                                    data_queue.push(None, active_actor)  # push back to notify the corresponding learner
+                                else:
                                     got_data = True
-                                    break # got data for training
-                        if not got_data :
-                         continue
+                                    break  # got data for training
+                        if not got_data:
+                            continue
 
                 # Check if agent_data is none (None is used to inform the learner that an actor finished all episodes)
-                if agent_data is None :
+                if agent_data is None:
                     actor_ranks.remove(s)
                     actors_ended_bitmap_win.Lock(0)
                     actors_ended_bitmap_win.Accumulate(one, 0, target=[(s - learner_comm.size), byte_size], op=MPI.SUM)
                     actors_ended_bitmap_win.Unlock(0)
                     continue
-
 
                 ##########################
                 # Horovod train
@@ -243,7 +240,7 @@ class ML_RMA_QUEUE(erl.ExaWorkflow):
                 # Synchronize learners
                 sum_process_has_data = learner_comm.allreduce(process_has_data, op=MPI.SUM)
                 if (sum_process_has_data / learner_comm.size) < 1.0:
-                    break # there is at least one learner withou data
+                    break  # there is at least one learner withou data
 
                 # Train
                 train_return = workflow.agent.train(agent_data)
@@ -371,7 +368,7 @@ class ML_RMA_QUEUE(erl.ExaWorkflow):
 
                         # Write data to the queue
                         capacity, lost = data_queue.push(batch_data, agent_comm.rank)
-                        while lost: # try to push data until success
+                        while lost:  # try to push data until success
                             capacity, lost = data_queue.push(batch_data, agent_comm.rank)
 
                     if steps >= workflow.nsteps - 1:

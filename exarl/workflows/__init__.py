@@ -16,7 +16,6 @@ register(
 )
 
 
-
 register(
     id='async2',
     entry_point='exarl.workflows.workflow_vault:ASYNC2'
@@ -71,7 +70,7 @@ register(
     id='seed_a2c',
     entry_point='exarl.workflows.workflow_vault:SEED_A2C'
 )
-register(    
+register(
     id='mlasync',
     entry_point='exarl.workflows.workflow_vault:ML_ASYNC'
 )
@@ -90,8 +89,6 @@ register(
     id='seed_v2',
     entry_point='exarl.workflows.workflow_vault:SEED_v2'
 )
-
-
 
 
 register(
@@ -118,7 +115,7 @@ register(
     id='seed_a2c',
     entry_point='exarl.workflows.workflow_vault:SEED_A2C'
 )
-register(    
+register(
     id='mlasync',
     entry_point='exarl.workflows.workflow_vault:ML_ASYNC'
 )

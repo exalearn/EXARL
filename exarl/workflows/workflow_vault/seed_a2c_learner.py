@@ -83,7 +83,7 @@ class SEED_A2C(erl.ExaWorkflow):
                 # Receive the rank of the worker ready for more work
                 recv_data = agent_comm.recv(source=MPI.ANY_SOURCE, status=status)
 
-                if recv_data[0] == 0: # a request for an action
+                if recv_data[0] == 0:  # a request for an action
                     state = recv_data[1]
                     if workflow.action_type == 'fixed':
                         action, policy_type = 0, -11
@@ -92,7 +92,7 @@ class SEED_A2C(erl.ExaWorkflow):
                     # send the action to the actor
                     agent_comm.send([action, policy_type, workflow.agent.epsilon], dest=status.source)
 
-                elif recv_data[0] == 1 : # recv observation
+                elif recv_data[0] == 1:  # recv observation
                     # construct batch
                     batch = recv_data[1]
                     policy_type = recv_data[2]
@@ -100,9 +100,9 @@ class SEED_A2C(erl.ExaWorkflow):
 
                     # Train
                     train_return = workflow.agent.train(batch)
-                    #if train_return is not None:
-                        #if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
-                            #indices, loss = train_return
+                    # if train_return is not None:
+                    # if not np.array_equal(train_return[0], (-1 * np.ones(workflow.agent.batch_size))):
+                    # indices, loss = train_return
 
                     workflow.agent.target_train()
                     if policy_type == 0:
@@ -115,12 +115,11 @@ class SEED_A2C(erl.ExaWorkflow):
                         pickle.dump(target_weights, f)
 
                     # increment episode_done number
-                    if done :
-                        episode_done+=1
+                    if done:
+                        episode_done += 1
                         logger.debug('episode_done:{}'.format(episode_done))
 
             logger.info('Learner time: {}'.format(MPI.Wtime() - start))
-
 
         else:
             if mpi_settings.is_actor():
@@ -151,11 +150,11 @@ class SEED_A2C(erl.ExaWorkflow):
                     # Atomic Get_accumulate to increment the episode counter
                     episode_win.Get_accumulate(one, episode_recv, target_rank=0, op=MPI.SUM)
                     episode_win.Unlock(0)
-                    episode=episode_recv[0]
+                    episode = episode_recv[0]
 
                 episode = env_comm.bcast(episode, root=0)
                 # end loop
-                if episode >= workflow.nepisodes :
+                if episode >= workflow.nepisodes:
                     break
 
                 # Steps in an episode
@@ -164,7 +163,7 @@ class SEED_A2C(erl.ExaWorkflow):
                                  .format(agent_comm.rank, steps, (workflow.nsteps - 1)))
 
                     if mpi_settings.is_actor():
-                        agent_comm.send([0,current_state],dest=0) # ask for action
+                        agent_comm.send([0, current_state], dest=0)  # ask for action
                         recv_data = agent_comm.recv(source=0)
                         action = recv_data[0]
                         policy_type = recv_data[1]
@@ -188,7 +187,7 @@ class SEED_A2C(erl.ExaWorkflow):
 
                     if mpi_settings.is_actor():
                         # Send observation
-                        if done :
+                        if done:
                             batch_data = workflow.agent.generate_data()
                             agent_comm.send([1, batch_data, done, policy_type], dest=0)
 
@@ -218,4 +217,4 @@ class SEED_A2C(erl.ExaWorkflow):
 
         if mpi_settings.is_actor():
             logger.info(f'Agent[{agent_comm.rank}] timing info:\n')
-            #workflow.agent.print_timers()
+            # workflow.agent.print_timers()

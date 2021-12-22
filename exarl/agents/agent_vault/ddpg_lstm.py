@@ -154,9 +154,9 @@ class DDPG_LSTM(erl.ExaAgent):
     # @tf.function
     def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch):
 
-        target_policy = self.target_actor(tf.expand_dims(state_batch,1))
-        behaviour_policy = self.actor_model(tf.expand_dims(state_batch,1))
-        policy_ratio = target_policy/behaviour_policy
+        target_policy = self.target_actor(tf.expand_dims(state_batch, 1))
+        behaviour_policy = self.actor_model(tf.expand_dims(state_batch, 1))
+        policy_ratio = target_policy / behaviour_policy
 
         # print(tf.reduce_mean(policy_ratio))
 
@@ -172,12 +172,12 @@ class DDPG_LSTM(erl.ExaAgent):
         # Training and updating Actor & Critic networks.
         with tf.GradientTape() as tape:
 
-            target_actions = self.target_actor(tf.expand_dims(next_state_batch,1), training=True)
-            target_values = self.target_critic([tf.expand_dims(next_state_batch,1), tf.expand_dims(target_actions,1)], training=True)
-            critic_values = self.critic_model([tf.expand_dims(state_batch,1), tf.expand_dims(action_batch,1)], training=True)
+            target_actions = self.target_actor(tf.expand_dims(next_state_batch, 1), training=True)
+            target_values = self.target_critic([tf.expand_dims(next_state_batch, 1), tf.expand_dims(target_actions, 1)], training=True)
+            critic_values = self.critic_model([tf.expand_dims(state_batch, 1), tf.expand_dims(action_batch, 1)], training=True)
 
-            TDerror = reward_batch + self.gamma*target_values - critic_values
-            vs = critic_values + self.gamma*c*rho*TDerror
+            TDerror = reward_batch + self.gamma * target_values - critic_values
+            vs = critic_values + self.gamma * c * rho * TDerror
             # gamma_vs2 = (1.0/c)*(vs - critic_values + self.gamma*c*target_values - rho*TDerror)
 
             critic_loss = tf.math.reduce_mean(tf.math.square(vs))
@@ -189,10 +189,10 @@ class DDPG_LSTM(erl.ExaAgent):
         )
 
         with tf.GradientTape() as tape:
-            actions = self.actor_model(tf.expand_dims(state_batch,1), training=True)
-            actions_next = self.actor_model(tf.expand_dims(next_state_batch,1), training=True)
-            critic_values = self.critic_model([tf.expand_dims(state_batch,1), tf.expand_dims(actions,1)], training=True)
-            critic_values_next = self.critic_model([tf.expand_dims(next_state_batch,1), tf.expand_dims(actions_next,1)], training=True)
+            actions = self.actor_model(tf.expand_dims(state_batch, 1), training=True)
+            actions_next = self.actor_model(tf.expand_dims(next_state_batch, 1), training=True)
+            critic_values = self.critic_model([tf.expand_dims(state_batch, 1), tf.expand_dims(actions, 1)], training=True)
+            critic_values_next = self.critic_model([tf.expand_dims(next_state_batch, 1), tf.expand_dims(actions_next, 1)], training=True)
             actor_loss = -tf.math.reduce_mean(critic_values)
 
         logger.warning("Actor loss: {}".format(actor_loss))
@@ -203,7 +203,7 @@ class DDPG_LSTM(erl.ExaAgent):
 
     def get_actor(self):
 
-        inputs = layers.Input(shape=(1,self.num_states))
+        inputs = layers.Input(shape=(1, self.num_states))
         out = layers.Dense(self.actor_lstm_layers[0], activation='relu', kernel_initializer='he_uniform')(inputs)
         out = layers.LSTM(self.actor_lstm_layers[1], return_sequences=True)(out)
         out = layers.BatchNormalization()(out)
@@ -216,10 +216,10 @@ class DDPG_LSTM(erl.ExaAgent):
 
     def get_critic(self):
 
-        state_input = layers.Input(shape=(1,self.num_states))
-        action_input = layers.Input(shape=(1,self.num_actions))
+        state_input = layers.Input(shape=(1, self.num_states))
+        action_input = layers.Input(shape=(1, self.num_actions))
         concat = layers.Concatenate()([state_input, action_input])
-        concat_out =  layers.Dense(self.critic_concat_dense[0], activation='relu', kernel_initializer='he_uniform')(concat)
+        concat_out = layers.Dense(self.critic_concat_dense[0], activation='relu', kernel_initializer='he_uniform')(concat)
         concat_out = layers.LSTM(self.critic_lstm_layers[0], activation=self.critic_act, return_sequences=True)(concat_out)
         concat_out = layers.BatchNormalization()(concat_out)
         concat_out = layers.Dropout(self.critic_gauss_noise[0])(concat_out)
