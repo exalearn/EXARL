@@ -15,12 +15,6 @@ register(
     entry_point='exarl.workflows.workflow_vault:ASYNC'
 )
 
-
-register(
-    id='async2',
-    entry_point='exarl.workflows.workflow_vault:ASYNC2'
-)
-
 register(
     id='async_parallel',
     entry_point='exarl.workflows.workflow_vault:ASYNCparallel'
@@ -29,11 +23,6 @@ register(
 register(
     id='async2',
     entry_point='exarl.workflows.workflow_vault:ASYNC2'
-)
-
-register(
-    id='async_parallel',
-    entry_point='exarl.workflows.workflow_vault:ASYNCparallel'
 )
 
 register(
@@ -46,22 +35,6 @@ register(
     entry_point='exarl.workflows.workflow_vault:TESTER'
 )
 
-register(
-    id='non_blocking_async_v2',
-    entry_point='exarl.workflows.workflow_vault:NON_BLOCKING_ASYNC_v2'
-)
-register(
-    id='mlrma_queue',
-    entry_point='exarl.workflows.workflow_vault:ML_RMA_QUEUE'
-)
-register(
-    id='mlrma_queue_short',
-    entry_point='exarl.workflows.workflow_vault:ML_RMA_QUEUE_SHORT'
-)
-register(
-    id='rma_queue_pop_all',
-    entry_point='exarl.workflows.workflow_vault:RMA_QUEUE_POP_ALL'
-)
 register(
     id='seed',
     entry_point='exarl.workflows.workflow_vault:SEED'
@@ -90,7 +63,6 @@ register(
     entry_point='exarl.workflows.workflow_vault:SEED_v2'
 )
 
-
 register(
     id='non_blocking_async_v2',
     entry_point='exarl.workflows.workflow_vault:NON_BLOCKING_ASYNC_v2'
@@ -106,26 +78,4 @@ register(
 register(
     id='rma_queue_pop_all',
     entry_point='exarl.workflows.workflow_vault:RMA_QUEUE_POP_ALL'
-)
-register(
-    id='seed',
-    entry_point='exarl.workflows.workflow_vault:SEED'
-)
-register(
-    id='seed_a2c',
-    entry_point='exarl.workflows.workflow_vault:SEED_A2C'
-)
-register(
-    id='mlasync',
-    entry_point='exarl.workflows.workflow_vault:ML_ASYNC'
-)
-
-register(
-    id='demo',
-    entry_point='exarl.workflows.workflow_vault:DEMO'
-)
-
-register(
-    id='mlrma-v1',
-    entry_point='exarl.workflows.workflow_vault:ML_RMA_V1'
 )
