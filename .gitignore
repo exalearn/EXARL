@@ -126,3 +126,4 @@ venv.bak/
 
 # Directories
 results_dir
+bsuite_results
