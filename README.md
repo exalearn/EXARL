@@ -75,6 +75,7 @@ git lfs fetch
 git lfs pull
 ```
 
+- EXARL uses MPI and GPU accelerated versions of TF/PyTorch/Keras when available.
 - Install dependencies for EXARL (Refer GitHub wiki for platform specific build instructions):
 
 ```
