@@ -79,7 +79,7 @@ git lfs pull
 - Install dependencies for EXARL (Refer GitHub wiki for platform specific build instructions):
 
 ```
-pip install -e . --user
+pip install -e setup/ --user
 ```
 
 ## Configuration Files
