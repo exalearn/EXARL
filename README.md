@@ -66,11 +66,13 @@ A scalable software framework for reinforcement learning environments and agents
 ```
 git clone --recursive https://github.com/exalearn/EXARL.git
 cd EXARL
+# On older git versions
 git lfs fetch
 git lfs pull
 ```
+* Note: This repo uses git large file system (lfs) for data. Make sure your git version supports git lfs.
 
-- Install dependencies for EXARL:
+- Install dependencies for EXARL (Refer the GitHub Wiki for platform specific build instructions):
 
 ```
 pip install -e . --user
