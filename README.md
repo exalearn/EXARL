@@ -213,7 +213,7 @@ if rank == 0:
 - Run the following command:
 
 ```
-mpiexec -np <num_parent_processes> python exarl/driver/__main__.py --<run_params>=<param_value>
+mpiexec -np <num_parent_processes> python exarl/driver/__main__.py --<run_params> <param_value>
 ```
 
 - If running a multi-process environment or agent, the communicators are available in `exarl/mpi_settings.py`.
