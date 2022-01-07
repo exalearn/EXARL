@@ -44,17 +44,18 @@ class ExaBsuite(gym.Env):
 		seed_number = cd.lookup_params('seed_number', default='0')
 		env_name = bsuite_id + "/" + seed_number
 		print("Loading", env_name)
-		env = bsuite.load_and_record(bsuite_id=env_name, save_path='./bsuite_results', logging_mode='csv')
+		env = bsuite.load_and_record(bsuite_id=env_name, save_path='./bsuite_results', 
+									logging_mode='csv')
 		self.env = gym_wrapper.GymFromDMEnv(env)
 		self.action_space = self.env.action_space
 		self.has_extra_dim = False
 		self.observation_space = self.env.observation_space
 		
-		print("action space: ", type(self.action_space))
-		print("obs space: ", type(self.observation_space))
-		print("action space size: ", self.action_space.n)
-		print("obs space: ", self.observation_space)
-		print("obs dtype: ", self.env.observation_space.dtype)
+		# print("action space: ", type(self.action_space))
+		# print("obs space: ", type(self.observation_space))
+		# print("action space size: ", self.action_space.n)
+		# print("obs space: ", self.observation_space)
+		# print("obs dtype: ", self.env.observation_space.dtype)
 
 	def step(self, action) -> _GymTimestep:
 		time.sleep(0)
