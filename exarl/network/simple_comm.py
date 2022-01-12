@@ -14,9 +14,67 @@ if workflow == 'async':
 from mpi4py import MPI
 
 class ExaSimple(ExaComm):
+    """
+    This class is built as a simple wrapper around mpi4py.
+    Instances are a type of ExaComm which is used to send, 
+    recieve, and synchronize data across the participating
+    ranks.
+
+    Attributes
+    ----------
+    MPI : MPI class used to access comm, sizes, and rank
+
+    comm : The underlying communicator
+    
+    size : Number of processes in the communicator
+    
+    rank : Rank of the current process
+
+    Methods
+    -------
+    send(data, dest, pack=False)
+        Sends data to dest
+
+    recv(data, source=MPI.ANY_SOURCE)
+        Receives data from a source
+
+    bcast(data, root)
+        Broadcasts data to comm from root
+
+    barrier()
+        Synchronizes all processes 
+
+    reduce(arg, op, root)
+        Does reduction on data from all processes in comm and puts data on root
+
+    allreduce(arg, op=MPI.LAND)
+        Does reduction on data from all processes in comm and puts data on all processes
+        
+    time()
+        Returns MPI wall time
+        
+    split(procs_per_env, num_learners)
+        Divides global comm into sub-comms
+
+    raw()
+        Return the raw MPI comm
+    """
+
     MPI = MPI
 
     def __init__(self, comm=MPI.COMM_WORLD, procs_per_env=1, num_learners=1):
+        """
+        Parameters
+        ----------
+        comm : MPI Comm, optional
+            The base MPI comm to split into sub-comms.  If set to None
+            will default to MPI.COMM_WORLD
+        procs_per_env : int, optional
+            Number of processes per environment (sub-comm)
+        num_learners : int, optional
+            Number of learners (multi-learner)
+        """
+
         if comm is None:
             self.comm = MPI.COMM_WORLD
             self.size = MPI.COMM_WORLD.Get_size()
@@ -33,33 +91,107 @@ class ExaSimple(ExaComm):
 
     @introspectTrace()
     def send(self, data, dest, pack=False):
+        """
+        Point-to-point communication between ranks.  Send must have
+        matching recv.
+
+        Parameters
+        ----------
+        data : any
+            Data to be sent
+        dest : int
+            Rank within comm where data will be sent.
+        pack : int, optional
+            Not used
+        """
         return self.comm.send(data, dest=dest)
 
     @introspectTrace()
     def recv(self, data, source=MPI.ANY_SOURCE):
+        """
+        Point-to-point communication between ranks.  Send must have
+        matching send.
+
+        Parameters
+        ----------
+        data : any
+            Not used
+        dest : int
+            Rank within comm where data will be sent. Must have matching recv.
+        source : int, optional
+            Rank to recieve data from.  Default allows data from any source.
+        """
         return self.comm.recv(source=source)
 
     @introspectTrace()
     def bcast(self, data, root):
+        """
+        Broadcasts data from the root to all other processes in comm.
+        
+        Parameters
+        ----------
+        data : any
+            Data to be broadcast
+        root : int
+            Indicate which process data comes from
+        """
         return self.comm.bcast(data, root=root)
 
     def barrier(self):
+        """
+        Block synchronization for the comm.
+        """
         return self.comm.Barrier()
 
     def reduce(self, arg, op, root):
+        """
+        Data is joined from all processes in comm by doing op.
+        Result is placed on root.
+
+        Parameters
+        ----------
+        arg : any
+            Data to reduce
+        op : str
+            Supports sum, max, and min reductions
+        root : int
+            Rank the result will end on
+        """
         converter = {sum: MPI.SUM, max: MPI.MAX, min: MPI.MIN}
         return self.comm.reduce(arg, op=converter[op], root=root)
 
     def allreduce(self, arg, op=MPI.LAND):
+        """
+        Data is joined from all processes in comm by doing op.
+        Data is put on all processes in comm.
+
+        Parameters
+        ----------
+        arg : any
+            Data to reduce
+        op : MPI op, optional
+            Operation to perform
+        """
         return self.comm.allreduce(arg, op)
 
-    def gather(self, data, root):
-        return self.comm.gather(data, root=root)
-
     def time(self):
+        """
+        Returns MPI wall clock time
+        """
         return MPI.Wtime()
 
     def split(self, procs_per_env, num_learners):
+        """
+        This splits the comm into agent, environment, and learner comms.
+        Returns three simple sub-comms
+
+        Parameters
+        ----------
+        procs_per_env : int
+            Number of processes per environment comm
+        num_learners : int
+            Number of processes per learner comm
+        """
         # Agent communicator
         agent_color = MPI.UNDEFINED
         if (self.rank < num_learners) or ((self.rank + procs_per_env - 1) % procs_per_env == 0):
@@ -90,4 +222,7 @@ class ExaSimple(ExaComm):
         return agent_comm, env_comm, learner_comm
 
     def raw(self):
+        """
+        Returns raw MPI comm
+        """
         return self.comm
