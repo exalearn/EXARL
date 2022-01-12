@@ -15,7 +15,36 @@ try:
         pass
 
 except:
-    class ib:
+    class ib:    
+        """This class enables tracing of an MPI rank's function execution \\
+            by using Python decorators to wrap a function. 
+        Attributes
+        ----------
+        replace : bool
+            True if we are wrapping this function for tracing
+        init : bool
+            True if the class has been initialized.
+        rank : int
+            MPI rank of process being traced
+        skew : list
+            Global time stamps
+        start_time : int
+            Time stamp when tracing started, time in nanoseconds since the epoch.
+        end_time : int
+            Time stamp when tracing ended, time in nanoseconds since the epoch.
+        metric_window : dictionary
+            Dictionary with keys as metric  namess being traced and values as tuple of time window when it was traced.
+        metric_list : dictionary
+            Dictionary with keys as metric names being traced and values of the history of time windows of traces.
+        metric_trace : dictionary
+            Dictionary with keys as metric names being traced and values as tuples of counts and timestamps
+        metric_trace_count : dictionary
+            Dictionary with keys as metric names being traced and values as number of traces for that name
+        last_trace : str
+            Name of metric that was last traced.
+
+
+        """        
         replace = False
         init = False
         rank = None
@@ -29,6 +58,13 @@ except:
         last_trace = None
 
         def __init__(self, comm):
+            """Initializer which checks if it has not been initialized, then it does that.  
+    
+            Parameters
+            ----------
+            comm : mpi4py.MPI.Comm
+                MPI communication object associated with this trace.
+            """            
             if ib.replace and not ib.init:
                 ib.init = True
                 ib.rank = comm.rank
@@ -42,6 +78,13 @@ except:
                 comm.barrier()
 
         def start():
+            """Starts tracing this rank.
+
+            Returns
+            -------
+            integer
+                0 if we are not tracing, 1 if tracing.
+            """            
             if ib.replace:
                 print("---------------STARTING REPLACEMENT IB", ib.rank, "---------------", flush=True)
                 ib.start_time = globalTimeStamp()
@@ -49,11 +92,27 @@ except:
             return 0
 
         def stop():
+            """Stops tracing for this rank.
+            """            
             if ib.replace:
                 print("---------------STOPPING REPLACEMENT IB", ib.rank, "---------------", flush=True)
                 ib.end_time = globalTimeStamp()
 
         def update(name, toAdd):
+            """Updates tracing metrics for the given name.
+
+            Parameters
+            ----------
+            name : str
+                name of function being timed
+            toAdd : int
+                amount being added to metric
+
+            Returns
+            -------
+            int
+                1 if metric is updated, -1 otherwise
+            """            
             if ib.replace:
                 if ib.start_time is not None and ib.end_time is None:
                     if name not in ib.metric_window:
@@ -67,6 +126,20 @@ except:
             return -1
 
         def startTrace(name, size):
+            """Begin a trace of a metric for a function.
+
+            Parameters
+            ----------
+            name : str
+                name of metric
+            size : int
+                
+
+            Returns
+            -------
+            int
+                1 if trace started, 0 otherwise
+            """            
             if ib.replace:
                 if ib.start_time is not None and ib.end_time is None:
                     if ib.last_trace is None:
@@ -81,6 +154,26 @@ except:
             return 0
 
         def simpleTrace(name, size, seqNum, endTimeStamp, trace):
+            """create a trace associated with a function
+
+            Parameters
+            ----------
+            name : str
+                name of function to trace
+            size : int
+                
+            seqNum : int
+                
+            endTimeStamp : float
+                
+            trace : int
+                
+
+            Returns
+            -------
+            int
+                1 if data appended to the trace, 0 otherwise
+            """            
             if ib.replace:
                 if ib.start_time is not None and ib.end_time is None:
                     if name not in ib.metric_trace:
@@ -90,6 +183,8 @@ except:
             return 0
 
         def stopTrace():
+            """Stops the trace if it was started.
+            """            
             if ib.replace:
                 if ib.start_time is not None and ib.end_time is None:
                     if ib.last_trace is not None:
@@ -98,6 +193,13 @@ except:
                         ib.last_trace = None
 
     def ibWrite(writeDir):
+        """Write out the trace information to files.
+
+        Parameters
+        ----------
+        writeDir : str
+            Directory within which trace files beginning with "nodeMetric_, trace_ and skew_" are written
+        """        
         if writeDir is not None and ib.replace and ib.init:
             for name in ib.metric_list:
                 filename = writeDir + "/nodeMetric_" + name.replace('_', '') + "_" + str(ib.rank) + ".ct"
@@ -121,13 +223,48 @@ except:
                         writeFile.write(str(i) + "\n")
 
     def ibLoaded():
+        """Checks if we are introspecting
+
+        Returns
+        -------
+        bool
+            True if we are introspecting, False otherwise
+        """        
         return ib.replace
 
     def ibLoadReplacement(comm, writeDir):
+        """Start tracing.
+
+        Parameters
+        ----------
+        comm : MPI communicator
+            [description]
+        writeDir : str
+
+
+        Returns
+        -------
+        introspection object
+            introspection object initialized for the given communicator
+        """        
+
         ib.replace = True
         return ib(comm)
 
 def introspectTrace(position=None, keyword=None, default=0, name=False):
+    """Defines a decorator used to trace functions.
+
+    Parameters
+    ----------
+    position : int, optional
+        size is set to the value in function args[position], by default None
+    keyword : int, optional
+        size is set to this keyword value, by default None
+    default : int, optional
+        size is set to this value, by default 0
+    name : bool, optional
+        prepend an additional name to the trace name, by default False
+    """    
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -150,6 +287,18 @@ def introspectTrace(position=None, keyword=None, default=0, name=False):
     return decorator
 
 def introspect(func):
+    """A decorator that wraps a function with so that when called it updates a function metric with 1 
+
+    Parameters
+    ----------
+    func : function
+        function to be wrapped
+
+    Returns
+    -------
+    function 
+        the wrapper for the func argument
+    """    
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         result = func(*args, **kwargs)

@@ -64,19 +64,22 @@ A scalable software framework for reinforcement learning environments and agents
 ## Installing
 
 - Pull code from repo
+- Note: This repo uses git large file system (lfs) for storing data. Make sure your git version supports lfs before cloning the repo.
 
 ```
 git clone --recursive https://github.com/exalearn/EXARL.git
 cd EXARL
+# Required for older versions of git
 git lfs install # install git lfs if you haven't
 git lfs fetch
 git lfs pull
 ```
 
-- Install dependencies for EXARL:
+- EXARL uses MPI and GPU accelerated versions of TF/PyTorch/Keras when available.
+- Install dependencies for EXARL (Refer GitHub wiki for platform specific build instructions):
 
 ```
-pip install -e . --user
+pip install -e setup/ --user
 ```
 
 ## Configuration Files
@@ -210,7 +213,7 @@ if rank == 0:
 - Run the following command:
 
 ```
-mpiexec -np <num_parent_processes> python exarl/driver/__main__.py --<run_params>=<param_value>
+mpiexec -np <num_parent_processes> python exarl/driver/__main__.py --<run_params> <param_value>
 ```
 
 - If running a multi-process environment or agent, the communicators are available in `exarl/mpi_settings.py`.
