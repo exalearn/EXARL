@@ -30,7 +30,7 @@ class ExaMPIConstant:
         raw MPI communicator
 
     npType : type
-        numpy type of constance
+        numpy type of constant
 
     mpiType : type
         mpi type of the constant
@@ -44,7 +44,7 @@ class ExaMPIConstant:
         internal constant numpy 1 for incrementing
 
     buff : numpy array
-        internal numpy buffer used for rma ops
+        internal numpy buffer used for RMA ops
 
     name : string
         name of the constant for debugging
@@ -55,7 +55,7 @@ class ExaMPIConstant:
         """
         Parameters
         ----------
-        comm : MPI Comm
+        comm : mpi4py.MPI.Comm
             Communicator for all ranks involved
 
         rank_mask : int, optional
@@ -174,14 +174,14 @@ class ExaMPIBuffUnchecked(ExaData):
 
     Attributes
     ----------
-    comm : MPI.comm
+    comm : mpi4py.MPI.Comm
         raw MPI communicator
 
     win : MPI.win
         MPI window for buffer
 
     buff : bytearray
-        internal buffer used for rma ops
+        internal buffer used for RMA ops
 
     """
     def __init__(self, comm, data, rank_mask=None, length=1, max_model_lag=None, failPush=False, name=None):
@@ -294,14 +294,14 @@ class ExaMPIBuffChecked(ExaData):
 
     Attributes
     ----------
-    comm : MPI.comm
+    comm : mpi4py.MPI.Comm
         raw MPI communicator
 
     win : MPI.win
         MPI window for buffer
 
     buff : bytearray
-        internal buffer used for rma ops
+        internal buffer used for RMA ops
 
     Methods
     -------
@@ -316,7 +316,7 @@ class ExaMPIBuffChecked(ExaData):
         """
         Parameters
         ----------
-        comm : MPI Comm
+        comm : mpi4py.MPI.Comm
             Communicator for all ranks involved
         data : list
             Example data used to create buffer
@@ -431,7 +431,7 @@ class ExaMPIDistributedQueue(ExaData):
 
     Attributes
     ----------
-    comm : MPI.comm
+    comm : mpi4py.MPI.Comm
         raw MPI communicator
 
     length : int
@@ -441,7 +441,7 @@ class ExaMPIDistributedQueue(ExaData):
         flag setting if push can overwrite data
 
     buff : bytearray
-        internal buffer for queue used for rma ops
+        internal buffer for queue used for RMA ops
 
     plus : np.array
         numpy constant for adding
@@ -469,7 +469,7 @@ class ExaMPIDistributedQueue(ExaData):
         """
         Parameters
         ----------
-        comm : MPI Comm
+        comm : mpi4py.MPI.Comm
             Communicator for all ranks involved
         data : list, optional
             Example data used to create buffer
@@ -647,7 +647,7 @@ class ExaMPIDistributedStack(ExaData):
 
     Attributes
     ----------
-    comm : MPI.comm
+    comm : mpi4py.MPI.Comm
         raw MPI communicator
 
     length : int
@@ -657,7 +657,7 @@ class ExaMPIDistributedStack(ExaData):
         flag setting if push can overwrite data
 
     buff : bytearray
-        internal numpy buffer for stack used for rma ops
+        internal numpy buffer for stack used for RMA ops
 
     plus : np.array
         numpy constant for adding
@@ -685,7 +685,7 @@ class ExaMPIDistributedStack(ExaData):
         """
         Parameters
         ----------
-        comm : MPI Comm
+        comm : mpi4py.MPI.Comm
             Communicator for all ranks involved
         data : list
             Example data used to create buffer
@@ -867,7 +867,7 @@ class ExaMPICentralizedStack(ExaData):
 
     Attributes
     ----------
-    comm : MPI.comm
+    comm : mpi4py.MPI.Comm
         raw MPI communicator
 
     length : int
@@ -877,7 +877,7 @@ class ExaMPICentralizedStack(ExaData):
         flag setting if push can overwrite data
 
     buff : bytearray
-        internal buffer for stack used for rma ops
+        internal buffer for stack used for RMA ops
 
     plus : np.array
         numpy constant for adding
@@ -905,7 +905,7 @@ class ExaMPICentralizedStack(ExaData):
         """
         Parameters
         ----------
-        comm : MPI Comm
+        comm : mpi4py.MPI.Comm
             Communicator for all ranks involved
         data : list
             Example data used to create buffer
@@ -1111,7 +1111,7 @@ class ExaMPICentralizedQueue(ExaData):
 
     Attributes
     ----------
-    comm : MPI.comm
+    comm : mpi4py.MPI.Comm
         raw MPI communicator
 
     length : int
@@ -1121,7 +1121,7 @@ class ExaMPICentralizedQueue(ExaData):
         flag setting if push can overwrite data
 
     buff : bytearray
-        internal buffer for queue used for rma ops
+        internal buffer for queue used for RMA ops
 
     plus : np.array
         numpy constant for adding
@@ -1149,7 +1149,7 @@ class ExaMPICentralizedQueue(ExaData):
         """
         Parameters
         ----------
-        comm : MPI Comm
+        comm : mpi4py.MPI.Comm
             Communicator for all ranks involved
         data : list
             Example data used to create buffer
