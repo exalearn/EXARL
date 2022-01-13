@@ -1,42 +1,41 @@
 
 
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
-  <meta charset="utf-8" />
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>EXARL Unit Tests &mdash; EXARL  documentation</title>
   
 
   
-  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-
+  
   
   
 
   
-  
-
-  
-
-  
-  <!--[if lt IE 9]>
-    <script src="_static/js/html5shiv.min.js"></script>
-  <![endif]-->
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
     
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="ECP Annual Meeting 21 - EXARL Tutorial" href="tutorial.html" />
@@ -77,7 +76,6 @@
           
         </div>
 
-        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -85,7 +83,7 @@
               
             
             
-              <p class="caption"><span class="caption-text">Contents:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="requirements.html">Software Requirements</a></li>
 <li class="toctree-l1"><a class="reference internal" href="directory.html">Directory Organization</a></li>
@@ -110,7 +108,6 @@
             
           
         </div>
-        
       </div>
     </nav>
 
@@ -145,20 +142,18 @@
 
 
 
-
-
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li><a href="index.html">Docs</a> &raquo;</li>
         
       <li>EXARL Unit Tests</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
-          
+            
             <a href="_sources/utests.rst.txt" rel="nofollow"> View page source</a>
           
         
@@ -172,14 +167,14 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="exarl-unit-tests">
+  <section id="exarl-unit-tests">
 <h1>EXARL Unit Tests<a class="headerlink" href="#exarl-unit-tests" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="unit-testing-for-exarl">
+<section id="unit-testing-for-exarl">
 <h2>Unit Testing for ExaRL<a class="headerlink" href="#unit-testing-for-exarl" title="Permalink to this headline">¶</a></h2>
 <p>A pytest based unit testing is implemented to evaluate ExaRL agents. So far this implementation is limited to a DQN agent in ExaRL.
 Using this implementation as an example, more unit test cases can be implemented and  unit testing can be extended to evaluate other agents in ExaRL to generalize the unit testing for custom agents.</p>
-</div>
-<div class="section" id="unit-test-cases-for-dqn-agent">
+</section>
+<section id="unit-test-cases-for-dqn-agent">
 <h2>Unit Test Cases for DQN agent<a class="headerlink" href="#unit-test-cases-for-dqn-agent" title="Permalink to this headline">¶</a></h2>
 <p>The pytest framework runs each test case method as an independent instance. Multiple test cases are grouped in a TestClass, as implemented in utest_dqn.py
 Each method in TestClass, with a prefix test_*, will be run by the pytest framework as an independent instance. There are 14 such methods in TestClass, each dedicated for a specific unit test case.</p>
@@ -193,12 +188,6 @@ Each method in TestClass, with a prefix test_*, will be run by the pytest framew
 <li><p>Test case 2: Tests DQN agent’s init(), which includes testing correct parameter configuration, and test if the model.compile() (LSTM and MLP) is executed correctly by the DQN agent.</p></li>
 </ul>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">test_init</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-</pre></div>
-</div>
-<ul class="simple">
-<li><p>Test case 3: Tests if the set_learner() method of the DQN agent is correctly executed.</p></li>
-</ul>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">test_set_learner</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 </pre></div>
 </div>
 <ul class="simple">
@@ -252,8 +241,8 @@ Each method in TestClass, with a prefix test_*, will be run by the pytest framew
 <span class="k">def</span> <span class="nf">test_monitor</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>  <span class="c1"># 14</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="run">
+</section>
+<section id="run">
 <h2>Run<a class="headerlink" href="#run" title="Permalink to this headline">¶</a></h2>
 <p>The test methods (test_*) are executed by the pytest framework by running ‘pytest’ command from the ExaRL parent directory (exarl/).</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ExaRL/utests % <span class="nb">cd</span> ..
@@ -286,41 +275,41 @@ The pytest.ini file is a configuration file used by the pytest framework. It inc
 <span class="n">log_file</span> <span class="o">=</span> <span class="o">./</span><span class="n">utests</span><span class="o">/</span><span class="n">logs</span><span class="o">/</span><span class="n">pytest</span><span class="o">-</span><span class="n">utest</span><span class="o">.</span><span class="n">log</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="integration-with-travis-ci">
+</section>
+<section id="integration-with-travis-ci">
 <h2>Integration with Travis CI<a class="headerlink" href="#integration-with-travis-ci" title="Permalink to this headline">¶</a></h2>
 <p>The pytest framework for unit testing has been integrated with build test framework provided by Travis CI. Consequently, ExaRL/.travis.yml and ExaRL/setup.py files have been updated to take effect.</p>
-</div>
-</div>
+</section>
+</section>
 
 
            </div>
            
           </div>
           <footer>
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="tutorial.html" class="btn btn-neutral float-right" title="ECP Annual Meeting 21 - EXARL Tutorial" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-        <a href="utils.html" class="btn btn-neutral float-left" title="EXARL Utils" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+      
+        <a href="tutorial.html" class="btn btn-neutral float-right" title="ECP Annual Meeting 21 - EXARL Tutorial" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="utils.html" class="btn btn-neutral float-left" title="EXARL Utils" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
     </div>
+  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &#169; Copyright 2021, Vinay Ramakrishnaiah.
+        &copy; Copyright 2021, Vinay Ramakrishnaiah
 
     </p>
   </div>
-    
-    
-    
-    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
-    
-    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
-    
-    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
+
         </div>
       </div>
 
@@ -328,6 +317,7 @@ The pytest.ini file is a configuration file used by the pytest framework. It inc
 
   </div>
   
+
 
   <script type="text/javascript">
       jQuery(function () {

@@ -1,42 +1,41 @@
 
 
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
-  <meta charset="utf-8" />
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>Running EXARL using MPI &mdash; EXARL  documentation</title>
   
 
   
-  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-
+  
   
   
 
   
-  
-
-  
-
-  
-  <!--[if lt IE 9]>
-    <script src="_static/js/html5shiv.min.js"></script>
-  <![endif]-->
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
     
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="EXARL Environments" href="envs.html" />
@@ -77,7 +76,6 @@
           
         </div>
 
-        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -85,7 +83,7 @@
               
             
             
-              <p class="caption"><span class="caption-text">Contents:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="requirements.html">Software Requirements</a></li>
 <li class="toctree-l1"><a class="reference internal" href="directory.html">Directory Organization</a></li>
@@ -104,7 +102,6 @@
             
           
         </div>
-        
       </div>
     </nav>
 
@@ -139,20 +136,18 @@
 
 
 
-
-
 <div role="navigation" aria-label="breadcrumbs navigation">
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li><a href="index.html">Docs</a> &raquo;</li>
         
       <li>Running EXARL using MPI</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
-          
+            
             <a href="_sources/run.rst.txt" rel="nofollow"> View page source</a>
           
         
@@ -166,17 +161,17 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="running-exarl-using-mpi">
+  <section id="running-exarl-using-mpi">
 <h1>Running EXARL using MPI<a class="headerlink" href="#running-exarl-using-mpi" title="Permalink to this headline">¶</a></h1>
 <p>Existing environment can be paired with an available agent.</p>
 <p>The following script is provided for convenience: <code class="docutils literal notranslate"><span class="pre">ExaRL/exarl/driver/driver.py</span></code></p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">mpi4py</span> <span class="kn">import</span> <span class="n">MPI</span>
-<span class="kn">import</span> <span class="nn">utils.analyze_reward</span> <span class="kn">as</span> <span class="nn">ar</span>
+<span class="kn">import</span> <span class="nn">utils.analyze_reward</span> <span class="k">as</span> <span class="nn">ar</span>
 <span class="kn">import</span> <span class="nn">time</span>
-<span class="kn">import</span> <span class="nn">exarl</span> <span class="kn">as</span> <span class="nn">erl</span>
+<span class="kn">import</span> <span class="nn">exarl</span> <span class="k">as</span> <span class="nn">erl</span>
 <span class="kn">import</span> <span class="nn">mpi4py.rc</span>
-<span class="n">mpi4py</span><span class="o">.</span><span class="n">rc</span><span class="o">.</span><span class="n">threads</span> <span class="o">=</span> <span class="bp">False</span>
-<span class="n">mpi4py</span><span class="o">.</span><span class="n">rc</span><span class="o">.</span><span class="n">recv_mprobe</span> <span class="o">=</span> <span class="bp">False</span>
+<span class="n">mpi4py</span><span class="o">.</span><span class="n">rc</span><span class="o">.</span><span class="n">threads</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="n">mpi4py</span><span class="o">.</span><span class="n">rc</span><span class="o">.</span><span class="n">recv_mprobe</span> <span class="o">=</span> <span class="kc">False</span>
 
 <span class="c1"># MPI communicator</span>
 <span class="n">comm</span> <span class="o">=</span> <span class="n">MPI</span><span class="o">.</span><span class="n">COMM_WORLD</span>
@@ -199,8 +194,8 @@
 <span class="n">elapse</span> <span class="o">=</span> <span class="n">comm</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span><span class="n">elapse</span><span class="p">,</span> <span class="n">op</span><span class="o">=</span><span class="n">MPI</span><span class="o">.</span><span class="n">SUM</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
 <span class="k">if</span> <span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-    <span class="k">print</span><span class="p">(</span><span class="s2">&quot;Average elapsed time = &quot;</span><span class="p">,</span> <span class="n">elapse</span> <span class="o">/</span> <span class="n">size</span><span class="p">)</span>
-    <span class="k">print</span><span class="p">(</span><span class="s2">&quot;Maximum elapsed time = &quot;</span><span class="p">,</span> <span class="n">max_elapse</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Average elapsed time = &quot;</span><span class="p">,</span> <span class="n">elapse</span> <span class="o">/</span> <span class="n">size</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Maximum elapsed time = &quot;</span><span class="p">,</span> <span class="n">max_elapse</span><span class="p">)</span>
     <span class="c1"># Save rewards vs. episodes plot</span>
     <span class="n">ar</span><span class="o">.</span><span class="n">save_reward_plot</span><span class="p">()</span>
 </pre></div>
@@ -212,41 +207,41 @@
 </div>
 <p>If running a multi-process environment or agent, the communicators are available in <code class="docutils literal notranslate"><span class="pre">exarl/mpi_settings.py</span></code>.</p>
 <p>E.g.:-</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">exarl.mpi_settings</span> <span class="kn">as</span> <span class="nn">mpi_settings</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">exarl.mpi_settings</span> <span class="k">as</span> <span class="nn">mpi_settings</span>
 <span class="bp">self</span><span class="o">.</span><span class="n">env_comm</span> <span class="o">=</span> <span class="n">mpi_settings</span><span class="o">.</span><span class="n">env_comm</span>
 <span class="bp">self</span><span class="o">.</span><span class="n">agent_comm</span> <span class="o">=</span> <span class="n">mpi_settings</span><span class="o">.</span><span class="n">agent_comm</span>
 </pre></div>
 </div>
-</div>
+</section>
 
 
            </div>
            
           </div>
           <footer>
+  
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="envs.html" class="btn btn-neutral float-right" title="EXARL Environments" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-        <a href="candle.html" class="btn btn-neutral float-left" title="CANDLE Integration" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+      
+        <a href="envs.html" class="btn btn-neutral float-right" title="EXARL Environments" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="candle.html" class="btn btn-neutral float-left" title="CANDLE Integration" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
     </div>
+  
 
   <hr/>
 
   <div role="contentinfo">
     <p>
-        &#169; Copyright 2021, Vinay Ramakrishnaiah.
+        &copy; Copyright 2021, Vinay Ramakrishnaiah
 
     </p>
   </div>
-    
-    
-    
-    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
-    
-    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
-    
-    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
+
         </div>
       </div>
 
@@ -254,6 +249,7 @@
 
   </div>
   
+
 
   <script type="text/javascript">
       jQuery(function () {

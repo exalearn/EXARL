@@ -126,3 +126,7 @@ venv.bak/
 
 # Directories
 results_dir
+bsuite_results
+
+# bsuite
+exarl/driver/bsuite_driver_single.py
