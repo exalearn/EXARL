@@ -26,36 +26,29 @@ class ExaMPIConstant:
 
     Attributes
     ----------
-    comm : raw MPI communicator
+    comm : mpi4py.MPI.Comm
+        raw MPI communicator
 
-    npType : numpy type of constance
+    npType : type
+        numpy type of constance
 
-    mpiType : mpi type of the constant
+    mpiType : type
+        mpi type of the constant
 
-    rank : rank that hosts the data
+    rank : int
+        rank that hosts the data
 
-    win : MPI window
+    win : MPI.win
+        MPI window for constant
+    sum : int
+        internal constant numpy 1 for incrementing
 
-    sum : internal constant numpy 1 for incrementing
+    buff : numpy array
+        internal numpy buffer used for rma ops
 
-    buff : internal numpy buffer used for rma ops
+    name : string
+        name of the constant for debugging
 
-    name : name of the constant for debugging
-
-    Methods
-    -------
-    put(value, rank)
-        Sets constant value
-        
-    get(self, rank)
-        Gets constant value
-        
-
-    inc(self, rank)
-        Increments constant value
-
-    min(self, value, rank)
-        Returns the min from all rma windows
     """
 
     def __init__(self, comm, rank_mask, the_type, name=None):
@@ -67,8 +60,10 @@ class ExaMPIConstant:
 
         rank_mask : int, optional
             host of the window
+
         the_type : int, optional
             python type (int, float)
+
         name : string, optional
             name of constant for debbuging
         """
@@ -179,19 +174,14 @@ class ExaMPIBuffUnchecked(ExaData):
 
     Attributes
     ----------
-    comm : raw MPI communicator
+    comm : MPI.comm
+        raw MPI communicator
 
-    win : MPI window
+    win : MPI.win
+        MPI window for buffer
 
-    buff : internal numpy buffer used for rma ops
-
-    Methods
-    -------
-    pop(value, rank, count)
-        Returns value stored in buffer at rank
-        
-    push(self, data, rank)
-        Pushes data to buffer at rank
+    buff : bytearray
+        internal buffer used for rma ops
 
     """
     def __init__(self, comm, data, rank_mask=None, length=1, max_model_lag=None, failPush=False, name=None):
@@ -304,11 +294,14 @@ class ExaMPIBuffChecked(ExaData):
 
     Attributes
     ----------
-    comm : raw MPI communicator
+    comm : MPI.comm
+        raw MPI communicator
 
-    win : MPI window
+    win : MPI.win
+        MPI window for buffer
 
-    buff : internal numpy buffer used for rma ops
+    buff : bytearray
+        internal buffer used for rma ops
 
     Methods
     -------
@@ -438,35 +431,38 @@ class ExaMPIDistributedQueue(ExaData):
 
     Attributes
     ----------
-    comm : raw MPI communicator
+    comm : MPI.comm
+        raw MPI communicator
 
-    length : capacity of the queue
+    length : int
+        capacity of the queue
 
-    failPush : flag setting if push can overwrite data
+    failPush : bool
+        flag setting if push can overwrite data
 
-    buff : internal numpy buffer for queue used for rma ops
+    buff : bytearray
+        internal buffer for queue used for rma ops
 
-    plus : numpy constant for adding
+    plus : np.array
+        numpy constant for adding
 
-    minus : numpy constant for subtracting
+    minus : np.array
+        numpy constant for subtracting
 
-    headBuffer : buffer containing head counter
+    headBuffer : np.array
+        buffer containing head counter
 
-    tailBuffer : buffer containing tail counter
+    tailBuffer : np.array
+        buffer containing tail counter
 
-    head : RMA window based on headBuffer
+    head : MPI.win
+        RMA window based on headBuffer
 
-    tail : RMA window based on tailBuffer
+    tail : MPI.win
+        RMA window based on tailBuffer
 
-    win : MPI window based on buffer for queue
-
-    Methods
-    -------
-    pop(value, rank, count)
-        Returns value stored in queue at rank
-        
-    push(self, data, rank)
-        Pushes data to queue at rank
+    win : MPI.win
+        MPI window based on buffer for queue
 
     """
     def __init__(self, comm, data=None, rank_mask=None, length=32, max_model_lag=None, failPush=False, name=None):
@@ -651,35 +647,38 @@ class ExaMPIDistributedStack(ExaData):
 
     Attributes
     ----------
-    comm : raw MPI communicator
+    comm : MPI.comm
+        raw MPI communicator
 
-    length : capacity of the stack
+    length : int
+        capacity of the stack
 
-    failPush : flag setting if push can overwrite data
+    failPush : bool
+        flag setting if push can overwrite data
 
-    buff : internal numpy buffer for stack used for rma ops
+    buff : bytearray
+        internal numpy buffer for stack used for rma ops
 
-    plus : numpy constant for adding
+    plus : np.array
+        numpy constant for adding
 
-    minus : numpy constant for subtracting
+    minus : np.array
+        numpy constant for subtracting
 
-    headBuffer : buffer containing head counter
+    headBuffer : np.array
+        buffer containing head counter
 
-    tailBuffer : buffer containing tail counter
+    tailBuffer : np.array
+        buffer containing tail counter
 
-    head : window based on headBuffer
+    head : MPI.win
+        window based on headBuffer
 
-    tail : window based on tailBuffer
+    tail : MPI.win
+        window based on tailBuffer
 
-    win : MPI window based on buffer for stack
-
-    Methods
-    -------
-    pop(value, rank, count)
-        Returns value stored in stack at rank
-        
-    push(self, data, rank)
-        Pushes data to stack at rank
+    win : MPI.win
+        MPI window based on buffer for stack
 
     """
     def __init__(self, comm, data, rank_mask=None, length=32, max_model_lag=None, failPush=False, name=None):
@@ -868,35 +867,38 @@ class ExaMPICentralizedStack(ExaData):
 
     Attributes
     ----------
-    comm : raw MPI communicator
+    comm : MPI.comm
+        raw MPI communicator
 
-    length : capacity of the stack
+    length : int
+        capacity of the stack
 
-    failPush : flag setting if push can overwrite data
+    failPush : bool
+        flag setting if push can overwrite data
 
-    buff : internal numpy buffer for stack used for rma ops
+    buff : bytearray
+        internal buffer for stack used for rma ops
 
-    plus : numpy constant for adding
+    plus : np.array
+        numpy constant for adding
 
-    minus : numpy constant for subtracting
+    minus : np.array
+        numpy constant for subtracting
 
-    headBuffer : buffer containing head counter
+    headBuffer : np.array
+        buffer containing head counter
 
-    tailBuffer : buffer containing tail counter
+    tailBuffer : np.array
+        buffer containing tail counter
 
-    head : window based on headBuffer
+    head : MPI.win
+        window based on headBuffer
 
-    tail : window based on tailBuffer
+    tail : MPI.win
+        window based on tailBuffer
 
-    win : MPI window based on buffer for stack
-
-    Methods
-    -------
-    pop(value, rank, count)
-        Returns value stored in stack at rank
-        
-    push(self, data, rank)
-        Pushes data to stack at rank
+    win : MPI.win
+        MPI window based on buffer for stack
 
     """
     def __init__(self, comm, data, rank_mask=None, length=32, max_model_lag=None, failPush=False, name=None):
@@ -1109,35 +1111,38 @@ class ExaMPICentralizedQueue(ExaData):
 
     Attributes
     ----------
-    comm : raw MPI communicator
+    comm : MPI.comm
+        raw MPI communicator
 
-    length : capacity of the queue
+    length : int
+        capacity of the queue
 
-    failPush : flag setting if push can overwrite data
+    failPush : bool
+        flag setting if push can overwrite data
 
-    buff : internal numpy buffer for queue used for rma ops
+    buff : bytearray
+        internal buffer for queue used for rma ops
 
-    plus : numpy constant for adding
+    plus : np.array
+        numpy constant for adding
 
-    minus : numpy constant for subtracting
+    minus : np.array
+        numpy constant for subtracting
 
-    headBuffer : buffer containing head counter
+    headBuffer : np.array
+        buffer containing head counter
 
-    tailBuffer : buffer containing tail counter
+    tailBuffer : np.array
+        buffer containing tail counter
 
-    head : window based on headBuffer
+    head : MPI.win
+        window based on headBuffer
 
-    tail : window based on tailBuffer
+    tail : MPI.win
+        window based on tailBuffer
 
-    win : MPI window based on buffer for queue
-
-    Methods
-    -------
-    pop(value, rank, count)
-        Returns value stored in queue at rank
-        
-    push(self, data, rank)
-        Pushes data to queue at rank
+    win : MPI.win
+        MPI window based on buffer for queue
 
     """
     def __init__(self, comm, data, rank_mask=None, length=32, max_model_lag=None, failPush=False, name=None):

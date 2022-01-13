@@ -18,46 +18,24 @@ class ExaMPI(ExaComm):
 
     Attributes
     ----------
-    MPI : MPI class used to access comm, sizes, and rank
+    mpi : MPI
+        MPI class used to access comm, sizes, and rank
 
-    comm : The underlying communicator
+    comm : MPI.comm
+        The underlying communicator
     
-    size : Number of processes in the communicator
+    size : int
+        Number of processes in the communicator
     
-    rank : Rank of the current process
+    rank : int
+        Rank of the current process
     
-    run_length : Flag indicating to use run length encoding
+    run_length : int
+        Flag indicating to use run length encoding
     
-    buffers : These are preallocated buffers for sending and recieving to avoid memory thrashing
+    buffers : map
+        These are preallocated buffers for sending and recieving to avoid memory thrashing
 
-    Methods
-    -------
-    send(data, dest, pack=False)
-        Sends data to dest
-
-    recv(data, source=MPI.ANY_SOURCE)
-        Receives data from a source
-
-    bcast(data, root)
-        Broadcasts data to comm from root
-
-    barrier()
-        Synchronizes all processes 
-
-    reduce(arg, op, root)
-        Does reduction on data from all processes in comm and puts data on root
-
-    allreduce(arg, op=MPI.LAND)
-        Does reduction on data from all processes in comm and puts data on all processes
-        
-    time()
-        Returns MPI wall time
-        
-    split(procs_per_env, num_learners)
-        Divides global comm into sub-comms
-
-    raw()
-        Return the raw MPI comm
     """
     mpi = MPI
 

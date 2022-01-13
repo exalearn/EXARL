@@ -30,7 +30,7 @@ def setup_logger(name, level):
     name : str
         Potentially period-separated hierarchical value like foo.bar.baz or just plain foo.
     level : list of two values
-        First value is the TensorFlow log level  and second value is Python log level, both have values 0-3 (0: debug, 1: info, 2: warning, 3: error)
+        First value is the TensorFlow log level and second value is Python log level, both have values 0-3 (0: debug, 1: info, 2: warning, 3: error)
     Returns
     -------
     logging.Logger

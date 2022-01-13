@@ -17,7 +17,7 @@ try:
 except:
     class ib:    
         """This class enables tracing of an MPI rank's function execution \\
-            by using Python decorators to wrap a function. 
+            by using Python decorators to wrap a function. It is used to replace an external introbind library when not found.
         Attributes
         ----------
         replace : bool
@@ -33,13 +33,13 @@ except:
         end_time : int
             Time stamp when tracing ended, time in nanoseconds since the epoch.
         metric_window : dictionary
-            Dictionary with keys as metric  namess being traced and values as tuple of time window when it was traced.
+            Dictionary with keys as metric names being traced and values as tuple of time window when it was traced.
         metric_list : dictionary
             Dictionary with keys as metric names being traced and values of the history of time windows of traces.
         metric_trace : dictionary
-            Dictionary with keys as metric names being traced and values as tuples of counts and timestamps
+            Dictionary with keys as metric names being traced and values as tuples of counts and timestamps.
         metric_trace_count : dictionary
-            Dictionary with keys as metric names being traced and values as number of traces for that name
+            Dictionary with keys as metric names being traced and values as number of traces for that name.
         last_trace : str
             Name of metric that was last traced.
 
@@ -154,7 +154,7 @@ except:
             return 0
 
         def simpleTrace(name, size, seqNum, endTimeStamp, trace):
-            """create a trace associated with a function
+            """Create a trace associated with a function
 
             Parameters
             ----------
@@ -252,7 +252,10 @@ except:
         return ib(comm)
 
 def introspectTrace(position=None, keyword=None, default=0, name=False):
-    """Defines a decorator used to trace functions.
+    """Defines a decorator used to trace functions.  Arguments are used to predifine values to trace.
+    E.g. A decorated call that should always increment trace by 1 should set the default=1
+    A call that should trace a value that is passed to the decorated function as the 2 positional argument should set position=1
+    A call that needs to trace a value that is passed as the size keywork to the underlying argument should set keyword='size'
 
     Parameters
     ----------
