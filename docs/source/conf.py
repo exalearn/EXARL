@@ -47,8 +47,10 @@ extensions = [
 # autoapi options here
 autoapi_type = 'python'
 autoapi_dirs = ['../../exarl']
-autoapi_keep_files = True  # enable incremental build, keep files for examination
+autoapi_keep_files = False  # enable incremental build, keep files for examination
 # autoapi_options = ['show-inheritance-diagram']
+autoapi_options = ['members', 'undoc-members', 'private-members', 'show-inheritance', 'show-module-summary', 'special-members', 'imported-members']
+autoapi_python_class_content = 'both'
 
 # autosummary triggers autodoc which forces code execution
 autosummary_generate = False
@@ -57,6 +59,8 @@ napoleon_google_docstring = True
 napoleon_numpy_docstring = True
 napoleon_use_ivar = True
 napoleon_use_rtype = False
+napoleon_include_init_with_doc = False
+napoleon_include_private_with_doc = False
 
 # Configuration of sphinx.ext.coverage
 coverage_show_missing_items = True
