@@ -505,7 +505,7 @@ def my_func(*args, **kwargs):
 
 ```
 @misc{EXARL,
-  author = {Vinay Ramakrishnaiah, Malachi Schram, Jamal Mohd-Yusof, Sayan Ghosh, Yunzhi Huang, Ai Kagawa, Christine Sweeney, Shinjae Yoo},
+  author = {Vinay Ramakrishnaiah, Malachi Schram, Joshua Suetterlein, Jamal Mohd-Yusof, Sayan Ghosh, Yunzhi Huang, Ai Kagawa, Christine Sweeney, Shinjae Yoo},
   title = {Easily eXtendable Architecture for Reinforcement Learning (EXARL)},
   year = {2020},
   publisher = {GitHub},
@@ -516,4 +516,4 @@ def my_func(*args, **kwargs):
 
 ## Contacts
 
-If you have any questions or concerns regarding EXARL, please contact Vinay Ramakrishnaiah (vinayr@lanl.gov) and/or Malachi Schram (Malachi.Schram@pnnl.gov).
+If you have any questions or concerns regarding EXARL, please contact Vinay Ramakrishnaiah (vinayr@lanl.gov) and/or Joshua Suetterlein (joshua.suetterlein@pnnl.gov).
