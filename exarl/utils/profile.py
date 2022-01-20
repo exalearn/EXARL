@@ -42,7 +42,7 @@ def PROFILE(func):
     -------
     function
         wrapper profile function
-    """    
+    """
     # Line profiler
     if prof == 'line':
         import line_profiler
@@ -93,7 +93,7 @@ def DEBUG(func):
     -------
     function
         debug wrapper
-    """    
+    """
     @functools.wraps(func)
     def wrapper_debug(*args, **kwargs):
         args_repr = [repr(a) for a in args]
@@ -120,7 +120,7 @@ def TIMER(func):
     -------
     function
        timer wrapper function that returns the function return value
-    """  
+    """
     @functools.wraps(func)
     def wrapper_timer(*args, **kwargs):
         start_time = time.perf_counter()

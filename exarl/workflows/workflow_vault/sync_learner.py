@@ -29,7 +29,7 @@ logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
 
 
 class SYNC(erl.ExaWorkflow):
-    """Synchronous workflow class: inherts from the ExaWorkflow base class.
+    """Synchronous workflow class: inherits from the ExaWorkflow base class.
     It features a single learner and multiple actors. The MPI processes are statically
     launched and are split into multiple groups. The environment processes can be set
     during launchtime as a candle parameter and runs multiple multi-process environments.

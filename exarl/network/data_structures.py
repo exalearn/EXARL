@@ -167,7 +167,7 @@ class ExaMPIConstant:
 
 class ExaMPIBuffUnchecked(ExaData):
     """
-    This class is creates an RMA buffer of a fixed size on each rank.  
+    This class is creates an RMA buffer of a fixed size on each rank.
     The buffer is used to send and recieve data across all participating ranks.
     This buffer does not check to see if it is overwriting data or if there is
     valid data from a get.  This class always succeds a pop.
@@ -183,6 +183,25 @@ class ExaMPIBuffUnchecked(ExaData):
     buff : bytearray
         internal buffer used for RMA ops
 
+
+    **Intializer**
+
+    Parameters
+    ----------
+    comm : MPI Comm
+        Communicator for all ranks involved
+    data : list
+        Example data used to create buffer
+    rank_mask : int, optional
+        host of the window
+    length : int, optional
+        Not used
+    max_model_lag : int, optional
+        Not used
+    failPush : bool, optional
+        Not used
+    name : string, optional
+        name of constant for debbuging
     """
     def __init__(self, comm, data, rank_mask=None, length=1, max_model_lag=None, failPush=False, name=None):
         """
@@ -288,7 +307,7 @@ class ExaMPIBuffUnchecked(ExaData):
 
 class ExaMPIBuffChecked(ExaData):
     """
-    This class is creates an RMA buffer of a fixed size on each rank.  
+    This class is creates an RMA buffer of a fixed size on each rank.
     The buffer is used to send and recieve data across all participating ranks.
     On pop, checks to see if the data is first valid.
 
@@ -307,7 +326,7 @@ class ExaMPIBuffChecked(ExaData):
     -------
     pop(value, rank, count)
         Returns value stored in buffer at rank
-        
+
     push(self, data, rank)
         Pushes data to buffer at rank
 
@@ -331,6 +350,7 @@ class ExaMPIBuffChecked(ExaData):
         name : string, optional
             name of constant for debbuging
         """
+
         self.comm = comm
 
         self.dataBytes = bytearray(MPI.pickle.dumps((data, np.int64(0))))
@@ -391,7 +411,7 @@ class ExaMPIBuffChecked(ExaData):
     @introspectTrace(name=True)
     def push(self, data, rank=None):
         """
-        Pushes data to a rank's buffer.  
+        Pushes data to a rank's buffer.
 
         Parameters
         ----------
@@ -579,7 +599,7 @@ class ExaMPIDistributedQueue(ExaData):
     @introspectTrace(name=True)
     def push(self, data, rank=None):
         """
-        Pushes data to a rank's queue.  
+        Pushes data to a rank's queue.
 
         Parameters
         ----------
@@ -796,7 +816,7 @@ class ExaMPIDistributedStack(ExaData):
     @introspectTrace(name=True)
     def push(self, data, rank=None):
         """
-        Pushes data to a rank's stack.  
+        Pushes data to a rank's stack.
 
         Parameters
         ----------
@@ -1040,7 +1060,7 @@ class ExaMPICentralizedStack(ExaData):
     @introspectTrace(name=True)
     def push(self, data, rank=None):
         """
-        Pushes data to a rank's stack.  
+        Pushes data to a rank's stack.
 
         Parameters
         ----------
@@ -1281,7 +1301,7 @@ class ExaMPICentralizedQueue(ExaData):
     @introspectTrace(name=True)
     def push(self, data, rank=None):
         """
-        Pushes data to a rank's queue.  
+        Pushes data to a rank's queue.
 
         Parameters
         ----------

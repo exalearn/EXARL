@@ -212,7 +212,7 @@ class DQN(erl.ExaAgent):
             return '/CPU:0'
 
     def _build_model(self):
-        """Build NN model based on parametes provided in the config file
+        """Build NN model based on parameters provided in the config file
 
         Returns:
             [type]: [description]
@@ -394,10 +394,10 @@ class DQN(erl.ExaAgent):
 
     @tf.function
     def training_step(self, batch):
-        """Training step for multi-learner using Horovod
+        """ Training step for multi-learner using Horovod
 
         Args:
-            batch (list): sampled batch of experinces
+            batch (list): sampled batch of experiences
 
         Returns:
             loss_value: loss value per training step for multi-learner
@@ -421,14 +421,14 @@ class DQN(erl.ExaAgent):
             self.first_batch = 0
         return loss_value
 
-    def set_priorities(self, indicies, loss):
-        """Set priorities for training data
+    def set_priorities(self, indices, loss):
+        """ Set priorities for training data
 
         Args:
-            indicies (array): data indices
+            indices (array): data indices
             loss (array): Losses
         """
-        self.replay_buffer.set_priorities(indicies, loss)
+        self.replay_buffer.set_priorities(indices, loss)
 
     def get_weights(self):
         """Get weights from target model

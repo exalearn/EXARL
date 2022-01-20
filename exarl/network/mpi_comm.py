@@ -23,16 +23,16 @@ class ExaMPI(ExaComm):
 
     comm : MPI.comm
         The underlying communicator
-    
+
     size : int
         Number of processes in the communicator
-    
+
     rank : int
         Rank of the current process
-    
+
     run_length : int
         Flag indicating to use run length encoding
-    
+
     buffers : map
         These are preallocated buffers for sending and recieving to avoid memory thrashing
 
@@ -130,7 +130,7 @@ class ExaMPI(ExaComm):
         ----------
         the_type : int
             Int to decode
-        
+
         cast : bool, optional
             Indicates if we should return type(false) or a value of type
         """
@@ -158,7 +158,7 @@ class ExaMPI(ExaComm):
         ----------
         data : any
             Data to check if is list/convert
-        
+
         prep : bool, optional
             Converts data to list and returns as second value if true
         """
@@ -368,7 +368,7 @@ class ExaMPI(ExaComm):
     ):
         """
         This call decodes the type and shape the originally encoded data.
-        np_arrays is for a np.array fast path.  
+        np_arrays is for a np.array fast path.
 
         Parameters
         ----------
@@ -379,17 +379,17 @@ class ExaMPI(ExaComm):
         data : list
             This is the data that will be return.
             It is also used for internal recursive call.
-        
+
         is_np : bool
             Fast path for np.array
-        
+
         np_arrays : np.array, optional
             This is the data that is to be decoded.
 
         np_index : int, optional
             Used internally for recursive call.
             Indicates level of nesting.
-        
+
         index : int, optional
             Depth of the recursion.
         """
@@ -441,7 +441,7 @@ class ExaMPI(ExaComm):
         """
         This implements runlength encoding of ints.
         Runlegth encoding takes duplicate values and
-        reduces it to two, the number and the number 
+        reduces it to two, the number and the number
         of repeating values.
 
         Parameters
@@ -477,8 +477,8 @@ class ExaMPI(ExaComm):
         """
         This implements runlength encoding of ints.
         Runlegth encoding takes duplicate values and
-        reduces it to two, the number and the number 
-        of repeating values. This only supports ints 
+        reduces it to two, the number and the number
+        of repeating values. This only supports ints
         so the data must be cast if coming from float buffer
 
         Parameters
@@ -600,7 +600,7 @@ class ExaMPI(ExaComm):
 
         data_cout : int, optional
             Used for flat list fast path
-        
+
         index : int
             Keeps track of which element we are demarshalling
 
@@ -816,7 +816,7 @@ class ExaMPI(ExaComm):
     def bcast(self, data, root):
         """
         Broadcasts data from the root to all other processes in comm.
-        
+
         Parameters
         ----------
         data : any

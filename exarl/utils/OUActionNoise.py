@@ -25,31 +25,35 @@ from datetime import datetime
 
 
 class OUActionNoise2:
-    """Calculates Ornstein-Uhlenbeck process noise.
-            Attributes
-        ----------
-        mean : float
-        start_std : float
-            standard deviation default value
-        stop_std : float
-            standard deviation limit
-        damping : float
-            rate at which the noise trajectory is damped towards the mean
-    """    
-    def __init__(self, mean=0, start_std=0.15, stop_std=0.05, damping=0.005):
-        """Initialize parameters to noise calculation.
+    """
+    Calculates Ornstein-Uhlenbeck process noise.
 
-        Parameters
-        ----------
-        mean : float, optional
-            by default 0
-        start_std : float, optional
-            standard deviation default value, by default 0.15
-        stop_std : float, optional
-            standard deviation limit, by default 0.05
-        damping : float, optional
-            by default 0.005
-        """        
+    Attributes
+    ----------
+    mean : float
+    start_std : float
+        standard deviation default value
+    stop_std : float
+        standard deviation limit
+    damping : float
+        rate at which the noise trajectory is damped towards the mean
+
+    Parameters
+    ----------
+    mean : float, optional
+        by default 0
+    start_std : float, optional
+        standard deviation default value, by default 0.15
+    stop_std : float, optional
+        standard deviation limit, by default 0.05
+    damping : float, optional
+        by default 0.005
+    """
+
+    def __init__(self, mean=0, start_std=0.15, stop_std=0.05, damping=0.005):
+        """
+        """
+
         self.mean = mean
         self.start_std = start_std
         self.stop_std = stop_std
@@ -57,13 +61,13 @@ class OUActionNoise2:
         self.reset()
 
     def __call__(self):
-        """Generate noise
+        """ Generate noise
 
         Returns
-        ----------
+        -------
         float
             noise
-        """        
+        """
         random.seed(datetime.now())
         random_data = os.urandom(4)
         np.random.seed(int.from_bytes(random_data, byteorder="big"))
@@ -74,20 +78,20 @@ class OUActionNoise2:
 
     def reset(self):
         """Reset noise generator to start_std
-        """        
+        """
         self.x_prev = self.start_std
 
 
 class OUActionNoise:
-    """Calculates Ornstein-Uhlenbeck process noise.
-    """    
+    """ Calculates Ornstein-Uhlenbeck process noise.
+    """
+
     def __init__(self, mean, std_deviation, theta=0.15, dt=1e-2, x_initial=None):
         """[summary]
 
         Parameters
         ----------
         mean : float
-    
         std_deviation : float
             [
         theta : float, optional
@@ -96,7 +100,7 @@ class OUActionNoise:
             by default 1e-2
         x_initial : float, optional
             [by default None
-        """        
+        """
         self.theta = theta
         self.mean = mean
         self.std_dev = std_deviation
@@ -105,13 +109,13 @@ class OUActionNoise:
         self.reset()
 
     def __call__(self):
-        """Generate noise
+        """ Generate noise
 
         Returns
-        ----------
+        -------
         float
             noise
-        """      
+        """
         random.seed(datetime.now())
         random_data = os.urandom(4)
         np.random.seed(int.from_bytes(random_data, byteorder="big"))
@@ -124,8 +128,8 @@ class OUActionNoise:
         return x
 
     def reset(self):
-        """Reset noise generator to x_initial or 0's
-        """     
+        """ Reset noise generator to x_initial or 0's
+        """
         if self.x_initial is not None:
             self.x_prev = self.x_initial
         else:

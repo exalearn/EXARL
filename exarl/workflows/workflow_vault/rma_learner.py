@@ -78,8 +78,8 @@ class RMA(erl.ExaWorkflow):
 
     @PROFILE
     def run(self, workflow):
-        """This function implements the RMA workflow in EXARL using one-sided
-        MPI communcation.
+        """ This function implements the RMA workflow in EXARL using one-sided
+        MPI communication.
 
         Args:
             workflow (ExaLearner type object): The ExaLearner object is used to access
