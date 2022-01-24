@@ -1,10 +1,10 @@
 {
     "gamma": 0.75,
-    "epsilon": 0.9,
+    "epsilon": 0.01,
     "epsilon_min": 0.01,
     "epsilon_decay": 0.999,
     "learning_rate": 0.001,
-    "batch_size": 5,
+    "batch_size": 16,
     "tau": 0.5,
     "nactions": 10,
     "priority_scale": 0.0,

@@ -1,4 +1,5 @@
 {
     "bsuite_id": "bandit_noise",
-    "seed_number" : "0"
+    "seed_number" : "0",
+    "n_steps": 10000
 }
