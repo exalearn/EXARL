@@ -76,6 +76,7 @@ git lfs install # install git lfs if you haven't
 git lfs fetch
 git lfs pull
 ```
+* Note: This repo uses git large file system (lfs) for data. Make sure your git version supports git lfs.
 
 - EXARL uses MPI and GPU accelerated versions of TF/PyTorch/Keras when available.
 - Install dependencies for EXARL (Refer GitHub wiki for platform specific build instructions):
@@ -269,7 +270,6 @@ register(
 ```
 
 - The id variable will be passed to exarl.make() to call the environment
-
 - The file `EXARL/exarl/env/env_vault/__init__.py` should include
 
 ```
@@ -423,7 +423,6 @@ register(
 ```
 
 - The id variable will be passed to exarl.make() to call the agent
-
 - The file `EXARL/exarl/agents/agent_vault/__init__.py` should include
 
 ```
@@ -461,7 +460,6 @@ register(
 ```
 
 - The id variable will be passed to exarl.make() to call the agent
-
 - The file `EXARL/exarl/workflows/workflow_vault/__init__.py` should include
 
 ```
@@ -518,4 +516,4 @@ def my_func(*args, **kwargs):
 
 ## Contacts
 
-If you have any questions or concerns regarding EXARL, please contact Vinay Ramakrishnaiah (vinayr@lanl.gov) and/or Joshua Suetterlein (joshua.suetterlein@pnnl.gov).
+If you have any questions or concerns regarding EXARL, please contact Vinay Ramakrishnaiah (vinayr@lanl.gov), Josh Suetterlein (joshua.suetterlein@pnnl.gov) or Jamal Mohd-Yusof (jamal@lanl.gov).
