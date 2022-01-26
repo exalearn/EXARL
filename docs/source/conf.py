@@ -12,14 +12,17 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../..'))
 
+sys.path.insert(0, os.path.abspath('../../exarl'))
+
+
+print(sys.path)
 
 # -- Project information -----------------------------------------------------
 
 project = 'EXARL'
-copyright = '2021, Vinay Ramakrishnaiah'
-author = 'Vinay Ramakrishnaiah'
+copyright = '2021, ExaLearn Control Team'
+author = 'ExaLearn Control Team'
 
 
 # -- General configuration ---------------------------------------------------
@@ -28,7 +31,39 @@ author = 'Vinay Ramakrishnaiah'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'sphinx.ext.coverage',
+    'sphinx.ext.doctest',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.todo',
+    # leaving these here in case Josh needs them for debugging
+    # 'sphinx.ext.autodoc',
+    # 'sphinx.ext.autosummary',
+    'autoapi.extension',
+    'sphinx.ext.ifconfig',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.napoleon'
 ]
+
+# autoapi options here
+autoapi_type = 'python'
+autoapi_dirs = ['../../exarl']
+autoapi_keep_files = False  # enable incremental build, keep files for examination
+# autoapi_options = ['show-inheritance-diagram']
+autoapi_options = ['members', 'undoc-members', 'private-members', 'show-inheritance', 'show-module-summary', 'special-members', 'imported-members']
+autoapi_python_class_content = 'both'
+
+# autosummary triggers autodoc which forces code execution
+autosummary_generate = False
+# napoleon settings
+napoleon_google_docstring = True
+napoleon_numpy_docstring = True
+napoleon_use_ivar = True
+napoleon_use_rtype = False
+napoleon_include_init_with_doc = False
+napoleon_include_private_with_doc = False
+
+# Configuration of sphinx.ext.coverage
+coverage_show_missing_items = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -36,8 +71,8 @@ templates_path = ['_templates']
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = []
-
+exclude_patterns = []  # ['__init__.py', '__main__.py']
+# autodoc_mock_imports = ['exarl/agents/agent_vault']
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -46,6 +81,10 @@ exclude_patterns = []
 #
 # html_theme = 'alabaster'
 html_theme = 'sphinx_rtd_theme'
+html_theme_options = {
+    'collapse_navigation': True,
+    'display_version': True
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

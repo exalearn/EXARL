@@ -20,37 +20,33 @@ if [[ -n $EXA_ALL ]]; then
 	EXA_WATER_CLUSTER="1"
 fi
 
-source /ccs/proj/ast153/ExaLearn/set_summit_env.sh
-
-export N=$NODES
-export nres=$((N*6))
-
 if [[ -n $EXA_CARTPOLE ]]; then
 	DIR_NAME=Exa_CartPole
-	export OUTPUT_DIR=/gpfs/alpine/ast153/scratch/$USER/${DIR_NAME}_results/${DIR_NAME}_${N}_nodes/
+	OUTPUT_DIR=${OUT_DIR}/${DIR_NAME}_results/nodes_${NODES}/
 
-	jsrun --nrs $nres --tasks_per_rs 1 --cpu_per_rs 7 --gpu_per_rs 1 --rs_per_host 6 --latency_priority GPU-CPU --launch_distribution packed --bind packed:7 python driver/driver.py --output_dir $OUTPUT_DIR --env ExaCartPole-v1 --n_episodes 100 --n_steps 100 --workflow async --agent DQN-v0
+	jsrun --nrs $NUM_RES_SET --tasks_per_rs $TASKS_PER_RS --cpu_per_rs $CPUS_PER_RS --gpu_per_rs $GPUS_PER_RS --rs_per_host $RS_PER_HOST --latency_priority GPU-CPU --launch_distribution packed --bind packed:$CPUS_PER_RS python ${EXARL_ROOT}/exarl/driver/__main__.py --output_dir $OUTPUT_DIR --env CartPole-v0 --n_episodes 100 --n_steps 100 --workflow $WORKFLOW --agent DQN-v0
 fi
 
 if [[ -n $EXA_BCP ]]; then
         DIR_NAME=Exa_BCP
-        export OUTPUT_DIR=/gpfs/alpine/ast153/scratch/$USER/${DIR_NAME}_results/${DIR_NAME}_${N}_nodes/
+        OUTPUT_DIR=${OUT_DIR}/${DIR_NAME}_results/nodes_${NODES}/
 
-        jsrun --nrs $nres --tasks_per_rs 1 --cpu_per_rs 7 --gpu_per_rs 1 --rs_per_host 6 --latency_priority GPU-CPU --launch_distribution packed --bind packed:7 python driver/driver.py --output_dir $OUTPUT_DIR --env ExaCH-v0 --n_episodes 500 --n_steps 10 --workflow async --agent DQN-v0
+        jsrun --nrs $NUM_RES_SET --tasks_per_rs $TASKS_PER_RS --cpu_per_rs $CPUS_PER_RS --gpu_per_rs $GPUS_PER_RS --rs_per_host $RS_PER_HOST --latency_priority GPU-CPU --launch_distribution packed --bind packed:$CPUS_PER_RS python ${EXARL_ROOT}/exarl/driver/__main__.py --output_dir $OUTPUT_DIR --env ExaCH-v0 --n_episodes 500 --n_steps 10 --workflow $WORKFLOW --agent DQN-v0
 fi
 
 if [[ -n $EXA_BOOSTER ]]; then
         DIR_NAME=Exa_Booster
-        export OUTPUT_DIR=/gpfs/alpine/ast153/scratch/$USER/${DIR_NAME}_results/${DIR_NAME}_${N}_nodes/
+        OUTPUT_DIR=${OUT_DIR}/${DIR_NAME}_results/nodes_${NODES}/
 
-        jsrun --nrs $nres --tasks_per_rs 1 --cpu_per_rs 7 --gpu_per_rs 1 --rs_per_host 6 --latency_priority GPU-CPU --launch_distribution packed --bind packed:7 python driver/driver.py --output_dir $OUTPUT_DIR --env ExaBoosterDiscrete-v0 --n_episodes 2000 --n_steps 50 --workflow async --agent DQN-v0
+        jsrun --nrs $NUM_RES_SET --tasks_per_rs $TASKS_PER_RS --cpu_per_rs $CPUS_PER_RS --gpu_per_rs $GPUS_PER_RS --rs_per_host $RS_PER_HOST --latency_priority GPU-CPU --launch_distribution packed --bind packed:$CPUS_PER_RS python ${EXARL_ROOT}/exarl/driver/__main__.py --output_dir $OUTPUT_DIR --env ExaBoosterDiscrete-v0 --n_episodes 2000 --n_steps 50 --workflow $WORKFLOW --agent DQN-v0
 fi
 
 if [[ -n $EXA_WATER_CLUSTER ]]; then
         DIR_NAME=Exa_Water_Cluster
-        export OUTPUT_DIR=/gpfs/alpine/ast153/scratch/$USER/${DIR_NAME}_results/${DIR_NAME}_${N}_nodes/
+        OUTPUT_DIR=${OUT_DIR}/${DIR_NAME}_results/nodes_${NODES}/
 
-        jsrun --nrs $nres --tasks_per_rs 1 --cpu_per_rs 7 --gpu_per_rs 1 --rs_per_host 6 --latency_priority GPU-CPU --launch_distribution packed --bind packed:7 python driver/driver.py --output_dir $OUTPUT_DIR --env ExaWaterClusterDiscrete-v0 --n_episodes 1000 --n_steps 100 --workflow async --agent DQN-v0
+        jsrun --nrs $NUM_RES_SET --tasks_per_rs $TASKS_PER_RS --cpu_per_rs $CPUS_PER_RS --gpu_per_rs $GPUS_PER_RS --rs_per_host $RS_PER_HOST --latency_priority GPU-CPU --launch_distribution packed --bind packed:$CPUS_PER_RS python ${EXARL_ROOT}/exarl/driver/__main__.py --output_dir $OUTPUT_DIR --env ExaWaterClusterDiscrete-v0 --n_episodes 1000 --n_steps 100 --workflow $WORKFLOW --agent DQN-v0
 fi
+
 
 

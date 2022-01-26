@@ -1,0 +1,5 @@
+{
+    "learner_procs": 1,
+    "process_per_env": 1,
+    "weight_file": "None"
+}

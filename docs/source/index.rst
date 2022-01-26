@@ -1,48 +1,30 @@
 .. EXARL documentation master file, created by
-   sphinx-quickstart on Thu Mar 18 14:52:35 2021.
+   sphinx-quickstart on Fri Oct 15 13:16:32 2021.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-EXARL
+Welcome to EXARL's documentation!
 =================================
 
-Easily eXtendable Architecture for Reinforcement Learning (EXARL) is scalable software framework 
-for reinforcement learning agents, environments, and workflows used for the Design and Control applications.
-
-
 .. toctree::
-   :maxdepth: 2
    :caption: Contents:
+   :maxdepth: 2
 
-   requirements
-   directory
-   install
-   candle
-   run
-   envs
-   agents
-   workflows
-   base
-   utils
-   utests
-   tutorial
+   usage/requirements
+   usage/directory
+   usage/install
+   usage/candle
+   usage/run
+   usage/envs_doc
+   usage/base_doc
+   usage/agent_doc
+   usage/tutorial
+   usage/utests
 
-Cite this software
+
+Indices and tables
 ==================
 
-.. code-block::
-
-   @misc{EXARL,
-   author = {Vinay Ramakrishnaiah, Malachi Schram, Jamal Mohd-Yusof, Sayan Ghosh, Yunzhi Huang, Ai Kagawa, Christine Sweeney, Shinjae Yoo},
-   title = {Easily eXtendable Architecture for Reinforcement Learning (EXARL)},
-   year = {2020},
-   publisher = {GitHub},
-   journal = {GitHub repository},
-   howpublished = {\url{https://github.com/exalearn/ExaRL}},
-   }
-
-Contacts
-========
 
 If you have any questions or concerns regarding EXARL, please contact 
 Vinay Ramakrishnaiah (vinayr@lanl.gov), Josh Suetterlein (joshua.suetterlein@pnnl.gov) or Jamal Mohd-Yusof (jamal@lanl.gov).
