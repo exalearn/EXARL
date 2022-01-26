@@ -6,11 +6,8 @@ using discrete uniform distribution
 
 Example
 -------
-    action = Action(
-        arrLower=arrLower,            
-        arrUpper=arrUpper,            
-        arrNumClasses=arrNumClasses)  
-    arrDiscAction = action.descretize(arrContAction)
+    action = Action(arrLower=arrLower, arrUpper=arrUpper, arrNumClasses=arrNumClasses)
+    arrDiscAction = action.discretize(arrContAction)
 
 """
 
@@ -28,11 +25,11 @@ class Action(object):
         Parameters
         ----------
         arrLower : a 1D array of double
-            a 1D array containing lower bound for each dimension
+            a 1D array containing the lower value for each dimension
         arrUpper : a 1D array of double
-            a 1D array containing upper bound for each dimension
+            a 1D array containing the upper value for each dimension
         arrNumClasses : a 1D array of int
-            a 1D array containing number of discretized classes in each dimension
+            a 1D array containing the number of discretized classes in each dimension
 
         Returns
         -------
@@ -118,18 +115,18 @@ class Action(object):
 
         logging.debug(f"arrIntervals: {self.arrIntervals}", )
 
-    def descretize(self, arrContAction):
-        """This function discretizes continuous action using discrete uniform distribution.
+    def discretize(self, arrContAction):
+        """ This function discretizes a continuous action using discrete uniform distribution.
 
         Parameters
         ----------
-        arrContAction : a 1D array of double
+        arrContAction : a 1D array of doubles
             a 1D array of continuous action values
 
         Returns
         -------
         a 1D array of int
-            a 1D array of discritizecd action values (arrDiscAction)
+            a 1D array of discretized action values (arrDiscAction)
         """
         if (len(arrContAction) != self.dim_action):
             print("ERROR: The dimension of actions, dim_action, "
