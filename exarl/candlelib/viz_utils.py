@@ -151,7 +151,7 @@ def plot_2d_density_sigma_vs_error(sigma, yerror, method=None, figprefix=None):
 
 
 def plot_histogram_error_per_sigma(sigma, yerror, method=None, figprefix=None):
-    """ 
+    """
     Functionality to plot a 1D histogram of the distribution of
     computed errors (i.e. values of observed - predicted) observed
     for specific values of standard deviations computed. The range of
@@ -210,7 +210,7 @@ def plot_calibration_and_errors(mean_sigma, sigma_start_index, sigma_end_index,
                                 coverage_percentile,
                                 method=None, figprefix=None,
                                 steps=False):
-    """ 
+    """
     Functionality to plot empirical calibration curves
     estimated by binning the statistics of computed
     standard deviations and errors.
@@ -328,7 +328,7 @@ def plot_calibration_and_errors(mean_sigma, sigma_start_index, sigma_end_index,
 
 
 def plot_percentile_predictions(Ypred, Ypred_Lp, Ypred_Hp, percentile_list, pred_name=None, figprefix=None):
-    """ 
+    """
     Functionality to plot the mean of the percentiles predicted.
     The plot generated is stored in a png file.
 
@@ -370,7 +370,7 @@ def plot_percentile_predictions(Ypred, Ypred_Lp, Ypred_Hp, percentile_list, pred
 
 # plot training and validation metrics together and generate one chart per metrics
 def plot_metrics(history, title=None, skip_ep=0, outdir='.', add_lr=False):
-    """ 
+    """
     Plots keras training curves history.
 
     Parameters

@@ -23,9 +23,9 @@ class TypeUtils:
 
         Returns
         -------
-        bool, type 
+        bool, type
             returns if data is range, tuple, np.array, or a list and the type
-        
+
         """
         if isinstance(data, range):
             list_flag = True
@@ -57,7 +57,7 @@ class TypeUtils:
         -------
         int
             Number of total elements in hierarchical list
-        
+
         """
         list_flag, _ = TypeUtils.list_like(data)
         if not list_flag:
