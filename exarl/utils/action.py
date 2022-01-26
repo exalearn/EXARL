@@ -6,16 +6,10 @@ using discrete uniform distribution
 
 Example
 -------
-  * Set the class with the following three required arrays
-
     action = Action(
-        arrLower=arrLower,            # a 1D arry containing lower value for each dimension
-        arrUpper=arrUpper,            # a 1D arry containing upper value for each dimension
-        arrNumClasses=arrNumClasses)  # a 1D arry containing # of disretized classes in each dimension
-
-  * Convert the continuous valued array (arrContAction) to its discretized array (arrDiscAction)
-    using discrete uniform distribution
-
+        arrLower=arrLower,            
+        arrUpper=arrUpper,            
+        arrNumClasses=arrNumClasses)  
     arrDiscAction = action.descretize(arrContAction)
 
 """
