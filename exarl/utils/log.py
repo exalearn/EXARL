@@ -35,7 +35,7 @@ def setup_logger(name, level):
     -------
     logging.Logger
         Logger object
-    """    
+    """
     formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
 
     handler = logging.StreamHandler()

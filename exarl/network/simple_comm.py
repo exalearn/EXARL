@@ -16,7 +16,7 @@ from mpi4py import MPI
 class ExaSimple(ExaComm):
     """
     This class is built as a simple wrapper around mpi4py.
-    Instances are a type of ExaComm which is used to send, 
+    Instances are a type of ExaComm which is used to send,
     recieve, and synchronize data across the participating
     ranks.
 
@@ -27,10 +27,10 @@ class ExaSimple(ExaComm):
 
     comm : MPI.comm
         The underlying communicator
-    
+
     size : int
         Number of processes in the communicator
-    
+
     rank : int
         Rank of the current process
 
@@ -103,7 +103,7 @@ class ExaSimple(ExaComm):
     def bcast(self, data, root):
         """
         Broadcasts data from the root to all other processes in comm.
-        
+
         Parameters
         ----------
         data : any

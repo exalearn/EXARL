@@ -42,8 +42,9 @@ def read_data(filename, rank):
     Returns
     -------
     pandas.DataFrame
-        contains data extracted from the csv-based EXARL learning log file, except for current_state and next_state fields, and with the addition of a rank field.
-    """    
+        contains data extracted from the csv-based EXARL learning log file,
+        except for current_state and next_state fields, and with the addition of a rank field.
+    """
     frame = pd.read_csv(filename, sep=' ', header=None,
                         names=['time', 'current_state', 'action', 'reward', 'next_state', 'total_reward', 'done',
                                'episode', 'step', 'policy_type', 'epsilon'])
@@ -56,10 +57,10 @@ def read_data(filename, rank):
     return frame
 
 def save_reward_plot():
-    """Creates and saves a Rolling Total Reward (y-axis) by Relative Time (x-axis) plot based on .log files written by EXARL for each rank.  
-        It saves the plot in the results directory named by the output_dir run parameter in a subdirectory /Plots/reward_plot.png. 
+    """Creates and saves a Rolling Total Reward (y-axis) by Relative Time (x-axis) plot based on .log files written by EXARL for each rank.
+        It saves the plot in the results directory named by the output_dir run parameter in a subdirectory /Plots/reward_plot.png.
         It then tries to print the plot to the terminal.
-    """    
+    """
     df_ranks = []
     rank = 0
     # Candle directory stucture
