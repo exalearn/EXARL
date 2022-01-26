@@ -27,8 +27,6 @@ class Action(object):
     * arrUpper: an arry containing upper value for each dimension
     * arrNumClasses: an arry containing # of disretized classes in each dimension
     '''
-    # TODO: error check to make sure arrLower <= arrUpper
-    #       if arrLower[i] == arrUpper[i], the arrNumClasses[i] = 1
     def __init__(self, arrLower, arrUpper, arrNumClasses):
 
         self.arrLower = arrLower  # a list containing lower value for each dimension
@@ -43,6 +41,8 @@ class Action(object):
         self.arrDiscAction = []  # discretized action array
 
         self.setDimAction()
+
+        self.checkLowerUpperArray()
 
         self.setArrIntervals()
 
@@ -61,6 +61,14 @@ class Action(object):
         self.dim_action = len(self.arrNumClasses)  # set the dimension of the action array
 
         logging.debug(f"dim_action: {self.dim_action}")
+
+    # validate the lower and upper arrays
+    def checkLowerUpperArray(self):
+
+        for i in range(self.dim_action):
+            if (self.arrLower[i]) > (self.arrUpper[i]):
+                print("ERROR: arrLower[i] <= arrUpper[i] for all i!")
+                sys.exit()
 
     # set interval for each action dimension, arrIntervals
     def setArrIntervals(self):
