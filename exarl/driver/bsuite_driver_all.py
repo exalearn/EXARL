@@ -39,9 +39,11 @@ for env_id in tqdm(sweep.SWEEP):
 
     print("Current Env: ", env_id)
     run_params["bsuite_id"], run_params['seed_number'] = bsuite_id, seed_number
-    print(sweep.EPISODES[env_id])
+    # print(sweep.EPISODES[env_id])
     # run_params["n_episodes"] = sweep.EPISODES[env_id]
-    run_params["n_episodes"] = 1000
+    run_params["n_episodes"] = 10
+    # if 'cartpole' in bsuite_id:
+    #     run_params["n_steps"] = 10
 
 	# Create learner object and run
     exa_learner = erl.ExaLearner()

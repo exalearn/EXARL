@@ -18,6 +18,7 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
+from os import times
 import gym
 import gym.spaces as spaces
 import time
@@ -43,6 +44,7 @@ class ExaBsuite(gym.Env):
     def __init__(self) -> None:
         super().__init__()
         self.env_comm = ExaComm.env_comm
+        rank = ExaComm.agent_comm.rank
         bsuite_id = cd.lookup_params('bsuite_id', default='cartpole')
         seed_number = cd.lookup_params('seed_number', default='0')
         env_name = bsuite_id + "/" + seed_number
@@ -52,7 +54,8 @@ class ExaBsuite(gym.Env):
         # self.raw_env = bsuite.load_and_record(bsuite_id=env_name, save_path='./bsuite_results', 
         #                             logging_mode='csv')
         self.raw_env = bsuite.load_from_id(bsuite_id=env_name)
-        self._logger = CSVLogger(bsuite_id=env_name, results_dir='./bsuite_results')
+        self._logger = CSVLogger(bsuite_id=env_name, results_dir='./bsuite_results_' + str(rank))
+        # self._logger = CSVLogger(bsuite_id=env_name, results_dir='./bsuite_results')
                                     
         self.env = gym_wrapper.GymFromDMEnv(self.raw_env)
         self.action_space = self.env.action_space
@@ -87,6 +90,9 @@ class ExaBsuite(gym.Env):
         done = timestep.step_type.last()
         return next_state, reward, done, {}
 
+    def update_episode(self, episode):
+        self._episode = episode
+
     def reset(self) -> np.ndarray:
         timestep = self.raw_env.reset()
         self._track(timestep)
@@ -101,21 +107,24 @@ class ExaBsuite(gym.Env):
         if not timestep.first():
             self._steps += 1
             self._episode_len += 1
-        if timestep.last():
-            self._episode += 1
+        # if timestep.last():
+        #     self._episode += 1
         self._episode_return += timestep.reward or 0.0
+        print("reward: ", timestep.reward)
+        print("total return: ", self._total_return)
         self._total_return += timestep.reward or 0.0
+        print("total return: ", self._total_return)
 
 
         # Log statistics periodically, either by step or by episode.
         if ExaComm.env_comm.rank == 0:
             if self._log_by_step:
-                if _logarithmic_logging(self._steps) or self._log_every:
-                    self._log_bsuite_data() 
+                # if _logarithmic_logging(self._steps) or self._log_every:
+                self._log_bsuite_data() 
 
             elif timestep.last():
-                if _logarithmic_logging(self._episode) or self._log_every:
-                    self._log_bsuite_data()
+                # if _logarithmic_logging(self._episode) or self._log_every:
+                self._log_bsuite_data()
 
 
         # Perform bookkeeping at the end of episodes.
