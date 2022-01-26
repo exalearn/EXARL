@@ -15,7 +15,7 @@ git:
 
 before_install:
   - source setup/install.sh
-  - pip install -e .
+  - pip install -e setup
 
 script:
   - pip install -r setup/test-requirements.txt
