@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""Convert a continuous valued array to its discretized array
+"""Convert a continuous valued array to discretized array
 
-This Action class convert a continuous valued array to its discretized array
+This Action class convert a continuous valued array to discretized array
 using discrete uniform distribution
 
 Example
@@ -28,19 +28,19 @@ class Action(object):
         Parameters
         ----------
         arrLower : a 1D array of double
-            a 1D arry containing lowver value for each dimension
+            a 1D array containing lower bound for each dimension
         arrUpper : a 1D array of double
-            a 1D arry containing upper value for each dimension
+            a 1D array containing upper bound for each dimension
         arrNumClasses : a 1D array of int
-            a 1D arry containing # of disretized classes in each dimension
+            a 1D array containing number of discretized classes in each dimension
 
         Returns
         -------
         None
         """
 
-        self.arrLower = arrLower  # a list containing lower value for each dimension
-        self.arrUpper = arrUpper  # a list containing upper value for each dimension
+        self.arrLower = arrLower  # a list containing lower bound for each dimension
+        self.arrUpper = arrUpper  # a list containing upper bound for each dimension
 
         self.arrNumClasses = arrNumClasses  # # of disretized classes in each dimension
 
@@ -119,17 +119,17 @@ class Action(object):
         logging.debug(f"arrIntervals: {self.arrIntervals}", )
 
     def descretize(self, arrContAction):
-        """This function discreteize continuous action using discrete uniform distribution.
+        """This function discretizes continuous action using discrete uniform distribution.
 
         Parameters
         ----------
         arrContAction : a 1D array of double
-            a 1D arry of continuous action values
+            a 1D array of continuous action values
 
         Returns
         -------
         a 1D array of int
-            a 1D arry of discritizecd action values (arrDiscAction)
+            a 1D array of discritizecd action values (arrDiscAction)
         """
         if (len(arrContAction) != self.dim_action):
             print("ERROR: The dimension of actions, dim_action, "
