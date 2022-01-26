@@ -8,6 +8,8 @@ A scalable software framework for reinforcement learning environments and agents
 [![Build Status](https://travis-ci.com/exalearn/EXARL.svg?token=nVtzNrBfRo4qpVpEQP21&branch=develop)](https://travis-ci.com/exalearn/EXARL)
 [![Documentation Status](https://readthedocs.org/projects/exarl/badge/?version=latest)](https://exarl.readthedocs.io/en/latest/?badge=latest)
 
+[Complete documentation](https://exarl.readthedocs.io/en/latest/index.html) is available.
+
 ## Software Requirement
 
 - Python 3.7
@@ -65,8 +67,8 @@ A scalable software framework for reinforcement learning environments and agents
 
 ## Installing
 
-- Pull code from repo
-- Note: This repo uses git large file system (lfs) for storing data. Make sure your git version supports lfs before cloning the repo.
+- Clone the repository
+- Note: This repository uses git large file system (lfs) for storing data. Make sure your git version supports lfs before cloning the repository.
 
 ```
 git clone --recursive https://github.com/exalearn/EXARL.git
@@ -76,7 +78,6 @@ git lfs install # install git lfs if you haven't
 git lfs fetch
 git lfs pull
 ```
-* Note: This repo uses git large file system (lfs) for data. Make sure your git version supports git lfs.
 
 - EXARL uses MPI and GPU accelerated versions of TF/PyTorch/Keras when available.
 - Install dependencies for EXARL (Refer GitHub wiki for platform specific build instructions):
