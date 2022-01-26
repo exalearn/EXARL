@@ -11,7 +11,7 @@ python:
 
 # Handle git submodules
 git:
-    submodules: false
+  submodules: false
 
 before_install:
   - source setup/install.sh
@@ -21,4 +21,5 @@ script:
   - pip install -r setup/test-requirements.txt
   - flake8 .
   - pytest
+  - export PYTHONPATH=`pwd`:$PYTHONPATH
   - python exarl/driver
