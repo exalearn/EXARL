@@ -1,22 +1,13 @@
 # -*- coding: utf-8 -*-
-"""Convert a continuous valued array to its discretized array
+"""Convert a continuous valued array to discretized array
 
-This Action class convert a continuous valued array to its discretized array
+This Action class convert a continuous valued array to discretized array
 using discrete uniform distribution
 
 Example
 -------
-  * Set the class with the following three required arrays
-
-    action = Action(
-        arrLower=arrLower,            # a 1D arry containing lower value for each dimension
-        arrUpper=arrUpper,            # a 1D arry containing upper value for each dimension
-        arrNumClasses=arrNumClasses)  # a 1D arry containing # of disretized classes in each dimension
-
-  * Convert the continuous valued array (arrContAction) to its discretized array (arrDiscAction)
-    using discrete uniform distribution
-
-    arrDiscAction = action.descretize(arrContAction)
+    action = Action(arrLower=arrLower, arrUpper=arrUpper, arrNumClasses=arrNumClasses)
+    arrDiscAction = action.discretize(arrContAction)
 
 """
 
@@ -34,19 +25,19 @@ class Action(object):
         Parameters
         ----------
         arrLower : a 1D array of double
-            a 1D arry containing lowver value for each dimension
+            a 1D array containing the lower value for each dimension
         arrUpper : a 1D array of double
-            a 1D arry containing upper value for each dimension
+            a 1D array containing the upper value for each dimension
         arrNumClasses : a 1D array of int
-            a 1D arry containing # of disretized classes in each dimension
+            a 1D array containing the number of discretized classes in each dimension
 
         Returns
         -------
         None
         """
 
-        self.arrLower = arrLower  # a list containing lower value for each dimension
-        self.arrUpper = arrUpper  # a list containing upper value for each dimension
+        self.arrLower = arrLower  # a list containing lower bound for each dimension
+        self.arrUpper = arrUpper  # a list containing upper bound for each dimension
 
         self.arrNumClasses = arrNumClasses  # # of disretized classes in each dimension
 
@@ -124,18 +115,18 @@ class Action(object):
 
         logging.debug(f"arrIntervals: {self.arrIntervals}", )
 
-    def descretize(self, arrContAction):
-        """This function discreteize continuous action using discrete uniform distribution.
+    def discretize(self, arrContAction):
+        """ This function discretizes a continuous action using discrete uniform distribution.
 
         Parameters
         ----------
-        arrContAction : a 1D array of double
-            a 1D arry of continuous action values
+        arrContAction : a 1D array of doubles
+            a 1D array of continuous action values
 
         Returns
         -------
         a 1D array of int
-            a 1D arry of discritizecd action values (arrDiscAction)
+            a 1D array of discretized action values (arrDiscAction)
         """
         if (len(arrContAction) != self.dim_action):
             print("ERROR: The dimension of actions, dim_action, "
