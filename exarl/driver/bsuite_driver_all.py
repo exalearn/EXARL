@@ -41,7 +41,7 @@ for env_id in tqdm(sweep.SWEEP):
     run_params["bsuite_id"], run_params['seed_number'] = bsuite_id, seed_number
     # print(sweep.EPISODES[env_id])
     # run_params["n_episodes"] = sweep.EPISODES[env_id]
-    run_params["n_episodes"] = 10
+    run_params["n_episodes"] = 100
     # if 'cartpole' in bsuite_id:
     #     run_params["n_steps"] = 10
 

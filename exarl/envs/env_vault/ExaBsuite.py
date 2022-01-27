@@ -110,10 +110,10 @@ class ExaBsuite(gym.Env):
         # if timestep.last():
         #     self._episode += 1
         self._episode_return += timestep.reward or 0.0
-        print("reward: ", timestep.reward)
-        print("total return: ", self._total_return)
+        # print("reward: ", timestep.reward)
+        # print("total return: ", self._total_return)
         self._total_return += timestep.reward or 0.0
-        print("total return: ", self._total_return)
+        # print("total return: ", self._total_return)
 
 
         # Log statistics periodically, either by step or by episode.
