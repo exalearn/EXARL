@@ -430,7 +430,7 @@ class ExaBooster_v2(gym.Env):
         axs[1].plot(np.linspace(0, 14, 15), rachael_IMINER, label="PID Eq", color='blue', linestyle='dotted')
         axs[1].legend(loc='upper left')
 
-        plt.savefig('episode{}_step{}_v1.png'.format(self.episodes, self.steps))
+        plt.savefig(results_dir + 'episode{}_step{}_v1.png'.format(self.episodes, self.steps))
         plt.clf()
 
         fig, axs = plt.subplots(1, figsize=(12, 12))

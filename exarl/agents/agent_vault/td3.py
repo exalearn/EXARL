@@ -357,18 +357,6 @@ class TD3(erl.ExaAgent):
     def set_weights(self, weights):
         self.target_actor.set_weights(weights)
 
-    # def set_learner(self):
-    #     self.is_learner = True
-    #     self.actor_model = self.get_actor()
-    #     self.critic_model_1 = self.get_critic()
-    #     self.critic_model_2 = self.get_critic()
-    #     self.target_actor = self.get_actor()
-    #     self.target_critic_1 = self.get_critic()
-    #     self.target_critic_2 = self.get_critic()
-    #     self.target_actor.set_weights(self.actor_model.get_weights())
-    #     self.target_critic_1.set_weights(self.critic_model_1.get_weights())
-    #     self.target_critic_2.set_weights(self.critic_model_2.get_weights())
-
     # Extra methods
     def update(self):
         print("Implement update method in ddpg.py")
