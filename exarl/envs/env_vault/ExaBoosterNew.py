@@ -20,6 +20,7 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.INFO)
 np.seterr(divide='ignore', invalid='ignore')
+results_dir = cd.lookup_params('output_dir', './results_dir')
 
 def load_reformated_cvs(filename, nrows=100000):
     df = pd.read_csv(filename, nrows=nrows)
@@ -451,5 +452,5 @@ class ExaBooster_v2(gym.Env):
         plt.xlabel('B:VIMIN')
         plt.ylabel('B:IMINER')
         plt.legend()
-        plt.savefig('corr_episode{}_step{}.png'.format(self.episodes, self.steps))
+        plt.savefig(results_dir + '/corr_episode{}_step{}.png'.format(self.episodes, self.steps))
         plt.close('all')
