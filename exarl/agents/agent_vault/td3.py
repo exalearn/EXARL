@@ -29,8 +29,7 @@ from datetime import datetime
 from exarl.utils.OUActionNoise import OUActionNoise
 from exarl.utils.OUActionNoise import OUActionNoise2
 from exarl.utils.memory_type import MEMORY_TYPE
-# from ._networks_td3 import ActorModel, CriticModel
-from ._replay_buffer import ReplayBuffer, HindsightExperienceReplayMemory, PrioritedReplayBuffer
+from exarl.agents.agent_vault._replay_buffer import ReplayBuffer, HindsightExperienceReplayMemory, PrioritedReplayBuffer
 
 import exarl as erl
 

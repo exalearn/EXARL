@@ -46,8 +46,8 @@ class KerasTD3(erl.ExaAgent):
         self.num_actions = env.action_space.shape[0]
         self.upper_bound = env.action_space.high
         self.lower_bound = env.action_space.low
-        print('upper_bound: ',self.upper_bound)
-        print('lower_bound: ',self.lower_bound)
+        print('upper_bound: ', self.upper_bound)
+        print('lower_bound: ', self.lower_bound)
 
         # Buffer
         self.buffer_counter = 0
@@ -91,8 +91,8 @@ class KerasTD3(erl.ExaAgent):
 
         # update counting
         self.ntrain_calls = 0
-        self.actor_update_freq=2
-        self.critic_update_freq=2
+        self.actor_update_freq = 2
+        self.critic_update_freq = 2
 
         plt.ion()
 
@@ -102,7 +102,7 @@ class KerasTD3(erl.ExaAgent):
         # Add a little noise
         noise = np.random.normal(0, 0.2, self.num_actions)
         noise = np.clip(noise, -0.5, 0.5)
-        next_actions = next_actions*(1+noise)
+        next_actions = next_actions * (1 + noise)
         new_q1 = self.target_critic1([next_states, next_actions], training=False)
         new_q2 = self.target_critic2([next_states, next_actions], training=False)
         new_q = tf.math.minimum(new_q1, new_q2)
@@ -111,7 +111,7 @@ class KerasTD3(erl.ExaAgent):
         # Critic 1
         with tf.GradientTape() as tape:
             q_values1 = self.critic_model1([states, actions], training=True)
-            td_errors1 = q_values1-q_targets
+            td_errors1 = q_values1 - q_targets
             critic_loss1 = tf.reduce_mean(tf.math.square(td_errors1))
         gradient1 = tape.gradient(critic_loss1, self.critic_model1.trainable_variables)
         self.critic_optimizer1.apply_gradients(zip(gradient1, self.critic_model1.trainable_variables))
@@ -119,7 +119,7 @@ class KerasTD3(erl.ExaAgent):
         # Critic 2
         with tf.GradientTape() as tape:
             q_values2 = self.critic_model2([states, actions], training=True)
-            td_errors2 = q_values2-q_targets
+            td_errors2 = q_values2 - q_targets
             critic_loss2 = tf.reduce_mean(tf.math.square(td_errors2))
         gradient2 = tape.gradient(critic_loss2, self.critic_model2.trainable_variables)
         self.critic_optimizer2.apply_gradients(zip(gradient2, self.critic_model2.trainable_variables))
@@ -137,12 +137,12 @@ class KerasTD3(erl.ExaAgent):
     def get_critic(self):
         # State as input
         state_input = tf.keras.layers.Input(shape=(self.num_states))
-        state_out = tf.keras.layers.Dense(16*self.num_states, activation="relu")(state_input)
-        state_out = tf.keras.layers.Dense(32*self.num_states, activation="relu")(state_out)
+        state_out = tf.keras.layers.Dense(16 * self.num_states, activation="relu")(state_input)
+        state_out = tf.keras.layers.Dense(32 * self.num_states, activation="relu")(state_out)
 
         # Action as input
         action_input = tf.keras.layers.Input(shape=(self.num_actions))
-        action_out = tf.keras.layers.Dense(32*self.num_actions, activation="relu")(action_input)
+        action_out = tf.keras.layers.Dense(32 * self.num_actions, activation="relu")(action_input)
 
         # Both are passed through separate layer before concatenating
         concat = tf.keras.layers.Concatenate()([state_out, action_out])
@@ -195,7 +195,6 @@ class KerasTD3(erl.ExaAgent):
         self.train_critic(state_batch, action_batch, reward_batch, next_state_batch)
         self.train_actor(state_batch)
 
-
     def train(self):
         """ Method used to train """
         self.ntrain_calls += 1
@@ -214,23 +213,22 @@ class KerasTD3(erl.ExaAgent):
         next_state_batch = tf.convert_to_tensor(self.next_state_buffer[batch_indices])
         #
         self.update(state_batch, action_batch, reward_batch, next_state_batch)
-        if self.ntrain_calls%self.actor_update_freq==0:
+        if self.ntrain_calls % self.actor_update_freq == 0:
             self.soft_update(self.target_actor.variables, self.actor_model.variables)
-        if self.ntrain_calls%self.critic_update_freq==0:
+        if self.ntrain_calls % self.critic_update_freq == 0:
             self.soft_update(self.target_critic1.variables, self.critic_model1.variables)
             self.soft_update(self.target_critic2.variables, self.critic_model2.variables)
-
 
     def action(self, state):
         """ Method used to provide the next action using the target model """
 
         sampled_actions = tf.squeeze(self.actor_model(state))
         noise = np.random.normal(0, 0.1, self.num_actions)
-        sampled_actions = sampled_actions.numpy()*(1 + noise)
+        sampled_actions = sampled_actions.numpy() * (1 + noise)
 
         # We make sure action is within bounds
         legal_action = np.clip(sampled_actions, self.lower_bound, self.upper_bound)
-        #tf.print("legal_action", legal_action.shape)
+        # tf.print("legal_action", legal_action.shape)
 
         return [np.squeeze(legal_action)], [np.squeeze(noise)]
 
@@ -253,4 +251,3 @@ class KerasTD3(erl.ExaAgent):
     def save(self, results_dir):
         """ Save the ML models """
         pass
-
