@@ -64,7 +64,7 @@ class SIMPLE(erl.ExaWorkflow):
     def recv_batch(self):
         return ExaComm.agent_comm.recv(None)
 
-    def learner(self, workflow, nepisodes, block):
+    def init_learner(self, workflow, nepisodes, block):
         if block:
             block_size = ExaComm.agent_comm.size
         else:
@@ -78,6 +78,12 @@ class SIMPLE(erl.ExaWorkflow):
             self.send_model(workflow, next_episode, dst)
             episode_per_rank[dst] = next_episode
             next_episode += 1
+
+        return block_size, next_episode, done_episode, episode_per_rank
+
+    def learner(self, workflow, nepisodes, block):
+        
+        block_size, next_episode, done_episode, episode_per_rank = self.init_learner(workflow, nepisodes, block)
 
         while done_episode < nepisodes:
             for dst in range(1, block_size):
@@ -134,6 +140,7 @@ class SIMPLE(erl.ExaWorkflow):
                     done = True 
                 done = ExaComm.env_comm.bcast(done, 0)
 
+            # Need to make how often we send data configurable
             batch_data = next(workflow.agent.generate_data())
             self.send_batch(batch_data, policy_type, done)
             
