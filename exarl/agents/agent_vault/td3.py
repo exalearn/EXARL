@@ -81,7 +81,6 @@ class TD3(erl.ExaAgent):
         print('ave_bound: {}'.format(ave_bound))
         self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(std_dev) * np.ones(1))
 
-        # Not used by agent but required by the learner class
         self.epsilon = cd.run_params['epsilon']
         self.epsilon_min = cd.run_params['epsilon_min']
         self.epsilon_decay = cd.run_params['epsilon_decay']

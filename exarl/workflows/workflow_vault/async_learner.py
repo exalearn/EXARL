@@ -109,9 +109,9 @@ class ASYNC(erl.ExaWorkflow):
                 whofrom = recv_data[0]
                 step = recv_data[1]
                 batch = recv_data[2]
-                policy_type = recv_data[3]
+                epsilon = recv_data[3]
                 done = recv_data[4]
-                epsilon = recv_data[5]
+
                 logger.debug('step:{}'.format(step))
                 logger.debug('done:{}'.format(done))
                 # Train
@@ -156,9 +156,9 @@ class ASYNC(erl.ExaWorkflow):
                 whofrom = recv_data[0]
                 step = recv_data[1]
                 batch = recv_data[2]
-                policy_type = recv_data[3]
+                epsilon = recv_data[3]
                 done = recv_data[4]
-                epsilon = recv_data[5]
+
                 logger.debug('step:{}'.format(step))
                 logger.debug('done:{}'.format(done))
 
@@ -262,7 +262,7 @@ class ASYNC(erl.ExaWorkflow):
                             # Send batched memories
                             if exalearner.agent.has_data():
                                 send_data = True
-                                agent_comm.send([agent_comm.rank, steps, batch_data, policy_type, done, exalearner.agent.epsilon], 0)
+                                agent_comm.send([agent_comm.rank, steps, batch_data, exalearner.agent.epsilon, done], 0)
                             indices, loss = recv_data[3:5]
                             if indices is not None:
                                 exalearner.agent.set_priorities(indices, loss)
