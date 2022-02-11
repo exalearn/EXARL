@@ -26,18 +26,22 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+from email import policy
 import tensorflow as tf
 from tensorflow.keras.initializers import RandomUniform
 from tensorflow.keras.optimizers import Adam
 import numpy as np
 import matplotlib.pyplot as plt
 import exarl as erl
-
+import pickle
+import exarl.utils.candleDriver as cd
+from exarl.agents.agent_vault._replay_buffer import ReplayBuffer
 class KerasTD3(erl.ExaAgent):
 
-    def __init__(self, env, **kwargs):
+    def __init__(self, env, is_learner, **kwargs):
         """ Define all key variables required for all agent """
 
+        self.is_learner = is_learner
         # Get env info
         super().__init__(**kwargs)
         self.env = env
@@ -53,11 +57,12 @@ class KerasTD3(erl.ExaAgent):
         self.buffer_counter = 0
         self.buffer_capacity = 50000
         self.batch_size = 100
-        self.state_buffer = np.zeros((self.buffer_capacity, self.num_states))
-        self.action_buffer = np.zeros((self.buffer_capacity, self.num_actions))
-        self.reward_buffer = np.zeros((self.buffer_capacity, 1))
-        self.next_state_buffer = np.zeros((self.buffer_capacity, self.num_states))
-        self.done_buffer = np.zeros((self.buffer_capacity, 1))
+        self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions)
+        # self.state_buffer = np.zeros((self.buffer_capacity, self.num_states))
+        # self.action_buffer = np.zeros((self.buffer_capacity, self.num_actions))
+        # self.reward_buffer = np.zeros((self.buffer_capacity, 1))
+        # self.next_state_buffer = np.zeros((self.buffer_capacity, self.num_states))
+        # self.done_buffer = np.zeros((self.buffer_capacity, 1))
         self.per_buffer = np.ones((self.buffer_capacity, 1))
 
         # Used to update target networks
@@ -93,6 +98,11 @@ class KerasTD3(erl.ExaAgent):
         self.ntrain_calls = 0
         self.actor_update_freq = 2
         self.critic_update_freq = 2
+
+        # Not used by agent but required by the learner class
+        self.epsilon = cd.run_params['epsilon']
+        self.epsilon_min = cd.run_params['epsilon_min']
+        self.epsilon_decay = cd.run_params['epsilon_decay']
 
         plt.ion()
 
@@ -195,24 +205,25 @@ class KerasTD3(erl.ExaAgent):
         self.train_critic(state_batch, action_batch, reward_batch, next_state_batch)
         self.train_actor(state_batch)
 
-    def train(self):
+    def _convert_to_tensor(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch):
+        state_batch = tf.convert_to_tensor(state_batch, dtype=tf.float32)
+        action_batch = tf.convert_to_tensor(action_batch, dtype=tf.float32)
+        reward_batch = tf.convert_to_tensor(reward_batch, dtype=tf.float32)
+        next_state_batch = tf.convert_to_tensor(next_state_batch, dtype=tf.float32)
+        terminal_batch = tf.convert_to_tensor(terminal_batch, dtype=tf.float32)
+        return state_batch, action_batch, reward_batch, next_state_batch, terminal_batch
+
+    def generate_data(self):
+        state_batch, action_batch, reward_batch, next_state_batch, done_batch = \
+            self._convert_to_tensor(*self.memory.sample_buffer(self.batch_size))
+        yield state_batch, action_batch, reward_batch, next_state_batch, done_batch
+
+    def train(self, batch):
         """ Method used to train """
         self.ntrain_calls += 1
+        self.update(batch[0], batch[1], batch[2], batch[3])
 
-        # Get sampling range
-        record_range = min(self.buffer_counter, self.buffer_capacity)
-
-        # Randomly sample indices
-        batch_indices = np.random.choice(record_range, self.batch_size)
-
-        # Convert to tensors
-        state_batch = tf.convert_to_tensor(self.state_buffer[batch_indices])
-        action_batch = tf.convert_to_tensor(self.action_buffer[batch_indices])
-        reward_batch = tf.convert_to_tensor(self.reward_buffer[batch_indices])
-        reward_batch = tf.cast(reward_batch, dtype=tf.float32)
-        next_state_batch = tf.convert_to_tensor(self.next_state_buffer[batch_indices])
-        #
-        self.update(state_batch, action_batch, reward_batch, next_state_batch)
+    def target_train(self):
         if self.ntrain_calls % self.actor_update_freq == 0:
             self.soft_update(self.target_actor.variables, self.actor_model.variables)
         if self.ntrain_calls % self.critic_update_freq == 0:
@@ -221,16 +232,18 @@ class KerasTD3(erl.ExaAgent):
 
     def action(self, state):
         """ Method used to provide the next action using the target model """
-
-        sampled_actions = tf.squeeze(self.actor_model(state))
+        tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
+        sampled_actions = tf.squeeze(self.actor_model(tf_state))
         noise = np.random.normal(0, 0.1, self.num_actions)
         sampled_actions = sampled_actions.numpy() * (1 + noise)
+        policy_type = 1
 
         # We make sure action is within bounds
         legal_action = np.clip(sampled_actions, self.lower_bound, self.upper_bound)
         # tf.print("legal_action", legal_action.shape)
 
-        return [np.squeeze(legal_action)], [np.squeeze(noise)]
+        # return [np.squeeze(legal_action)], [np.squeeze(noise)]
+        return [np.squeeze(legal_action)], policy_type
 
     def memory(self, obs_tuple):
         # Set index to zero if buffer_capacity is exceeded,
@@ -244,10 +257,47 @@ class KerasTD3(erl.ExaAgent):
 
         self.buffer_counter += 1
 
-    def load(self):
-        """ Load the ML models """
-        pass
+    def remember(self, state, action, reward, next_state, done):
+        self.memory.store(state, action, reward, next_state, done)
 
-    def save(self, results_dir):
-        """ Save the ML models """
-        pass
+    def load(self, file_name):
+        try:
+            print('... loading models ...')
+            layers = self.target_actor.layers
+            pickle_list = []
+            for layerId in range(len(layers)):
+                weigths = layers[layerId].get_weights()
+                pickle_list.append([layers[layerId].name, weigths])
+
+            with open(file_name, "wb") as f:
+                pickle.dump(pickle_list, f, -1)
+
+        except:
+            # TODO: Could be improve, but ok for now
+            print("One of the model not present")
+
+    def save(self, file_name):
+        try:
+            print('... saving models ...')
+            layers = self.target_actor.layers
+            with open(file_name, "rb") as f:
+                pickle_list = pickle.load(f)
+
+            for layerId in range(len(layers)):
+                assert layers[layerId].name == pickle_list[layerId][0]
+                layers[layerId].set_weights(pickle_list[layerId][1])
+        except:
+            # TODO: Could be improve, but ok for now
+            print("One of the model not present")
+
+    def has_data(self):
+        """return true if agent has experiences from simulation
+        """
+        return (self.memory._mem_length > 0)
+
+    # For distributed actors #
+    def get_weights(self):
+        return self.target_actor.get_weights()
+
+    def set_weights(self, weights):
+        self.target_actor.set_weights(weights)

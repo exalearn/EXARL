@@ -333,7 +333,7 @@ class TD3(erl.ExaAgent):
         # TODO: Might be better to start after warm up
         if np.random.random() < self.epsilon:
             sampled_actions = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
-            policy_type = 1
+            policy_type = 0
             self.epsilon_adj()
         else:
             policy_type = 1

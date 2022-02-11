@@ -22,5 +22,10 @@ elif agent == 'TD3-v0':
         id=agent,
         entry_point='exarl.agents.agent_vault:TD3'
     )
+elif agent == 'TD3-v1':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:KerasTD3'
+    )
 else:
     print("No agent selected!")
