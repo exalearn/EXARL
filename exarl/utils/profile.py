@@ -31,7 +31,18 @@ if not os.path.exists(results_dir + '/Profile'):
 
 
 def PROFILE(func):
-    """Invokes line_profiler and memory_profiler"""
+    """Invokes line_profiler and memory_profiler
+
+    Parameters
+    ----------
+    func : function
+        function to be profiled
+
+    Returns
+    -------
+    function
+        wrapper profile function
+    """
     # Line profiler
     if prof == 'line':
         import line_profiler
@@ -71,7 +82,18 @@ def PROFILE(func):
 
 
 def DEBUG(func):
-    """Print the function signature and return value"""
+    """Print the function signature and return value
+
+    Parameters
+    ----------
+    func : function
+        function to be wrapped for debugggin
+
+    Returns
+    -------
+    function
+        debug wrapper
+    """
     @functools.wraps(func)
     def wrapper_debug(*args, **kwargs):
         args_repr = [repr(a) for a in args]
@@ -87,7 +109,18 @@ def DEBUG(func):
 
 
 def TIMER(func):
-    """Print the runtime of the decorated function"""
+    """Print the runtime of the decorated function
+
+    Parameters
+    ----------
+    func : function
+        function to be wrapped for printing runtime
+
+    Returns
+    -------
+    function
+       timer wrapper function that returns the function return value
+    """
     @functools.wraps(func)
     def wrapper_timer(*args, **kwargs):
         start_time = time.perf_counter()
@@ -99,7 +132,18 @@ def TIMER(func):
     return wrapper_timer
 
 def TIMERET(func):
-    """Print the runtime of the decorated function"""
+    """Print the runtime of the decorated function
+
+    Parameters
+    ----------
+    func : function
+        function to be wrapped for printing runtime
+
+    Returns
+    -------
+    function
+       timer wrapper function that returns the runtime of the function
+    """
     @functools.wraps(func)
     def wrapper_timer(*args, **kwargs):
         start_time = time.perf_counter()

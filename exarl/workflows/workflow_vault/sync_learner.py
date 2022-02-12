@@ -29,7 +29,7 @@ logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
 
 
 class SYNC(erl.ExaWorkflow):
-    """Synchronous workflow class: inherts from the ExaWorkflow base class.
+    """Synchronous workflow class: inherits from the ExaWorkflow base class.
     It features a single learner and multiple actors. The MPI processes are statically
     launched and are split into multiple groups. The environment processes can be set
     during launchtime as a candle parameter and runs multiple multi-process environments.
@@ -41,12 +41,12 @@ class SYNC(erl.ExaWorkflow):
         print('Class SYNC learner')
 
     @PROFILE
-    def run(self, workflow):
+    def run(self, exalearner):
         """This function implements the synchronous workflow in EXARL and uses MPI
         collective communication.
 
         Args:
-            workflow (ExaLearner type object): The ExaLearner object is used to access
+            exalearner (ExaLearner type object): The ExaLearner object is used to access
             different members of the base class.
 
         Returns:
@@ -56,8 +56,8 @@ class SYNC(erl.ExaWorkflow):
 
         if ExaComm.env_comm.rank == 0:
             filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' % (
-                str(workflow.nepisodes), str(workflow.nsteps), str(env_comm.rank))
-            train_file = open(workflow.results_dir + '/' +
+                str(exalearner.nepisodes), str(exalearner.nsteps), str(env_comm.rank))
+            train_file = open(exalearner.results_dir + '/' +
                               filename_prefix + ".log", 'w')
             train_writer = csv.writer(train_file, delimiter=" ")
 
@@ -65,9 +65,9 @@ class SYNC(erl.ExaWorkflow):
         rank0_epsilon = 0
 
         # Loop over episodes
-        for e in range(workflow.nepisodes):
+        for e in range(exalearner.nepisodes):
             # Reset variables each episode
-            current_state = workflow.env.reset()
+            current_state = exalearner.env.reset()
             total_reward  = 0
             steps         = 0
             done          = False
@@ -78,39 +78,39 @@ class SYNC(erl.ExaWorkflow):
                 # All env ranks
                 action = None
                 if ExaComm.env_comm.rank == 0:
-                    action, policy_type = workflow.agent.action(current_state)
+                    action, policy_type = exalearner.agent.action(current_state)
 
                 # Broadcast episode count to all procs in env_comm
                 action = env_comm.bcast(action, root=0)
-                next_state, reward, done, _ = workflow.env.step(action)
+                next_state, reward, done, _ = exalearner.env.step(action)
 
                 if ExaComm.env_comm.rank == 0:
                     total_reward += reward
                     memory = (current_state, action, reward,
                               next_state, done, total_reward)
                     batch_data = []
-                    workflow.agent.remember(
+                    exalearner.agent.remember(
                         memory[0], memory[1], memory[2], memory[3], memory[4])
                     # TODO: we need a memory class to scale
-                    batch_data = next(workflow.agent.generate_data())
+                    batch_data = next(exalearner.agent.generate_data())
                     logger.info(
                         'Rank[{}] - Generated data: {}'.format(env_comm.rank, len(batch_data[0])))
                     try:
-                        buffer_length = len(workflow.agent.memory)
+                        buffer_length = len(exalearner.agent.memory)
                     except:
-                        buffer_length = workflow.agent.replay_buffer.get_buffer_length()
+                        buffer_length = exalearner.agent.replay_buffer.get_buffer_length()
                     logger.info(
                         'Rank[{}] - # Memories: {}'.format(env_comm.rank, buffer_length))
 
                 # Learner
                 if ExaComm.is_learner():
                     # Push memories to learner
-                    train_return = workflow.agent.train(batch_data)
+                    train_return = exalearner.agent.train(batch_data)
                     if train_return is not None:
                         # indices, loss = train_return
-                        workflow.agent.set_priorities(*train_return)
-                    workflow.agent.target_train()
-                    rank0_epsilon = workflow.agent.epsilon
+                        exalearner.agent.set_priorities(*train_return)
+                    exalearner.agent.target_train()
+                    rank0_epsilon = exalearner.agent.epsilon
 
                 if ExaComm.env_comm.rank == 0:
                     # Update state
@@ -118,7 +118,7 @@ class SYNC(erl.ExaWorkflow):
                     logger.info('Rank[%s] - Total Reward:%s' %
                                 (str(env_comm.rank), str(total_reward)))
                     steps += 1
-                    if steps >= workflow.nsteps:
+                    if steps >= exalearner.nsteps:
                         done = True
 
                     # Save memory for offline analysis
@@ -139,5 +139,5 @@ class SYNC(erl.ExaWorkflow):
         if ExaComm.env_comm.rank == 0:
             # Save Learning target model
             if ExaComm.is_learner():
-                workflow.agent.save(workflow.results_dir + '/' + filename_prefix + '.h5')
+                exalearner.agent.save(exalearner.results_dir + '/' + filename_prefix + '.h5')
             train_file.close()

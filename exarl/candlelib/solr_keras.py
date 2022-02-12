@@ -31,7 +31,7 @@ def compute_trainable_params(model):
 
 
 class CandleRemoteMonitor(Callback):
-    """Capture Run level output and store/send for monitoring
+    """ Capture Run level output and store/send for monitoring
     """
 
     def __init__(self,
@@ -119,10 +119,12 @@ class CandleRemoteMonitor(Callback):
         self.save()
 
     def submit(self, send):
-        """Send json to solr
+        """ Send json to solr
 
-        Arguments:
-        send -- json object
+            Parameters
+            ----------
+            send: json object
+                Object to send
         """
         try:
             requests.post(self.root + self.path,
@@ -133,7 +135,7 @@ class CandleRemoteMonitor(Callback):
                 'Warning: could not reach RemoteMonitor root server at ' + str(self.root))
 
     def save(self):
-        """Save log_messages to file
+        """ Save log_messages to file
         """
         # path = os.getenv('TURBINE_OUTPUT') if 'TURBINE_OUTPUT' in os.environ else '.'
         path = self.global_params['save'] if 'save' in self.global_params else '.'
@@ -151,11 +153,11 @@ class TerminateOnTimeOut(Callback):
     """
 
     def __init__(self, timeout_in_sec=10):
-        """Initialize TerminateOnTimeOut class.
+        """ Initialize TerminateOnTimeOut class.
 
             Parameters
             -----------
-            timeout_in_sec : int
+            timeout_in_sec: int
                 seconds to timeout
         """
 

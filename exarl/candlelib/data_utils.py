@@ -20,7 +20,7 @@ from exarl.candlelib.default_utils import DEFAULT_DATATYPE
 
 # TAKEN from tensorflow
 def to_categorical(y, num_classes=None):
-    """Converts a class vector (integers) to binary class matrix.
+    """ Converts a class vector (integers) to binary class matrix.
         E.g. for use with categorical_crossentropy.
 
         Parameters

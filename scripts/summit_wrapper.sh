@@ -2,9 +2,9 @@
 
 ######## Double check this works for your set up ########
 module purge
-module load spectrum-mpi/10.4.0.3-20210112
 module load cuda/11.0.3
 module load open-ce/1.4.0-py37-0
+module load git-lfs
 
 ######## This is user specific conda env! ########
 conda activate exarl_summit
@@ -34,7 +34,8 @@ export GPUS_PER_RS=1
 export RS_PER_HOST=6
 export WORKFLOW=async
 
-for NODES in 1 2 4 8 16 32 64
+#for NODES in 1 2 4 8 16 32 64
+for NODES in 1
 do
 export NUM_RES_SET=$((NODES*6))
 bsub -P AST153 -J RunEXARL -W 2:00 -nnodes $NODES -e $ERR_LOG -o $OUT_LOG -alloc_flags "gpumps" "sh ${EXARL_ROOT}/scripts/submit_summit.lsf -n $NODES $WHICH_ENV &"

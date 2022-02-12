@@ -306,7 +306,7 @@ def fill_array(blocklist, maxsize, numdata, numblocks, blocksize):
         Parameters
         ----------
         blocklist : list
-            List of integers describen the block indices that
+            List of integers describes the block indices that
             go into the array
         maxsize : int
             Maximum possible length for the partition (the size of the
@@ -344,7 +344,7 @@ def compute_statistics_homoscedastic(df_data,
                                      col_pred=6,
                                      col_std_pred=7,
                                      ):
-    """ Extracts ground truth, mean predition, error and
+    """ Extracts ground truth, mean prediction, error and
         standard deviation of prediction from inference
         data frame. The latter includes the statistics
         over all the inference realizations.
@@ -384,7 +384,7 @@ def compute_statistics_homoscedastic(df_data,
             Array with standard deviations computed from regular
             (homoscedastic) inference.
         pred_name : string
-            Name of data colum or quantity predicted (as extracted
+            Name of data column or quantity predicted (as extracted
             from the data frame using the col_true index).
     """
 
@@ -413,7 +413,7 @@ def compute_statistics_homoscedastic_all(df_data,
                                          col_true=4,
                                          col_pred_start=6
                                          ):
-    """ Extracts ground truth, mean predition, error and
+    """ Extracts ground truth, mean prediction, error and
         standard deviation of prediction from inference
         data frame. The latter includes all the individual
         inference realizations.
@@ -450,7 +450,7 @@ def compute_statistics_homoscedastic_all(df_data,
             Array with standard deviations computed from regular
             (homoscedastic) inference.
         pred_name : string
-            Name of data colum or quantity predicted (as extracted
+            Name of data column or quantity predicted (as extracted
             from the data frame using the col_true index).
     """
 
@@ -482,7 +482,7 @@ def compute_statistics_heteroscedastic(df_data,
                                        col_pred_start=6,
                                        col_std_pred_start=7,
                                        ):
-    """ Extracts ground truth, mean predition, error, standard
+    """ Extracts ground truth, mean prediction, error, standard
         deviation of prediction and predicted (learned) standard
         deviation from inference data frame. The latter includes
         all the individual inference realizations.
@@ -525,7 +525,7 @@ def compute_statistics_heteroscedastic(df_data,
             Array with standard deviations computed from regular
             (homoscedastic) inference.
         pred_name : string
-            Name of data colum or quantity predicted (as extracted
+            Name of data column or quantity predicted (as extracted
             from the data frame using the col_true index).
     """
 
@@ -561,7 +561,7 @@ def compute_statistics_quantile(df_data,
                                 col_true=4,
                                 col_pred_start=6
                                 ):
-    """ Extracts ground truth, 50th percentile mean predition,
+    """ Extracts ground truth, 50th percentile mean prediction,
         low percentile and high percentile mean prediction
         (usually 10th percentile and 90th percentile respectively),
         error (using 50th percentile), standard deviation of
@@ -579,7 +579,7 @@ def compute_statistics_quantile(df_data,
         sigma_divisor : float
             Divisor to convert from the intercedile range to the corresponding
             standard deviation for a Gaussian distribution.
-            (Default: 2.56, consisten with an interdecile range computed from
+            (Default: 2.56, consistent with an interdecile range computed from
             the difference between the 90th and 10th percentiles).
         col_true : integer
             Index of the column in the data frame where the true
@@ -606,7 +606,7 @@ def compute_statistics_quantile(df_data,
             Array with standard deviations computed from regular
             (homoscedastic) inference.
         pred_name : string
-            Name of data colum or quantity predicted (as extracted
+            Name of data column or quantity predicted (as extracted
             from the data frame using the col_true index).
         Ypred_Lp_mean : numpy array
             Array with predicted values of the lower percentile
@@ -646,7 +646,8 @@ def compute_statistics_quantile(df_data,
 
 
 def split_data_for_empirical_calibration(Ytrue, Ypred, sigma, cal_split=0.8):
-    """ Extracts a portion of the arrays provided for the computation
+    """
+        Extracts a portion of the arrays provided for the computation
         of the calibration and reserves the remainder portion
         for testing.
 
@@ -662,7 +663,7 @@ def split_data_for_empirical_calibration(Ytrue, Ypred, sigma, cal_split=0.8):
             inference).
         cal_split : float
              Split of data to use for estimating the calibration relationship.
-             It is assumet that it will be a value in (0, 1).
+             It is assumed that it will be a value in (0, 1).
              (Default: use 80% of predictions to generate empirical
              calibration).
 
@@ -760,7 +761,7 @@ def compute_empirical_calibration(pSigma_cal, pPred_cal, true_cal, bins, coverag
         sigma_end_index : non-negative integer
             Index in the mean_sigma array that defines the end of
             the valid empirical calibration interval (i.e. index to
-            the largest std for which a meaningful error mappping
+            the largest std for which a meaningful error mapping
             is obtained).
         s_interpolate : scipy.interpolate python object
             A python object from scipy.interpolate that computes a
@@ -907,7 +908,7 @@ def computation_of_valid_calibration_interval(error_thresholds, error_thresholds
         good results. Therefore, a softer version is constructed
         based on the satisfaction of certain criteria depending
         on: the values of the error coverage computed per bin,
-        a smoothed version of them and the assocatiate error
+        a smoothed version of them and the associated error
         estimated (based on one standard deviation for a binomial
         distribution estimated by bin vs. the other bins).
         A minimal validation requiring the end idex to be
@@ -945,13 +946,13 @@ def computation_of_valid_calibration_interval(error_thresholds, error_thresholds
         Return
         ----------
         sigma_start_index : non-negative integer
-            Index estimated in the mean_sigma array corresponing to
+            Index estimated in the mean_sigma array corresponding to
             the value that defines the start of the valid empirical
             calibration interval (i.e. index to the smallest std for
             which a meaningful error mapping is obtained, according
             to the criteria explained before).
         sigma_end_index : non-negative integer
-            Index estimated in the mean_sigma array corresponing to
+            Index estimated in the mean_sigma array corresponding to
             the value that defines the end of the valid empirical
             calibration interval (i.e. index to the largest std for
             which a meaningful error mapping is obtained, according
@@ -1027,7 +1028,7 @@ def applying_calibration(pSigma_test, pPred_test, true_test, s_interpolate, minL
             is obtained).
         maxL_sigma_auto : float
             Ending value of the valid empirical calibration interval
-            (i.e. largest std for which a meaningful error mappping
+            (i.e. largest std for which a meaningful error mapping
             is obtained).
 
         Return
@@ -1044,7 +1045,7 @@ def applying_calibration(pSigma_test, pPred_test, true_test, s_interpolate, minL
             from the interpolation spline constructed by empirical
             calibration.
         eabs_red : numpy array
-            Array with the observed abolute errors in the part of the testing
+            Array with the observed absolute errors in the part of the testing
             array for which the observed standard deviations are in the
             valid interval of calibration.
     """
@@ -1061,7 +1062,7 @@ def applying_calibration(pSigma_test, pPred_test, true_test, s_interpolate, minL
 
 
 def overprediction_check(yp_test, eabs_red):
-    """ Compute the percentage of overestimated absoulte error
+    """ Compute the percentage of overestimated absolute error
         predictions for the arrays reserved for calibration testing
         and whose corresponding standard deviations are included
         in the valid calibration interval.
@@ -1073,7 +1074,7 @@ def overprediction_check(yp_test, eabs_red):
             from the interpolation spline constructed by empirical
             calibration.
         eabs_red : numpy array
-            Array with the observed abolute errors in the part of the testing
+            Array with the observed absolute errors in the part of the testing
             array for which the observed standard deviations are in the
             valid interval of calibration.
     """

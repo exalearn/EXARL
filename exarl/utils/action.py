@@ -1,35 +1,69 @@
+# -*- coding: utf-8 -*-
+"""Convert a continuous valued array to discretized array
+
+This Action class convert a continuous valued array to discretized array
+using discrete uniform distribution
+
+Example
+-------
+    action = Action(arrLower=arrLower, arrUpper=arrUpper, arrNumClasses=arrNumClasses)
+    arrDiscAction = action.discretize(arrContAction)
+
+"""
+
 import sys
 import numpy as np
+import logging
+logging.basicConfig(level=logging.INFO)
 
 
 class Action(object):
 
-    # A user set the following inputs:
-    # arrLower: a list of lower value for each dimension
-    # arrUpper: a list of upper value for each dimension
-    # arrNumClasses: # of disretized classes in each dimension
-
     def __init__(self, arrLower, arrUpper, arrNumClasses):
+        """
 
-        self.arrLower = arrLower
-        self.arrUpper = arrUpper
+        Parameters
+        ----------
+        arrLower : a 1D array of double
+            a 1D array containing the lower value for each dimension
+        arrUpper : a 1D array of double
+            a 1D array containing the upper value for each dimension
+        arrNumClasses : a 1D array of int
+            a 1D array containing the number of discretized classes in each dimension
 
-        self.arrNumClasses = arrNumClasses
+        Returns
+        -------
+        None
+        """
 
-        self.dim_action = 0
+        self.arrLower = arrLower  # a list containing lower bound for each dimension
+        self.arrUpper = arrUpper  # a list containing upper bound for each dimension
 
-        self.arrIntervals = []
+        self.arrNumClasses = arrNumClasses  # # of disretized classes in each dimension
 
-        self.arrDiscAction = []
+        self.dim_action = 0  # dimension of the actions
 
-        self.debug = 0               # TODO: one can pass an argument
+        self.arrIntervals = []  # action interaval array (arrUpper-arrUpper)
+
+        self.arrDiscAction = []  # discretized action array
 
         self.setDimAction()
 
+        self.checkLowerUpperArray()
+
         self.setArrIntervals()
 
-    # set the dimension of action space
     def setDimAction(self):
+        """ This function verifies and sets the dimension of action space.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
 
         if (len(self.arrLower) != len(self.arrUpper)):
             print("ERROR: The dimension of the arrLower and arrUpper should be equal!")
@@ -40,46 +74,77 @@ class Action(object):
                   "and arrNumClasses should be equal!")
             sys.exit()
 
+        # set the dimension of the action array
         self.dim_action = len(self.arrNumClasses)
 
-        if (self.debug >= 10):
-            print("dim_action: ", self.dim_action)
+        logging.debug(f"dim_action: {self.dim_action}")
 
-    # set interval for each action dimension, arrIntervals
+    def checkLowerUpperArray(self):
+        """ This function validates the lower and upper arrays
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
+
+        for i in range(self.dim_action):
+            if (self.arrLower[i]) > (self.arrUpper[i]):
+                print("ERROR: arrLower[i] <= arrUpper[i] for all i!")
+                sys.exit()
+
     def setArrIntervals(self):
+        """ This function sets interval for each action dimension, arrIntervals
 
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         self.arrIntervals = np.zeros(self.dim_action)
 
         for i in range(self.dim_action):
             self.arrIntervals[i] = (
                 self.arrUpper[i] - self.arrLower[i]) / self.arrNumClasses[i]
 
-        if (self.debug >= 10):
-            print("arrIntervals: ", self.arrIntervals)
+        logging.debug(f"arrIntervals: {self.arrIntervals}", )
 
-    # discreteize continuous action
-    # Input:  arrContAction: 1D arry of continuous action values
-    # Output: arrDiscValues: 1D arry of discritizecd action values
-    def descretize(self, arrContAction):
+    def discretize(self, arrContAction):
+        """ This function discretizes a continuous action using discrete uniform distribution.
 
+        Parameters
+        ----------
+        arrContAction : a 1D array of doubles
+            a 1D array of continuous action values
+
+        Returns
+        -------
+        a 1D array of int
+            a 1D array of discretized action values (arrDiscAction)
+        """
         if (len(arrContAction) != self.dim_action):
             print("ERROR: The dimension of actions, dim_action, "
                   "and cont_action should be equal!")
             sys.exit()
 
-        if (self.debug >= 10):
-            print("cont_action: ", arrContAction)
+        logging.debug(f"continuous action array: {arrContAction}")
 
         self.arrDiscAction = np.zeros(self.dim_action)
 
         for i in range(self.dim_action):
+
             self.arrDiscAction[i] = (
                 arrContAction[i] - self.arrLower[i]) // self.arrIntervals[i]
 
             if self.arrDiscAction[i] == self.arrNumClasses[i]:
                 self.arrDiscAction[i] -= 1
 
-        if (self.debug >= 10):
-            print("arrDiscValues: ", self.arrDiscAction)
+        logging.debug(f"discretized action array: {self.arrDiscAction}")
 
         return self.arrDiscAction

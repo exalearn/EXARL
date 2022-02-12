@@ -4,7 +4,11 @@
 
 A scalable software framework for reinforcement learning environments and agents/policies used for the Design and Control applications
 
+[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Build Status](https://travis-ci.com/exalearn/EXARL.svg?token=nVtzNrBfRo4qpVpEQP21&branch=develop)](https://travis-ci.com/exalearn/EXARL)
+[![Documentation Status](https://readthedocs.org/projects/exarl/badge/?version=latest)](https://exarl.readthedocs.io/en/latest/?badge=latest)
+
+[Complete documentation](https://exarl.readthedocs.io/en/latest/index.html) is available.
 
 ## Software Requirement
 
@@ -63,20 +67,23 @@ A scalable software framework for reinforcement learning environments and agents
 
 ## Installing
 
-- Pull code from repo
+- Clone the repository
+- Note: This repository uses git large file system (lfs) for storing data. Make sure your git version supports lfs before cloning the repository.
 
 ```
 git clone --recursive https://github.com/exalearn/EXARL.git
 cd EXARL
+# Required for older versions of git
 git lfs install # install git lfs if you haven't
 git lfs fetch
 git lfs pull
 ```
 
-- Install dependencies for EXARL:
+- EXARL uses MPI and GPU accelerated versions of TF/PyTorch/Keras when available.
+- Install dependencies for EXARL (Refer GitHub wiki for platform specific build instructions):
 
 ```
-pip install -e . --user
+pip install -e setup/ --user
 ```
 
 ## Configuration Files
@@ -210,7 +217,7 @@ if rank == 0:
 - Run the following command:
 
 ```
-mpiexec -np <num_parent_processes> python exarl/driver/__main__.py --<run_params>=<param_value>
+mpiexec -np <num_parent_processes> python exarl/driver/__main__.py --<run_params> <param_value>
 ```
 
 - If running a multi-process environment or agent, the communicators are available in `exarl/mpi_settings.py`.
@@ -264,7 +271,6 @@ register(
 ```
 
 - The id variable will be passed to exarl.make() to call the environment
-
 - The file `EXARL/exarl/env/env_vault/__init__.py` should include
 
 ```
@@ -418,7 +424,6 @@ register(
 ```
 
 - The id variable will be passed to exarl.make() to call the agent
-
 - The file `EXARL/exarl/agents/agent_vault/__init__.py` should include
 
 ```
@@ -456,7 +461,6 @@ register(
 ```
 
 - The id variable will be passed to exarl.make() to call the agent
-
 - The file `EXARL/exarl/workflows/workflow_vault/__init__.py` should include
 
 ```
@@ -502,7 +506,7 @@ def my_func(*args, **kwargs):
 
 ```
 @misc{EXARL,
-  author = {Vinay Ramakrishnaiah, Malachi Schram, Jamal Mohd-Yusof, Sayan Ghosh, Yunzhi Huang, Ai Kagawa, Christine Sweeney, Shinjae Yoo},
+  author = {Vinay Ramakrishnaiah, Malachi Schram, Joshua Suetterlein, Jamal Mohd-Yusof, Sayan Ghosh, Yunzhi Huang, Ai Kagawa, Christine Sweeney, Shinjae Yoo},
   title = {Easily eXtendable Architecture for Reinforcement Learning (EXARL)},
   year = {2020},
   publisher = {GitHub},
@@ -513,4 +517,4 @@ def my_func(*args, **kwargs):
 
 ## Contacts
 
-If you have any questions or concerns regarding EXARL, please contact Vinay Ramakrishnaiah (vinayr@lanl.gov) and/or Malachi Schram (Malachi.Schram@pnnl.gov).
+If you have any questions or concerns regarding EXARL, please contact Vinay Ramakrishnaiah (vinayr@lanl.gov), Josh Suetterlein (joshua.suetterlein@pnnl.gov) or Jamal Mohd-Yusof (jamal@lanl.gov).

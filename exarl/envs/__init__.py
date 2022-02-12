@@ -27,6 +27,12 @@ elif env == 'ExaBoosterDiscrete-v0':
         entry_point='exarl.envs.env_vault:ExaBooster'
     )
 
+elif env == 'ExaBoosterNew-v0':
+    register(
+        id=env,
+        entry_point='exarl.envs.env_vault:ExaBooster'
+    )
+
 elif env == 'ExaWaterClusterDiscrete-v0':
     register(
         id=env,

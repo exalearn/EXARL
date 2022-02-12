@@ -23,6 +23,19 @@ import logging
 
 
 def setup_logger(name, level):
+    """Sets up logging capability using the Python logger module.
+
+    Parameters
+    ----------
+    name : str
+        Potentially period-separated hierarchical value like foo.bar.baz or just plain foo.
+    level : list of two values
+        First value is the TensorFlow log level and second value is Python log level, both have values 0-3 (0: debug, 1: info, 2: warning, 3: error)
+    Returns
+    -------
+    logging.Logger
+        Logger object
+    """
     formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
 
     handler = logging.StreamHandler()

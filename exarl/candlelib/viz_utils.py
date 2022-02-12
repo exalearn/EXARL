@@ -70,8 +70,9 @@ def plot_error(y_true, y_pred, batch, file_ext, file_pre='output_dir', subsample
 
 
 def plot_density_observed_vs_predicted(Ytest, Ypred, pred_name=None, figprefix=None):
-    """Functionality to plot a 2D histogram of the distribution of observed (ground truth)
-       values vs. predicted values. The plot generated is stored in a png file.
+    """
+    Functionality to plot a 2D histogram of the distribution of observed (ground truth)
+    values vs. predicted values. The plot generated is stored in a png file.
 
     Parameters
     ----------
@@ -108,10 +109,11 @@ def plot_density_observed_vs_predicted(Ytest, Ypred, pred_name=None, figprefix=N
 
 
 def plot_2d_density_sigma_vs_error(sigma, yerror, method=None, figprefix=None):
-    """Functionality to plot a 2D histogram of the distribution of
-       the standard deviations computed for the predictions vs. the
-       computed errors (i.e. values of observed - predicted).
-       The plot generated is stored in a png file.
+    """
+    Functionality to plot a 2D histogram of the distribution of
+    the standard deviations computed for the predictions vs. the
+    computed errors (i.e. values of observed - predicted).
+    The plot generated is stored in a png file.
 
     Parameters
     ----------
@@ -120,7 +122,7 @@ def plot_2d_density_sigma_vs_error(sigma, yerror, method=None, figprefix=None):
     yerror : numpy array
       Array with errors computed (observed - predicted).
     method : string
-      Method used to comput the standard deviations (i.e. dropout,
+      Method used to compute the standard deviations (i.e. dropout,
       heteroscedastic, etc.).
     figprefix : string
       String to prefix the filename to store the figure generated.
@@ -149,13 +151,14 @@ def plot_2d_density_sigma_vs_error(sigma, yerror, method=None, figprefix=None):
 
 
 def plot_histogram_error_per_sigma(sigma, yerror, method=None, figprefix=None):
-    """Functionality to plot a 1D histogram of the distribution of
-       computed errors (i.e. values of observed - predicted) observed
-       for specific values of standard deviations computed. The range of
-       standard deviations computed is split in xbins values and the
-       1D histograms of error distributions for the smallest six
-       standard deviations are plotted.
-       The plot generated is stored in a png file.
+    """
+    Functionality to plot a 1D histogram of the distribution of
+    computed errors (i.e. values of observed - predicted) observed
+    for specific values of standard deviations computed. The range of
+    standard deviations computed is split in xbins values and the
+    1D histograms of error distributions for the smallest six
+    standard deviations are plotted.
+    The plot generated is stored in a png file.
 
     Parameters
     ----------
@@ -207,9 +210,10 @@ def plot_calibration_and_errors(mean_sigma, sigma_start_index, sigma_end_index,
                                 coverage_percentile,
                                 method=None, figprefix=None,
                                 steps=False):
-    """Functionality to plot empirical calibration curves
-       estimated by binning the statistics of computed
-       standard deviations and errors.
+    """
+    Functionality to plot empirical calibration curves
+    estimated by binning the statistics of computed
+    standard deviations and errors.
 
     Parameters
     ----------
@@ -324,8 +328,9 @@ def plot_calibration_and_errors(mean_sigma, sigma_start_index, sigma_end_index,
 
 
 def plot_percentile_predictions(Ypred, Ypred_Lp, Ypred_Hp, percentile_list, pred_name=None, figprefix=None):
-    """Functionality to plot the mean of the percentiles predicted.
-       The plot generated is stored in a png file.
+    """
+    Functionality to plot the mean of the percentiles predicted.
+    The plot generated is stored in a png file.
 
     Parameters
     ----------
@@ -365,7 +370,9 @@ def plot_percentile_predictions(Ypred, Ypred_Lp, Ypred_Hp, percentile_list, pred
 
 # plot training and validation metrics together and generate one chart per metrics
 def plot_metrics(history, title=None, skip_ep=0, outdir='.', add_lr=False):
-    """ Plots keras training curves history.
+    """
+    Plots keras training curves history.
+
     Parameters
     ----------
         history : history object
