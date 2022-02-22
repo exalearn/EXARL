@@ -210,7 +210,7 @@ class TestDataStructure:
             assert data[0] == -1, name + " should have an inial standard packet with sequence number -1 but got " + str(data[0])
         return TestDataStructure.constructor[name](TestDataStructure.comm, data, name=name, length=length, rank_mask=rank_mask, max_model_lag=max_model_lag, failPush=failPush)
 
-class TestMembersClass(TestDataStructure):
+class TestDataStructureMembers(TestDataStructure):
     """
     This class is a collection of basic tests for data stuctures.  These include tests to check the basic required
     members and the return values of the methods for popping and pushing data.
