@@ -20,7 +20,7 @@ class TestAgentHelper:
         
     """
     test_envs = [
-        ExaEnv(EnvGenerator.createClass("Discrete", "Discrete", False, False, True, 100, 10))
+        EnvGenerator.createClass("Discrete", "Discrete", False, False, True, 100, 10)
     ]
 
     dqn_args = {
@@ -94,6 +94,11 @@ class TestAgentHelper:
         This is a generator that spits out configurations of learners, agents, and procs per agent.
         This is used to generate tests for split.  If there are no configurations (i.e. size=1) 
         then nothing will be returned and the test will be skipped
+
+        Returns
+        -------
+        Pair
+            Number of learners and proccesses per environment for comm setup
         """
         size = mpi4py.MPI.COMM_WORLD.Get_size()
         # We start at 1 because we have to have at least one learner
@@ -107,54 +112,30 @@ class TestAgentHelper:
                 if rem % procs_per_env == 0:
                     yield num_learners, procs_per_env
 
-@pytest.fixture(scope="session", params=TestAgentHelper.model_types.keys())
-def run_params(request):
-    """
-    Attempt to set candle drivers run_params.
-    """
-    candleDriver.run_params = {'output_dir' : "./test"}
-    candleDriver.run_params.update(TestAgentHelper.dqn_args)
-    candleDriver.run_params["model_type"] = request.param
-    candleDriver.run_params.update(TestAgentHelper.model_types[request.param])
-
-    # candleDriver.run_params['xla'] = 'True'
-    # candleDriver.run_params['gamma']
-    # candleDriver.run_params['epsilon']
-    # candleDriver.run_params['epsilon_min']
-    # candleDriver.run_params['epsilon_decay']
-    # candleDriver.run_params['learning_rate']
-    # candleDriver.run_params['batch_size']
-    # candleDriver.run_params['tau']
-    # candleDriver.run_params['model_type']
-    # candleDriver.run_params['dense']
-    # candleDriver.run_params['lstm_layers']
-    # candleDriver.run_params['gauss_noise']
-    # candleDriver.run_params['regularizer']
-    # candleDriver.run_params['clipnorm']
-    # candleDriver.run_params['clipvalue']
-    # candleDriver.run_params['activation']
-    # candleDriver.run_params['out_activation']
-    # candleDriver.run_params['optimizer']
-    # candleDriver.run_params['loss']
-    # candleDriver.run_params['nactions']
-    # candleDriver.run_params['priority_scale']
-
 @pytest.fixture(scope="session", params=list(TestAgentHelper.get_configs()))
-def init_comm(request, run_params):
+def init_comm(request):
     """
-    This sets up a comm to test environment with.  This test must be run
-    with at least two ranks.
+    This sets up a comm to test agent with.  This test must be run
+    with at least two ranks.  The value returned is a cantor pair (i.e. unique number)
+    which can be used to (re-) register agents within the agent registry.
 
     Attributes
     ----------
-    env : ExaComm
-        Environment to reset
+    request : 
+        This is the parameter from fixture decorator.  Use request.param to get value.
+        Each request.param is a tuple of Number of learners and Process per environment
+        configuration.
+
+    Returns
+    -------
+    Pair
+        Number of learners and proccesses per environment for comm setup
     """
     num_learners, procs_per_env = request.param
     ExaSimple(procs_per_env=procs_per_env, num_learners=num_learners)
     assert ExaComm.num_learners == num_learners
     assert ExaComm.procs_per_env == procs_per_env
-    yield procs_per_env
+    yield num_learners, procs_per_env
    
     ExaComm.reset()
     assert ExaComm.global_comm == None
@@ -162,6 +143,61 @@ def init_comm(request, run_params):
     assert ExaComm.env_comm == None
     assert ExaComm.num_learners == 1
     assert ExaComm.procs_per_env == 1
+
+@pytest.fixture(scope="session")
+def registered_environment(pytestconfig, init_comm):
+    """
+    This is a pytest fixture to add an environment to the gym registry based on command line arguments.
+    The parser comes from conftest.py.  We require:
+        test_env_name - gym name for test (e.g. ExaCartPoleStatic-v0)
+        test_env_class - name of the class for test module (e.g. ExaCartpoleStatic)
+        test_env_file - name of the file containing test_env_class omitting the ".py" (e.g. ExaCartpoleStatic)
+    To use call pytest ./utest_env.py --test_env_name ExaCartPoleStatic-v0 --test_env_class ExaCartpoleStatic --test_env_file ExaCartpoleStatic
+    If only test_env_name is given, we assume the environment is already in the gym registry.
+    If no arguments are given an synthetic environment is generated.
+    The scope is set to session as to only add to the gym registry once per pytest session (run).
+    In order to make sure that environments are not re-registered for a given configuration,
+    we form a cantor pair from the number of learners and the processes per environment
+    https://en.wikipedia.org/wiki/Pairing_function#Cantor_pairing_function.
+
+    Parameters
+    ----------
+    pytestconfig : 
+        Hook for pytest argument parser
+    init_comm : pair
+        Number of learners and the proccesses per environment coming from init_comm fixture
+
+    Returns
+    -------
+    String
+        Returns the new environment name that was registered
+    """
+    env_name = pytestconfig.getoption("test_env_name")
+    env_class = pytestconfig.getoption("test_env_class")
+    env_file_name = pytestconfig.getoption("test_env_file")
+    if env_name is not None:
+        if env_class is not None and env_file_name is not None:
+            entry = getattr(importlib.import_module("exarl.envs.env_vault." + env_file_name), env_class)
+        # Assume it is already in the gym registry
+        else:
+            return env_name
+    else:
+        entry = EnvGenerator.createClass("Discrete", "Box", False, False, True, 75, 20)
+        env_name = entry.name
+    
+    # Cantor pair
+    num_learners, procs_per_env = init_comm
+    cantor_pair = int(((num_learners + procs_per_env) * (num_learners + procs_per_env + 1)) / 2 + procs_per_env)
+
+    # We are going to strip of the v0 and instead add vCommSize
+    # This doesn't matter since we are consistent with the name within the test
+    temp = env_name.split("-")
+    if len(temp) > 1:
+        temp.pop()
+    temp.append("v"+str(cantor_pair))
+    env_name = "-".join(temp)
+    gym.envs.registration.register(id=env_name, entry_point=entry)
+    return env_name
 
 @pytest.fixture(scope="session")
 def registered_agent(pytestconfig, init_comm):
@@ -173,10 +209,17 @@ def registered_agent(pytestconfig, init_comm):
         test_agent_file - name of the file containing test_env_class omitting the ".py" (e.g. dqn)
     To use call pytest ./utest_agent.py --test_agent_name DQN-v0 --test_agent_class DQN --test_agent_file dqn
     The scope is set to session as to only add to the registry once per pytest session (run).
+    In order to allow for multiple agents of the same class but with different comm configs, we pass in 
+    a cantor pair of the number of learners and process per environment and append that to the name of the agent.
+
     Parameters
     ----------
     pytestconfig : 
         Hook for pytest argument parser
+    init_comm : int
+        This is a unique number from comm init used for registering new agents.
+    run_params : None
+        This is just to make sure the candle driver is run before registering the agent
 
     Returns
     -------
@@ -184,41 +227,69 @@ def registered_agent(pytestconfig, init_comm):
         Returns the environment name that was passed in to command line
     """
     
-    
     agent_name = pytestconfig.getoption("test_agent_name")
     agent_class = pytestconfig.getoption("test_agent_class")
     agent_file_name = pytestconfig.getoption("test_agent_file")
     entry = getattr(importlib.import_module("exarl.agents.agent_vault." + agent_file_name), agent_class)
     
+    # Cantor pair
+    num_learners, procs_per_env = init_comm
+    cantor_pair = int(((num_learners + procs_per_env) * (num_learners + procs_per_env + 1)) / 2 + procs_per_env)
+
     # We are going to strip of the v0 and instead add vCommSize
     # This doesn't matter since we are consistent with the name within the test
     temp = agent_name.split("-")
     if len(temp) > 1:
         temp.pop()
-    temp.append("v"+str(init_comm))
+    temp.append("v"+str(cantor_pair))
     agent_name = "-".join(temp)
     exarl.agents.registration.register(id=agent_name, entry_point=entry)
+
     return agent_name
 
+@pytest.fixture(scope="function", params=TestAgentHelper.model_types.keys())
+def run_params(request):
+    """
+    Attempt to set candle drivers run_params.  We set this up instead of the 
+    candle driver.
+
+    Parameters
+    ----------
+    request : 
+        This is the parameter from fixture decorator.  Use request.param to get value.
+        Model types are passed in as request.param.
+    """
+    candleDriver.run_params = {'output_dir' : "./test"}
+    candleDriver.run_params.update(TestAgentHelper.dqn_args)
+    candleDriver.run_params["model_type"] = request.param
+    candleDriver.run_params.update(TestAgentHelper.model_types[request.param])
+
 @pytest.fixture(scope="function", params=TestAgentHelper.test_envs)
-def agent(request, registered_agent):
+def agent(request, registered_agent, registered_environment, run_params):
     """
     This fixture generates an new agent from the agent registry.
     Parameters
     ----------
-    registered_agent : 
+    registered_agent : String
         Names of agent to create passed in from fixture
+
+    registered_environment : String
+        Name of environment to create passed in from fixture
+
+    run_params : None
+        Ensures run_params fixture runs before this
 
     Returns
     -------
     ExaAgent
         Returns an agent to test
     """
+
+    env = ExaEnv(gym.make(registered_environment).unwrapped)
     agent = None
     if ExaComm.is_agent():
-        agent = exarl.agents.make(registered_agent, env=request.param, is_learner=ExaComm.is_learner())
+        agent = exarl.agents.make(registered_agent, env=env, is_learner=ExaComm.is_learner())
     return agent
-
 
 class TestAgentMembers:
 

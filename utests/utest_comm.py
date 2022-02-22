@@ -23,6 +23,11 @@ class TestCommHelper:
         This is a generator that spits out configurations of learners, agents, and procs per agent.
         This is used to generate tests for split.  If there are no configurations (i.e. size=1) 
         then nothing will be returned and the test will be skipped
+
+        Returns
+        -------
+        Pair
+            Number of learners and proccesses per environment for comm setup
         """
         size = mpi4py.MPI.COMM_WORLD.Get_size()
         # We start at 1 because we have to have at least one learner
@@ -38,6 +43,9 @@ class TestCommHelper:
 
 @pytest.fixture(scope="function", autouse=True)
 def reset_comm():
+    """
+    This decorator is used to reset the comm before each function
+    """
     ExaComm.reset()
     assert ExaComm.global_comm == None
     assert ExaComm.agent_comm == None
@@ -64,8 +72,12 @@ class TestEnvMembers:
         unsure how to unload and reload modules in meaningful way such that
         it resets these flags.  This is why I have the simple_comm loaded
         before mpi_comm or mpi4py since it is the comm that is used 99% of
-        the time.  If this test fails, PUT THE FLAGS BACK ON.  This has
-        cause MONTHS of wasted development!
+        the time.  If this test fails, PUT THE FLAGS BACK ON!
+
+        Parameters
+        ----------
+        comm : ExaComm
+            Type of comm to test
         """
         assert mpi4py.rc.threads == False
         assert mpi4py.rc.recv_mprobe == False
