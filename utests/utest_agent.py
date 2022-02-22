@@ -16,14 +16,78 @@ class TestAgentHelper:
     
     Attributes
     ----------
-    test_envs : int
-        Max allotted steps taken to perform tests
-    max_resets : dictionary
-        Max allotted resets taken to perform tests
+    test_envs : List
+        
     """
     test_envs = [
         ExaEnv(EnvGenerator.createClass("Discrete", "Discrete", False, False, True, 100, 10))
     ]
+
+    dqn_args = {
+        "gamma": 0.75,
+        "epsilon": 0.9,
+        "epsilon_min": 0.01,
+        "epsilon_decay": 0.999,
+        "learning_rate": 0.001,
+        "batch_size": 5,
+        "tau": 0.5,
+        "nactions": 10,
+        "priority_scale": 0.0,
+        "mem_length": 1000,
+        "xla": "True"
+    }
+
+    ddpg_args = {
+        "epsilon": 1.0,
+        "epsilon_min" : 0.01,
+        "epsilon_decay" : 0.999,
+        "gamma": 0.99,
+        "tau" : 0.005,
+        "batch_size" : 64,
+        "buffer_capacity": 50000
+    }
+
+    ac_args = {
+        "actor_lr" : 0.001,
+        "actor_dense_act" : "relu",
+        "actor_dense": [256, 256],
+        "actor_out_act" : "tanh",
+        "actor_optimizer" : "adam",
+        "critic_lr" : 0.002,
+        "critic_state_dense": [16, 32],
+        "critic_state_dense_act" : "relu",
+        "critic_action_dense": [32],
+        "critic_action_dense_act" : "relu",
+        "critic_concat_dense": [256, 256],
+        "critic_concat_dense_act" : "relu",
+        "critic_out_act" : "linear",
+        "critic_optimizer" : "adam",
+        "loss" : "mse",
+        "std_dev": 0.2
+    }
+
+    lstm_args = {
+        "dense": [64, 128],
+        "optimizer": "adam",
+        "loss": "mse",
+        "lstm_layers": [56, 56, 56],
+        "activation": "tanh",
+        "gauss_noise": [0.1, 0.1, 0.1],
+        "out_activation": "linear",
+        "regularizer": [0.001, 0.001],
+        "clipnorm": 1.0,
+        "clipvalue": 0.5
+    }
+
+    mlp_args = {
+        "dense" : [64, 128],
+        "activation" : "relu",
+        "optimizer" : "adam",
+        "out_activation" : "linear",
+        "loss" : "mse"
+    }
+
+    model_types = {"LSTM" : lstm_args, "MLP" : mlp_args}
 
     def get_configs():
         """
@@ -43,8 +107,40 @@ class TestAgentHelper:
                 if rem % procs_per_env == 0:
                     yield num_learners, procs_per_env
 
+@pytest.fixture(scope="session", params=TestAgentHelper.model_types.keys())
+def run_params(request):
+    """
+    Attempt to set candle drivers run_params.
+    """
+    candleDriver.run_params = {'output_dir' : "./test"}
+    candleDriver.run_params.update(TestAgentHelper.dqn_args)
+    candleDriver.run_params["model_type"] = request.param
+    candleDriver.run_params.update(TestAgentHelper.model_types[request.param])
+
+    # candleDriver.run_params['xla'] = 'True'
+    # candleDriver.run_params['gamma']
+    # candleDriver.run_params['epsilon']
+    # candleDriver.run_params['epsilon_min']
+    # candleDriver.run_params['epsilon_decay']
+    # candleDriver.run_params['learning_rate']
+    # candleDriver.run_params['batch_size']
+    # candleDriver.run_params['tau']
+    # candleDriver.run_params['model_type']
+    # candleDriver.run_params['dense']
+    # candleDriver.run_params['lstm_layers']
+    # candleDriver.run_params['gauss_noise']
+    # candleDriver.run_params['regularizer']
+    # candleDriver.run_params['clipnorm']
+    # candleDriver.run_params['clipvalue']
+    # candleDriver.run_params['activation']
+    # candleDriver.run_params['out_activation']
+    # candleDriver.run_params['optimizer']
+    # candleDriver.run_params['loss']
+    # candleDriver.run_params['nactions']
+    # candleDriver.run_params['priority_scale']
+
 @pytest.fixture(scope="session", params=list(TestAgentHelper.get_configs()))
-def init_comm(request):
+def init_comm(request, run_params):
     """
     This sets up a comm to test environment with.  This test must be run
     with at least two ranks.
@@ -87,7 +183,7 @@ def registered_agent(pytestconfig, init_comm):
     String
         Returns the environment name that was passed in to command line
     """
-    candleDriver.initialize_parameters(pytestconfig.getoption("test_agent_name"))
+    
     
     agent_name = pytestconfig.getoption("test_agent_name")
     agent_class = pytestconfig.getoption("test_agent_class")
