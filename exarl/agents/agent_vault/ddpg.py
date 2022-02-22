@@ -422,15 +422,6 @@ class DDPG(erl.ExaAgent):
         with open(filename, "wb") as f:
             pickle.dump(pickle_list, f, -1)
 
-    def monitor(self):
-        print("Implement monitor method in ddpg.py")
-
-    def set_agent(self):
-        print("Implement set_agent method in ddpg.py")
-
-    # def print_timers(self):
-    #     print("Implement print_timers method in ddpg.py")
-
     def epsilon_adj(self):
         """Update epsilon value
         """

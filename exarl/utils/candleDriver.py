@@ -77,10 +77,10 @@ class BenchmarkDriver(candle.Benchmark):
             self.additional_definitions = additional_definitions
 
 
-def initialize_parameters():
+def initialize_parameters(file_path_override=None):
     # Build agent object
-
-    driver = BenchmarkDriver(file_path, '', 'keras',
+    file_path_to_use = file_path_override if file_path_override is not None else file_path
+    driver = BenchmarkDriver(file_path_to_use, '', 'keras',
                              prog='CANDLE_example', desc='CANDLE example driver script')
 
     # Initialize parameters

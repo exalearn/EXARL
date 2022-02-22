@@ -223,7 +223,7 @@ class ExaMPIBuffUnchecked(ExaData):
             name of constant for debbuging
         """
         self.comm = comm
-
+        self.length = 1
         dataBytes = MPI.pickle.dumps(data)
         size = len(dataBytes)
 
@@ -352,6 +352,7 @@ class ExaMPIBuffChecked(ExaData):
         """
 
         self.comm = comm
+        self.length = 1
 
         self.dataBytes = bytearray(MPI.pickle.dumps((data, np.int64(0))))
         size = len(self.dataBytes)
@@ -632,6 +633,7 @@ class ExaMPIDistributedQueue(ExaData):
         write = True
         headIndex = head[0] % self.length
         tailIndex = tail[0] % self.length
+
         if head[0] > tail[0] and headIndex == tailIndex:
             if self.failPush:
                 write = False
@@ -646,8 +648,8 @@ class ExaMPIDistributedQueue(ExaData):
             capacity = self.length
         else:
             lost = 0
-            capacity = head[0] - tail[0]
-
+            capacity = head[0] - tail[0] + 1
+        
         if write:
             self.win.Lock(rank)
             self.win.Accumulate(
@@ -834,7 +836,7 @@ class ExaMPIDistributedStack(ExaData):
         if rank is None:
             rank = self.comm.rank
         toSend = MPI.pickle.dumps(data)
-        assert len(toSend) == self.dataSize
+        assert len(toSend) <= self.dataSize
 
         head = np.zeros(1, dtype=np.int64)
         tail = np.zeros(1, dtype=np.int64)

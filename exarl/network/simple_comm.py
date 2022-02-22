@@ -6,6 +6,7 @@ import numpy as np
 
 import exarl.utils.candleDriver as cd
 workflow = cd.lookup_params('workflow')
+# JS: THIS LOOKS WRONG... WHY IS IT ONLY FOR ASYNC.
 if workflow == 'async':
     print("Turning mpi4py.rc.threads and mpi4py.rc.recv_mprobe to false!")
     import mpi4py.rc
@@ -183,7 +184,11 @@ class ExaSimple(ExaComm):
             env_color = 0
         else:
             env_color = (int((self.rank - num_learners) / procs_per_env)) + 1
-        env_comm = ExaSimple(comm=self.comm.Split(env_color, self.rank))
+        env_comm = self.comm.Split(env_color, self.rank)
+        if env_color > 0:
+            env_comm = ExaSimple(comm=env_comm)
+        else:
+            env_comm = None
 
         # Learner communicator
         learner_color = MPI.UNDEFINED

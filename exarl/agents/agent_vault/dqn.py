@@ -226,12 +226,6 @@ class DQN(erl.ExaAgent):
         else:
             sys.exit("Oops! That was not a valid model type. Try again...")
 
-    # TODO: Check if this is used in any workflow, if not delete
-    def set_learner(self):
-        logger.debug(
-            "Agent[{}] - Creating active model for the learner".format(self.rank)
-        )
-
     def remember(self, state, action, reward, next_state, done):
         """Add experience to replay buffer
 
@@ -503,9 +497,3 @@ class DQN(erl.ExaAgent):
 
         with open(filename, 'wb') as f:
             pickle.dump(pickle_list, f, -1)
-
-    def update(self):
-        logger.info("Implement update method in dqn.py")
-
-    def monitor(self):
-        logger.info("Implement monitor method in dqn.py")

@@ -37,9 +37,9 @@ class ExaMPI(ExaComm):
         These are preallocated buffers for sending and recieving to avoid memory thrashing
 
     """
-    mpi = MPI
+    MPI = MPI
 
-    def __init__(self, comm=MPI.COMM_WORLD, procs_per_env=1, run_length=False):
+    def __init__(self, comm=MPI.COMM_WORLD, procs_per_env=1, num_learners=1, run_length=False):
         """
         Parameters
         ----------
@@ -59,7 +59,7 @@ class ExaMPI(ExaComm):
         self.rank = comm.Get_rank()
         self.run_length = run_length
         self.buffers = {}
-        super().__init__(self, procs_per_env)
+        super().__init__(self, procs_per_env, num_learners)
 
     def np_type_converter(self, the_type):
         """
@@ -895,7 +895,7 @@ class ExaMPI(ExaComm):
         """
         return MPI.Wtime()
 
-    def split(self, procs_per_env):
+    def split(self, procs_per_env, num_learners):
         """
         This splits the comm into agent, environment, and learner comms.
         Returns three simple sub-comms
@@ -913,7 +913,7 @@ class ExaMPI(ExaComm):
             agent_color = 0
         agent_comm = self.comm.Split(agent_color, self.rank)
         if agent_color == 0:
-            agent_comm = ExaSimple(comm=agent_comm)
+            agent_comm = ExaMPI(comm=agent_comm)
         else:
             agent_comm = None
 
@@ -922,15 +922,18 @@ class ExaMPI(ExaComm):
             env_color = 0
         else:
             env_color = (int((self.rank - num_learners) / procs_per_env)) + 1
-        env_comm = ExaSimple(comm=self.comm.Split(env_color, self.rank))
-
+        env_comm = self.comm.Split(env_color, self.rank)
+        if env_color > 0:
+            env_comm = ExaMPI(comm=env_comm)
+        else:
+            env_comm = None
         # Learner communicator
         learner_color = MPI.UNDEFINED
         if self.rank < num_learners:
             learner_color = 0
         learner_comm = self.comm.Split(learner_color, self.rank)
         if learner_color == 0:
-            learner_comm = ExaSimple(comm=learner_comm)
+            learner_comm = ExaMPI(comm=learner_comm)
         else:
             learner_comm = None
 

@@ -91,6 +91,7 @@ class ExaLearner:
 
     def make(self):
         # Create environment object
+        print("!!!!!!!!! ENV ID:", self.env_id)
         env = gym.make(self.env_id).unwrapped
         env = ExaEnv(env)
         # Create agent object

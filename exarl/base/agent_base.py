@@ -52,31 +52,35 @@ class ExaAgent(ABC):
         pass
 
     @abstractmethod
-    def set_weights(self):
+    def set_weights(self, weights):
         """set target model weights
         """
         pass
 
     @abstractmethod
-    def train(self):
+    def train(self, batch):
         """train the agent
         """
         pass
 
     @abstractmethod
-    def action(self):
+    def target_train(self):
+        pass
+
+    @abstractmethod
+    def action(self, state):
         """next action based on current state
         """
         pass
 
     @abstractmethod
-    def load(self):
+    def load(self, filename):
         """load weights
         """
         pass
 
     @abstractmethod
-    def save(self, results_dir):
+    def save(self, filename):
         """save weights
         """
         pass
@@ -85,4 +89,16 @@ class ExaAgent(ABC):
     def has_data(self):
         """return true if agent has experiences from simulation
         """
+        pass
+
+    @abstractmethod
+    def generate_data(self):
+        pass
+
+    @abstractmethod
+    def remember(self, state, action, reward, next_state, done):
+        pass
+
+    @abstractmethod
+    def set_priorities(self, indices, loss):
         pass
