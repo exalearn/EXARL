@@ -29,21 +29,29 @@ import numpy as np
 from bsuite import sweep
 from tqdm import tqdm
 
-for env_id in tqdm(sweep.SWEEP):
+# Experiment parameters. 
+# Edit: 1. Where you want to start
+#       2. What environments to exclude
+#       3. The max seed number
+start_id = 242
+excluded_envs = ['cartpole_swingup',
+                 'mountain_car',
+                 'mountain_car_noise',
+                 'mountain_car_scale']
+max_seed_number = 1
+# End of experiment parameters
+
+for env_id in tqdm(sweep.SWEEP[start_id:]):
 
     # Only use seed number 0 until we can parallelize
     bsuite_id, seed_number = env_id.split('/')
     # if seed_number != '0' or bsuite_id[0] < 'm':
-    if seed_number != '0':
+    if int(seed_number) > max_seed_number or bsuite_id in excluded_envs:
         continue
 
     print("Current Env: ", env_id)
     run_params["bsuite_id"], run_params['seed_number'] = bsuite_id, seed_number
-    # print(sweep.EPISODES[env_id])
-    # run_params["n_episodes"] = sweep.EPISODES[env_id]
-    run_params["n_episodes"] = 100
-    # if 'cartpole' in bsuite_id:
-    #     run_params["n_steps"] = 10
+    run_params["n_episodes"] = sweep.EPISODES[env_id]
 
 	# Create learner object and run
     exa_learner = erl.ExaLearner()
