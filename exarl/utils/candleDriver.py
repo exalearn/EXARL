@@ -38,6 +38,7 @@ def resolve_path(*path_components) -> str:
     """ Resolve path to configuration files.
     Priority is as follows:
 
+      0. ${CONFIG_DIR}
       1. <current working directory>/exarl/config
       2. ~/.exarl/config
       3. <site-packages dir>/exarl/config
@@ -47,6 +48,11 @@ def resolve_path(*path_components) -> str:
     else:
         path = os.path.join(*path_components)
 
+    if "CONFIG_DIR" in os.environ:
+        config_dir = os.environ.get('CONFIG_DIR')
+        config_file = os.path.join(config_dir, path)
+        print(config_file)
+        return config_file
     cwd_path = os.path.join(os.getcwd(), 'exarl', 'config', path)
     if os.path.exists(cwd_path):
         return cwd_path
@@ -192,6 +198,7 @@ def get_driver_params():
     """
 
     learner_cfg = resolve_path('learner_cfg.json')
+    print('Looking for ', learner_cfg)
     learner_defs = parser_from_json(learner_cfg)
     print('Learner parameters from ', learner_cfg)
     params = json.load(open(learner_cfg))
