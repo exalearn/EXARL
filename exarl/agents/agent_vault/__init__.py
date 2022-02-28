@@ -7,5 +7,9 @@ elif agent == 'DDPG-v0':
     from exarl.agents.agent_vault.ddpg import DDPG
 elif agent == 'DDPG-VTRACE-v0':
     from exarl.agents.agent_vault.ddpg_vtrace import DDPG_Vtrace
+elif agent == 'TD3-v0':
+    from exarl.agents.agent_vault.td3 import TD3
+elif agent == 'TD3-v1':
+    from exarl.agents.agent_vault.keras_td3 import KerasTD3
 else:
     print("No agent selected!")

@@ -20,6 +20,7 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.INFO)
 np.seterr(divide='ignore', invalid='ignore')
+results_dir = cd.lookup_params('output_dir', './results_dir')
 
 def load_reformated_cvs(filename, nrows=100000):
     df = pd.read_csv(filename, nrows=nrows)
@@ -207,21 +208,21 @@ class ExaBooster_v2(gym.Env):
         print('Data shape:{}'.format(self.X_train.shape))
         self.observation_space = spaces.Box(
             low=0,
-            high=+1,
+            high=1,
             shape=(self.nvariables,),
             dtype=np.float64
         )
 
         # DYNAMIC ACTION SPACE SIZING
-        data['B:VIMIN_DIFF'] = data['B:VIMIN'] - data['B:VIMIN'].shift(-1)
+        data['B:VIMIN_DIFF'] = data['B:VIMIN'] - data['B:VIMIN'].shift(-1, fill_value=0)
         self.nactions = 15  # set here
         # Discrete
-        self.action_space = spaces.Discrete(self.nactions)
+        # self.action_space = spaces.Discrete(self.nactions)
         # Continuous
-        # self.action_space = spaces.Box(low=np.percentile(data['B:VIMIN_DIFF'], 25),
-        #                                high=np.percentile(data['B:VIMIN_DIFF'], 75),
-        #                                shape=(1,),
-        #                                dtype=np.float32)
+        self.action_space = spaces.Box(low=np.percentile(data['B:VIMIN_DIFF'], 25),
+                                       high=np.percentile(data['B:VIMIN_DIFF'], 75),
+                                       shape=(1,),
+                                       dtype=np.float32)
         self.actionMap_VIMIN = []
         for i in range(1, self.nactions + 1):
             self.actionMap_VIMIN.append(data['B:VIMIN_DIFF'].quantile(i / (self.nactions + 1)))
@@ -242,7 +243,7 @@ class ExaBooster_v2(gym.Env):
 
     def step(self, action):
         self.steps += 1
-        logger.info('Episode/State: {}/{}'.format(self.episodes, self.steps))
+        logger.debug('Episode/State: {}/{}'.format(self.episodes, self.steps))
         done = False
 
         # Steps:
@@ -252,12 +253,11 @@ class ExaBooster_v2(gym.Env):
         # 4) Shift state with new values
 
         # Step 1: Calculate the new B:VIMIN based on policy action
-        logger.info('Step() before action VIMIN:{}'.format(self.VIMIN))
+        logger.debug('Step() before action VIMIN:{}'.format(self.VIMIN))
         # Dicrete
-        delta_VIMIN = self.actionMap_VIMIN[int(action)]
+        # delta_VIMIN = self.actionMap_VIMIN[int(action)]
         # Continuous
-        # delta_VIMIN = action
-
+        delta_VIMIN = action
         DENORN_BVIMIN = unscale(self.variables[0], np.array([self.VIMIN]).reshape(1, -1), self.scale_dict)
         DENORN_BVIMIN += delta_VIMIN
         logger.debug('Step() descaled VIMIN:{}'.format(DENORN_BVIMIN))
@@ -333,7 +333,7 @@ class ExaBooster_v2(gym.Env):
         if self.episodes % 100 == 0:  # so over this rendering...
             self.render()
         reward_list = [np.asscalar(reward), np.asscalar(rach_reward), np.asscalar(data_reward)]
-        return self.state[0, :, -1:].flatten(), np.asscalar(reward), done, {}
+        return self.state[0, :, -1:].flatten(), reward_list[0], done, {}
 
     def reset(self):
         self.episodes += 1
@@ -430,7 +430,7 @@ class ExaBooster_v2(gym.Env):
         axs[1].plot(np.linspace(0, 14, 15), rachael_IMINER, label="PID Eq", color='blue', linestyle='dotted')
         axs[1].legend(loc='upper left')
 
-        plt.savefig('episode{}_step{}_v1.png'.format(self.episodes, self.steps))
+        plt.savefig(results_dir + 'episode{}_step{}_v1.png'.format(self.episodes, self.steps))
         plt.clf()
 
         fig, axs = plt.subplots(1, figsize=(12, 12))
@@ -452,5 +452,5 @@ class ExaBooster_v2(gym.Env):
         plt.xlabel('B:VIMIN')
         plt.ylabel('B:IMINER')
         plt.legend()
-        plt.savefig('corr_episode{}_step{}.png'.format(self.episodes, self.steps))
+        plt.savefig(results_dir + '/corr_episode{}_step{}.png'.format(self.episodes, self.steps))
         plt.close('all')
