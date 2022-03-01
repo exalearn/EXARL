@@ -30,7 +30,9 @@
 #                    under Contract DE-AC05-76RL01830
 import os
 import sys
+import pickle
 from abc import ABC, abstractmethod
+
 
 file_path = os.path.dirname(os.path.realpath(__file__))
 lib_path = os.path.abspath(os.path.join(file_path, '..', 'candlelib'))
@@ -73,17 +75,17 @@ class ExaAgent(ABC):
         """
         pass
 
-    @abstractmethod
-    def load(self, filename):
-        """load weights
-        """
-        pass
+    # @abstractmethod
+    # def load(self, filename):
+    #     """load weights
+    #     """
+    #     pass
 
-    @abstractmethod
-    def save(self, filename):
-        """save weights
-        """
-        pass
+    # @abstractmethod
+    # def save(self, filename):
+    #     """save weights
+    #     """
+    #     pass
 
     @abstractmethod
     def has_data(self):
@@ -102,3 +104,18 @@ class ExaAgent(ABC):
     @abstractmethod
     def set_priorities(self, indices, loss):
         pass
+
+    def load(self, filename):
+        weights = None
+        with open(filename, "rb") as f:
+            weights = pickle.load(f)
+        if weights is not None:
+            print("Loading from: ", filename)
+            self.set_weights(weights)
+        else:
+            print("Failed loading weights from:", filename)
+
+    def save(self, filename):
+        weights = self.get_weights()
+        with open(filename, "wb") as f:
+            pickle.dump(weights, f)

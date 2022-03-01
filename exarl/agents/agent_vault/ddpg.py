@@ -392,35 +392,35 @@ class DDPG(erl.ExaAgent):
     def update(self):
         print("Implement update method in ddpg.py")
 
-    def load(self, filename):
-        """Load model weights from pickle file
+    # def load(self, filename):
+    #     """Load model weights from pickle file
 
-        Args:
-            filename (string): full path of model file
-        """
-        print("Loading from: ", filename)
-        layers = self.target_actor.layers
-        with open(filename, "rb") as f:
-            pickle_list = pickle.load(f)
+    #     Args:
+    #         filename (string): full path of model file
+    #     """
+    #     print("Loading from: ", filename)
+    #     layers = self.target_actor.layers
+    #     with open(filename, "rb") as f:
+    #         pickle_list = pickle.load(f)
 
-        for layerId in range(len(layers)):
-            assert layers[layerId].name == pickle_list[layerId][0]
-            layers[layerId].set_weights(pickle_list[layerId][1])
+    #     for layerId in range(len(layers)):
+    #         assert layers[layerId].name == pickle_list[layerId][0]
+    #         layers[layerId].set_weights(pickle_list[layerId][1])
 
-    def save(self, filename):
-        """Save model weights to pickle file
+    # def save(self, filename):
+    #     """Save model weights to pickle file
 
-        Args:
-            filename (string): full path of model file
-        """
-        layers = self.target_actor.layers
-        pickle_list = []
-        for layerId in range(len(layers)):
-            weigths = layers[layerId].get_weights()
-            pickle_list.append([layers[layerId].name, weigths])
+    #     Args:
+    #         filename (string): full path of model file
+    #     """
+    #     layers = self.target_actor.layers
+    #     pickle_list = []
+    #     for layerId in range(len(layers)):
+    #         weigths = layers[layerId].get_weights()
+    #         pickle_list.append([layers[layerId].name, weigths])
 
-        with open(filename, "wb") as f:
-            pickle.dump(pickle_list, f, -1)
+    #     with open(filename, "wb") as f:
+    #         pickle.dump(pickle_list, f, -1)
 
     def epsilon_adj(self):
         """Update epsilon value

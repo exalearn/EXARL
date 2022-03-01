@@ -126,7 +126,7 @@ class EnvGenerator:
                         yield EnvGenerator.createClass(act_space, obs_space, act_tuple, obs_tuple, reset_flag, max_steps, num_seeds)
 
     @staticmethod
-    def getNames():
+    def getNames(reset_flag=True, max_steps=100, num_seeds=20):
         """
         Returns the names of the classes generated
         Returns
@@ -134,4 +134,11 @@ class EnvGenerator:
         List
             Names of the classes generated
         """
-        return [entry.name for entry in EnvGenerator.generator()]
+        for action_tuple in [False, True]:
+            for observation_tuple in [False, True]:
+                for action_space in EnvGenerator.spaceDict:
+                    for observation_space in EnvGenerator.spaceDict:
+                        yield "_".join((action_space, observation_space, 
+                                            str(action_tuple), str(observation_tuple),
+                                            str(reset_flag), str(max_steps),
+                                            str(num_seeds))) + "-v0"

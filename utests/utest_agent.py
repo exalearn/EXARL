@@ -1,3 +1,4 @@
+import os
 import importlib
 import pytest
 import numpy as np
@@ -9,6 +10,7 @@ from exarl.base.env_base import ExaEnv
 from exarl.envs.env_vault.UnitEvn import EnvGenerator
 import exarl.agents
 import mpi4py
+import pickle
 
 class TestAgentHelper:
     """"
@@ -112,6 +114,50 @@ class TestAgentHelper:
                 if rem % procs_per_env == 0:
                     yield num_learners, procs_per_env
 
+    def compare_weights(a, b):
+        """
+        This is a helper function is used to compare weights.
+
+        Attributes
+        ----------
+        a : np.array
+            Weights to compare
+        b : np.array
+            Weights to comapre
+
+        Returns
+        -------
+        Bool
+            True if identical, false otherwise
+        """
+        if len(a) != len(b):
+            return False
+        for i, j in zip(a, b):
+            if not np.array_equal(i, j):
+                return False
+        return True
+
+    def make_weights_from_old_weights(weights):
+        """
+        This is a helper function creates a new list of weights based on the 
+        size and type of the old ones.  The new ones will be filled with the
+        index of their position in the list.
+
+        Attributes
+        ----------
+        weights : List
+            List of old weights
+
+        Returns
+        -------
+        Bool
+            True if identical, false otherwise
+        """
+        new_weights = []
+        for i, some_array in enumerate(weights):
+            new_weights.append(np.full_like(some_array, i))
+        return new_weights
+
 @pytest.fixture(scope="session", params=list(TestAgentHelper.get_configs()))
 def init_comm(request):
     """
@@ -200,6 +246,15 @@ def registered_environment(pytestconfig, init_comm):
     return env_name
 
 @pytest.fixture(scope="session")
+def registered_synth_environment():
+    """
+    This is a pytest fixture to add synthetic environment to the gym registry.
+    All synthetic environments will have -v0
+    """
+    for env in EnvGenerator.generator():
+        gym.envs.registration.register(id=env.name, entry_point=env)
+
+@pytest.fixture(scope="session")
 def registered_agent(pytestconfig, init_comm):
     """
     This is a pytest fixture to add an agent to the agent registry based on command line arguments.
@@ -263,19 +318,18 @@ def run_params(request):
     candleDriver.run_params.update(TestAgentHelper.dqn_args)
     candleDriver.run_params["model_type"] = request.param
     candleDriver.run_params.update(TestAgentHelper.model_types[request.param])
+    return request.param
 
-@pytest.fixture(scope="function", params=TestAgentHelper.test_envs)
-def agent(request, registered_agent, registered_environment, run_params):
+@pytest.fixture(scope="function")
+def agent(registered_agent, registered_environment, run_params):
     """
     This fixture generates an new agent from the agent registry.
     Parameters
     ----------
     registered_agent : String
         Names of agent to create passed in from fixture
-
     registered_environment : String
         Name of environment to create passed in from fixture
-
     run_params : None
         Ensures run_params fixture runs before this
 
@@ -291,46 +345,396 @@ def agent(request, registered_agent, registered_environment, run_params):
         agent = exarl.agents.make(registered_agent, env=env, is_learner=ExaComm.is_learner())
     return agent
 
+@pytest.fixture(scope="function")
+def pre_agent(registered_agent, registered_synth_environment, run_params, request):
+    """
+    This fixture is used for testing synthetic creation.  It returns the name
+    of the command line agent as well as an environment passed in as request.
+    This is done via indirect=True being set on @pytest.mark.parametrize:
+    (e.g. @pytest.mark.parametrize("pre_agent", list(EnvGenerator.getNames()), indirect=True) )
+
+    Parameters
+    ----------
+    registered_agent : String
+        Name of agent to be created passed in from fixture
+    registered_synth_environment : None
+        Ensures all synthetic environments have been registered via fixture
+    run_params : None
+        Ensures run_params fixture runs before this
+    
+    request :
+        request.param is the name of the synthetic environment to create
+
+    Returns
+    -------
+    Pair
+        Name of the agent to build and a environment
+    """
+
+    env = ExaEnv(gym.make(request.param).unwrapped)
+    return registered_agent, env
+
+@pytest.fixture(scope="session")
+def save_load_dir(init_comm):
+    """
+    This fixture creates a directory to store saved weights in.
+    It is created once a session and torn down at the end.
+    The barriers are to make sure all ranks are synchronized prior
+    to file/dir creation and descruction.
+
+    Parameters
+    ----------
+    init_comm : pair
+        Ensures the comms are initialized before running
+
+    Returns
+    -------
+    String
+        Directory to use
+    """
+    rank = ExaComm.global_comm.rank
+    made_dir = False
+    dir_name = './save_load_dir'
+    if rank == 0 and not os.path.isdir(dir_name):
+        os.mkdir(dir_name)
+        made_dir = True
+    
+    ExaComm.global_comm.barrier()
+    yield dir_name
+
+    ExaComm.global_comm.barrier()
+    if made_dir:
+        os.rmdir(dir_name)
+
+@pytest.fixture(scope="function")
+def save_load_file(save_load_dir):
+    """
+    This fixture returns the file name needed to test save and load
+    weights.  On tear down the file is removed from the save_load_dir.
+    This is called for each function requiring save_load_file.
+
+    Parameters
+    ----------
+    save_load_dir : String
+        Dir where to add file.
+
+    Returns
+    -------
+    String
+        Filename to use
+    """
+    rank = ExaComm.global_comm.rank
+    file_name = save_load_dir + "/weights_" + str(rank) + ".dump"
+    yield file_name
+
+    if os.path.isfile(file_name):
+        os.remove(file_name)
+
+
 class TestAgentMembers:
 
+    @pytest.mark.skip(reason="This is a really long test... Fails because agent models are broken!!!")
+    @pytest.mark.parametrize("pre_agent", list(EnvGenerator.getNames()), indirect=True)
+    def test_agent_creation(self, pre_agent):
+        """
+        Tests the initalization of synthetic agents.  The synthetic agents iterate over all possible 
+        gym action/observation space combinations.  This will test the agents ability to handle creating
+        a model (mlp/lstm) for such spaces.
+
+        Parameters
+        ----------
+        pre_agent : Pair
+            Agent name and environment to create.
+        """
+        agent_name, env = pre_agent
+        agent = None
+        if ExaComm.is_agent():
+            agent = exarl.agents.make(agent_name, env=env, is_learner=ExaComm.is_learner())
+            assert agent.is_learner == ExaComm.is_learner()
+        else:
+            assert agent is None
+
     def test_init(self, agent):
+        """
+        Tests the initalization of agents relative to comm.
+        This test should also 
+
+        Parameters
+        ----------
+        agent : ExaAgent
+            Agent to test from fixture
+        """
         if ExaComm.is_agent():
             assert agent.is_learner == ExaComm.is_learner()
+            assert hasattr(agent, 'batch_size')
         else:
             assert agent == None
 
-    def test_get_weights(self):
+    def test_get_weights(self, agent, run_params):
         """
-        Test getting weights from an agent
-        """
-        pass
+        Test getting weights from an agent.  Currently get weights calls
+        into tensorflow get_weights 
+        (https://www.tensorflow.org/api_docs/python/tf/keras/layers/Layer#get_weights).
+        To check, we are asserting we get a list of numpy arrays.
+        A better check would be to assert the size and length of these array
+        but no sure what the values should be.
+        TODO: Figure out dimensions...
 
-    def test_set_weights(self):
-        """set target model weights
+        Parameters
+        ----------
+        agent : ExaAgent
+            Agent to test from fixture
         """
-        pass
+        if ExaComm.is_agent():
+            assert hasattr(agent, 'get_weights')
+            assert callable(getattr(agent, 'get_weights'))
+            weights = agent.get_weights()
+            assert isinstance(weights, list)
+            # if run_params == 'MLP':
+            #     assert len(weights) == len(TestAgentHelper.mlp_args["dense"])
+            # elif run_params == 'LSTM':
+            #     assert len(weights) == len(TestAgentHelper.lstm_args["lstm_layers"])
+            # else:
+            #     assert False, "Unclear the number of layers of ml model for " + run_params
+            
+            # Check the length of each np.array
+            for layer_weights in weights:
+                assert isinstance(layer_weights, np.ndarray)
+        else:
+            assert agent == None
+
+    def test_set_weights(self, agent):
+        """
+        Test set target model weights.  This test works by getting weights,
+        setting arbitrary values for "new" weights, updating, and then 
+        re-calling get to see if the new return equals the set values.
+        
+        Parameters
+        ----------
+        agent : ExaAgent
+            Agent to test from fixture
+        """
+        if ExaComm.is_agent():
+            assert hasattr(agent, 'set_weights')
+            assert callable(getattr(agent, 'set_weights'))
+            # Get old weights
+            weights = agent.get_weights()
+            # Make new weights
+            new_weights = TestAgentHelper.make_weights_from_old_weights(weights)
+            # Set weigthts    
+            agent.set_weights(new_weights)
+            # Check weights
+            to_check = agent.get_weights()
+            assert TestAgentHelper.compare_weights(new_weights, to_check)
+        else:
+            assert agent == None
+
+    def test_save(self, agent, save_load_file):
+        """
+        Tests save weights.
+
+        Parameters
+        ----------
+        agent : ExaAgent
+            Agent to test from fixture
+        save_load_file : String
+            Name of weights file from fixture
+        """
+        if ExaComm.is_agent():
+            assert hasattr(agent, 'save')
+            assert callable(getattr(agent, 'save'))
+            
+            weights = agent.get_weights()
+            agent.save(save_load_file)
+            assert os.path.isfile(save_load_file)
+            with open(save_load_file, 'rb') as f:
+                read_weights = pickle.load(f)
+            # Strip off layer name from save file
+            # read_weights = [x[1] for x in read_weights]
+            # assert len(weights) == len(read_weights)
+            # for i, j in zip(weights, read_weights):
+            #     assert np.array_equal(i, j)
+            assert TestAgentHelper.compare_weights(weights, read_weights)
+        else:
+            assert agent == None
+
+    def test_load(self, agent, save_load_file):
+        """
+        Tests loading weights.
+        
+        Parameters
+        ----------
+        agent : ExaAgent
+            Agent to test from fixture
+        save_load_file : String
+            Name of weights file from fixture
+        """
+        if ExaComm.is_agent():
+            assert hasattr(agent, 'load')
+            assert callable(getattr(agent, 'load'))
+
+            # Get old weights
+            old_weights = agent.get_weights()
+            # Make new weights
+            new_weights = TestAgentHelper.make_weights_from_old_weights(old_weights)
+            # Set new weights, save, check file exists   
+            agent.set_weights(new_weights)
+            agent.save(save_load_file)
+            assert os.path.isfile(save_load_file)
+            # Reset old weights and check set
+            agent.set_weights(old_weights)
+            to_check = agent.get_weights()
+            assert TestAgentHelper.compare_weights(old_weights, to_check)
+            # Load weights and check
+            agent.load(save_load_file)
+            to_check = agent.get_weights()
+            assert TestAgentHelper.compare_weights(new_weights, to_check)
+        else:
+            assert agent == None
+
+    def test_has_data(self, agent):
+        """
+        This tests that has_data returns false when the agent
+        is first initialized.  Testing if has_data == True is 
+        tested under test_remember
+        
+        Parameters
+        ----------
+        agent : ExaAgent
+            Agent to test from fixture
+        """
+        if ExaComm.is_agent():
+            assert hasattr(agent, 'has_data')
+            assert callable(getattr(agent, 'has_data'))
+            assert agent.has_data() == False
+        else:
+            assert agent == None
+        
+
+    def test_remember(self, agent, max_add=100):
+        """
+        This tests that the remember function stores entries up to 
+        max_add times.  We verify using has_data method.
+        
+        Parameters
+        ----------
+        agent : ExaAgent
+            Agent to test from fixture
+        max_add : int
+            Max number of entries to add
+        """
+        if ExaComm.is_agent():
+            assert hasattr(agent, 'remember')
+            assert callable(getattr(agent, 'remember'))
+            assert agent.has_data() == False
+            
+            for i in range(max_add):
+                state = agent.env.observation_space.sample()
+                next_state = agent.env.observation_space.sample()
+                action = agent.env.action_space.sample()
+                reward = 100
+                done = False
+            
+                agent.remember(state, action, reward, next_state, done)
+                assert agent.has_data() == True
+        else:
+            assert agent == None
+
+    def test_generate_data_size(self, agent, max_add=100):
+        """
+        This tests that the return of generate_data.  When there is no
+        data stored, generate data outputs fake data.  This is to setup
+        RMA windows for data structures.  This test checks that the size
+        of the fake data is >= the size of real data.  Sometimes the size
+        issue is related to how pickle opperates.
+        
+        Parameters
+        ----------
+        agent : ExaAgent
+            Agent to test from fixture
+        max_add : int
+            Max number of entries to add
+        """
+        if ExaComm.is_agent():
+            assert hasattr(agent, 'generate_data')
+            assert callable(getattr(agent, 'generate_data'))
+            assert agent.has_data() == False
+            data = next(agent.generate_data())
+            pickle_empty_data = pickle.dumps(data)
+            for i in range(max_add):
+                for j in range(agent.batch_size):
+                    state = agent.env.observation_space.sample()
+                    next_state = agent.env.observation_space.sample()
+                    action = agent.env.action_space.sample()
+                    reward = 100
+                    done = False
+                    agent.remember(state, action, reward, next_state, done)
+                    assert agent.has_data() == True
+                data = next(agent.generate_data())
+                pickle_full_data = pickle.dumps(data)
+                assert len(pickle_empty_data) >= len(pickle_full_data)
+        else:
+            assert agent == None
+
+    def test_generate_data(self, agent, max_add=100):
+        """
+        This tests that the return of generate_data.  We are checking the amount
+        of experiences that are put into the agent vs how many they get back. 
+        
+        Parameters
+        ----------
+        agent : ExaAgent
+            Agent to test from fixture
+        max_add : int
+            Max number of entries to add
+        """
+        if ExaComm.is_agent():
+            assert hasattr(agent, 'generate_data')
+            assert callable(getattr(agent, 'generate_data'))
+            assert agent.has_data() == False
+            
+            push_count = 0
+            pop_count = 0
+            count = 0
+            for i in range(max_add):
+                for j in range(i):
+                    state = agent.env.observation_space.sample()
+                    next_state = agent.env.observation_space.sample()
+                    action = agent.env.action_space.sample()
+                    reward = 100
+                    done = False
+                
+                    agent.remember(state, action, reward, next_state, done)
+                    assert agent.has_data() == True
+                    push_count += 1
+                    count += 1
+                while agent.has_data() and count > -1:
+                    # TODO: How do we evaluate the return value of generate data
+                    ret = agent.generate_data()
+                    to_add = 0
+                    for k in ret:
+                        if to_add == 0:
+                            to_add = len(k)
+                        assert len(k) == to_add
+                    assert to_add <= agent.batch_size
+                    pop_count += to_add
+                    count -= to_add
+                assert count == 0
+            assert push_count == pop_count
+        else:
+            assert agent == None
 
     def test_train(self):
-        """train the agent
+        """
+        train the agent
         """
         pass
 
     def test_action(self):
-        """next action based on current state
+        """
+        next action based on current state
         """
         pass
 
-    def test_load(self):
-        """load weights
-        """
-        pass
-
-    def test_save(self):
-        """save weights
-        """
-        pass
-
-    def test_has_data(self):
-        """return true if agent has experiences from simulation
-        """
+    def test_set_priorities(self):
         pass
