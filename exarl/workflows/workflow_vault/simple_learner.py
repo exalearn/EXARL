@@ -119,6 +119,11 @@ class SIMPLE(erl.ExaWorkflow):
             steps = 0
             done = False
             current_state = workflow.env.reset()
+
+            try:
+                workflow.env.update_episode(episode)
+            except:
+                pass
             
             while not done:
                 action, policy_type = workflow.agent.action(current_state)

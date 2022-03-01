@@ -18,50 +18,71 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
+from numpy.random.mtrand import seed
 import exarl as erl
-import exarl.utils.analyze_reward as ar
+# import exarl.utils.analyze_reward as ar
 import time
 from exarl.utils.candleDriver import lookup_params, run_params
 from exarl.utils.introspect import *
 import numpy as np
 
 from bsuite import sweep
+from tqdm import tqdm
 
-for env_id in sweep.SWEEP:
+# Experiment parameters. 
+# Edit: 1. Where you want to start
+#       2. What environments to exclude
+#       3. The max seed number
+start_id = 242
+excluded_envs = ['cartpole_swingup',
+                 'mountain_car',
+                 'mountain_car_noise',
+                 'mountain_car_scale']
+max_seed_number = 1
+# End of experiment parameters
 
-	print("Current Env: ", env_id)
-	run_params["bsuite_id"], run_params['seed_number'] = env_id.split('/')	
+for env_id in tqdm(sweep.SWEEP[start_id:]):
+
+    # Only use seed number 0 until we can parallelize
+    bsuite_id, seed_number = env_id.split('/')
+    # if seed_number != '0' or bsuite_id[0] < 'm':
+    if int(seed_number) > max_seed_number or bsuite_id in excluded_envs:
+        continue
+
+    print("Current Env: ", env_id)
+    run_params["bsuite_id"], run_params['seed_number'] = bsuite_id, seed_number
+    run_params["n_episodes"] = sweep.EPISODES[env_id]
 
 	# Create learner object and run
-	exa_learner = erl.ExaLearner()
+    exa_learner = erl.ExaLearner()
 
-	# MPI communicator
-	comm = erl.ExaComm.global_comm
-	rank = comm.rank
-	size = comm.size
+    # MPI communicator
+    comm = erl.ExaComm.global_comm
+    rank = comm.rank
+    size = comm.size
 
-	writeDir = lookup_params("introspector_dir")
-	if writeDir is not None:
-		ibLoadReplacement(comm, writeDir)
+    writeDir = lookup_params("introspector_dir")
+    if writeDir is not None:
+        ibLoadReplacement(comm, writeDir)
 
-	# Run the learner, measure time
-	ib.start()
-	start = time.time()
-	exa_learner.run()
-	elapse = time.time() - start
-	ib.stop()
+    # Run the learner, measure time
+    ib.start()
+    start = time.time()
+    exa_learner.run()
+    elapse = time.time() - start
+    ib.stop()
 
-	if ibLoaded():
-		print("Rank", comm.rank, "Time = ", elapse)
-	else:
-		max_elapse = comm.reduce(np.float64(elapse), max, 0)
-		elapse = comm.reduce(np.float64(elapse), sum, 0)
-		if rank == 0:
-			print("Average elapsed time = ", elapse / size)
-			print("Maximum elapsed time = ", max_elapse)
+    if ibLoaded():
+        print("Rank", comm.rank, "Time = ", elapse)
+    else:
+        max_elapse = comm.reduce(np.float64(elapse), max, 0)
+        elapse = comm.reduce(np.float64(elapse), sum, 0)
+        if rank == 0:
+            print("Average elapsed time = ", elapse / size)
+            print("Maximum elapsed time = ", max_elapse)
 
-	if rank == 0:
-		# Save rewards vs. episodes plot
-		ar.save_reward_plot()
+    # if rank == 0:
+    # 	# Save rewards vs. episodes plot
+    # 	ar.save_reward_plot()
 
-	ibWrite(writeDir)
+    ibWrite(writeDir)
