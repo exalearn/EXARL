@@ -1,7 +1,7 @@
 name: exarl_summit
 channels:
-  - conda-forge
   - file:///sw/sources/open-ce/conda-channel-v1.4.0
+  - conda-forge
   - https://public.dhe.ibm.com/ibmdl/export/pub/software/server/ibm-ai/conda-early-access/linux-ppc64le/
   - https://public.dhe.ibm.com/ibmdl/export/pub/software/server/ibm-ai/conda-early-access/
   - defaults
@@ -97,7 +97,6 @@ dependencies:
   - huggingface_hub=0.0.16=pyhc556d71_1
   - icu=58.2=he6710b0_3
   - idna=3.2=pyhd3eb1b0_0
-  - importlib-metadata=4.8.1=py37h6ffa863_0
   - importlib_metadata=4.8.1=hd3eb1b0_0
   - importlib_resources=5.2.0=pyhd3eb1b0_1
   - jansson=2.13.1=h3275034_0
@@ -297,6 +296,11 @@ dependencies:
   - zlib=1.2.11=h7b6447c_3
   - zstd=1.4.9=hc52992f_0
   - pip:
+    - flake8==4.0.1
+    - importlib-metadata==4.2.0
+    - mccabe==0.6.1
     - mpi4py==3.1.1
     - plotille==4.0.2
-prefix: /ccs/home/vinayr/.conda/envs/exarl_summit
+    - pycodestyle==2.8.0
+    - pyflakes==2.4.0
+prefix: /ccs/home/${USER}/.conda/envs/exarl_summit
