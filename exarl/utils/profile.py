@@ -19,13 +19,13 @@
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
 import atexit
-import exarl.utils.candleDriver as cd
+import exarl.candle.candleDriver as cd
 import os
 import functools
 import time
 
-prof = cd.lookup_params('profile')
-results_dir = cd.lookup_params('output_dir', ".") + '/'
+prof = cd.run_params['profile']
+results_dir = cd.run_params['output_dir']
 if not os.path.exists(results_dir + '/Profile'):
     os.makedirs(results_dir + '/Profile', exist_ok=True)
 

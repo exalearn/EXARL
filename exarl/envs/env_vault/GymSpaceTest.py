@@ -5,7 +5,7 @@ import json
 import exarl as erl
 import numpy as np
 from gym import spaces
-import exarl.utils.candleDriver as cd
+import exarl.candle.candleDriver as cd
 
 class GymSpaceTest(gym.Env):
 
@@ -36,10 +36,10 @@ class GymSpaceTest(gym.Env):
             "false": False
         }
 
-        actSpace = spaceDict[cd.lookup_params('action_space', default='Box')]
-        obvSpace = spaceDict[cd.lookup_params('observation_space', default='Box')]
-        actTuple = boolDict[cd.lookup_params('action_Tuple', default='False')]
-        obvTuple = boolDict[cd.lookup_params('observation_Tuple', default='False')]
+        actSpace = spaceDict[cd.run_params['action_space']]
+        obvSpace = spaceDict[cd.run_params['observation_space']]
+        actTuple = boolDict[cd.run_params['action_Tuple']]
+        obvTuple = boolDict[cd.run_params['observation_Tuple']]
 
         if actTuple:
             self.action_space = spaces.Tuple((actSpace, actSpace))

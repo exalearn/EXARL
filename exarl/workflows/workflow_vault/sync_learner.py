@@ -23,9 +23,10 @@ import csv
 import exarl as erl
 from exarl.base.comm_base import ExaComm
 from exarl.utils import log
-import exarl.utils.candleDriver as cd
+import exarl.candle.candleDriver as cd
+import numpy as np
 from exarl.utils.profile import *
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 
 class SYNC(erl.ExaWorkflow):
@@ -65,6 +66,7 @@ class SYNC(erl.ExaWorkflow):
         rank0_epsilon = 0
 
         # Loop over episodes
+        episode_reward_list = []
         for e in range(exalearner.nepisodes):
             # Reset variables each episode
             current_state = exalearner.env.reset()
@@ -129,6 +131,10 @@ class SYNC(erl.ExaWorkflow):
                 # Broadcast done
                 done = env_comm.bcast(done, 0)
 
+            episode_reward_list.append(total_reward)
+            # Mean of last 40 episodes
+            average_reward = np.mean(episode_reward_list[-40:])
+            print("Episode * {} * Avg Reward is ==> {}".format(e, average_reward))
             end_time_episode = time.time()
             if ExaComm.env_comm.rank == 0:
                 logger.info('Rank[%s] run-time for episode %s: %s ' %

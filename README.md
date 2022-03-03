@@ -39,7 +39,9 @@ A scalable software framework for reinforcement learning environments and agents
         └── learner_base.py           : learner base class
     ├── driver                        : folder containing RL MPI steering scripts
         └── driver.py                 : Run scipt
-    ├── candlelib                     : folder containing library for CANDLE functionality
+    ├── candle                        : folder containing CANDLE functionality
+        └── candleDriver.py           : Supporting CANDLE script
+        └── candlelib                 : folder containing CANDLE library
     ├── agents         	              : folder containing EXARL agents and registration scripts
         └── __init__.py               : agent registry
         └── registration.py           : script to handle registration
@@ -59,7 +61,6 @@ A scalable software framework for reinforcement learning environments and agents
             └── <RLworkflow>.py       : RL workflows (such as SEED, IMPALA, etc.)
     ├── utils                         : folder containing utilities
         └── __init__.py               : make classes and functions visible
-        └── candleDriver.py           : Supporting CANDLE script
         └── analyze_reward.py         : script for plotting results
         └── log.py                    : central place to set logging levels
         └── profile.py                : provides function decorators for profiling, timing, and debugging
@@ -234,7 +235,7 @@ self.agent_comm = mpi_settings.agent_comm
 - To obtain the parameters from JSON file/set in terminal using CANDLE, use the following lines:
 
 ```
-import exarl.utils.candleDriver as cd
+import exarl.candle.candleDriver as cd
 cd.run_params # dictionary containing all parameters
 ```
 

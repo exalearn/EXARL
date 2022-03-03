@@ -27,13 +27,13 @@ import exarl as erl
 from exarl.utils.introspect import *
 from exarl.utils.profile import *
 from exarl.utils import log
-import exarl.utils.candleDriver as cd
+import exarl.candle.candleDriver as cd
 from exarl.base.comm_base import ExaComm
 from exarl.network.data_structures import *
 from exarl.network.simple_comm import ExaSimple
 MPI = ExaSimple.MPI
 
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class RMA(erl.ExaWorkflow):
     """RMA workflow class: inherits from ExaWorkflow base class.
@@ -59,21 +59,20 @@ class RMA(erl.ExaWorkflow):
             "stack_central": ExaMPICentralizedStack
         }
         # target weights - This should be an unchecked buffer that will always succed a pop since weight need to be shared with everyone
-        self.target_weight_data_structure = data_exchange_constructors[cd.lookup_params('target_weight_structure', default='buff_unchecked')]
+        self.target_weight_data_structure = data_exchange_constructors[cd.run_params['target_weight_structure']]
 
         # Batch data
-        self.batch_data_structure = data_exchange_constructors[cd.lookup_params('data_structure', default='buff_unchecked')]
-        self.de_length = cd.lookup_params('data_structure_length', default=32)
-        self.de_lag = None  # cd.lookup_params('max_model_lag')
-        logger.info("Creating RMA data exchange workflow", cd.lookup_params('data_structure',
-                                                                            default='buff_unchecked'), "length", self.de_length, "lag", self.de_lag)
+        self.batch_data_structure = data_exchange_constructors[cd.run_params['data_structure']]
+        self.de_length = cd.run_params['data_structure_length']
+        self.de_lag = None  # cd.run_params('max_model_lag')
+        logger.info("Creating RMA data exchange workflow", cd.run_params['data_structure'], "length", self.de_length, "lag", self.de_lag)
 
         # Loss and indicies
-        self.de = cd.lookup_params('loss_data_structure', default='buff_unchecked')
-        self.ind_loss_data_structure = data_exchange_constructors[cd.lookup_params('loss_data_structure', default='buff_unchecked')]
+        self.de = cd.run_params['loss_data_structure']
+        self.ind_loss_data_structure = data_exchange_constructors[cd.run_params['loss_data_structure']]
         logger.info('Creating RMA loss exchange workflow with ', self.de)
 
-        priority_scale = cd.lookup_params('priority_scale', 0)
+        priority_scale = cd.run_params['priority_scale']
         self.use_priority_replay = (priority_scale is not None and priority_scale > 0)
 
     @PROFILE

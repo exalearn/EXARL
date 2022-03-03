@@ -34,7 +34,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import exarl as erl
 import pickle
-import exarl.utils.candleDriver as cd
+import exarl.candle.candleDriver as cd
 from exarl.agents.agent_vault._replay_buffer import ReplayBuffer
 class KerasTD3(erl.ExaAgent):
 
@@ -232,10 +232,12 @@ class KerasTD3(erl.ExaAgent):
 
     def action(self, state):
         """ Method used to provide the next action using the target model """
+        # print("state = ", state)
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
         sampled_actions = tf.squeeze(self.actor_model(tf_state))
         noise = np.random.normal(0, 0.1, self.num_actions)
         sampled_actions = sampled_actions.numpy() * (1 + noise)
+        # print("action = ", sampled_actions)
         policy_type = 1
 
         # We make sure action is within bounds

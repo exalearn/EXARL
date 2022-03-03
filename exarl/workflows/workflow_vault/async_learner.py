@@ -25,10 +25,10 @@ import exarl as erl
 from exarl.utils.introspect import ib
 from exarl.utils.profile import *
 from exarl.utils import log
-import exarl.utils.candleDriver as cd
+import exarl.candle.candleDriver as cd
 from exarl.base.comm_base import ExaComm
 
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class ASYNC(erl.ExaWorkflow):
     """Asynchronous workflow class: inherits from ExaWorkflow base class.
@@ -55,7 +55,7 @@ class ASYNC(erl.ExaWorkflow):
         """Async class constructor.
         """
         print('Creating ASYNC learner workflow...')
-        priority_scale = cd.lookup_params('priority_scale')
+        priority_scale = cd.run_params['priority_scale']
         self.use_priority_replay = (priority_scale is not None and priority_scale > 0)
 
     @PROFILE
@@ -103,7 +103,7 @@ class ASYNC(erl.ExaWorkflow):
             logger.debug("Continuing ...\n")
             while episode_done < exalearner.nepisodes:
                 # Receive the rank of the worker ready for more work
-                recv_data = agent_comm.recv(None)
+                recv_data = agent_comm.recv(data=None)
                 ib.update("Async_Learner_Get_Data", 1)
 
                 whofrom = recv_data[0]
@@ -172,7 +172,7 @@ class ASYNC(erl.ExaWorkflow):
                 if ExaComm.learner_comm.rank == 0:
                     target_weights = exalearner.agent.get_weights()
                     exalearner.agent.save(exalearner.results_dir + '/target_weights.pkl')
-                agent_comm.send([episode, epsilon, 0, indices, loss], s)
+                agent_comm.send([episode, epsilon, target_weights, indices, loss], s)
 
             logger.info("Learner time: {}".format(agent_comm.time() - start))
 
@@ -186,17 +186,17 @@ class ASYNC(erl.ExaWorkflow):
                 train_writer = csv.writer(train_file, delimiter=" ")
 
             start = env_comm.time()
+            episode_reward_list = []
             while episode != -1:
                 # Reset variables each episode
                 # TODO: optimize some of these variables out for env processes
                 current_state = exalearner.env.reset()
                 total_reward = 0
                 steps = 0
-                action = 0
-                episode_reward_list = []
+                done = False
 
                 # Steps in an episode
-                while steps < exalearner.nsteps:
+                while done != True:
                     logger.debug('ASYNC::run() agent_comm.rank{}; step({} of {})'
                                  .format(agent_comm.rank, steps, (exalearner.nsteps - 1)))
                     if ExaComm.env_comm.rank == 0:
@@ -220,71 +220,62 @@ class ASYNC(erl.ExaWorkflow):
                             )
                         break
 
-                    send_data = False
-                    done = False
-                    while send_data == False and done == False:
-                        if ExaComm.env_comm.rank == 0:
-                            exalearner.agent.epsilon = recv_data[1]
-                            exalearner.agent.set_weights(recv_data[2])
+                    if ExaComm.env_comm.rank == 0:
+                        exalearner.agent.epsilon = recv_data[1]
+                        exalearner.agent.set_weights(recv_data[2])
+                        action, policy_type = exalearner.agent.action(current_state)
+                        ib.update("Async_Env_Inference", 1)
 
-                            action, policy_type = exalearner.agent.action(current_state)
-                            ib.update("Async_Env_Inference", 1)
+                        if exalearner.action_type == "fixed":
+                            action, policy_type = 0, -11
 
-                            if exalearner.action_type == "fixed":
-                                action, policy_type = 0, -11
+                    # Broadcast episode count to all procs in env_comm
+                    action = env_comm.bcast(action, root=0)
 
-                        # Broadcast episode count to all procs in env_comm
-                        action = env_comm.bcast(action, root=0)
+                    ib.startTrace("step", 0)
+                    next_state, reward, done, _ = exalearner.env.step(action)
+                    ib.stopTrace()
+                    ib.update("Async_Env_Step", 1)
 
-                        ib.startTrace("step", 0)
-                        next_state, reward, done, _ = exalearner.env.step(action)
-                        ib.stopTrace()
-                        ib.update("Async_Env_Step", 1)
+                    if ExaComm.env_comm.rank == 0:
+                        total_reward += reward
+                        exalearner.agent.remember(current_state, action, reward, next_state, done)
+                        batch_data = next(exalearner.agent.generate_data())
+                        ib.update("Async_Env_Generate_Data", 1)
 
-                        if ExaComm.env_comm.rank == 0:
-                            total_reward += reward
-                            exalearner.agent.remember(current_state, action, reward, next_state, done)
-                            batch_data = next(exalearner.agent.generate_data())
-                            ib.update("Async_Env_Generate_Data", 1)
+                        logger.info(
+                            'Rank[{}] - Generated data: {}'.format(agent_comm.rank, len(batch_data[0])))
+                        try:
+                            buffer_length = len(exalearner.agent.memory)
+                        except:
+                            buffer_length = exalearner.agent.replay_buffer.get_buffer_length()
+                        logger.info(
+                            'Rank[{}] - # Memories: {}'.format(agent_comm.rank, buffer_length))
 
-                            logger.info(
-                                'Rank[{}] - Generated data: {}'.format(agent_comm.rank, len(batch_data[0])))
-                            try:
-                                buffer_length = len(exalearner.agent.memory)
-                            except:
-                                buffer_length = exalearner.agent.replay_buffer.get_buffer_length()
-                            logger.info(
-                                'Rank[{}] - # Memories: {}'.format(agent_comm.rank, buffer_length))
+                        # Update state and step
+                        current_state = next_state
+                        steps += 1
+                        if steps >= exalearner.nsteps:
+                            done = True
 
-                            if steps >= exalearner.nsteps - 1:
-                                done = True
+                        # Send batched memories
+                        agent_comm.send([agent_comm.rank, steps, batch_data, exalearner.agent.epsilon, done], 0)
+                        indices, loss = recv_data[3:5]
+                        if indices is not None:
+                            exalearner.agent.set_priorities(indices, loss)
+                        logger.info('Rank[%s] - Total Reward:%s' %
+                                    (str(agent_comm.rank), str(total_reward)))
+                        logger.info(
+                            'Rank[%s] - Episode/Step/Status:%s/%s/%s' % (str(agent_comm.rank), str(episode), str(steps), str(done)))
 
-                            # Send batched memories
-                            if exalearner.agent.has_data():
-                                send_data = True
-                                agent_comm.send([agent_comm.rank, steps, batch_data, exalearner.agent.epsilon, done], 0)
-                            indices, loss = recv_data[3:5]
-                            if indices is not None:
-                                exalearner.agent.set_priorities(indices, loss)
-                            logger.info('Rank[%s] - Total Reward:%s' %
-                                        (str(agent_comm.rank), str(total_reward)))
-                            logger.info(
-                                'Rank[%s] - Episode/Step/Status:%s/%s/%s' % (str(agent_comm.rank), str(episode), str(steps), str(done)))
+                        # TODO: make this configurable so we don't always suffer IO
+                        train_writer.writerow([time.time(), current_state, action, reward, next_state, total_reward,
+                                               done, episode, steps, policy_type, exalearner.agent.epsilon])
+                        train_file.flush()
 
-                            # TODO: make this configurable so we don't always suffer IO
-                            train_writer.writerow([time.time(), current_state, action, reward, next_state, total_reward,
-                                                   done, episode, steps, policy_type, exalearner.agent.epsilon])
-                            train_file.flush()
+                    # Broadcast done
+                    done = env_comm.bcast(done, 0)
 
-                            # Update state and step
-                            current_state = next_state
-                            steps += 1
-
-                        # Broadcast done
-                        done = env_comm.bcast(done, 0)
-                    # Break loop if done
-                    # if done:
-                    #     break
                 episode_reward_list.append(total_reward)
                 # Mean of last 40 episodes
                 average_reward = np.mean(episode_reward_list[-40:])

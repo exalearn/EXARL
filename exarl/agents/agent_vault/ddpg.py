@@ -32,9 +32,8 @@ from exarl.utils.introspect import introspectTrace
 import exarl as erl
 
 from exarl.utils import log
-import exarl.utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
-
+import exarl.candle.candleDriver as cd
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 @tf.function
 def update_target(target_weights, weights, tau):

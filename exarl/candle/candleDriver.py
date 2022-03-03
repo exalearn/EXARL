@@ -99,14 +99,6 @@ def initialize_parameters():
     run_params = gParameters
     kerasDefaults = candle.keras_default_config()
 
-def lookup_params(arg, default=None):
-    """ Attempts to lookup arg from the global run_params.
-    If it is not found it will return the defualt value passed as input.
-    """
-    try:
-        return run_params[arg]
-    except:
-        return default
 
 def base_parser(params):
     """

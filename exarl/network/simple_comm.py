@@ -4,8 +4,8 @@ from exarl.base.comm_base import ExaComm
 import os
 import numpy as np
 
-import exarl.utils.candleDriver as cd
-workflow = cd.lookup_params('workflow')
+import exarl.candle.candleDriver as cd
+workflow = cd.run_params['workflow']
 if workflow == 'async':
     print("Turning mpi4py.rc.threads and mpi4py.rc.recv_mprobe to false!")
     import mpi4py.rc
@@ -68,7 +68,7 @@ class ExaSimple(ExaComm):
     @introspectTrace()
     def send(self, data, dest, pack=False):
         """
-        Point-to-point communication between ranks.  Send must have
+        Point-to-point communication between ranks. Send must have
         matching recv.
 
         Parameters
@@ -85,7 +85,7 @@ class ExaSimple(ExaComm):
     @introspectTrace()
     def recv(self, data, source=MPI.ANY_SOURCE):
         """
-        Point-to-point communication between ranks.  Send must have
+        Point-to-point communication between ranks. Recv must have
         matching send.
 
         Parameters

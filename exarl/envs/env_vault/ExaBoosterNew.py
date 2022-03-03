@@ -13,14 +13,14 @@ from tensorflow.keras.models import load_model
 import logging
 import requests
 from exarl.utils import log
-import exarl.utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
+import exarl.candle.candleDriver as cd
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.INFO)
 np.seterr(divide='ignore', invalid='ignore')
-results_dir = cd.lookup_params('output_dir', './results_dir')
+results_dir = cd.run_params['output_dir']
 
 def load_reformated_cvs(filename, nrows=100000):
     df = pd.read_csv(filename, nrows=nrows)

@@ -11,7 +11,7 @@ from gym import spaces
 
 from exarl.base.comm_base import ExaComm
 import exarl as erl
-import exarl.utils.candleDriver as cd
+import exarl.candle.candleDriver as cd
 
 sys.path.append('envs/env_vault/CahnHilliard2D/cpp/python')
 sys.path.append('envs/env_vault/ImageStructure')

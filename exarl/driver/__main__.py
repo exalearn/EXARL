@@ -22,7 +22,7 @@ from tensorflow import keras
 import exarl as erl
 import exarl.utils.analyze_reward as ar
 import time
-from exarl.utils.candleDriver import lookup_params
+from exarl.candle.candleDriver import lookup_params
 from exarl.utils.introspect import *
 import numpy as np
 

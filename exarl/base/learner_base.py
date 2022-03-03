@@ -26,8 +26,8 @@ import sys
 import json
 
 from exarl.utils import log
-import exarl.utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
+import exarl.candle.candleDriver as cd
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 
 class ExaLearner:
@@ -39,14 +39,14 @@ class ExaLearner:
         self.results_dir = './results'  # Default dir, will be overridden by candle
         self.do_render = False
 
-        self.learner_procs = int(cd.lookup_params('learner_procs', '1'))
-        self.process_per_env = int(cd.lookup_params('process_per_env', '1'))
-        self.action_type = cd.lookup_params('action_type', 'variable')
+        self.learner_procs = int(cd.run_params['learner_procs'])
+        self.process_per_env = int(cd.run_params['process_per_env'])
+        self.action_type = cd.run_params['action_type']
 
         # Setup agent and environments
-        self.agent_id = 'exarl.agents:' + cd.lookup_params('agent', "")
-        self.env_id   = 'exarl.envs:' + cd.lookup_params('env', "")
-        self.workflow_id = 'exarl.workflows:' + cd.lookup_params('workflow', "")
+        self.agent_id = 'exarl.agents:' + cd.run_params['agent']
+        self.env_id   = 'exarl.envs:' + cd.run_params['env']
+        self.workflow_id = 'exarl.workflows:' + cd.run_params['workflow']
 
         # Setup MPI
         # Global communicator

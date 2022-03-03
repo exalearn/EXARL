@@ -39,8 +39,8 @@ import tensorflow as tf
 # logger = logging.getLogger('RL-Logger')
 # logger.setLevel(logging.INFO)
 from exarl.utils import log
-import exarl.utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
+import exarl.candle.candleDriver as cd
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 np.seterr(divide='ignore', invalid='ignore')
 

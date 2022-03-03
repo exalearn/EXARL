@@ -3,14 +3,14 @@ import sys
 import numpy as np
 import exarl as erl
 import pytest
-import exarl.utils.candleDriver as cd
+import exarl.candle.candleDriver as cd
 from exarl.base.comm_base import ExaComm
 
 from tensorflow.keras.layers import Dense, GaussianNoise, BatchNormalization, LSTM
 from tensorflow.python.client import device_lib
 from tensorflow.keras import optimizers, activations, losses
 from exarl.agents.agent_vault.dqn import DQN
-from exarl.utils.candleDriver import initialize_parameters
+from exarl.candle.candleDriver import initialize_parameters
 from exarl.network.simple_comm import ExaSimple
 MPI = ExaSimple.MPI
 

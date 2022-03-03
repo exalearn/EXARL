@@ -35,7 +35,7 @@ from collections import deque
 from datetime import datetime
 import numpy as np
 from exarl.agents.agent_vault._prioritized_replay import PrioritizedReplayBuffer
-import exarl.utils.candleDriver as cd
+import exarl.candle.candleDriver as cd
 from exarl.utils import log
 from exarl.utils.introspect import introspectTrace
 from tensorflow.compat.v1.keras.backend import set_session
@@ -46,7 +46,7 @@ if ExaComm.num_learners > 1:
 else:
     multiLearner = False
 
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class LossHistory(keras.callbacks.Callback):
     """Loss history for training

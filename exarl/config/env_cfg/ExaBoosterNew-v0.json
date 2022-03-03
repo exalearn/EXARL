@@ -1,0 +1,11 @@
+{
+    "model_file": "fullbooster_noshift_e25_bs32_k_invar6_outvar2_axis1_mmscaler_t0_D03012021-T173721_kfold4__final.h5",
+    "model_dir": "None",
+    "booster_data_dir": "./exarl/envs/env_vault/env_data/booster_data",
+    "data_file": "BOOSTR.csv",
+    "url": "https://zenodo.org/record/4088982/files/data%20release.csv?download=1",
+    "max_steps": 100,
+    "min_BIMIN": 103.1,
+    "max_BIMIN": 103.6,
+    "nactions": 30
+}

@@ -34,7 +34,7 @@ from exarl.agents.agent_vault._replay_buffer import ReplayBuffer, HindsightExper
 import exarl as erl
 
 import exarl.utils.log as log
-import exarl.utils.candleDriver as cd
+import exarl.candle.candleDriver as cd
 logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 

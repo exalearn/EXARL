@@ -20,7 +20,9 @@ Directory Organization
 |         └── learner_cfg.json          : learner configuration
 |     ├── driver                        : folder containing RL MPI steering scripts
 |         └── driver.py                 : Run scipt
-|     ├── candlelib                     : folder containing library for CANDLE functionality
+|     ├── candle                        : folder for CANDLE functionality
+|         └── candleDriver.py           : Supporting CANDLE script
+|         └── candlelib                 : folder for CANDLE library
 |     ├── agents         	              : folder containing EXARL agents and registration scripts
 |         └── __init__.py               : agent registry
 |         └── registration.py           : script to handle registration
@@ -40,7 +42,6 @@ Directory Organization
 |             └── <RLworkflow>.py       : RL workflows (such as SEED, IMPALA, etc.)
 |     ├── utils                         : folder containing utilities
 |         └── __init__.py               : make classes and functions visible
-|         └── candleDriver.py           : Supporting CANDLE script
 |         └── analyze_reward.py         : script for plotting results
 |         └── log.py                    : central place to set logging levels
 |         └── profile.py                : provides function decorators for profiling, timing, and debugging

@@ -25,13 +25,13 @@ from os.path import join
 from exarl.base.comm_base import ExaComm
 import tensorflow as tf
 from exarl.utils import log
-import exarl.utils.candleDriver as cd
+import exarl.candle.candleDriver as cd
 from exarl.utils.profile import *
 from exarl.utils.introspect import *
 from exarl.network.simple_comm import ExaSimple
 MPI = ExaSimple.MPI
 
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class RANDOM(erl.ExaWorkflow):
     """Random workflow class: inherits from Exaworkflow base class.
@@ -44,9 +44,9 @@ class RANDOM(erl.ExaWorkflow):
         inference.
         """
         print('Class Random learner')
-        data_dir = cd.lookup_params("output_dir", ".")
-        data_file = cd.lookup_params("random_results_file", "random_learner_out.txt")
-        self.load_data = cd.lookup_params("weight_file")
+        data_dir = cd.run_params["output_dir"]
+        data_file = cd.run_params["random_results_file"]
+        self.load_data = cd.run_params["weight_file"]
         if self.load_data == "None":
             self.load_data = None
         self.out_file = join(data_dir, data_file)

@@ -1,5 +1,5 @@
 # import faulthandler; faulthandler.enable()
-from exarl.utils import candleDriver
+from exarl.candle import candleDriver
 try:
     candleDriver.initialize_parameters()
 except:
