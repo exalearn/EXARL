@@ -22,7 +22,7 @@ from tensorflow import keras
 import exarl as erl
 import exarl.utils.analyze_reward as ar
 import time
-from exarl.candle.candleDriver import lookup_params
+from exarl.candle import candleDriver as cd
 from exarl.utils.introspect import *
 import numpy as np
 
@@ -35,7 +35,7 @@ comm = erl.ExaComm.global_comm
 rank = comm.rank
 size = comm.size
 
-writeDir = lookup_params("introspector_dir")
+writeDir = cd.run_params["introspector_dir"]
 if writeDir is not None:
     ibLoadReplacement(comm, writeDir)
 
