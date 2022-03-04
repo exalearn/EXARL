@@ -28,7 +28,7 @@ from exarl.utils import log
 import exarl.utils.candleDriver as cd
 from exarl.base.comm_base import ExaComm
 
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 class ASYNC(erl.ExaWorkflow):
     """Asynchronous workflow class: inherits from ExaWorkflow base class.
@@ -55,7 +55,7 @@ class ASYNC(erl.ExaWorkflow):
         """Async class constructor.
         """
         print('Creating ASYNC learner workflow...')
-        priority_scale = cd.lookup_params('priority_scale')
+        priority_scale = cd.run_params['priority_scale']
         self.use_priority_replay = (priority_scale is not None and priority_scale > 0)
 
     @PROFILE

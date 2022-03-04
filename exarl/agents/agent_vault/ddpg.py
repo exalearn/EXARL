@@ -33,7 +33,7 @@ import exarl as erl
 
 from exarl.utils import log
 import exarl.utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
 
 
 @tf.function

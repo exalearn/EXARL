@@ -1,6 +1,6 @@
 from exarl.agents.registration import register, make
 import exarl.utils.candleDriver as cd
-agent = cd.lookup_params('agent')
+agent = cd.run_params['agent']
 
 if agent == 'DQN-v0':
     register(

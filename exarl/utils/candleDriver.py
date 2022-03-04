@@ -20,7 +20,6 @@
 #                    under Contract DE-AC05-76RL01830
 import argparse
 import json
-from exarl.utils import log
 from pprint import pformat
 from tensorflow import keras
 import os
@@ -28,7 +27,7 @@ import sys
 import site
 file_path = os.path.dirname(os.path.realpath(__file__))
 import exarl.candlelib.candle as candle
-# from pprint import pprint
+from pprint import pprint
 
 
 # required = ['agent', 'env', 'n_episodes', 'n_steps']
@@ -91,22 +90,12 @@ def initialize_parameters():
 
     # Initialize parameters
     gParameters = candle.finalize_parameters(driver)
-    # benchmark.logger.info('Params: {}'.format(gParameters))
-    logger = log.setup_logger(__name__, gParameters['log_level'])
-    logger.info("Finalized parameters:\n" + pformat(gParameters))
+    pprint("Finalized parameters:\n" + pformat(gParameters))
     global run_params
     global kerasDefaults
     run_params = gParameters
     kerasDefaults = candle.keras_default_config()
 
-def lookup_params(arg, default=None):
-    """ Attempts to lookup arg from the global run_params.
-    If it is not found it will return the defualt value passed as input.
-    """
-    try:
-        return run_params[arg]
-    except:
-        return default
 
 def base_parser(params):
     """

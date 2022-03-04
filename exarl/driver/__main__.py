@@ -22,9 +22,10 @@ from tensorflow import keras
 import exarl as erl
 import exarl.utils.analyze_reward as ar
 import time
-from exarl.utils.candleDriver import lookup_params
+from exarl.utils import candleDriver as cd
 from exarl.utils.introspect import *
 import numpy as np
+import os
 
 
 # Create learner object and run
@@ -35,8 +36,10 @@ comm = erl.ExaComm.global_comm
 rank = comm.rank
 size = comm.size
 
-writeDir = lookup_params("introspector_dir")
-if writeDir is not None:
+writeDir = cd.run_params["introspector_dir"]
+if writeDir != "none":
+    if not os.path.exists(writeDir):
+        os.makedirs(writeDir)
     ibLoadReplacement(comm, writeDir)
 
 # Run the learner, measure time
