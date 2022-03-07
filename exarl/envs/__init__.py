@@ -1,7 +1,10 @@
 from gym.envs import registration
 from gym.envs.registration import register
 import exarl.utils.candleDriver as cd
-env = cd.run_params['env']
+try:
+    env = cd.run_params['env']
+except:
+    env = None
 
 if env == 'ExaCH-v0':
     register(
@@ -38,3 +41,6 @@ elif env == 'ExaWaterClusterDiscrete-v0':
         id=env,
         entry_point='exarl.envs.env_vault:ExaWaterClusterDiscrete'
     )
+
+else:
+    print("No environment selected!")

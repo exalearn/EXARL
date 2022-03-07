@@ -1,5 +1,8 @@
 import exarl.utils.candleDriver as cd
-env = cd.run_params['env']
+try:
+    env = cd.run_params['env']
+except:
+    env = None
 
 if env == 'ExaCartPoleStatic-v0':
     from exarl.envs.env_vault.ExaCartpoleStatic import ExaCartpoleStatic
@@ -13,3 +16,5 @@ elif env == 'ExaBoosterNew-v0':
     from exarl.envs.env_vault.ExaBoosterNew import ExaBooster_v2 as ExaBooster
 elif env == 'ExaWaterClusterDiscrete-v0':
     from exarl.envs.env_vault.ExaWaterClusterDiscrete import ExaWaterClusterDiscrete
+else:
+    print("No environment selected!")
