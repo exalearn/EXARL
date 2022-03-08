@@ -13,3 +13,5 @@ elif env == 'ExaBoosterNew-v0':
     from exarl.envs.env_vault.ExaBoosterNew import ExaBooster_v2 as ExaBooster
 elif env == 'ExaWaterClusterDiscrete-v0':
     from exarl.envs.env_vault.ExaWaterClusterDiscrete import ExaWaterClusterDiscrete
+elif env == 'Hadrec-v0':
+    from exarl.envs.env_vault.HadrecWrapper import HadrecWrapper
