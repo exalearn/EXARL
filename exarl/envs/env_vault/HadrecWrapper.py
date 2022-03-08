@@ -23,7 +23,9 @@ class HadrecWrapper(gym.Env):
 
     def __init__(self):
         super().__init__()
-        self.env = Hadrec()
+        self.env = Hadrec(simu_input_file="/global/homes/t/tflynn/powerGridEnv/testData/IEEE39/input_39bus_step005_training_v33_newacloadperc43_multipf.xml",
+                          rl_config_file="/global/homes/t/tflynn/powerGridEnv/testData/IEEE39/json/IEEE39_RL_loadShedding_3motor_5ft_gp_lstm.json",
+)
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
         
