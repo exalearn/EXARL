@@ -1,3 +1,4 @@
+from asyncio.log import logger
 import gym
 import time
 import numpy as np
@@ -15,20 +16,49 @@ from gym import spaces
 import math
 import xmltodict
 import collections
+import xml.etree.ElementTree as ET
+
 
 from exarl.envs.env_vault.Hadrec_dir.exarl_env.Hadrec import Hadrec
+import exarl.utils.candleDriver as cd
+
 
 class HadrecWrapper(gym.Env):
 
 
     def __init__(self):
         super().__init__()
-        self.env = Hadrec(simu_input_file="/global/homes/t/tflynn/powerGridEnv/testData/IEEE39/input_39bus_step005_training_v33_newacloadperc43_multipf.xml",
-                          rl_config_file="/global/homes/t/tflynn/powerGridEnv/testData/IEEE39/json/IEEE39_RL_loadShedding_3motor_5ft_gp_lstm.json",
-)
+
+        self.rl_config_file = cd.run_params['rl_config_file']
+        self.simu_input_file = cd.run_params['simu_input_file']
+        self.simu_input_Rawfile = cd.run_params['simu_input_Rawfile']
+        self.simu_input_Dyrfile = cd.run_params['simu_input_Dyrfile']
+        # This updates the input xml file with the required file location.
+        self.UpdateXMLFile()
+        
+        self.env = Hadrec(simu_input_file=self.simu_input_file,
+                          rl_config_file=self.rl_config_file)
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
+
+    def UpdateXMLFile(self):
+        tree =  ET.parse(self.simu_input_file)
         
+        logger.info("Updating the XML file with the candle passed input data path")
+        
+        logger.info(tree.find("Powerflow/networkFiles/networkFile/networkConfiguration").text)
+        logger.info(tree.find("Dynamic_simulation/generatorParameters").text)
+
+        
+
+        (tree.find("Powerflow/networkFiles/networkFile/networkConfiguration").text) = self.simu_input_Rawfile
+        (tree.find("Dynamic_simulation/generatorParameters").text) = self.simu_input_Dyrfile 
+
+        
+        tree.write(self.simu_input_file)
+
+        return
+
     def step(self, action):
         return self.env.step(action)
     
