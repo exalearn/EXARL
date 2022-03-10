@@ -44,9 +44,9 @@ class ExaLearner:
         self.action_type = cd.run_params['action_type']
 
         # Setup agent and environments
-        self.agent_id = 'exarl.agents:' + cd.run_params['agent']
-        self.env_id   = 'exarl.envs:' + cd.run_params['env']
-        self.workflow_id = 'exarl.workflows:' + cd.run_params['workflow']
+        self.agent_id = cd.run_params['agent']
+        self.env_id = cd.run_params['env']
+        self.workflow_id = cd.run_params['workflow']
 
         # Setup MPI
         # Global communicator
