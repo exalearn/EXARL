@@ -27,7 +27,6 @@ import sys
 import site
 file_path = os.path.dirname(os.path.realpath(__file__))
 import exarl.candlelib.candle as candle
-from pprint import pprint
 
 
 # required = ['agent', 'env', 'n_episodes', 'n_steps']
@@ -90,7 +89,9 @@ def initialize_parameters():
 
     # Initialize parameters
     gParameters = candle.finalize_parameters(driver)
-    pprint("Finalized parameters:\n" + pformat(gParameters))
+    from .log import setup_logger
+    logger = setup_logger(__name__, gParameters['log_level'])
+    logger.info("Finalized parameters:\n" + pformat(gParameters))
     global run_params
     global kerasDefaults
     run_params = gParameters
