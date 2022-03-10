@@ -89,7 +89,7 @@ def initialize_parameters():
 
     # Initialize parameters
     gParameters = candle.finalize_parameters(driver)
-    from .log import setup_logger
+    from exarl.utils.log import setup_logger
     logger = setup_logger(__name__, gParameters['log_level'])
     logger.info("Finalized parameters:\n" + pformat(gParameters))
     global run_params
