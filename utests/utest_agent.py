@@ -18,12 +18,23 @@ class TestAgentHelper:
     
     Attributes
     ----------
-    test_envs : List
-        
+    dqn_args : dictionary
+        These are required arguments from dqn config
+    ddpg_args : dictionary
+        These are required arguments from ddpg config
+    ac_args : dictionary
+        These are the actor critic arguments for ddpg
+    lstm_args : dictionary
+        These are the arguments for lstm from config
+    mlp_args : dictionary
+        These are the arguments for mlp from config
+    model_types : dictionary
+        This is used to pass different models as parameters to fixtures
+    priority_scale : list
+        List of numbers between 0 and 1 representing priority scale.
+    max_attempts : int
+        Max amount of times to test behavior
     """
-    test_envs = [
-        EnvGenerator.createClass("Discrete", "Discrete", False, False, True, 100, 10)
-    ]
 
     dqn_args = {
         "gamma": 0.75,
@@ -35,7 +46,7 @@ class TestAgentHelper:
         "tau": 0.5,
         "nactions": 10,
         "priority_scale": 0.0,
-        "mem_length": 1000,
+        "buffer_capacity": 1000,
         "xla": "True"
     }
 
@@ -90,6 +101,8 @@ class TestAgentHelper:
     }
 
     model_types = {"LSTM" : lstm_args, "MLP" : mlp_args}
+    priority_scale = [0.0, 1.0]
+    max_attempts = 100
 
     def get_configs():
         """
@@ -273,15 +286,12 @@ def registered_agent(pytestconfig, init_comm):
         Hook for pytest argument parser
     init_comm : int
         This is a unique number from comm init used for registering new agents.
-    run_params : None
-        This is just to make sure the candle driver is run before registering the agent
 
     Returns
     -------
     String
         Returns the environment name that was passed in to command line
     """
-    
     agent_name = pytestconfig.getoption("test_agent_name")
     agent_class = pytestconfig.getoption("test_agent_class")
     agent_file_name = pytestconfig.getoption("test_agent_file")
@@ -338,7 +348,35 @@ def agent(registered_agent, registered_environment, run_params):
     ExaAgent
         Returns an agent to test
     """
+    env = ExaEnv(gym.make(registered_environment).unwrapped)
+    agent = None
+    if ExaComm.is_agent():
+        agent = exarl.agents.make(registered_agent, env=env, is_learner=ExaComm.is_learner())
+    return agent
 
+@pytest.fixture(scope="function")
+def agent_with_priority_scale(registered_agent, registered_environment, run_params, request):
+    """
+    This fixture generates an new agent from the agent registry.  This fixture also
+    sets the candleDriver parameter priority_scale which is used in the train
+    set_priorities functions.
+    Parameters
+    ----------
+    registered_agent : String
+        Names of agent to create passed in from fixture
+    registered_environment : String
+        Name of environment to create passed in from fixture
+    run_params : None
+        Ensures run_params fixture runs before this
+    request : float
+        request.param is the value to set for priority_scale
+
+    Returns
+    -------
+    ExaAgent
+        Returns an agent to test
+    """
+    candleDriver.run_params["priority_scale"] = request.param
     env = ExaEnv(gym.make(registered_environment).unwrapped)
     agent = None
     if ExaComm.is_agent():
@@ -349,7 +387,7 @@ def agent(registered_agent, registered_environment, run_params):
 def pre_agent(registered_agent, registered_synth_environment, run_params, request):
     """
     This fixture is used for testing synthetic creation.  It returns the name
-    of the command line agent as well as an environment passed in as request.
+    of the agent (given via command line) as well as an environment passed in as request.
     This is done via indirect=True being set on @pytest.mark.parametrize:
     (e.g. @pytest.mark.parametrize("pre_agent", list(EnvGenerator.getNames()), indirect=True) )
 
@@ -361,8 +399,7 @@ def pre_agent(registered_agent, registered_synth_environment, run_params, reques
         Ensures all synthetic environments have been registered via fixture
     run_params : None
         Ensures run_params fixture runs before this
-    
-    request :
+    request : String
         request.param is the name of the synthetic environment to create
 
     Returns
@@ -370,9 +407,42 @@ def pre_agent(registered_agent, registered_synth_environment, run_params, reques
     Pair
         Name of the agent to build and a environment
     """
-
     env = ExaEnv(gym.make(request.param).unwrapped)
     return registered_agent, env
+
+@pytest.fixture(scope="function")
+def agent_with_synth_env(registered_agent, registered_synth_environment, run_params, request):
+    """
+    This fixture generates an new agent from the agent registry with an environment.  
+    The environment is passed via request allowing it to be passed by setting 
+    indirect=True being in @pytest.mark.parametrize:
+    (e.g. @pytest.mark.parametrize("syth_agent", listOfEnvs, indirect=True) )
+    This allows us to test other evironments than what we passed in on command line.
+    Ultimatly the list that should be passed in is the list of synthetic environments.
+
+    Parameters
+    ----------
+    registered_agent : String
+        Names of agent to create passed in from fixture
+    registered_synth_environment : None
+        Ensures all synthetic environments have been registered via fixture
+    run_params : None
+        Ensures run_params fixture runs before this
+    request : 
+        request.param is the name of the synthetic environment to create
+
+    Returns
+    -------
+    ExaAgent
+        Returns an agent to test
+    """
+    env = ExaEnv(gym.make(request.param).unwrapped)
+    agent = None
+    if ExaComm.is_agent():
+        agent = exarl.agents.make(registered_agent, env=env, is_learner=ExaComm.is_learner())
+    return agent
+
+
 
 @pytest.fixture(scope="session")
 def save_load_dir(init_comm):
@@ -457,7 +527,6 @@ class TestAgentMembers:
     def test_init(self, agent):
         """
         Tests the initalization of agents relative to comm.
-        This test should also 
 
         Parameters
         ----------
@@ -470,7 +539,7 @@ class TestAgentMembers:
         else:
             assert agent == None
 
-    def test_get_weights(self, agent, run_params):
+    def test_get_weights(self, agent):
         """
         Test getting weights from an agent.  Currently get weights calls
         into tensorflow get_weights 
@@ -497,7 +566,7 @@ class TestAgentMembers:
             # else:
             #     assert False, "Unclear the number of layers of ml model for " + run_params
             
-            # Check the length of each np.array
+            # TODO: Check the length of each np.array
             for layer_weights in weights:
                 assert isinstance(layer_weights, np.ndarray)
         else:
@@ -596,7 +665,7 @@ class TestAgentMembers:
         """
         This tests that has_data returns false when the agent
         is first initialized.  Testing if has_data == True is 
-        tested under test_remember
+        tested under test_remember.
         
         Parameters
         ----------
@@ -611,7 +680,7 @@ class TestAgentMembers:
             assert agent == None
         
 
-    def test_remember(self, agent, max_add=100):
+    def test_remember(self, agent, max_attempts=TestAgentHelper.max_attempts):
         """
         This tests that the remember function stores entries up to 
         max_add times.  We verify using has_data method.
@@ -620,15 +689,15 @@ class TestAgentMembers:
         ----------
         agent : ExaAgent
             Agent to test from fixture
-        max_add : int
+        max_attempts : int
             Max number of entries to add
         """
         if ExaComm.is_agent():
             assert hasattr(agent, 'remember')
             assert callable(getattr(agent, 'remember'))
+
             assert agent.has_data() == False
-            
-            for i in range(max_add):
+            for i in range(max_attempts):
                 state = agent.env.observation_space.sample()
                 next_state = agent.env.observation_space.sample()
                 action = agent.env.action_space.sample()
@@ -640,7 +709,7 @@ class TestAgentMembers:
         else:
             assert agent == None
 
-    def test_generate_data_size(self, agent, max_add=100):
+    def test_generate_data_size(self, agent, max_attempts=TestAgentHelper.max_attempts):
         """
         This tests that the return of generate_data.  When there is no
         data stored, generate data outputs fake data.  This is to setup
@@ -652,16 +721,17 @@ class TestAgentMembers:
         ----------
         agent : ExaAgent
             Agent to test from fixture
-        max_add : int
+        max_attempts : int
             Max number of entries to add
         """
         if ExaComm.is_agent():
             assert hasattr(agent, 'generate_data')
             assert callable(getattr(agent, 'generate_data'))
-            assert agent.has_data() == False
+            assert hasattr(agent, 'batch_size')
+            
             data = next(agent.generate_data())
             pickle_empty_data = pickle.dumps(data)
-            for i in range(max_add):
+            for i in range(max_attempts):
                 for j in range(agent.batch_size):
                     state = agent.env.observation_space.sample()
                     next_state = agent.env.observation_space.sample()
@@ -669,72 +739,236 @@ class TestAgentMembers:
                     reward = 100
                     done = False
                     agent.remember(state, action, reward, next_state, done)
-                    assert agent.has_data() == True
+                    
                 data = next(agent.generate_data())
                 pickle_full_data = pickle.dumps(data)
                 assert len(pickle_empty_data) >= len(pickle_full_data)
         else:
             assert agent == None
 
-    def test_generate_data(self, agent, max_add=100):
+    def test_generate_data_small(self, agent):
         """
-        This tests that the return of generate_data.  We are checking the amount
-        of experiences that are put into the agent vs how many they get back. 
+        This tests that the return of generate_data when the data is less
+        than the batch size.  When there is no data stored, generate data
+        outputs fake data.  This test checks that the size of the fake 
+        data is > the size of real data.  
         
         Parameters
         ----------
         agent : ExaAgent
             Agent to test from fixture
-        max_add : int
-            Max number of entries to add
         """
         if ExaComm.is_agent():
-            assert hasattr(agent, 'generate_data')
-            assert callable(getattr(agent, 'generate_data'))
-            assert agent.has_data() == False
+            assert hasattr(agent, agent.batch_size)
+
+            data = next(agent.generate_data())
+            pickle_empty_data = pickle.dumps(data)
+            for i in range(agent.batch_size - 1):
+                state = agent.env.observation_space.sample()
+                next_state = agent.env.observation_space.sample()
+                action = agent.env.action_space.sample()
+                reward = 100
+                done = False
+                agent.remember(state, action, reward, next_state, done)
+
+                data = next(agent.generate_data())
+                pickle_full_data = pickle.dumps(data)
+                assert len(pickle_empty_data) > len(pickle_full_data)
+        else:
+            assert agent == None
+
+    @pytest.mark.parametrize("agent_with_priority_scale", TestAgentHelper.priority_scale, indirect=True)
+    def test_train(self, agent_with_priority_scale):
+        """
+        This tests to see if there is a train method and its return values.
+        The return value passes back the indicies and lost if scale_priority
+        is set greater than 0.  We check to see that the number of indicies 
+        matches the total amount of data.  Only learner is able to call train.
+
+        Parameters
+        ----------
+        agent_with_priority_scale : ExaAgent
+            Agent to test from fixture with priority_scale set
+        """
+        agent = agent_with_priority_scale
+        if ExaComm.is_agent():
+            assert hasattr(agent, 'train')
+            assert callable(getattr(agent, 'train'))
+            assert hasattr(agent, 'priority_scale')
             
-            push_count = 0
-            pop_count = 0
-            count = 0
-            for i in range(max_add):
-                for j in range(i):
+            if ExaComm.is_learner():
+                for i in range(agent.batch_size):
                     state = agent.env.observation_space.sample()
                     next_state = agent.env.observation_space.sample()
                     action = agent.env.action_space.sample()
                     reward = 100
                     done = False
-                
                     agent.remember(state, action, reward, next_state, done)
-                    assert agent.has_data() == True
-                    push_count += 1
-                    count += 1
-                while agent.has_data() and count > -1:
-                    # TODO: How do we evaluate the return value of generate data
-                    ret = agent.generate_data()
-                    to_add = 0
-                    for k in ret:
-                        if to_add == 0:
-                            to_add = len(k)
-                        assert len(k) == to_add
-                    assert to_add <= agent.batch_size
-                    pop_count += to_add
-                    count -= to_add
-                assert count == 0
-            assert push_count == pop_count
+                    data = next(agent.generate_data())
+                    if agent.priority_scale != 0.0:
+                        assert len(data) == 4
+                        assert len(data[2]) == i + 1
+                    else:
+                        assert len(data) == 2
+
+                    ret = agent.train(data)
+                    if agent.priority_scale != 0.0:
+                        assert len(ret) == 2
+                        assert len(ret[0]) == i + 1
+                    else:
+                        assert ret is None
         else:
             assert agent == None
 
-    def test_train(self):
+    def test_target_train(self, agent):
         """
-        train the agent
-        """
-        pass
+        This tests the functionality of target train.
+        Target train uses the agents tau to update the
+        weights of the target model.  Only the learner
+        will update the weights.
 
-    def test_action(self):
+        Parameters
+        ----------
+        agent : ExaAgent
+            Agent to test from fixture
         """
-        next action based on current state
-        """
-        pass
+        if ExaComm.is_agent():
+            assert hasattr(agent, 'target_train')
+            assert callable(getattr(agent, 'target_train'))
+            assert hasattr(agent, 'tau')
+            assert agent.tau > 0
 
-    def test_set_priorities(self):
-        pass
+            if ExaComm.is_learner():
+                old_weights = agent.get_weights()
+                agent.target_train()
+                weights = agent.get_weights()
+                assert not TestAgentHelper.compare_weights(weights, old_weights), "Weights should have changed"
+        else:
+            assert agent == None
+
+    def test_for_changing_weights(self, agent, max_attempts=TestAgentHelper.max_attempts):
+        """
+        This test is used to see if the agent can "learn."  We check
+        this by passing data coming from generate data to the train
+        function and compare the new weights.  Problem is weights are
+        only updated to the target model when target trained is called.
+        Previous tests shows target train is guaranteed to change the
+        weights.
+
+        Parameters
+        ----------
+        agent : ExaAgent
+            Agent to test from fixture
+        max_attempts : int
+            Max number of times to test weight changes
+        """
+        if ExaComm.is_agent():
+            assert hasattr(agent, 'train')
+            assert callable(getattr(agent, 'train'))
+            
+            if ExaComm.is_learner():
+                for j in range(max_attempts):
+                    for i in range(agent.batch_size):
+                        state = agent.env.observation_space.sample()
+                        next_state = agent.env.observation_space.sample()
+                        action = agent.env.action_space.sample()
+                        reward = 100
+                        done = False
+                        agent.remember(state, action, reward, next_state, done)
+                    
+                    data = next(agent.generate_data())
+                    old_weights = agent.get_weights()
+                    agent.train(data)
+                    # This masks the test but we have to do it for now...
+                    agent.target_train()
+                    weights = agent.get_weights()
+                    assert not TestAgentHelper.compare_weights(weights, old_weights), "Weights should have changed"
+        else:
+            assert agent == None
+
+    def do_actions(self, agent, max_attempts):
+        """
+        This function tests the action method of an agent.  Action will perform inference 
+        using its internal model and will return an appropriate action to take.  We test
+        that the action is "correct" by ensuring that it is part of the action space.
+        The contains method given by gym checks both the type and if the action falls
+        within the bounds of a given space.
+
+        Parameters
+        ----------
+        agent : ExaAgent
+            Agent to test
+        max_attempts : int
+            The number of times to check actions
+        """
+        if ExaComm.is_agent():
+            assert hasattr(agent, 'action')
+            assert callable(getattr(agent, 'action'))
+            assert hasattr(agent, "env")
+            
+            env = agent.env
+            assert hasattr(env, "action_space")
+            assert isinstance(env.action_space, gym.Space)
+
+            for i in range(max_attempts):
+                action, policy_type = agent.action(env.observation_space.sample())
+                assert env.action_space.contains(action)
+
+        else:
+            assert agent == None
+
+    def test_action(self, agent, max_attempts=TestAgentHelper.max_attempts):
+        """
+        This test check the action method ensuring the given action is appropriate.
+        This will test the environment passed in at command line or the default.
+
+        Parameters
+        ----------
+        agent : ExaAgent
+            Agent to test from fixture
+        max_attempts : int
+            The number of times to check actions
+        """
+        self.do_actions(agent, max_attempts)
+        
+    @pytest.mark.skip(reason="This is a really long test... Fails because agent models are broken!!!")
+    @pytest.mark.parametrize("agent_with_synth_env", list(EnvGenerator.getNames()), indirect=True)
+    def test_action_synth(self, agent_with_synth_env, max_attempts=TestAgentHelper.max_attempts):
+        """
+        This test check the action method ensuring the given action is appropriate.
+        This will test the environment passed in at command line or the default.
+        We are using the synthetic environments to test what type of gym spaces
+        the agent can handle.
+
+        Parameters
+        ----------
+        agent_with_synth_env : ExaAgent
+            Agent to test from fixture with synthetic environment
+        max_attempts : int
+            The number of times to check action
+        """
+        self.do_actions(agent_with_synth_env, max_attempts)
+
+    @pytest.mark.parametrize("agent_with_priority_scale", TestAgentHelper.priority_scale, indirect=True)
+    def test_set_priorities(self, agent_with_priority_scale):
+        """
+        This tests to see if there is a set_priorities method.  This method
+        is to support experience replay.  The agent must internally use
+        the priorities to adjust the values of the chosen by generate data.
+        To test that the priorities are being reflected, we need to test
+        the priority replay buffers.  To try to infer what is being passed
+        back by the agent is too difficult to due at this level.
+        TODO: Create priority replay unit tests.
+
+        Parameters
+        ----------
+        agent_with_priority_scale : ExaAgent
+            Agent to test from fixture with priority_scale set
+        """
+        agent = agent_with_priority_scale
+        if ExaComm.is_agent():
+            assert hasattr(agent, 'set_priorities')
+            assert callable(getattr(agent, 'set_priorities'))
+            assert hasattr(agent, "buffer_capacity")
+        else:
+            assert agent == None

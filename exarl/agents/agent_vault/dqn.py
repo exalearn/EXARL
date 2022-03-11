@@ -192,8 +192,8 @@ class DQN(erl.ExaAgent):
             # self.opt = tf.keras.optimizers.Adam(self.learning_rate * hvd.size())
             self.opt = cd.candle.build_optimizer(self.optimizer, self.learning_rate * hvd.size(), cd.kerasDefaults)
 
-        self.maxlen = cd.run_params['mem_length']
-        self.replay_buffer = PrioritizedReplayBuffer(maxlen=self.maxlen)
+        self.buffer_capacity = cd.run_params['buffer_capacity']
+        self.replay_buffer = PrioritizedReplayBuffer(maxlen=self.buffer_capacity)
 
     def _get_device(self):
         """Get device type (CPU/GPU)

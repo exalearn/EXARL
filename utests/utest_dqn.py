@@ -176,7 +176,7 @@ class TestClass:
             # assert test_agent.clipvalue == cd.run_params['clipvalue'] and \
             #     isinstance(test_agent.clipvalue, float) is True
 
-            assert test_agent.maxlen == cd.run_params['mem_length']
+            assert test_agent.maxlen == cd.run_params['buffer_capacity']
 
             # test model.compile()
             # gpu_names = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
