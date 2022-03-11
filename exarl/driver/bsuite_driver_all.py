@@ -33,7 +33,7 @@ from tqdm import tqdm
 # Edit: 1. Where you want to start
 #       2. What environments to exclude
 #       3. The max seed number
-start_id = 242
+start_id = 0
 excluded_envs = ['cartpole_swingup',
                  'mountain_car',
                  'mountain_car_noise',
@@ -45,7 +45,6 @@ for env_id in tqdm(sweep.SWEEP[start_id:]):
 
     # Only use seed number 0 until we can parallelize
     bsuite_id, seed_number = env_id.split('/')
-    # if seed_number != '0' or bsuite_id[0] < 'm':
     if int(seed_number) > max_seed_number or bsuite_id in excluded_envs:
         continue
 

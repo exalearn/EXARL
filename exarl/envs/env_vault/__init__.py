@@ -14,7 +14,7 @@ elif env == 'ExaWaterClusterDiscrete-v0':
     from exarl.envs.env_vault.ExaWaterClusterDiscrete import ExaWaterClusterDiscrete
 elif env == 'GymSpaceTest-v0':
     from exarl.envs.env_vault.GymSpaceTest import GymSpaceTest
-elif env == 'ExaBsuite-v0':
-    from exarl.envs.env_vault.ExaBsuite import ExaBsuite
+elif env == 'Bsuite-v0':
+    from exarl.envs.env_vault.BsuiteWrapper import BsuiteWrapper
 elif env == 'Marshmallow-v0':
     from exarl.envs.env_vault.Marshmallow import Marshmallow

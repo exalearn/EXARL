@@ -40,10 +40,10 @@ elif env == 'GymSpaceTest-v0':
         entry_point='exarl.envs.env_vault:GymSpaceTest'
     )
 
-elif env == 'ExaBsuite-v0':
+elif env == 'Bsuite-v0':
     register(
         id=env,
-        entry_point='exarl.envs.env_vault:ExaBsuite'
+        entry_point='exarl.envs.env_vault:BsuiteWrapper'
     )
 
 elif env == 'Marshmallow-v0':

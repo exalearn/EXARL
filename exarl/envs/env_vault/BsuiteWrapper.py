@@ -39,7 +39,7 @@ _GymTimestep = Tuple[np.ndarray, float, bool, Dict[str, Any]]
 
 # Inspired by https://github.com/deepmind/bsuite/blob/master/bsuite/utils/wrappers.py
 
-class ExaBsuite(gym.Env):
+class BsuiteWrapper(gym.Env):
     """Environment wrapper to track and log bsuite stats in ExaRL."""
     def __init__(self) -> None:
         super().__init__()
@@ -49,24 +49,15 @@ class ExaBsuite(gym.Env):
         seed_number = cd.lookup_params('seed_number', default='0')
         env_name = bsuite_id + "/" + seed_number
         print("Loading", env_name)
+
         # Let self.raw_env be of class dm_env.Environment.
         # Then return gym-like outputs for step, reset methods.
-        # self.raw_env = bsuite.load_and_record(bsuite_id=env_name, save_path='./bsuite_results', 
-        #                             logging_mode='csv')
         self.raw_env = bsuite.load_from_id(bsuite_id=env_name)
         self._logger = CSVLogger(bsuite_id=env_name, results_dir='./bsuite_results_' + str(rank))
-        # self._logger = CSVLogger(bsuite_id=env_name, results_dir='./bsuite_results')
                                     
         self.env = gym_wrapper.GymFromDMEnv(self.raw_env)
         self.action_space = self.env.action_space
-        # self.has_extra_dim = False
         self.observation_space = self.env.observation_space
-
-        # print("action space: ", type(self.action_space))
-        # print("obs space: ", type(self.observation_space))
-        # print("action space size: ", self.action_space.n)
-        # print("obs space: ", self.observation_space)
-        # print("obs dtype: ", self.env.observation_space.dtype)
 
         # Accumulating throughout experiment.
         self._steps = 0
@@ -82,7 +73,6 @@ class ExaBsuite(gym.Env):
 
     def step(self, action) -> _GymTimestep:
         time.sleep(0)
-        # next_state, reward, done, info = self.env.step(action)
         timestep = self.raw_env.step(action)
         self._track(timestep)
         next_state = timestep.observation
@@ -96,36 +86,24 @@ class ExaBsuite(gym.Env):
     def reset(self) -> np.ndarray:
         timestep = self.raw_env.reset()
         self._track(timestep)
-        # return self.env.reset()
         return timestep.observation
-
-    # def render(self, mode: str = 'human') -> Union[np.ndarray, bool]:
-    #     return self.env.render(mode)
 
     def _track(self, timestep):
         # Count transitions only. 
         if not timestep.first():
             self._steps += 1
             self._episode_len += 1
-        # if timestep.last():
-        #     self._episode += 1
-        self._episode_return += timestep.reward or 0.0
-        # print("reward: ", timestep.reward)
-        # print("total return: ", self._total_return)
-        self._total_return += timestep.reward or 0.0
-        # print("total return: ", self._total_return)
 
+        self._episode_return += timestep.reward or 0.0
+        self._total_return += timestep.reward or 0.0
 
         # Log statistics periodically, either by step or by episode.
         if ExaComm.env_comm.rank == 0:
             if self._log_by_step:
-                # if _logarithmic_logging(self._steps) or self._log_every:
                 self._log_bsuite_data() 
 
             elif timestep.last():
-                # if _logarithmic_logging(self._episode) or self._log_every:
                 self._log_bsuite_data()
-
 
         # Perform bookkeeping at the end of episodes.
         if timestep.last():
