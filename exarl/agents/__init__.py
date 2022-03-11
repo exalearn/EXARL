@@ -3,7 +3,7 @@ import exarl.utils.candleDriver as cd
 try:
     agent = cd.run_params['agent']
 except:
-    agent = None
+    print("Unknown agent: {} did not match any registered agents.".format(agent))
 
 if agent == 'DQN-v0':
     register(
@@ -35,5 +35,3 @@ elif agent == 'PARS-v0':
         id=agent,
         entry_point='exarl.agents.agent_vault:PARS'
     )
-else:
-    print("No agent selected!")

@@ -2,7 +2,7 @@ import exarl.utils.candleDriver as cd
 try:
     agent = cd.run_params['agent']
 except:
-    agent = None
+     print("Unknown agent: {} did not match any registered agents.".format(agent))
 
 if agent == 'DQN-v0':
     from exarl.agents.agent_vault.dqn import DQN
@@ -16,5 +16,3 @@ elif agent == 'TD3-v1':
     from exarl.agents.agent_vault.keras_td3 import KerasTD3
 elif agent == 'PARS-v0':
     from exarl.agents.agent_vault.PARS import PARS
-else:
-    print("No agent selected!")

@@ -4,7 +4,7 @@ import exarl.utils.candleDriver as cd
 try:
     env = cd.run_params['env']
 except:
-    env = None
+    print("Unknown environment: {} did not match any registered environments.".format(env))
 
 if env == 'ExaCH-v0':
     register(
@@ -46,5 +46,3 @@ elif env == 'Hadrec-v0':
         id=env,
         entry_point='exarl.envs.env_vault:HadrecWrapper'
     )
-else:
-    print("No environment selected!")
