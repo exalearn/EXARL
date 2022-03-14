@@ -45,10 +45,10 @@ class HadrecWrapper(gym.Env):
 
         logger.info("Updating the XML file with the candle passed input data path")
 
-        logger.info(tree.find("Powerflow/networkFiles/networkFile/networkConfiguration").text)
+        logger.info(tree.find("Powerflow/networkFiles/networkFile/networkConfiguration_v33").text)
         logger.info(tree.find("Dynamic_simulation/generatorParameters").text)
 
-        (tree.find("Powerflow/networkFiles/networkFile/networkConfiguration").text) = self.simu_input_Rawfile
+        (tree.find("Powerflow/networkFiles/networkFile/networkConfiguration_v33").text) = self.simu_input_Rawfile
         (tree.find("Dynamic_simulation/generatorParameters").text) = self.simu_input_Dyrfile
 
         tree.write(self.simu_input_file)
