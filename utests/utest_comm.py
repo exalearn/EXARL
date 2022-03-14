@@ -30,16 +30,19 @@ class TestCommHelper:
             Number of learners and proccesses per environment for comm setup
         """
         size = mpi4py.MPI.COMM_WORLD.Get_size()
-        # We start at 1 because we have to have at least one learner
-        for num_learners in range(1, size): 
-            rem = size - num_learners
-            # Iterate over all potential procs_per_env counts
-            for i in range(0, rem):
-                # Add one since we want the size of the env_count not index
-                procs_per_env = i + 1
-                # Does it fit, then return it
-                if rem % procs_per_env == 0:
-                    yield num_learners, procs_per_env
+        if size == 1:
+            yield 1, 1
+        else:
+            # We start at 1 because we have to have at least one learner
+            for num_learners in range(1, size): 
+                rem = size - num_learners
+                # Iterate over all potential procs_per_env counts
+                for i in range(0, rem):
+                    # Add one since we want the size of the env_count not index
+                    procs_per_env = i + 1
+                    # Does it fit, then return it
+                    if rem % procs_per_env == 0:
+                        yield num_learners, procs_per_env
 
 @pytest.fixture(scope="function", autouse=True)
 def reset_comm():
@@ -167,6 +170,8 @@ class TestEnvMembers:
         """
         comm()
         assert isinstance(ExaComm.global_comm, ExaComm)
+        assert hasattr(ExaComm.global_comm, "rank")
+        assert hasattr(ExaComm.global_comm, "size")
         assert ExaComm.num_learners == 1
         assert ExaComm.procs_per_env == 1
 
@@ -197,12 +202,14 @@ class TestEnvMembers:
         """
         rank = mpi4py.MPI.COMM_WORLD.Get_rank()
         size = mpi4py.MPI.COMM_WORLD.Get_size()
+
         total_env = procs_per_env * int((size - num_learners)/procs_per_env)
+        assert total_env > 0
         assert size == total_env + num_learners, "Invalide configuration"
         
         # Do the split
         comm(procs_per_env=procs_per_env, num_learners=num_learners)
-        
+
         # Check the static members
         assert ExaComm.num_learners == num_learners
         assert ExaComm.procs_per_env == procs_per_env
@@ -298,15 +305,19 @@ class TestEnvMembers:
         rank = mpi4py.MPI.COMM_WORLD.Get_rank()
         size = mpi4py.MPI.COMM_WORLD.Get_size()
         a_comm = comm(procs_per_env=procs_per_env, num_learners=num_learners)
-        if rank < num_learners:
-            assert ExaComm.is_agent()
-            assert a_comm.is_agent()
-        elif (rank - num_learners) % procs_per_env == 0:
+        if ExaComm.global_comm.size == 1:
             assert ExaComm.is_agent()
             assert a_comm.is_agent()
         else:
-            assert not ExaComm.is_agent()
-            assert not a_comm.is_agent()
+            if rank < num_learners:
+                assert ExaComm.is_agent()
+                assert a_comm.is_agent()
+            elif (rank - num_learners) % procs_per_env == 0:
+                assert ExaComm.is_agent()
+                assert a_comm.is_agent()
+            else:
+                assert not ExaComm.is_agent()
+                assert not a_comm.is_agent()
 
     @pytest.mark.parametrize("num_learners, procs_per_env", list(TestCommHelper.get_configs()))
     @pytest.mark.parametrize("comm", TestCommHelper.comm_types)
@@ -329,9 +340,15 @@ class TestEnvMembers:
         rank = mpi4py.MPI.COMM_WORLD.Get_rank()
         size = mpi4py.MPI.COMM_WORLD.Get_size()
         a_comm = comm(procs_per_env=procs_per_env, num_learners=num_learners)
-        if rank < num_learners:
-            assert not ExaComm.is_actor()
-            assert not a_comm.is_actor()
-        else:
+        if ExaComm.global_comm.size == 1:
             assert ExaComm.is_actor()
             assert a_comm.is_actor()
+        else:
+            if rank < num_learners:
+                assert not ExaComm.is_actor()
+                assert not a_comm.is_actor()
+            else:
+                assert ExaComm.is_actor()
+                assert a_comm.is_actor()
+            
+            

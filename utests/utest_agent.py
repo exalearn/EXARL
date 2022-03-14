@@ -175,8 +175,7 @@ class TestAgentHelper:
 def init_comm(request):
     """
     This sets up a comm to test agent with.  This test must be run
-    with at least two ranks.  The value returned is a cantor pair (i.e. unique number)
-    which can be used to (re-) register agents within the agent registry.
+    with at least two ranks.
 
     Attributes
     ----------
@@ -284,8 +283,8 @@ def registered_agent(pytestconfig, init_comm):
     ----------
     pytestconfig : 
         Hook for pytest argument parser
-    init_comm : int
-        This is a unique number from comm init used for registering new agents.
+    init_comm : pair
+        The number of learners and process per environment
 
     Returns
     -------

@@ -37,7 +37,7 @@ class ExaComm(ABC):
         pass
 
     @abstractmethod
-    def recv(self, data_type, data_count, source):
+    def recv(self, data, source=None):
         pass
 
     @abstractmethod

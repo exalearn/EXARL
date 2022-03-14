@@ -249,12 +249,12 @@ class ASYNC(erl.ExaWorkflow):
 
                             logger.info(
                                 'Rank[{}] - Generated data: {}'.format(agent_comm.rank, len(batch_data[0])))
-                            try:
-                                buffer_length = len(exalearner.agent.memory)
-                            except:
-                                buffer_length = exalearner.agent.replay_buffer.get_buffer_length()
-                            logger.info(
-                                'Rank[{}] - # Memories: {}'.format(agent_comm.rank, buffer_length))
+                            # try:
+                            #     buffer_length = len(exalearner.agent.memory)
+                            # except:
+                            #     buffer_length = exalearner.agent.replay_buffer.get_buffer_length()
+                            # logger.info(
+                            #     'Rank[{}] - # Memories: {}'.format(agent_comm.rank, buffer_length))
 
                             if steps >= exalearner.nsteps - 1:
                                 done = True
@@ -288,7 +288,7 @@ class ASYNC(erl.ExaWorkflow):
                 episode_reward_list.append(total_reward)
                 # Mean of last 40 episodes
                 average_reward = np.mean(episode_reward_list[-40:])
-                print("Episode * {} * Avg Reward is ==> {}".format(episode, average_reward))
+                # print("Episode * {} * Avg Reward is ==> {}".format(episode, average_reward))
             ib.update("Async_Env_Episode", 1)
             logger.info("Worker time = {}".format(env_comm.time() - start))
             if ExaComm.is_actor():

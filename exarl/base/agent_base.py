@@ -75,18 +75,6 @@ class ExaAgent(ABC):
         """
         pass
 
-    # @abstractmethod
-    # def load(self, filename):
-    #     """load weights
-    #     """
-    #     pass
-
-    # @abstractmethod
-    # def save(self, filename):
-    #     """save weights
-    #     """
-    #     pass
-
     @abstractmethod
     def has_data(self):
         """return true if agent has experiences from simulation

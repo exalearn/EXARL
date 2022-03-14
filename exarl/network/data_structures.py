@@ -225,7 +225,8 @@ class ExaMPIBuffUnchecked(ExaData):
         self.comm = comm
         self.length = 1
         dataBytes = MPI.pickle.dumps(data)
-        size = len(dataBytes)
+        # JS: adding one because pickle is dumb
+        size = len(dataBytes) * 2
 
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=None, name=name)
 
@@ -295,7 +296,7 @@ class ExaMPIBuffUnchecked(ExaData):
             rank = self.comm.rank
 
         toSend = MPI.pickle.dumps(data)
-        assert len(toSend) <= self.dataSize
+        assert len(toSend) <= self.dataSize, str(len(toSend)) + " vs " + str(self.dataSize)
 
         self.win.Lock(rank)
         # Accumulate is element-wise atomic vs put which is not

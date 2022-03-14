@@ -95,12 +95,12 @@ class SYNC(erl.ExaWorkflow):
                     batch_data = next(exalearner.agent.generate_data())
                     logger.info(
                         'Rank[{}] - Generated data: {}'.format(env_comm.rank, len(batch_data[0])))
-                    try:
-                        buffer_length = len(exalearner.agent.memory)
-                    except:
-                        buffer_length = exalearner.agent.replay_buffer.get_buffer_length()
-                    logger.info(
-                        'Rank[{}] - # Memories: {}'.format(env_comm.rank, buffer_length))
+                    # try:
+                    #     buffer_length = len(exalearner.agent.memory)
+                    # except:
+                    #     buffer_length = exalearner.agent.replay_buffer.get_buffer_length()
+                    # logger.info(
+                    #     'Rank[{}] - # Memories: {}'.format(env_comm.rank, buffer_length))
 
                 # Learner
                 if ExaComm.is_learner():
