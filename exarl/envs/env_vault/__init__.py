@@ -18,3 +18,5 @@ elif env == 'ExaWaterClusterDiscrete-v0':
     from exarl.envs.env_vault.ExaWaterClusterDiscrete import ExaWaterClusterDiscrete
 elif env == 'Hadrec-v0':
     from exarl.envs.env_vault.HadrecWrapper import HadrecWrapper
+elif env == 'QuadraticCts-v0':
+    from exarl.envs.env_vault.QuadraticCts import QuadraticCts

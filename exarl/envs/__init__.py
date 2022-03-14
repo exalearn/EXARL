@@ -46,3 +46,8 @@ elif env == 'Hadrec-v0':
         id=env,
         entry_point='exarl.envs.env_vault:HadrecWrapper'
     )
+elif env == 'QuadraticCts-v0':
+    register(
+        id=env,
+        entry_point='exarl.envs.env_vault:QuadraticCts'
+    )

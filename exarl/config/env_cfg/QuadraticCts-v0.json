@@ -1,0 +1,5 @@
+{
+    "epsilon" : 1.0,
+    "epsilon_min" : 0.0,
+    "epsilon_decay" : 0.99
+}
