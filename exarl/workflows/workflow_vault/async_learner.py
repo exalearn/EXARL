@@ -193,10 +193,11 @@ class ASYNC(erl.ExaWorkflow):
                 total_reward = 0
                 steps = 0
                 action = 0
+                done = False
                 episode_reward_list = []
 
                 # Steps in an episode
-                while steps < exalearner.nsteps:
+                while done != True:
                     logger.debug('ASYNC::run() agent_comm.rank{}; step({} of {})'
                                  .format(agent_comm.rank, steps, (exalearner.nsteps - 1)))
                     if ExaComm.env_comm.rank == 0:
@@ -221,7 +222,7 @@ class ASYNC(erl.ExaWorkflow):
                         break
 
                     send_data = False
-                    done = False
+                    # done = False
                     while send_data == False and done == False:
                         if ExaComm.env_comm.rank == 0:
                             exalearner.agent.epsilon = recv_data[1]
@@ -229,7 +230,7 @@ class ASYNC(erl.ExaWorkflow):
 
                             action, policy_type = exalearner.agent.action(current_state)
                             ib.update("Async_Env_Inference", 1)
-
+                            # Fixed action for performance measurement
                             if exalearner.action_type == "fixed":
                                 action, policy_type = 0, -11
 
@@ -280,6 +281,8 @@ class ASYNC(erl.ExaWorkflow):
                             current_state = next_state
                             steps += 1
 
+                        # Broadcast send_data
+                        send_data = env_comm.bcast(send_data, 0)
                         # Broadcast done
                         done = env_comm.bcast(done, 0)
                     # Break loop if done

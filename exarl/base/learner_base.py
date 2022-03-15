@@ -111,7 +111,7 @@ class ExaLearner:
         self.nsteps = nsteps
         if self.global_size > self.nepisodes:
             sys.exit(
-                'EXARL::ERROR There is more resources allocated for the number of episodes.\nnprocs should be less than nepisodes.')
+                'EXARL::ERROR More resources allocated for the number of episodes.\nnprocs should be less than nepisodes.')
         self.env.unwrapped._max_episode_steps = self.nsteps
         self.env.unwrapped.spec.max_episode_steps = self.nsteps
         self.env.spec.max_episode_steps = self.nsteps
