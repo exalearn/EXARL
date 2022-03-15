@@ -17,7 +17,7 @@ class ReplayBuffer(Replay):
         # If the counter exceeds the capacity then
 
         self._state_buffer[self._memory_counter] = state
-        self._action_buffer[self._memory_counter] = action
+        self._action_buffer[self._memory_counter] = action[0]
         self._reward_buffer[self._memory_counter] = reward
         self._next_state_buffer[self._memory_counter] = next_state
         self._done_buffer[self._memory_counter] = int(done)
@@ -64,7 +64,7 @@ class HindsightExperienceReplayMemory(Replay):
     def store(self, state, action, reward, next_state, done, goal):
         # If the counter exceeds the capacity then
         self._state_buffer[self._memory_counter] = state
-        self._action_buffer[self._memory_counter] = action
+        self._action_buffer[self._memory_counter] = action[0]
         self._reward_buffer[self._memory_counter] = reward
         self._next_state_buffer[self._memory_counter] = next_state
         self._done_buffer[self._memory_counter] = int(done)
