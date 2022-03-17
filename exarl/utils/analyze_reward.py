@@ -50,7 +50,7 @@ def read_data(filename, rank):
                                'episode', 'step', 'policy_type', 'epsilon'])
     del frame['current_state']
     del frame['next_state']
-    frame['time'] = pd.to_datetime(frame['time'], unit='ns')
+    frame['time'] = pd.to_datetime(frame['time'], unit='s')
     frame = frame[frame.done == True]
     frame = frame.reset_index()
     frame['rank'] = int(rank)
