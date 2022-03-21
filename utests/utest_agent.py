@@ -758,7 +758,7 @@ class TestAgentMembers:
             Agent to test from fixture
         """
         if ExaComm.is_agent():
-            assert hasattr(agent, agent.batch_size)
+            assert hasattr(agent, 'batch_size')
 
             data = next(agent.generate_data())
             pickle_empty_data = pickle.dumps(data)
