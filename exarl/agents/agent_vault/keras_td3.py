@@ -34,8 +34,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import exarl as erl
 import pickle
+from exarl.utils import log
 import exarl.utils.candleDriver as cd
 from exarl.agents.agent_vault._replay_buffer import ReplayBuffer
+
+logger = log.setup_logger(__name__, cd.run_params['log_level'])
+
+
 class KerasTD3(erl.ExaAgent):
 
     def __init__(self, env, is_learner, **kwargs):
@@ -55,8 +60,8 @@ class KerasTD3(erl.ExaAgent):
 
         # Buffer
         self.buffer_counter = 0
-        self.buffer_capacity = 50000
-        self.batch_size = 100
+        self.buffer_capacity = cd.run_params['buffer_capacity']
+        self.batch_size = cd.run_params['batch_size']
         self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions)
         # self.state_buffer = np.zeros((self.buffer_capacity, self.num_states))
         # self.action_buffer = np.zeros((self.buffer_capacity, self.num_actions))
@@ -66,12 +71,12 @@ class KerasTD3(erl.ExaAgent):
         self.per_buffer = np.ones((self.buffer_capacity, 1))
 
         # Used to update target networks
-        self.tau = 0.005
-        self.gamma = 0.99
+        self.tau = cd.run_params['tau']
+        self.gamma = cd.run_params['gamma'] 
 
         # Setup Optimizers
-        critic_lr = 0.0002
-        actor_lr = 0.0001
+        critic_lr = cd.run_params['critic_lr']
+        actor_lr = cd.run_params['actor_lr']
         self.critic_optimizer1 = Adam(critic_lr, epsilon=1e-08)
         self.critic_optimizer2 = Adam(critic_lr, epsilon=1e-08)
         self.actor_optimizer = Adam(actor_lr, epsilon=1e-08)
@@ -104,6 +109,12 @@ class KerasTD3(erl.ExaAgent):
         self.epsilon_min = cd.run_params['epsilon_min']
         self.epsilon_decay = cd.run_params['epsilon_decay']
 
+        logger.info("TD3 buffer capacity {}".format(self.buffer_capacity))
+        logger.info("TD3 batch size {}".format(self.batch_size))
+        logger.info("TD3 tau {}".format(self.tau))
+        logger.info("TD3 gamma {}".format(self.gamma))
+        logger.info("TD3 critic_lr {}".format(critic_lr))
+        logger.info("TD3 actor_lr {}".format(actor_lr))
         plt.ion()
 
     @tf.function
