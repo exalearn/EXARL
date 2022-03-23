@@ -27,6 +27,7 @@ import random
 import tensorflow as tf
 import sys
 import gym
+from gym.spaces.utils import flatten
 import pickle
 import exarl as erl
 from exarl.base.comm_base import ExaComm
@@ -143,8 +144,12 @@ class DQN(erl.ExaAgent):
             self.actions = np.linspace(env.action_space.low, env.action_space.high, self.n_actions)
 
         # Data types of action and observation space
-        self.dtype_action = np.array(self.env.action_space.sample()).dtype
-        self.dtype_observation = self.env.observation_space.sample().dtype
+        # TODO: JS DOUBLE CHECK THIS 
+        self.dim_action = np.array(self.env.action_space.sample()).dtype
+
+        flat_sample = flatten(self.env.observation_space, self.env.observation_space.sample())
+        self.dtype_observation = flat_sample.dtype
+        self.dim_observation = flat_sample.shape[0]
 
         # Setup GPU cfg
         if ExaComm.is_learner():
@@ -226,11 +231,9 @@ class DQN(erl.ExaAgent):
         else:
             sys.exit("Oops! That was not a valid model type. Try again...")
 
-    # TODO: Check if this is used in any workflow, if not delete
-    def set_learner(self):
-        logger.debug(
-            "Agent[{}] - Creating active model for the learner".format(self.rank)
-        )
+    def flatten_observation(self, state):
+        state = flatten(self.env.observation_space, state)
+        return state.reshape(1, state.shape[0])
 
     def remember(self, state, action, reward, next_state, done):
         """Add experience to replay buffer
@@ -262,12 +265,18 @@ class DQN(erl.ExaAgent):
         rdm = np.random.rand()
         if rdm <= self.epsilon:
             self.epsilon_adj()
-            action = random.randrange(self.env.action_space.n)
+
+            # JS I think this is the wrong way to get a random action
+            # action = random.randrange(self.env.action_space.n)
+            action = self.env.action_space.sample()
+            
             return action, 0
         else:
-            np_state = np.array(state).reshape(1, 1, len(state))
+            # JS: This returns an np array with dim (x,) where x is the length of a flat state
+            np_state = self.flatten_observation(state)
             with tf.device(self.device):
-                act_values = self.target_model.predict(np_state)
+                act_values = self.target_model.predict(np_state)   
+            # JS: Since our model takes a list of states (length is 1) we get a list back        
             action = np.argmax(act_values[0])
             return action, 1
 
@@ -283,8 +292,10 @@ class DQN(erl.ExaAgent):
             policy (int): random (0) or inference (1)
         """
         action, policy = self.get_action(state)
-        if not self.is_discrete:
-            action = [self.actions[action]]
+
+        # JS WE IGNORE FOR NOW
+        # if not self.is_discrete:
+        #     action = [self.actions[action]]
         return action, policy
 
     @introspectTrace()
@@ -298,12 +309,15 @@ class DQN(erl.ExaAgent):
             target Q value (array): [description]
         """
         state, action, reward, next_state, done = exp
-        np_state = np.array(state, dtype=self.dtype_observation).reshape(1, 1, len(state))
-        np_next_state = np.array(next_state, dtype=self.dtype_observation).reshape(1, 1, len(next_state))
+        # np_state = np.array(state, dtype=self.dtype_observation).reshape(1, 1, len(state))
+        # np_next_state = np.array(next_state, dtype=self.dtype_observation).reshape(1, 1, len(next_state))
+        np_state = self.flatten_observation(state)
+        np_next_state = self.flatten_observation(next_state)
+
         expectedQ = 0
         if not done:
             with tf.device(self.device):
-                expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
+                expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state))
         target = reward + expectedQ
         with tf.device(self.device):
             target_f = self.target_model.predict(np_state)
@@ -334,15 +348,16 @@ class DQN(erl.ExaAgent):
         # Has data checks if the buffer is greater than batch size for training
         if not self.has_data():
             # Worker method to create samples for training
-            batch_states = np.zeros((self.batch_size, 1, self.env.observation_space.shape[0]), dtype=self.dtype_observation)
-            batch_target = np.zeros((self.batch_size, self.env.action_space.n), dtype=self.dtype_action)
+            batch_states = np.zeros((self.batch_size, np.prod(self.dim_observation)), dtype=self.dtype_observation)
+            batch_target = np.zeros((self.batch_size, self.env.action_space.n), dtype=self.dim_action)
             indices = -1 * np.ones(self.batch_size)
             importance = np.ones(self.batch_size)
         else:
             minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=self.priority_scale)
             batch_target = list(map(self.calc_target_f, minibatch))
-            batch_states = [np.array(exp[0], dtype=self.dtype_observation).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
-            batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
+            batch_states = [self.flatten_observation(exp[0]).reshape(1, self.dim_observation) for exp in minibatch]
+            batch_states = np.reshape(batch_states, [len(minibatch), self.dim_observation])
+
             batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
 
         if self.priority_scale > 0:

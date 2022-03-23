@@ -352,3 +352,29 @@ class TypeUtils:
             elif data.dtype == np.int32:
                 return data.astype(np.int64)
         return data
+
+    def get_bool(val, default=False):
+        """
+        This function turns versions of string true/false into bool
+
+        Parameters
+        ----------
+        value : strine
+            String to convert
+
+        default : bool, optional
+            value to return if conversion fails
+
+        Returns
+        -------
+        bool
+            return appropriate version of bool
+        """
+        if isinstance(val, bool):
+            return val
+        
+        bool_map = {"true": True, "True": True, "false": False, "False": False}
+        if val in bool_map:
+            return bool_map[val]
+        
+        return default

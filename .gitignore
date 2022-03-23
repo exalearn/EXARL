@@ -120,3 +120,12 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# VSCode
+._*
+
+# Directories
+results_dir
+bsuite_results*
+.vscode
+
