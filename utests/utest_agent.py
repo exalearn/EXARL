@@ -444,12 +444,18 @@ def agent_with_synth_env(registered_agent, registered_synth_environment, run_par
 
 
 @pytest.fixture(scope="session")
-def save_load_dir(init_comm):
+def save_load_dir(init_comm, pytestconfig):
     """
     This fixture creates a directory to store saved weights in.
     It is created once a session and torn down at the end.
     The barriers are to make sure all ranks are synchronized prior
-    to file/dir creation and descruction.
+    to file/dir creation and descruction.  The temp directory for
+    storing and loading weights can be changed by the
+    --test_save_load_dir option.  By default it will write to
+    ./save_load_dir.
+
+    Example: 
+    pytest ./utest_env.py --test_save_load_dir /path/to/my/dir
 
     Parameters
     ----------
@@ -463,7 +469,7 @@ def save_load_dir(init_comm):
     """
     rank = ExaComm.global_comm.rank
     made_dir = False
-    dir_name = './save_load_dir'
+    dir_name = pytestconfig.getoption("test_save_load_dir")
     if rank == 0 and not os.path.isdir(dir_name):
         os.mkdir(dir_name)
         made_dir = True
