@@ -72,7 +72,7 @@ class KerasTD3(erl.ExaAgent):
 
         # Used to update target networks
         self.tau = cd.run_params['tau']
-        self.gamma = cd.run_params['gamma'] 
+        self.gamma = cd.run_params['gamma']
 
         # Setup Optimizers
         critic_lr = cd.run_params['critic_lr']
