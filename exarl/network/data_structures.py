@@ -226,7 +226,7 @@ class ExaMPIBuffUnchecked(ExaData):
         self.length = 1
         dataBytes = MPI.pickle.dumps(data)
         # JS: adding one because pickle is dumb
-        size = len(dataBytes) * 2
+        size = len(dataBytes) + 1
 
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=None, name=name)
 
@@ -514,7 +514,7 @@ class ExaMPIDistributedQueue(ExaData):
         self.failPush = failPush
 
         dataBytes = MPI.pickle.dumps(data)
-        size = len(dataBytes)
+        size = len(dataBytes) + 1
 
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag, name=name)
         self.buff = bytearray(self.dataSize)
@@ -730,7 +730,7 @@ class ExaMPIDistributedStack(ExaData):
         self.failPush = failPush
 
         dataBytes = MPI.pickle.dumps(data)
-        size = len(dataBytes)
+        size = len(dataBytes) + 1
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag, name=name)
 
         self.buff = bytearray(self.dataSize)
@@ -952,7 +952,7 @@ class ExaMPICentralizedStack(ExaData):
         self.failPush = failPush
 
         dataBytes = MPI.pickle.dumps(data)
-        size = len(dataBytes)
+        size = len(dataBytes) + 1
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag, name=name)
 
         self.buff = bytearray(self.dataSize)
@@ -1196,7 +1196,7 @@ class ExaMPICentralizedQueue(ExaData):
         self.failPush = failPush
 
         dataBytes = MPI.pickle.dumps(data)
-        size = len(dataBytes)
+        size = len(dataBytes) + 1
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag, name=name)
 
         self.buff = bytearray(self.dataSize)

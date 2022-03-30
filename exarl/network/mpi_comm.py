@@ -907,14 +907,27 @@ class ExaMPI(ExaComm):
         num_learners : int
             Number of processes per learner comm
         """
-        if MPI.COMM_WORLD.Get_size() == 1:
-            agent_comm = ExaMPI()
-            env_comm = ExaMPI()
-            learner_comm = ExaMPI()
+        if MPI.COMM_WORLD.Get_size() == procs_per_env:
+            assert num_learners == 1, "num_learners should be 1 when global comm size == procs_per_env"
+            color = MPI.UNDEFINED
+            if self.rank == 0:
+                color = 0
+            learner_comm = self.comm.Split(color, self.rank)
+            agent_comm = self.comm.Split(color, self.rank)
+            if self.rank == 0:
+                learner_comm = ExaMPI(comm=learner_comm)
+                agent_comm = ExaMPI(comm=agent_comm)
+            else:
+                learner_comm = None
+                agent_comm = None
+
+            env_color = 0
+            env_comm = self.comm.Split(env_color, self.rank)
+            env_comm = ExaMPI(comm=env_comm)
         else:
             # Agent communicator
             agent_color = MPI.UNDEFINED
-            if (self.rank < num_learners) or ((self.rank + procs_per_env - 1) % procs_per_env == 0):
+            if (self.rank < num_learners) or ((self.rank - num_learners) % procs_per_env == 0):
                 agent_color = 0
             agent_comm = self.comm.Split(agent_color, self.rank)
             if agent_color == 0:

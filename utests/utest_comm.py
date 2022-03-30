@@ -30,19 +30,17 @@ class TestCommHelper:
             Number of learners and proccesses per environment for comm setup
         """
         size = mpi4py.MPI.COMM_WORLD.Get_size()
-        if size == 1:
-            yield 1, 1
-        else:
-            # We start at 1 because we have to have at least one learner
-            for num_learners in range(1, size): 
-                rem = size - num_learners
-                # Iterate over all potential procs_per_env counts
-                for i in range(0, rem):
-                    # Add one since we want the size of the env_count not index
-                    procs_per_env = i + 1
-                    # Does it fit, then return it
-                    if rem % procs_per_env == 0:
-                        yield num_learners, procs_per_env
+        yield 1, size
+        # We start at 1 because we have to have at least one learner
+        for num_learners in range(1, size): 
+            rem = size - num_learners
+            # Iterate over all potential procs_per_env counts
+            for i in range(0, rem):
+                # Add one since we want the size of the env_count not index
+                procs_per_env = i + 1
+                # Does it fit, then return it
+                if rem % procs_per_env == 0:
+                    yield num_learners, procs_per_env
 
 @pytest.fixture(scope="function", autouse=True)
 def reset_comm():
@@ -191,6 +189,11 @@ class TestEnvMembers:
         A     0  1  2  -  -  -  3  -  -  -  4  -  -  - 
         E     -  -  0  1  2  3  0  1  2  3  0  1  2  3
 
+        Rank  0  1  2  3
+        L     0  -  -  -
+        A     0  -  -  -
+        E     0  1  2  3
+
         Parameters
         ----------
         comm : ExaComm
@@ -203,9 +206,12 @@ class TestEnvMembers:
         rank = mpi4py.MPI.COMM_WORLD.Get_rank()
         size = mpi4py.MPI.COMM_WORLD.Get_size()
 
-        total_env = procs_per_env * int((size - num_learners)/procs_per_env)
-        assert total_env > 0
-        assert size == total_env + num_learners, "Invalide configuration"
+        if procs_per_env == size:
+            assert num_learners == 1, "Only single learner is supported when procs_per_env == global comm size"
+        else:
+            total_env = procs_per_env * int((size - num_learners)/procs_per_env)
+            assert total_env > 0
+            assert size == total_env + num_learners, "Invalide configuration"
         
         # Do the split
         comm(procs_per_env=procs_per_env, num_learners=num_learners)
@@ -226,28 +232,40 @@ class TestEnvMembers:
             assert ExaComm.learner_comm.rank == rank
         else:
             assert ExaComm.learner_comm == None
-
+        
         # Check the agent comm
-        num_agents = num_learners + (size - num_learners) / procs_per_env
-        if rank < num_learners:
-            assert isinstance(ExaComm.agent_comm, ExaComm)
-            assert ExaComm.agent_comm.size == num_agents
-            assert ExaComm.agent_comm.rank == rank
+        if procs_per_env == size:
+            if rank == 0:
+                assert isinstance(ExaComm.learner_comm, ExaComm)
+                assert ExaComm.agent_comm.size == 1
+                assert ExaComm.agent_comm.rank == 0
+            else:
+                assert ExaComm.agent_comm == None
         else:
-            checked = False
-            for i, global_rank in enumerate(range(num_learners, size, procs_per_env)):
-                if rank == global_rank:
-                    assert isinstance(ExaComm.agent_comm, ExaComm)
-                    assert ExaComm.agent_comm.size == num_agents
-                    assert ExaComm.agent_comm.rank == i + num_learners
-                    checked = True
-                else:
-                    assert ExaComm.learner_comm == None
-                    checked = True
-            assert checked == True, "Double check on logic failed. Rank " + str(rank) + " was not checked!"
+            num_agents = num_learners + (size - num_learners) / procs_per_env
+            if rank < num_learners:
+                assert isinstance(ExaComm.agent_comm, ExaComm)
+                assert ExaComm.agent_comm.size == num_agents
+                assert ExaComm.agent_comm.rank == rank
+            else:
+                checked = False
+                for i, global_rank in enumerate(range(num_learners, size, procs_per_env)):
+                    if rank == global_rank:
+                        assert isinstance(ExaComm.agent_comm, ExaComm)
+                        assert ExaComm.agent_comm.size == num_agents
+                        assert ExaComm.agent_comm.rank == i + num_learners
+                        checked = True
+                    else:
+                        assert ExaComm.learner_comm == None
+                        checked = True
+                assert checked == True, "Double check on logic failed. Rank " + str(rank) + " was not checked!"
                     
         # Check the env comm
-        if rank < num_learners:
+        if procs_per_env == size:
+            assert isinstance(ExaComm.env_comm, ExaComm)
+            assert ExaComm.env_comm.size == procs_per_env
+            assert ExaComm.env_comm.rank == rank
+        elif rank < num_learners:
             assert ExaComm.env_comm == None
         else:
             checked = 0
@@ -305,9 +323,14 @@ class TestEnvMembers:
         rank = mpi4py.MPI.COMM_WORLD.Get_rank()
         size = mpi4py.MPI.COMM_WORLD.Get_size()
         a_comm = comm(procs_per_env=procs_per_env, num_learners=num_learners)
-        if ExaComm.global_comm.size == 1:
-            assert ExaComm.is_agent()
-            assert a_comm.is_agent()
+        
+        if ExaComm.global_comm.size == procs_per_env:
+            if rank == 0:
+                assert ExaComm.is_agent()
+                assert a_comm.is_agent()
+            else:
+                assert not ExaComm.is_agent()
+                assert not a_comm.is_agent()
         else:
             if rank < num_learners:
                 assert ExaComm.is_agent()
@@ -316,8 +339,8 @@ class TestEnvMembers:
                 assert ExaComm.is_agent()
                 assert a_comm.is_agent()
             else:
-                assert not ExaComm.is_agent()
-                assert not a_comm.is_agent()
+                assert not ExaComm.is_agent(), str(ExaComm.is_agent())
+                assert not a_comm.is_agent(), a_comm.is_agent()
 
     @pytest.mark.parametrize("num_learners, procs_per_env", list(TestCommHelper.get_configs()))
     @pytest.mark.parametrize("comm", TestCommHelper.comm_types)
@@ -340,7 +363,7 @@ class TestEnvMembers:
         rank = mpi4py.MPI.COMM_WORLD.Get_rank()
         size = mpi4py.MPI.COMM_WORLD.Get_size()
         a_comm = comm(procs_per_env=procs_per_env, num_learners=num_learners)
-        if ExaComm.global_comm.size == 1:
+        if ExaComm.global_comm.size == procs_per_env:
             assert ExaComm.is_actor()
             assert a_comm.is_actor()
         else:

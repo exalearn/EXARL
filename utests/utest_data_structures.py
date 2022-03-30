@@ -30,6 +30,9 @@ class TestDataStructure:
         Number of max tries for the pattern free for all tests
     loss_per_rank : number
         This is a number between 0 and 1. Represents the percentage of data that can be lost per rank for pattern tests.
+    lossy_length_list : list
+        This is the length of the data structure to test for loosing packets.  We invert the numbers because it is easier
+        to not loose data for bigger sizes and we want the test to go as far as possible before failing.
     """
     comm = ExaSimple()
     packet_size = 1000
@@ -48,6 +51,7 @@ class TestDataStructure:
     reps = 10
     max_try = 1000000
     loss_per_rank = .5
+    lossy_length_list=[100000, 10000, 1000, 100, 10]
     
     def filter(to_remove):
         """
@@ -439,7 +443,7 @@ class TestDataStructureMembers(TestDataStructure):
 
         for i in range(length + over):
             data_structure.push(self.make_packet(TestDataStructure.packet_size, i), 0)
-        TestDataStructure.comm.barrier()
+            TestDataStructure.comm.barrier()
 
         if TestDataStructure.comm.rank == 0:
             pop_packets = []
@@ -463,7 +467,7 @@ class TestDataStructureMembers(TestDataStructure):
             # Instead check to see that the last seq number exists if failPush=False since we are guarenteed someone has to be last
             # Check the inverse is true for failPush=True
             seq_num = set([x[0] for x in pop_packets])
-            if failPush and "buff" not in name:
+            if failPush and over > 0 and "buff" not in name:
                 assert over+length-1 not in seq_num, name + " sequence number should not be received " + str(over+length-1)
             else:
                 assert over+length-1 in seq_num, name + " sequence number should be received " + str(over+length-1)
@@ -529,6 +533,9 @@ class TestDataStructureMembers(TestDataStructure):
     @pytest.mark.parametrize("length", TestDataStructure.length_list)
     @pytest.mark.parametrize("name", TestDataStructure.constructor.keys())
     def test_failPush_multi_rank(self, name, length, over, failPush):
+        """
+        TODO: WRITE COMMENT HOW DID I FORGET THIS ONE
+        """
         self.length_multiple_ranks(name, length, over=over, failPush=failPush)
 
 class TestMessagePatterClass(TestDataStructure):
@@ -538,9 +545,8 @@ class TestMessagePatterClass(TestDataStructure):
 
     @pytest.mark.parametrize("spread", [False, True])
     @pytest.mark.parametrize("num_packets", TestDataStructure.num_packets_list)
-    @pytest.mark.parametrize("length", TestDataStructure.length_list)
     @pytest.mark.parametrize("name", TestDataStructure.filter("buff"))
-    def test_sync(self, name, length, num_packets, spread, reps=TestDataStructure.reps):
+    def test_sync(self, name, num_packets, spread, reps=TestDataStructure.reps):
         """
         This tests all ranks but one pushing, and rank 0 pops all data.  There is a barrier between
         the pushing and popping phase of the test.  The number of packets and their order is checked.
@@ -549,8 +555,6 @@ class TestMessagePatterClass(TestDataStructure):
         ----------
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
-        length : int
-            Length of the data structure to inialize
         num_packets : int
             The number of packets to push per rank
         spread : bool
@@ -558,7 +562,10 @@ class TestMessagePatterClass(TestDataStructure):
         reps : int
             Number of reps to perform
         """
-        data_structure = self.init_data_structure(name, length=length)
+        if spread:
+            data_structure = self.init_data_structure(name, length=num_packets)
+        else:
+            data_structure = self.init_data_structure(name, length=num_packets * TestDataStructure.comm.size)
         for rep in range(reps):
             # All ranks > 0 will send data
             if TestDataStructure.comm.rank > 0:
@@ -605,9 +612,8 @@ class TestMessagePatterClass(TestDataStructure):
             TestDataStructure.comm.barrier()
 
     @pytest.mark.parametrize("num_packets", TestDataStructure.num_packets_list)
-    @pytest.mark.parametrize("length", TestDataStructure.length_list)
     @pytest.mark.parametrize("name", TestDataStructure.filter("buff"))
-    def test_broadcast(self, name, length, num_packets, reps=TestDataStructure.reps):
+    def test_broadcast(self, name, num_packets, reps=TestDataStructure.reps):
         """
         This tests rank 0 pushing and all other ranks popping data  There is a barrier between
         the pushing and popping phase of the test.  Each packet checks that they receive data from
@@ -617,15 +623,13 @@ class TestMessagePatterClass(TestDataStructure):
         ----------
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
-        length : int
-            Length of the data structure to inialize
         num_packets : int
             The number of packets to push per rank
         reps : int
             Number of reps to perform
         """
         # 
-        data_structure = self.init_data_structure(name, length=length)
+        data_structure = self.init_data_structure(name, length=num_packets)
         for rep in range(reps):
             # Rank 0 will send all the data
             if TestDataStructure.comm.rank == 0:
@@ -749,18 +753,26 @@ class TestMessagePatterClass(TestDataStructure):
       
         TestDataStructure.comm.barrier()
 
+    @pytest.mark.skip(reason="This test requires manual tuning, but is useful for workflow design")
     @pytest.mark.parametrize("spread", [False, True])
     @pytest.mark.parametrize("failPush", [False, True])
     @pytest.mark.parametrize("num_packets", TestDataStructure.num_packets_list)
-    @pytest.mark.parametrize("length", TestDataStructure.length_list)
+    @pytest.mark.parametrize("length", TestDataStructure.lossy_length_list)
     @pytest.mark.parametrize("name", TestDataStructure.filter("buff"))
     def test_lossy_free_for_all(self,name, length, num_packets, failPush, spread, reps=TestDataStructure.reps, max_try=TestDataStructure.max_try, loss_per_rank=TestDataStructure.loss_per_rank):
         """ 
-        JBMF: FIX
         This test has all ranks other than rank 0 pushing data.  At the same time rank 0 will pop data max_try attempts.
         Pushing ranks will push a given packet once.  FailPush=True guarenteeing no data will be
         lost since we push until success.  Buffers cannot be used in the test as they cannot cannot guarentee data will
-        not be lost on a push.  We check that all data is recieved
+        not be lost on a push.  We check that all data is recieved.
+
+        This test checks to see how much data is lost in a free for all.  The acceptable amount is not hard and fast.
+        We originally set it to 50% of the data as a good approximation, but ultimately the performance of a data
+        structure is a combination of number of ranks, length of the data structure, and the number of pop tries by
+        rank zero.
+
+        TODO: For RMA workflows consider how this test should be incorporated with the timing of an
+        environment vs training.
 
         Parameters
         ----------
@@ -822,10 +834,12 @@ class TestMessagePatterClass(TestDataStructure):
                     
                     num_try+=1
                 
-                print("Total Packets:", total_packets)
-                for i, val in enumerate(seq_num):
-                    print(i, len(val), len(set(val)))
-                    print(val)
+                if TestDataStructure.comm.rank == 0:
+                    print("Total Packets:", total_packets)
+                    print("Rank", "NumPackets", "NumUniqueSeqNums")
+                    for i, val in enumerate(seq_num):
+                        print(i, len(val), len(set(val)))
+                        print(val)
 
                 # Check how many packets arrived
                 for i, val in enumerate(seq_num):
