@@ -233,6 +233,8 @@ class DQN(erl.ExaAgent):
 
     def flatten_observation(self, state):
         state = flatten(self.env.observation_space, state)
+        if self.model_type == 'LSTM':
+            return state.reshape(1, 1, state.shape[0])
         return state.reshape(1, state.shape[0])
 
     def remember(self, state, action, reward, next_state, done):
@@ -336,7 +338,9 @@ class DQN(erl.ExaAgent):
 
     @introspectTrace()
     def generate_data(self):
-        """Unpack and yield training data
+        """
+        Unpack and yield training data
+        Has data checks if the buffer is greater than batch size for training
 
         Yields:
             batch_states (numpy array): training input
@@ -345,7 +349,7 @@ class DQN(erl.ExaAgent):
                 indices (numpy array): data indices
                 importance (numpy array): importance weights
         """
-        # Has data checks if the buffer is greater than batch size for training
+        size = self.batch_size
         if not self.has_data():
             # Worker method to create samples for training
             batch_states = np.zeros((self.batch_size, np.prod(self.dim_observation)), dtype=self.dtype_observation)
@@ -355,11 +359,16 @@ class DQN(erl.ExaAgent):
         else:
             minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=self.priority_scale)
             batch_target = list(map(self.calc_target_f, minibatch))
-            batch_states = [self.flatten_observation(exp[0]).reshape(1, self.dim_observation) for exp in minibatch]
-            batch_states = np.reshape(batch_states, [len(minibatch), self.dim_observation])
+            batch_states = [self.flatten_observation(exp[0]) for exp in minibatch]
+            size = len(minibatch)
 
-            batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
-
+        # JS: Always reshape... Even the zeros.    
+        batch_target = np.reshape(batch_target, [size, self.env.action_space.n])
+        if self.model_type == 'LSTM':
+            batch_states = np.reshape(batch_states, [size, 1, self.dim_observation])
+        else:
+            batch_states = np.reshape(batch_states, [size, self.dim_observation])
+        
         if self.priority_scale > 0:
             yield batch_states, batch_target, indices, importance
         else:
