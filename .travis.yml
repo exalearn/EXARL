@@ -25,5 +25,6 @@ script:
   - python exarl/driver
   - curl -Os https://uploader.codecov.io/latest/linux/codecov
   - chmod +x codecov
-  - CODECOV_TOKEN=58f6254a-1517-4f4b-9e87-1348390deaf7
-  - ./codecov -t ${CODECOV_TOKEN}
+#  - CODECOV_TOKEN=58f6254a-1517-4f4b-9e87-1348390deaf7
+#  - ./codecov -t ${CODECOV_TOKEN}
+  - ./codecov
