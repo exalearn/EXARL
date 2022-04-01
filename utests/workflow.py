@@ -1,7 +1,3 @@
-# import mpi4py.rc
-# mpi4py.rc.threads = False
-# mpi4py.rc.recv_mprobe = False
-# import mpi4py
 import os
 import sys
 import gym
@@ -14,6 +10,11 @@ from exarl.base.agent_base import ExaAgent
 from exarl.envs.env_vault.UnitEvn import EnvGenerator
 import exarl.agents
 import functools
+import time
+import random
+
+# We fix the seed for repeatablish sleeping
+random.seed(7)
 
 class record:
     """
@@ -25,13 +26,13 @@ class record:
     counters : Dictionary
         This contains a name of each function and how many times it ran
     events : List
-        This contains a list of events that have occured on a single node
+        This contains a list of events that have occurred on a single node
     verbose : bool
         Flag indicating to print on each event
     """
     counters = {}
     events = []
-    verbose = False
+    verbose = True
 
     def reset(verbose=True):
         """
@@ -90,16 +91,39 @@ class WorkflowTestConstants:
         The maximum number of steps set in the environment
     workflow_max_steps : int
         The maximum number of steps set in the workflow
+    priority_replay : int
+        0 to turn off. 1 to turn on.
     on_policy : int
-        How much delay an agent can tolerate
+        How much delay an agent can tolerate.  Set to -1
+        to ignore assert.
     behind : int
-        How old data can be to use to train
+        How old data can be to use to train. Set to -1
+        to ignore assert.
+    rank_sleep : bool
+        Flag to turn on sleeping in step and train based on
+        rank
+    random_sleep : bool
+        Flag to turn on sleeping in step and train based on
+        a random amount
     """
     episodes = None
     env_max_steps = None
     workflow_max_steps = None
-    on_policy = 1
-    behind = 0
+    priority_replay = 1
+    on_policy = -1
+    behind = -1
+    rank_sleep = False
+    random_sleep = True
+
+    def do_random_sleep():
+        """
+        This function look at the constants and performs a sleep
+        for some amount of microseconds
+        """
+        if WorkflowTestConstants.rank_sleep > 0:
+            time.sleep(ExaComm.global_comm.rank * 10**(-3))
+        elif WorkflowTestConstants.random_sleep > 0:
+            time.sleep(int(random.random()*100) * 10**(-4))
 
 class FakeLearner:
     """
@@ -145,7 +169,7 @@ class FakeLearner:
         results_dir : String
             Directory where logs are written
         """
-        # Doubt we accually need self.global_comm and self.global_size
+        # Doubt we actually need self.global_comm and self.global_size
         self.global_comm = ExaComm.global_comm
         self.global_size = ExaComm.global_comm.size
         self.nepisodes = nepisodes
@@ -161,6 +185,18 @@ class FakeLearner:
         Runs the workflow to test.
         """
         self.workflow.run(self)
+
+    def print_delays(self):
+        """
+        This function prints out statistics about the model
+        delays observed by the agent.
+        """
+        if ExaComm.is_learner() and len(self.agent._behind):
+            print("Learner Rank:Min:Max:Ave", ExaComm.global_comm.rank, min(self.agent._behind), max(self.agent._behind), sum(self.agent._behind)/len(self.agent._behind))
+        if ExaComm.is_agent() and len(self.agent._off_policy):
+            print("Agent Rank:Min:Max:Ave", ExaComm.global_comm.rank, min(self.agent._off_policy), max(self.agent._off_policy), sum(self.agent._off_policy)/len(self.agent._off_policy))
+        if ExaComm.is_agent() and len(self.agent._priority_delay):
+            print("Agent Priority Rank:Min:Max:Ave", ExaComm.global_comm.rank, min(self.agent._priority_delay), max(self.agent._priority_delay), sum(self.agent._priority_delay)/len(self.agent._priority_delay))
 
 class FakeEnv(gym.Env):
     """
@@ -243,6 +279,7 @@ class FakeEnv(gym.Env):
             self.done = True
         self.total_steps += 1
         # print("STEP", self.state, 1, self.done)
+        WorkflowTestConstants.do_random_sleep()
         return self.state, 1, self.done, {}
 
     @record.event
@@ -268,17 +305,25 @@ class FakeAgent(ExaAgent):
     to test a given workflow.  In this agent we have several counters
     (_has_data, _train, _target_train, _action, and _total_action) which
     we can query after running to ensure that the correct number of actions
-    is taken.  We also have counters (_weights, _indicie, and _loss) which
+    is taken.  We also have counters (_weights, _indices, and _loss) which
     always count up and are used to ensure correct coordination of the
     workflow.  These counters' values are asserted at runtime 
     (i.e. workflow.run).  The previous counters are (mostly) asserted post
     run.
 
-    As workflows become uncoupled, it is harder to guarentee how often a
-    model will be updated and how far off-policy learning can occure.  We
-    attempt to provide hooks for this using the WorklooadTestConstants.
+    The _weights counter is a list of two.  The first element is the counter
+    for the learner.  The second is the counter for the actor.  This counter
+    is split into two to support single rank tests.  The _indices counter is
+    also similarly split.  For this counter the actor increments the second
+    element and the learner will acknowledge its acceptance by
+    setting the first element to the second element.  The third element of
+    _indices is set to the actors rank for roundtrip verification.
+
+    As workflows become uncoupled, it is harder to guarantee how often a
+    model will be updated and how far off-policy learning can occurs.  We
+    attempt to provide hooks for this using the WorkloadTestConstants.
     However, this will probably require tuning with a given workflow in
-    conjuction with these tests!!!  This process should help the developer
+    conjunction with these tests!!!  This process should help the developer
     to understand how a workflow impacts the learning process.
 
     Attributes
@@ -299,17 +344,19 @@ class FakeAgent(ExaAgent):
         Counts how many times action has been called
     _weights : List
         This is the fake weights to pass around.  The list contains
-        a counter that counts up.  Weights increase after a train
-        performed by learner.  The other agents expect the count
-        to increase by some configurable amount.
-    _indicies : List
-        This is fake indicies to pass around.  This is similar to
-        the fake weights.  Weights are increased after a train.
-        Other agents expect the count to increase by one.
-    _loss : List
-        This is fake loss to pass around.  This is similar to
-        the fake weights.  Weights are increased after a train.
-        Other agents expect the count to increase by one.
+        two counter that counts up.  _weights[0] increase after a train
+        performed by learner.  _weights[1] is set to _weights[0] when
+        it is received in set_weights.
+    _indices : List
+        This is fake indices to pass around.  This is similar to
+        the fake weights.  _indices[0] is incremented by 
+        generate data.  _indices[1] is set by the learner in train.
+        _indices[2] is set to the global rank id.
+    _weight_loss_check : List
+        This list consists of the model indices of an actor
+        (given by _weights[1]) when priority_replay is set.
+        We use this list to check set priority is returning
+        to the actor a valid set of "indices and loss"
     _state : int
         The expected state to see coming from the environment.
         This number increase by one unless it is reset when
@@ -324,7 +371,7 @@ class FakeAgent(ExaAgent):
         The expected state from calling step.  This number should
         always be one larger than _state.
     _done : bool
-        The expected done flage.  This should only change when
+        The expected done flag.  This should only change when
         the max number of steps for the environment or workflow
         is reached.
     _update_weights_on_get : bool
@@ -344,6 +391,17 @@ class FakeAgent(ExaAgent):
         Not well used...
     tau : float
         Commonly used in target train, but not in the fake one.
+    _off_policy : List
+        This list is the differences between a new model and
+        old model recorded when setting weights by the actor
+    _behind : List
+        This list is the differences between a current model and
+        the model "used to generate data" recorded during train
+        by the learner.
+    _priority_delay : List
+        This list is the delay in models from the time between
+        generate_data and set_priority observed in set_priority
+        by an actor.
     """
 
     name = "FakeAgent-v0"
@@ -365,9 +423,9 @@ class FakeAgent(ExaAgent):
         self._total_action = 0
 
         # Counter/Messages
-        self._weights = [0]
-        self._indicies = [0]
-        self._loss = [0]
+        self._weights = [0, 0]
+        self._indices = [0, 0, ExaComm.global_comm.rank]
+        self._weights_loss_check = []
         
         # Expected values for remember
         self._state = 0
@@ -383,23 +441,33 @@ class FakeAgent(ExaAgent):
         # These are required members
         self.env = env
         self.is_learner = is_learner
-        self.priority_scale = 0
+        self.priority_scale = WorkflowTestConstants.priority_replay
         self.batch_size = 0
         self.buffer_capacity = 0
         self.epsilon = 1
         self.tau = 1
 
+        # For post processing
+        self._off_policy = []
+        self._behind = []
+        self._priority_delay = []
+
     @record.event
     def get_weights(self):
         """
-        This returns the weights.  Weights are updated when the
+        This returns the weights.  _weight[0] is updated when the
         train flag is set (meaning a target train has happened).
         We use this delay because set_weights expect the weights
-        to be increased by one.  From the perspective of the learner
-        this should only happen when train/target_train are called.
-        On startup however we do a get and set without calling any
-        trains.  By initializing the _update_weights_on_get we can
+        to be increased by at least one.  From the perspective of 
+        the learner this should only happen when train/target_train
+        are called. On startup however we do a get and set without 
+        calling any trains.  By initializing the 
+        _update_weights_on_get we can
         have increase the weights on the first get.
+
+        This also has the effect that multiple calls to train without
+        calling get_weights will look like a single model update.
+        This works with our approximation of on-policy learning.
 
         Returns
         -------
@@ -409,16 +477,16 @@ class FakeAgent(ExaAgent):
         if self._update_weights_on_get:
             self._weights[0] += 1
             self._update_weights_on_get = False
-        return self._weights
+        return self._weights[:]
 
     @record.event
     def set_weights(self, weights):
         """
-        This sets the weights.  The workflow should call set weights
-        when it recieves an update from the learner.  The weights 
-        for this fake agent are a constantly increasing counter that keeps
-        track of how often train/target_train have been called. From
-        the point of view of the agents, we expect this value to
+        This sets the weights.  The workflow should call set_weights
+        when it receives an update from the learner.  The weights 
+        for this fake agent are a constantly increasing counter(s) that 
+        keeps track of how often train/target_train have been called.
+        From the point of view of the agents, we expect this value to
         always be increase by some amount.  For on-policy learning this
         should only increase by 1.  Off-policy learning will increase by
         some factor.  We can assert how far "off-policy" we find
@@ -429,10 +497,14 @@ class FakeAgent(ExaAgent):
         weights : list
             The fake weights (counter) to evaluate
         """
-        # This wont work for multiple agents... i.e. off-policy
-        assert weights[0] - self._weights[0] > 0, "set_weights: recv duplicate weights " + str(weights[0]) + ", " + str(self._weights[0])
-        assert weights[0] - self._weights[0] <= WorkflowTestConstants.on_policy, "set_weights: off-policy " + str(weights[0]) + ", " + str(self._weights[0]) + ", policy " + str(WorkflowTestConstants.on_policy)
-        self._weights = weights
+        # weights[0] is from the learner _weights[1] is on the actor
+        assert weights[0] - self._weights[1] > 0, "set_weights: recv duplicate weights " + str(weights[0]) + ", " + str(self._weights[1])
+        if WorkflowTestConstants.on_policy > -1:
+            # This wont work for multiple agents... i.e. off-policy
+            assert weights[0] - self._weights[1] <= WorkflowTestConstants.on_policy, "set_weights: off-policy " + str(weights[0]) + ", " + str(self._weights[1]) + ", policy " + str(WorkflowTestConstants.on_policy)
+        else:
+            self._off_policy.append(weights[0] - self._weights[1])
+        self._weights[1] = weights[0]
 
     @record.event
     def remember(self, state, action, reward, next_state, done):
@@ -465,7 +537,6 @@ class FakeAgent(ExaAgent):
             the workflow.  This flag should be set if the max number of steps
             per episode for the environment or workflow has been reached. 
         """
-        # print("REMEMBER", state, action, reward, next_state, done, self.env.max_steps, WorkflowConstant.max_steps, flush=True)
         assert self._state == state, "remember: state " + str(self._state) + " == " + str(state)
         self._state += 1
         assert self._observed_action == action, "remember: action " + str(self._observed_action) + " == " + str(action)
@@ -492,37 +563,41 @@ class FakeAgent(ExaAgent):
         """
         This function is used to check if the states given by the environment are
         correct.  The generage_data function will pass back the weight counters
-        given to it and a counter for indicies/loss.  For on-policy learning 
+        given to it and a counter for indices/loss.  For on-policy learning 
         the weights should be the same as the current weights.  For off-policy 
         learning the weights should be some reasonable value less.  We use this 
-        function to keep a count of how many times train is called. We send back
-        "indicies and loss" without modification. In this case we will pass the
-        indicies counter and weight counter back to the agent for round-trip
-        validation.
+        function to keep a count of how many times train is called. 
+        
+        We send back "indices and loss" with updated indices[0] to show we have
+        processed the data. The remaining parts are untouched.
 
         Parameters
         ----------
         batch : pair
             The first value is the weights that the learner passed to the agent.
-            The second value is indicies counter given by the agent.
+            The second value is indices counter given by the agent.
 
         Returns
         -------
         pair
-            When using priority replay, the indicies and weights are passed back
-            unchanged for the agent to validate.
+            When using priority replay, the indices and weights are passed back
+            for the agent to validate.
         """
         # For a real agent this would be:
         # states, target = batch
-        weights, indicies = batch
-        # This wont work for multiple agents
-        assert weights[0] <= self._weights[0], "train: data from the future " + str(weights[0]) + ", " + str(self._weights[0])
-        assert self._weights[0] - weights[0] <= WorkflowTestConstants.behind, "train: data is too old " + str(weights[0]) + ", " + str(self._weights[0]) + ", behind " + str(WorkflowTestConstants.behind)
+        weights, indices = batch
+        assert weights[1] <= self._weights[0], "train: data from the future " + str(weights[0]) + ", " + str(self._weights[0])
+        if WorkflowTestConstants.behind > -1:
+            # This assert wont work for multiple agents
+            assert self._weights[0] - weights[1] <= WorkflowTestConstants.behind, "train: data is too old " + str(weights[0]) + ", " + str(self._weights[0]) + ", behind " + str(WorkflowTestConstants.behind)
+        else:
+            self._behind.append(self._weights[0] - weights[1])
         self._train += 1
+        WorkflowTestConstants.do_random_sleep()
 
         if self.priority_scale:
-            ret = self.indicies, self.weights
-            return ret
+            indices[0] = indices[1]
+            return indices, weights
 
     @record.event
     def target_train(self):
@@ -539,7 +614,7 @@ class FakeAgent(ExaAgent):
     @record.event
     def action(self, state):
         """
-        This is where an agent do inference for a given state to determine the
+        This is where an agent does inference for a given state to determine the
         next action.  In this function, we increase the action at the same rate
         as the state.  We assert the workflow is giving us the correct state.
         The action is reset in the remember function when we know done has been
@@ -582,7 +657,7 @@ class FakeAgent(ExaAgent):
         """
         This is a generator that returns the current weights of an agent.  This
         is linked to the train function of the learner who is expecting to
-        recieve the weights counter back.  We increment the inidices counter to
+        receive the weights counter back.  We increment the indices counter to
         keep track of how many times generate data is called before that batch has
         been processed.
 
@@ -591,36 +666,37 @@ class FakeAgent(ExaAgent):
         pair
             The weights counters to send to learner's train function.
         """
-        indicies = self._indicies
-        self._indicies[0] += 1
-        yield self._weights, indicies
+        self._indices[1] += 1
+        self._weights_loss_check.append(self._weights[1])
+        # This assert might fail with RMA since it might
+        # "get" the same model multiple times
+        assert len(self._weights_loss_check) == len(set(self._weights_loss_check)), "There are multiple batches generated from a single model"
+        yield self._weights[:], self._indices[:]
 
     @record.event
     def set_priorities(self, indices, loss):
         """
-        This function takes the indicies and loss counters sent from the learner.
-        In this case the indicies are a counter and the loss is the weights counter
+        This function takes the indices and loss counters sent from the learner.
+        In this case the indices are a counter and the loss is the weights counter
         sent from the agent to the learner and back to the agent for round-trip
         verification. We expect them to be the same as what we sent.  Since then
-        the workflow may have updated our weights, sent another batch, or both.
-        The difference between weights and indicies counter will let us know how
+        the workflow may have updated our weights, sent another batch, or both,
+        the difference between weights and indices counter will let us know how
         long it is taking for the round trip of set_priorities.
         
         Parameters
         ----------
-        inidicies : list
+        indices : list
             Counter originally coming from agent, sent to learner, and sent back to agent
         loss : list
-            Counter of the weigths used when training.  See comment in function.
+            Counter of the weights used when training.  See comment in function.
         """
         weights = loss
-        assert indices[0] == self._indices[0], "set_priorities: " + str(indices[0]) + " == " + str(self._indices[0])
-        # Not sure this will be right.. We might have already updated the weights
-        # maybe we should have a prev_weights and make sure the indicies
-        # are only set one round away.
-        assert weights[0] == self._weights[0], "set_priorities: " + str(weights[0]) + " == " + str(self._weights[0])
-        self._indicies = indices
-        self._loss = loss
+        assert indices[0] == self._indices[1], "set_priorities: " + str(indices[0]) + " == " + str(self._indices[1])
+        assert indices[2] == ExaComm.global_comm.rank, "indices are not for this rank " + str(ExaComm.global_comm.rank) + " " + str(indices[2])
+        assert weights[1] in self._weights_loss_check, "set_priorities: " + str(weights[1]) + " not in " + str(self._weights_loss_check)
+        self._weights_loss_check.remove(weights[1])
+        self._priority_delay.append(self._weights[1] - weights[1])
 
 if __name__ == "__main__":
     """
@@ -682,15 +758,18 @@ if __name__ == "__main__":
     workflow = exarl.workflows.make(workflow_name)
     learner = FakeLearner(episodes, steps, agent, env, workflow, dir_name)
     
-    # Run and print record if failure
-    try:
-        print("[STAND-ALONE WORKFLOW TEST] Running from rank", ExaComm.global_comm.rank, flush=True)
-        learner.run()
-    except Exception as e:
-        print(e)
-        for i in record.events:
-            print(i)
+    learner.run()
+    learner.print_delays()
     
+    # Run and print record if failure
+    # try:
+    #     print("[STAND-ALONE WORKFLOW TEST] Running from rank", ExaComm.global_comm.rank, flush=True)
+    #     learner.run()
+    # except Exception as e:
+    #     print(e)
+    #     for i in record.events:
+    #         print(i)
+
     # Clean up log if created
     ExaComm.global_comm.barrier()
     if made_dir:
