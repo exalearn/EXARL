@@ -361,7 +361,6 @@ class TypeUtils:
         ----------
         value : strine
             String to convert
-
         default : bool, optional
             value to return if conversion fails
 

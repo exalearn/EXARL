@@ -28,7 +28,7 @@ from exarl.utils import log
 import exarl.utils.candleDriver as cd
 from exarl.base.comm_base import ExaComm
 
-logger = log.setup_logger(__name__, cd.run_params['log_level'])
+logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
 
 class ASYNC(erl.ExaWorkflow):
     """Asynchronous workflow class: inherits from ExaWorkflow base class.
@@ -250,12 +250,6 @@ class ASYNC(erl.ExaWorkflow):
 
                             logger.info(
                                 'Rank[{}] - Generated data: {}'.format(agent_comm.rank, len(batch_data[0])))
-                            try:
-                                buffer_length = len(exalearner.agent.memory)
-                            except:
-                                buffer_length = exalearner.agent.replay_buffer.get_buffer_length()
-                            logger.info(
-                                'Rank[{}] - # Memories: {}'.format(agent_comm.rank, buffer_length))
 
                             if steps >= exalearner.nsteps - 1:
                                 done = True

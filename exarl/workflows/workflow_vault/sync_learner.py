@@ -25,7 +25,7 @@ from exarl.base.comm_base import ExaComm
 from exarl.utils import log
 import exarl.utils.candleDriver as cd
 from exarl.utils.profile import *
-logger = log.setup_logger(__name__, cd.run_params['log_level'])
+logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
 
 
 class SYNC(erl.ExaWorkflow):
@@ -95,12 +95,6 @@ class SYNC(erl.ExaWorkflow):
                     batch_data = next(exalearner.agent.generate_data())
                     logger.info(
                         'Rank[{}] - Generated data: {}'.format(env_comm.rank, len(batch_data[0])))
-                    try:
-                        buffer_length = len(exalearner.agent.memory)
-                    except:
-                        buffer_length = exalearner.agent.replay_buffer.get_buffer_length()
-                    logger.info(
-                        'Rank[{}] - # Memories: {}'.format(env_comm.rank, buffer_length))
 
                 # Learner
                 if ExaComm.is_learner():

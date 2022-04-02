@@ -223,9 +223,10 @@ class ExaMPIBuffUnchecked(ExaData):
             name of constant for debbuging
         """
         self.comm = comm
-
+        self.length = 1
         dataBytes = MPI.pickle.dumps(data)
-        size = len(dataBytes)
+        # JS: adding one because pickle is dumb
+        size = len(dataBytes) + 1
 
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=None, name=name)
 
@@ -295,7 +296,7 @@ class ExaMPIBuffUnchecked(ExaData):
             rank = self.comm.rank
 
         toSend = MPI.pickle.dumps(data)
-        assert len(toSend) <= self.dataSize
+        assert len(toSend) <= self.dataSize, str(len(toSend)) + " vs " + str(self.dataSize)
 
         self.win.Lock(rank)
         # Accumulate is element-wise atomic vs put which is not
@@ -352,6 +353,7 @@ class ExaMPIBuffChecked(ExaData):
         """
 
         self.comm = comm
+        self.length = 1
 
         self.dataBytes = bytearray(MPI.pickle.dumps((data, np.int64(0))))
         size = len(self.dataBytes)
@@ -512,7 +514,7 @@ class ExaMPIDistributedQueue(ExaData):
         self.failPush = failPush
 
         dataBytes = MPI.pickle.dumps(data)
-        size = len(dataBytes)
+        size = len(dataBytes) + 1
 
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag, name=name)
         self.buff = bytearray(self.dataSize)
@@ -632,6 +634,7 @@ class ExaMPIDistributedQueue(ExaData):
         write = True
         headIndex = head[0] % self.length
         tailIndex = tail[0] % self.length
+
         if head[0] > tail[0] and headIndex == tailIndex:
             if self.failPush:
                 write = False
@@ -646,7 +649,7 @@ class ExaMPIDistributedQueue(ExaData):
             capacity = self.length
         else:
             lost = 0
-            capacity = head[0] - tail[0]
+            capacity = head[0] - tail[0] + 1
 
         if write:
             self.win.Lock(rank)
@@ -727,7 +730,7 @@ class ExaMPIDistributedStack(ExaData):
         self.failPush = failPush
 
         dataBytes = MPI.pickle.dumps(data)
-        size = len(dataBytes)
+        size = len(dataBytes) + 1
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag, name=name)
 
         self.buff = bytearray(self.dataSize)
@@ -834,7 +837,7 @@ class ExaMPIDistributedStack(ExaData):
         if rank is None:
             rank = self.comm.rank
         toSend = MPI.pickle.dumps(data)
-        assert len(toSend) == self.dataSize
+        assert len(toSend) <= self.dataSize
 
         head = np.zeros(1, dtype=np.int64)
         tail = np.zeros(1, dtype=np.int64)
@@ -949,7 +952,7 @@ class ExaMPICentralizedStack(ExaData):
         self.failPush = failPush
 
         dataBytes = MPI.pickle.dumps(data)
-        size = len(dataBytes)
+        size = len(dataBytes) + 1
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag, name=name)
 
         self.buff = bytearray(self.dataSize)
@@ -1193,7 +1196,7 @@ class ExaMPICentralizedQueue(ExaData):
         self.failPush = failPush
 
         dataBytes = MPI.pickle.dumps(data)
-        size = len(dataBytes)
+        size = len(dataBytes) + 1
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag, name=name)
 
         self.buff = bytearray(self.dataSize)

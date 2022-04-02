@@ -47,7 +47,7 @@ if ExaComm.num_learners > 1:
 else:
     multiLearner = False
 
-logger = log.setup_logger(__name__, cd.run_params['log_level'])
+logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
 
 class LossHistory(keras.callbacks.Callback):
     """Loss history for training
@@ -196,8 +196,8 @@ class DQN(erl.ExaAgent):
             # self.opt = tf.keras.optimizers.Adam(self.learning_rate * hvd.size())
             self.opt = cd.candle.build_optimizer(self.optimizer, self.learning_rate * hvd.size(), cd.kerasDefaults)
 
-        self.maxlen = cd.run_params['mem_length']
-        self.replay_buffer = PrioritizedReplayBuffer(maxlen=self.maxlen)
+        self.buffer_capacity = cd.run_params['buffer_capacity']
+        self.replay_buffer = PrioritizedReplayBuffer(maxlen=self.buffer_capacity)
 
     def _get_device(self):
         """Get device type (CPU/GPU)
@@ -324,7 +324,8 @@ class DQN(erl.ExaAgent):
         Returns:
             bool: True if replay_buffer length >= self.batch_size
         """
-        return (self.replay_buffer.get_buffer_length() >= self.batch_size)
+        # return (self.replay_buffer.get_buffer_length() >= self.batch_size)
+        return (self.replay_buffer.get_buffer_length() > 0)
 
     @introspectTrace()
     def generate_data(self):
@@ -488,38 +489,3 @@ class DQN(erl.ExaAgent):
         """
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
-
-    def load(self, filename):
-        """Load model weights from pickle file
-
-        Args:
-            filename (string): full path of model file
-        """
-        layers = self.target_model.layers
-        with open(filename, 'rb') as f:
-            pickle_list = pickle.load(f)
-
-        for layerId in range(len(layers)):
-            # assert(layers[layerId].name == pickle_list[layerId][0])
-            layers[layerId].set_weights(pickle_list[layerId][1])
-
-    def save(self, filename):
-        """Save model weights to pickle file
-
-        Args:
-            filename (string): full path of model file
-        """
-        layers = self.target_model.layers
-        pickle_list = []
-        for layerId in range(len(layers)):
-            weigths = layers[layerId].get_weights()
-            pickle_list.append([layers[layerId].name, weigths])
-
-        with open(filename, 'wb') as f:
-            pickle.dump(pickle_list, f, -1)
-
-    def update(self):
-        logger.info("Implement update method in dqn.py")
-
-    def monitor(self):
-        logger.info("Implement monitor method in dqn.py")

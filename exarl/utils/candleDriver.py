@@ -79,7 +79,6 @@ class BenchmarkDriver(candle.Benchmark):
 
 def initialize_parameters():
     # Build agent object
-
     driver = BenchmarkDriver(file_path, '', 'keras',
                              prog='CANDLE_example', desc='CANDLE example driver script')
 

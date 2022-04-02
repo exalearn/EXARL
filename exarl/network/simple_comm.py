@@ -5,7 +5,8 @@ import os
 import numpy as np
 
 import exarl.utils.candleDriver as cd
-workflow = cd.run_params['workflow']
+workflow = cd.lookup_params('workflow')
+# JS: THIS LOOKS WRONG... WHY IS IT ONLY FOR ASYNC.
 if workflow == 'async':
     print("Turning mpi4py.rc.threads and mpi4py.rc.recv_mprobe to false!")
     import mpi4py.rc
@@ -91,9 +92,7 @@ class ExaSimple(ExaComm):
         Parameters
         ----------
         data : any
-            Not used
-        dest : int
-            Rank within comm where data will be sent. Must have matching recv.
+            Not use
         source : int, optional
             Rank to recieve data from.  Default allows data from any source.
         """
@@ -168,32 +167,55 @@ class ExaSimple(ExaComm):
         num_learners : int
             Number of processes per learner comm
         """
-        # Agent communicator
-        agent_color = MPI.UNDEFINED
-        if (self.rank < num_learners) or ((self.rank + procs_per_env - 1) % procs_per_env == 0):
-            agent_color = 0
-        agent_comm = self.comm.Split(agent_color, self.rank)
-        if agent_color == 0:
-            agent_comm = ExaSimple(comm=agent_comm)
-        else:
-            agent_comm = None
 
-        # Environment communicator
-        if self.rank < num_learners:
+        if MPI.COMM_WORLD.Get_size() == procs_per_env:
+            assert num_learners == 1, "num_learners should be 1 when global comm size == procs_per_env"
+            color = MPI.UNDEFINED
+            if self.rank == 0:
+                color = 0
+            learner_comm = self.comm.Split(color, self.rank)
+            agent_comm = self.comm.Split(color, self.rank)
+            if self.rank == 0:
+                learner_comm = ExaSimple(comm=learner_comm)
+                agent_comm = ExaSimple(comm=agent_comm)
+            else:
+                learner_comm = None
+                agent_comm = None
+
             env_color = 0
+            env_comm = self.comm.Split(env_color, self.rank)
+            env_comm = ExaSimple(comm=env_comm)
         else:
-            env_color = (int((self.rank - num_learners) / procs_per_env)) + 1
-        env_comm = ExaSimple(comm=self.comm.Split(env_color, self.rank))
+            # Agent communicator
+            agent_color = MPI.UNDEFINED
+            if (self.rank < num_learners) or ((self.rank - num_learners) % procs_per_env == 0):
+                agent_color = 0
+            agent_comm = self.comm.Split(agent_color, self.rank)
+            if agent_color == 0:
+                agent_comm = ExaSimple(comm=agent_comm)
+            else:
+                agent_comm = None
 
-        # Learner communicator
-        learner_color = MPI.UNDEFINED
-        if self.rank < num_learners:
-            learner_color = 0
-        learner_comm = self.comm.Split(learner_color, self.rank)
-        if learner_color == 0:
-            learner_comm = ExaSimple(comm=learner_comm)
-        else:
-            learner_comm = None
+            # Environment communicator
+            if self.rank < num_learners:
+                env_color = 0
+            else:
+                env_color = (int((self.rank - num_learners) / procs_per_env)) + 1
+            env_comm = self.comm.Split(env_color, self.rank)
+            if env_color > 0:
+                env_comm = ExaSimple(comm=env_comm)
+            else:
+                env_comm = None
+
+            # Learner communicator
+            learner_color = MPI.UNDEFINED
+            if self.rank < num_learners:
+                learner_color = 0
+            learner_comm = self.comm.Split(learner_color, self.rank)
+            if learner_color == 0:
+                learner_comm = ExaSimple(comm=learner_comm)
+            else:
+                learner_comm = None
 
         return agent_comm, env_comm, learner_comm
 
