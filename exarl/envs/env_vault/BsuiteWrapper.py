@@ -57,7 +57,7 @@ class BsuiteWrapper(gym.Env):
         post_path = 'bsuite_results/' + "_".join([bsuite_id, str(seed_number), str(rank)])
         bsuite_res_path = path.join(cd.run_params["output_dir"], post_path)
         self._logger = CSVLogger(bsuite_id=env_name, results_dir=bsuite_res_path)
-                                    
+
         self.env = gym_wrapper.GymFromDMEnv(self.raw_env)
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
@@ -92,7 +92,7 @@ class BsuiteWrapper(gym.Env):
         return timestep.observation
 
     def _track(self, timestep):
-        # Count transitions only. 
+        # Count transitions only.
         if not timestep.first():
             self._steps += 1
             self._episode_len += 1
@@ -103,7 +103,7 @@ class BsuiteWrapper(gym.Env):
         # Log statistics periodically, either by step or by episode.
         if ExaComm.env_comm.rank == 0:
             if self._log_by_step:
-                self._log_bsuite_data() 
+                self._log_bsuite_data()
 
             elif timestep.last():
                 self._log_bsuite_data()

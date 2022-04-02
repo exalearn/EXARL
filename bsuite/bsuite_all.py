@@ -21,33 +21,33 @@
 import sys
 from bsuite import sweep
 
-subsets = { "all" : ["bandit", "bandit_noise", "bandit_scale", 
-                    "cartpole", "cartpole_noise", "cartpole_scale", "cartpole_swingup",
-                    "catch", "catch_noise", "catch_scale",
-                    "deep_sea", "deep_sea_stochastic",
-                    "discounting_chain",
-                    "memory_len", "memory_size",
-                    "mnist", "mnist_noise", "mnist_scale",
-                    "mountain_car", "mountain_car_noise", "mountain_car_scale",
-                    "umbrella_distract", "umbrella_length"],
-            "working" : ["bandit", "bandit_noise", "bandit_scale", 
-                    "cartpole", "cartpole_noise", "cartpole_scale",
-                    "catch", "catch_noise", "catch_scale",
-                    "deep_sea", "deep_sea_stochastic",
-                    "discounting_chain",
-                    "memory_len", "memory_size",
-                    "mnist", "mnist_noise", "mnist_scale",
-                    "umbrella_distract", "umbrella_length"],
-            "developer": ["cartpole", "cartpole_noise", "bandit"],
-            "basic" : ["bandit", "mnist", "catch", "mountain_car", "cartpole"],
-            "noise" : ["bandit_noise", "mnist_noise", "catch_noise", "mountain_car_noise", "cartpole_noise"],
-            "scale" : ["bandit_scale", "mnist_scale", "catch_scale", "mountain_car_scale", "cartpole_scale"],
-            "exploration" : ["deep_sea", "deep_sea_stochastic", "cartpole_swingup"],
-            "credit_assignment" : ["umbrella_length", "umbrella_distract", "discounting_chain"],
-            "memory" : ["memory_len", "memory_size"],
-            "quick_basic" : ["bandit", "catch", "discounting_chain"],
-            "dynamics_learning" : ["cartpole_swingup", "deep_sea", "discounting_chain", "memory_len", "memory_size", "umbrella_length", "umbrella_distract"],
-            "empty": []}
+subsets = {"all": ["bandit", "bandit_noise", "bandit_scale",
+                   "cartpole", "cartpole_noise", "cartpole_scale", "cartpole_swingup",
+                   "catch", "catch_noise", "catch_scale",
+                   "deep_sea", "deep_sea_stochastic",
+                   "discounting_chain",
+                   "memory_len", "memory_size",
+                   "mnist", "mnist_noise", "mnist_scale",
+                   "mountain_car", "mountain_car_noise", "mountain_car_scale",
+                   "umbrella_distract", "umbrella_length"],
+           "working": ["bandit", "bandit_noise", "bandit_scale",
+                       "cartpole", "cartpole_noise", "cartpole_scale",
+                       "catch", "catch_noise", "catch_scale",
+                       "deep_sea", "deep_sea_stochastic",
+                       "discounting_chain",
+                       "memory_len", "memory_size",
+                       "mnist", "mnist_noise", "mnist_scale",
+                       "umbrella_distract", "umbrella_length"],
+           "developer": ["cartpole", "cartpole_noise", "bandit"],
+           "basic": ["bandit", "mnist", "catch", "mountain_car", "cartpole"],
+           "noise": ["bandit_noise", "mnist_noise", "catch_noise", "mountain_car_noise", "cartpole_noise"],
+           "scale": ["bandit_scale", "mnist_scale", "catch_scale", "mountain_car_scale", "cartpole_scale"],
+           "exploration": ["deep_sea", "deep_sea_stochastic", "cartpole_swingup"],
+           "credit_assignment": ["umbrella_length", "umbrella_distract", "discounting_chain"],
+           "memory": ["memory_len", "memory_size"],
+           "quick_basic": ["bandit", "catch", "discounting_chain"],
+           "dynamics_learning": ["cartpole_swingup", "deep_sea", "discounting_chain", "memory_len", "memory_size", "umbrella_length", "umbrella_distract"],
+           "empty": []}
 
 
 def parse_entry(entry):
@@ -65,6 +65,7 @@ def get_all(filter):
                 reps = max([ret[name][1], reps])
             ret[name] = (seed, reps)
     return ret
+
 
 if __name__ == "__main__":
     filter = "all"

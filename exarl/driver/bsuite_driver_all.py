@@ -45,11 +45,11 @@ We added max_episodes to differentiate the episodes for this
 driver as the user probably will have a learner_cfg.json file
 configured for regular experiments.  If they are sure they
 want to limit the episodes they will have to add the --env
-flag.  By setting max_episodes to -1, we will run the 
+flag.  By setting max_episodes to -1, we will run the
 number of episodes given by Bsuite sweep.
 """
 
-# Experiment parameters. 
+# Experiment parameters.
 # TODO: Fix these envs.
 excluded_envs = ['cartpole_swingup',
                  'mountain_car',
@@ -71,12 +71,10 @@ for env_id in tqdm(sweep.SWEEP[start_id:]):
     cd.run_params['seed_number'] = seed_number
     cd.run_params["n_episodes"] = sweep.EPISODES[env_id] if max_episodes == -1 else max_episodes
 
-    print("Current Env:", cd.run_params["bsuite_id"], 
-        "Seed:", cd.run_params['seed_number'], 
-        "Episodes:", cd.run_params["n_episodes"],
-        "Steps:", cd.run_params["n_steps"])
-    
-	# Create learner object and run
+    print("Current Env:", cd.run_params["bsuite_id"], "Seed:", cd.run_params['seed_number'],
+          "Episodes:", cd.run_params["n_episodes"], "Steps:", cd.run_params["n_steps"])
+
+    # Create learner object and run
     exa_learner = exarl.ExaLearner()
 
     # MPI communicator

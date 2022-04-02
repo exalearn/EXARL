@@ -372,9 +372,8 @@ class TypeUtils:
         """
         if isinstance(val, bool):
             return val
-        
+
         bool_map = {"true": True, "True": True, "false": False, "False": False}
         if val in bool_map:
             return bool_map[val]
-        
         return default

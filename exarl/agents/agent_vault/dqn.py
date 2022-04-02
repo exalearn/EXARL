@@ -271,7 +271,7 @@ class DQN(erl.ExaAgent):
         else:
             np_state = self.flatten_observation(state)
             with tf.device(self.device):
-                act_values = self.target_model.predict(np_state)       
+                act_values = self.target_model.predict(np_state)
             action = np.argmax(act_values[0])
             return action, 1
 
@@ -352,13 +352,13 @@ class DQN(erl.ExaAgent):
             batch_states = [self.flatten_observation(exp[0]) for exp in minibatch]
             size = len(minibatch)
 
-        # JS: Always reshape... Even the zeros.    
+        # JS: Always reshape... Even the zeros.
         batch_target = np.reshape(batch_target, [size, self.env.action_space.n])
         if self.model_type == 'LSTM':
             batch_states = np.reshape(batch_states, [size, 1, self.dim_observation])
         else:
             batch_states = np.reshape(batch_states, [size, self.dim_observation])
-        
+
         if self.priority_scale > 0:
             yield batch_states, batch_target, indices, importance
         else:

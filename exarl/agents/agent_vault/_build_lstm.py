@@ -33,7 +33,7 @@ def build_model(self):
     See the following for clarification:
     https://machinelearningmastery.com/reshape-input-data-long-short-term-memory-networks-keras/
     https://github.com/MohammadFneish7/Keras_LSTM_Diagram
-    
+
     Batch size - how many sequences we are passing in
     Sequence size - sequence of events.  This is related to our memory
     Feature size - this is the flatten dimension of the observation space
