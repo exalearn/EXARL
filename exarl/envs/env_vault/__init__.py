@@ -1,8 +1,5 @@
 import exarl.utils.candleDriver as cd
-try:
-    env = cd.run_params['env']
-except:
-    print("Unknown environment: {} did not match any registered environments.".format(env))
+env = cd.lookup_params('env')
 
 if env == 'ExaCartPoleStatic-v0':
     from exarl.envs.env_vault.ExaCartpoleStatic import ExaCartpoleStatic

@@ -1,10 +1,7 @@
 from gym.envs import registration
 from gym.envs.registration import register
 import exarl.utils.candleDriver as cd
-try:
-    env = cd.run_params['env']
-except:
-    print("Unknown environment: {} did not match any registered environments.".format(env))
+env = cd.lookup_params('env')
 
 if env == 'ExaCH-v0':
     register(
