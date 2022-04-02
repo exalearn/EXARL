@@ -18,21 +18,21 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-from tensorflow import keras
-import exarl as erl
-import exarl.utils.analyze_reward as ar
+import os
 import time
+import numpy as np
+from tensorflow import keras
+
+import exarl
+import exarl.utils.analyze_reward as ar
 from exarl.utils import candleDriver as cd
 from exarl.utils.introspect import *
-import numpy as np
-import os
-
 
 # Create learner object and run
-exa_learner = erl.ExaLearner()
+exa_learner = exarl.ExaLearner()
 
 # MPI communicator
-comm = erl.ExaComm.global_comm
+comm = exarl.ExaComm.global_comm
 rank = comm.rank
 size = comm.size
 

@@ -3,8 +3,8 @@ package SingleRun;
 use strict;
 use Time::HiRes qw(usleep);
 
-my $user = "suet688";
-my $partition = "newell";
+my $user = "userName";
+my $partition = "partitionName";
 my $overSubFactor = 2;
 my $defaultThreashold = 1;
 my $threashold = $defaultThreashold;

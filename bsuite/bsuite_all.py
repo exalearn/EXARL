@@ -21,7 +21,6 @@
 import sys
 from bsuite import sweep
 
-# TODO: Add more (meaningful) subsets
 subsets = { "all" : ["bandit", "bandit_noise", "bandit_scale", 
                     "cartpole", "cartpole_noise", "cartpole_scale", "cartpole_swingup",
                     "catch", "catch_noise", "catch_scale",

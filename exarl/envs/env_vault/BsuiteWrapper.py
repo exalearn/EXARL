@@ -46,15 +46,16 @@ class BsuiteWrapper(gym.Env):
         super().__init__()
         self.env_comm = ExaComm.env_comm
         rank = ExaComm.agent_comm.rank
-        bsuite_id = cd.lookup_params('bsuite_id', default='cartpole')
-        seed_number = cd.lookup_params('seed_number', default='0')
+        bsuite_id = cd.run_params["bsuite_id"]
+        seed_number = cd.run_params["seed_number"]
         env_name = bsuite_id + "/" + seed_number
         print("Loading", env_name)
 
         # Let self.raw_env be of class dm_env.Environment.
         # Then return gym-like outputs for step, reset methods.
         self.raw_env = bsuite.load_from_id(bsuite_id=env_name)
-        bsuite_res_path = path.join(cd.run_params["output_dir"], 'bsuite_results_' + str(rank))
+        post_path = 'bsuite_results/' + "_".join([bsuite_id, str(seed_number), str(rank)])
+        bsuite_res_path = path.join(cd.run_params["output_dir"], post_path)
         self._logger = CSVLogger(bsuite_id=env_name, results_dir=bsuite_res_path)
                                     
         self.env = gym_wrapper.GymFromDMEnv(self.raw_env)

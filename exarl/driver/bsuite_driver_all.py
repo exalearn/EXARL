@@ -18,27 +18,46 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-from numpy.random.mtrand import seed
-import exarl as erl
-# import exarl.utils.analyze_reward as ar
 import time
-from exarl.utils.candleDriver import lookup_params, run_params
-from exarl.utils.introspect import *
-import numpy as np
+import exarl
+from exarl.utils import candleDriver as cd
 
-from bsuite import sweep
+import numpy as np
 from tqdm import tqdm
+from bsuite import sweep
+
+"""
+This is a driver that steps through all of Bsuite
+with a single configuration.  It runs each environment
+one after another.  There are three parameters that
+can be adjusted from command line:
+
+    - start_id - what environment index to start from
+    - max_seed_number - max seeds to run per environment
+    - max_episodes - max number of episodes to run per environment
+
+To adjust these from command line, be sure to set the
+environment to Bsuite-v0 as that is where candlelib will pick
+up the arguments from.  If you don't then this driver will
+try to run everything with full episodes.
+
+We added max_episodes to differentiate the episodes for this
+driver as the user probably will have a learner_cfg.json file
+configured for regular experiments.  If they are sure they
+want to limit the episodes they will have to add the --env
+flag.  By setting max_episodes to -1, we will run the 
+number of episodes given by Bsuite sweep.
+"""
 
 # Experiment parameters. 
-# Edit: 1. Where you want to start
-#       2. What environments to exclude
-#       3. The max seed number
-start_id = 0
+# TODO: Fix these envs.
 excluded_envs = ['cartpole_swingup',
                  'mountain_car',
                  'mountain_car_noise',
                  'mountain_car_scale']
-max_seed_number = 1
+start_id = cd.lookup_params("driver_start_id", default=0)
+max_seed_number = cd.lookup_params("driver_max_seeds", default=20)
+max_episodes = cd.lookup_params("driver_max_episodes", default=-1)
 # End of experiment parameters
 
 for env_id in tqdm(sweep.SWEEP[start_id:]):
@@ -48,40 +67,30 @@ for env_id in tqdm(sweep.SWEEP[start_id:]):
     if int(seed_number) > max_seed_number or bsuite_id in excluded_envs:
         continue
 
-    print("Current Env: ", env_id)
-    run_params["bsuite_id"], run_params['seed_number'] = bsuite_id, seed_number
-    run_params["n_episodes"] = sweep.EPISODES[env_id]
+    cd.run_params["bsuite_id"] = bsuite_id
+    cd.run_params['seed_number'] = seed_number
+    cd.run_params["n_episodes"] = sweep.EPISODES[env_id] if max_episodes == -1 else max_episodes
 
+    print("Current Env:", cd.run_params["bsuite_id"], 
+        "Seed:", cd.run_params['seed_number'], 
+        "Episodes:", cd.run_params["n_episodes"],
+        "Steps:", cd.run_params["n_steps"])
+    
 	# Create learner object and run
-    exa_learner = erl.ExaLearner()
+    exa_learner = exarl.ExaLearner()
 
     # MPI communicator
-    comm = erl.ExaComm.global_comm
+    comm = exarl.ExaComm.global_comm
     rank = comm.rank
     size = comm.size
 
-    writeDir = lookup_params("introspector_dir")
-    if writeDir is not None:
-        ibLoadReplacement(comm, writeDir)
-
     # Run the learner, measure time
-    ib.start()
     start = time.time()
     exa_learner.run()
     elapse = time.time() - start
-    ib.stop()
 
-    if ibLoaded():
-        print("Rank", comm.rank, "Time = ", elapse)
-    else:
-        max_elapse = comm.reduce(np.float64(elapse), max, 0)
-        elapse = comm.reduce(np.float64(elapse), sum, 0)
-        if rank == 0:
-            print("Average elapsed time = ", elapse / size)
-            print("Maximum elapsed time = ", max_elapse)
-
-    # if rank == 0:
-    # 	# Save rewards vs. episodes plot
-    # 	ar.save_reward_plot()
-
-    ibWrite(writeDir)
+    max_elapse = comm.reduce(np.float64(elapse), max, 0)
+    elapse = comm.reduce(np.float64(elapse), sum, 0)
+    if rank == 0:
+        print("Average elapsed time = ", elapse / size)
+        print("Maximum elapsed time = ", max_elapse)

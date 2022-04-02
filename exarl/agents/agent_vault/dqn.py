@@ -144,7 +144,6 @@ class DQN(erl.ExaAgent):
             self.actions = np.linspace(env.action_space.low, env.action_space.high, self.n_actions)
 
         # Data types of action and observation space
-        # TODO: JS DOUBLE CHECK THIS 
         self.dim_action = np.array(self.env.action_space.sample()).dtype
 
         flat_sample = flatten(self.env.observation_space, self.env.observation_space.sample())
@@ -267,18 +266,12 @@ class DQN(erl.ExaAgent):
         rdm = np.random.rand()
         if rdm <= self.epsilon:
             self.epsilon_adj()
-
-            # JS I think this is the wrong way to get a random action
-            # action = random.randrange(self.env.action_space.n)
             action = self.env.action_space.sample()
-            
             return action, 0
         else:
-            # JS: This returns an np array with dim (x,) where x is the length of a flat state
             np_state = self.flatten_observation(state)
             with tf.device(self.device):
-                act_values = self.target_model.predict(np_state)   
-            # JS: Since our model takes a list of states (length is 1) we get a list back        
+                act_values = self.target_model.predict(np_state)       
             action = np.argmax(act_values[0])
             return action, 1
 
@@ -295,9 +288,8 @@ class DQN(erl.ExaAgent):
         """
         action, policy = self.get_action(state)
 
-        # JS WE IGNORE FOR NOW
-        # if not self.is_discrete:
-        #     action = [self.actions[action]]
+        if not self.is_discrete:
+            action = [self.actions[action]]
         return action, policy
 
     @introspectTrace()
@@ -311,8 +303,6 @@ class DQN(erl.ExaAgent):
             target Q value (array): [description]
         """
         state, action, reward, next_state, done = exp
-        # np_state = np.array(state, dtype=self.dtype_observation).reshape(1, 1, len(state))
-        # np_next_state = np.array(next_state, dtype=self.dtype_observation).reshape(1, 1, len(next_state))
         np_state = self.flatten_observation(state)
         np_next_state = self.flatten_observation(next_state)
 
