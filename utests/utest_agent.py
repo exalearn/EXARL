@@ -416,8 +416,8 @@ def agent_with_synth_env(registered_agent, registered_synth_environment, run_par
     The environment is passed via request allowing it to be passed by setting
     indirect=True being in @pytest.mark.parametrize:
     (e.g. @pytest.mark.parametrize("syth_agent", listOfEnvs, indirect=True) )
-    This allows us to test other evironments than what we passed in on command line.
-    Ultimatly the list that should be passed in is the list of synthetic environments.
+    This allows us to test other environments than what we passed in on command line.
+    Ultimately the list that should be passed in is the list of synthetic environments.
 
     Parameters
     ----------
@@ -510,7 +510,7 @@ class TestAgentMembers:
     @pytest.mark.parametrize("pre_agent", list(EnvGenerator.getNames()), indirect=True)
     def test_agent_creation(self, pre_agent):
         """
-        Tests the initalization of synthetic agents.  The synthetic agents iterate over all possible
+        Tests the initialization of synthetic agents.  The synthetic agents iterate over all possible
         gym action/observation space combinations.  This will test the agents ability to handle creating
         a model (mlp/lstm) for such spaces.
 
@@ -529,7 +529,7 @@ class TestAgentMembers:
 
     def test_init(self, agent):
         """
-        Tests the initalization of agents relative to comm.
+        Tests the initialization of agents relative to comm.
 
         Parameters
         ----------
@@ -593,7 +593,7 @@ class TestAgentMembers:
             weights = agent.get_weights()
             # Make new weights
             new_weights = TestAgentHelper.make_weights_from_old_weights(weights)
-            # Set weigthts
+            # Set weights
             agent.set_weights(new_weights)
             # Check weights
             to_check = agent.get_weights()
@@ -717,7 +717,7 @@ class TestAgentMembers:
         data stored, generate data outputs fake data.  This is to setup
         RMA windows for data structures.  This test checks that the size
         of the fake data is >= the size of real data.  Sometimes the size
-        issue is related to how pickle opperates.
+        issue is related to how pickle operates.
 
         Parameters
         ----------

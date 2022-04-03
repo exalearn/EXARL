@@ -11,6 +11,8 @@ from exarl.base.env_base import ExaEnv
 from exarl.base.agent_base import ExaAgent
 from exarl.envs.env_vault.UnitEvn import EnvGenerator
 import functools
+import time
+import random
 
 class record:
     """"
@@ -25,7 +27,7 @@ class record:
     each process (i.e. rank).  P is the total number of processes (thus
     we have P^2 total clock across all ranks).  We increase our clock
     (i.e. clock[rank]) every event we encounter.  When we "send" a
-    recieve a message we update our vector of clocks to the max time
+    receive a message we update our vector of clocks to the max time
     (i.e. count) observed by each clock.
 
     When an event occurs and we increase our clock, we also record
@@ -44,7 +46,7 @@ class record:
 
     This is not a complete DAG, as we are still developing the partial
     order based on the observed order of events.  In otherwords, events
-    could be reordered from the point of view of exection reduce the
+    could be reordered from the point of view of execution reduce the
     number of dependencies.
 
     To create a complete view of the events across a run, we gather all
@@ -54,14 +56,14 @@ class record:
 
     Events are recorded via a decorator, which we attach to each function
     we care about.  Functions that can be seen as message sends, will
-    call get_clock_to_send while messages that recieve will call update_clocks.
+    call get_clock_to_send while messages that receive will call update_clocks.
 
     Attributes
     ----------
     counters : Dictionary
         This contains a name of each function and how many times it ran
     events : List
-        This contains a list of events that have occured on a single node
+        This contains a list of events that have occurred on a single node
     clocks : list
         These are clocks, one for each rank
     """
@@ -97,7 +99,7 @@ class record:
 
     def update_clock(clocks):
         """
-        This recieves a vector clock and updates the local
+        This receives a vector clock and updates the local
         vector clock with the max per rank.
 
         Parameters
@@ -256,10 +258,28 @@ class WorkflowTestConstants:
         The maximum number of steps set in the environment
     workflow_max_steps : int
         The maximum number of steps set in the workflow
+    rank_sleep : bool
+        Flag to turn on sleeping in step and train based on
+        rank
+    random_sleep : bool
+        Flag to turn on sleeping in step and train based on
+        a random amount
     """
     episodes = None
     env_max_steps = None
     workflow_max_steps = None
+    rank_sleep = False
+    random_sleep = False
+
+    def do_random_sleep():
+        """
+        This function look at the constants and performs a sleep
+        for some amount of microseconds
+        """
+        if WorkflowTestConstants.rank_sleep > 0:
+            time.sleep(ExaComm.global_comm.rank * 10**(-3))
+        elif WorkflowTestConstants.random_sleep > 0:
+            time.sleep(int(random.random() * 100) * 10**(-4))
 
 class FakeLearner:
     """
@@ -380,6 +400,7 @@ class FakeEnv(gym.Env):
         if self.state < self.max_steps:
             self.state += 1
         done = self.state == self.max_steps
+        WorkflowTestConstants.do_random_sleep()
         return self.state, 1, done, {}
 
     @record.event
@@ -400,8 +421,8 @@ class FakeAgent(ExaAgent):
     """
     This class is a fake agent.  Each method is tagged with vector clocks to
     keep track of events.  A send is a method that will generate data for
-    another rank.  A recieve is a method that will take data in from another
-    rank.  Instead of passing weight, indicies, or loss around, we replace
+    another rank.  A receive is a method that will take data in from another
+    rank.  Instead of passing weight, indices, or loss around, we replace
     this with passing the vector clocks allowing us to create the partial
     orders.
 
@@ -445,7 +466,7 @@ class FakeAgent(ExaAgent):
         # These are "required" members
         self.env = env
         self.is_learner = is_learner
-        self.priority_scale = 0
+        self.priority_scale = 1
         self.batch_size = 0
         self.buffer_capacity = 0
         self.epsilon = 1
@@ -470,7 +491,7 @@ class FakeAgent(ExaAgent):
     @record.event
     def set_weights(self, weights):
         """
-        This is the recieve for the vector clocks originating
+        This is the receive for the vector clocks originating
         from get_weights.  We update our local clock with
         incoming clocks.
 
@@ -495,7 +516,7 @@ class FakeAgent(ExaAgent):
     @record.event
     def train(self, batch):
         """
-        This is the recieve of a vector clock coming from a agent rank.
+        This is the receive of a vector clock coming from a agent rank.
         We update our clock accordingly.
 
         Parameters
@@ -512,6 +533,7 @@ class FakeAgent(ExaAgent):
         _, clocks = batch
         # This is where the learner receives from the agent
         record.update_clock(clocks)
+        WorkflowTestConstants.do_random_sleep()
         if self.priority_scale:
             # This is where the learner sends to the agent
             return self._data, record.get_clock_to_send()
@@ -571,7 +593,7 @@ class FakeAgent(ExaAgent):
     @record.event
     def set_priorities(self, indices, loss):
         """
-        This is the recieve function coming from the learners train
+        This is the receive function coming from the learners train
         when priority_scale is turned on.
 
         Parameters

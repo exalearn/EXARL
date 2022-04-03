@@ -189,6 +189,7 @@ class TestEnvMembers:
         A     0  1  2  -  -  -  3  -  -  -  4  -  -  -
         E     -  -  0  1  2  3  0  1  2  3  0  1  2  3
 
+        This is also a valid rank for sync workflow.
         Rank  0  1  2  3
         L     0  -  -  -
         A     0  -  -  -
@@ -211,7 +212,7 @@ class TestEnvMembers:
         else:
             total_env = procs_per_env * int((size - num_learners) / procs_per_env)
             assert total_env > 0
-            assert size == total_env + num_learners, "Invalide configuration"
+            assert size == total_env + num_learners, "Invalided configuration"
 
         # Do the split
         comm(procs_per_env=procs_per_env, num_learners=num_learners)

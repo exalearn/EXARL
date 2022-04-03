@@ -210,7 +210,7 @@ class TestDataStructure:
         if data is None:
             data = self.make_packet(TestDataStructure.packet_size, -1)
         else:
-            assert data[0] == -1, name + " should have an inial standard packet with sequence number -1 but got " + str(data[0])
+            assert data[0] == -1, name + " should have an initial standard packet with sequence number -1 but got " + str(data[0])
         return TestDataStructure.constructor[name](TestDataStructure.comm,
                                                    data,
                                                    name=name,
@@ -221,7 +221,7 @@ class TestDataStructure:
 
 class TestDataStructureMembers(TestDataStructure):
     """
-    This class is a collection of basic tests for data stuctures.  These include tests to check the basic required
+    This class is a collection of basic tests for data structures.  These include tests to check the basic required
     members and the return values of the methods for popping and pushing data.
     """
 
@@ -236,9 +236,9 @@ class TestDataStructureMembers(TestDataStructure):
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor.
         """
-        data_stucture = self.init_data_structure(name)
-        assert data_stucture.name == name, name + " failed name comparison but got " + data_stucture.name
-        assert isinstance(data_stucture, TestDataStructure.constructor[name])
+        data_structure = self.init_data_structure(name)
+        assert data_structure.name == name, name + " failed name comparison but got " + data_structure.name
+        assert isinstance(data_structure, TestDataStructure.constructor[name])
 
     @pytest.mark.parametrize("max_model_lag", TestDataStructure.max_model_lag_list)
     @pytest.mark.parametrize("name", TestDataStructure.constructor.keys())
@@ -271,7 +271,7 @@ class TestDataStructureMembers(TestDataStructure):
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         """
         data_structure = self.init_data_structure(name, length=length)
         for i in range(length * 2):
@@ -313,7 +313,7 @@ class TestDataStructureMembers(TestDataStructure):
             failPush == True - The data lost value will indicate that the push did not succeed
                 0 - successful push
                 1 - failed push
-            failPush == False - The data lost value in the data structure was overwritten and the push succeded
+            failPush == False - The data lost value in the data structure was overwritten and the push succeeded
                 0 - No data was lost
                 1 - One entry of data was overwritten
 
@@ -322,7 +322,7 @@ class TestDataStructureMembers(TestDataStructure):
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         over : int
             The amount of pushes to perform over the length of the data structure
         failPush : bool
@@ -357,7 +357,7 @@ class TestDataStructureMembers(TestDataStructure):
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         """
         data_structure = self.init_data_structure(name, length=length)
 
@@ -386,7 +386,7 @@ class TestDataStructureMembers(TestDataStructure):
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         over : int
             The amount of pushes to perform over the length of the data structure
         failPush : bool
@@ -435,7 +435,7 @@ class TestDataStructureMembers(TestDataStructure):
         is initialized to a size of length * number of ranks to ensure that when over = 0, no data will be
         lost.  Every rank (including rank 0) pushes length + over packets of data to rank 0.  All ranks
         then hit a barrier.  Rank 0 then pops all the data and checks for the appropriate number of packets.
-        If over == 0, we check to see all packetes have arrived from each rank.  We are not guarenteed any
+        If over == 0, we check to see all packets have arrived from each rank.  We are not guaranteed any
         other packets when over > 0 since data will be overwritten.  The last check looks for a packet with
         the last data sequence number.
 
@@ -444,7 +444,7 @@ class TestDataStructureMembers(TestDataStructure):
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         over : int
             The amount of pushes to perform over the length of the data structure
         failPush : bool
@@ -477,8 +477,8 @@ class TestDataStructureMembers(TestDataStructure):
                     assert ranks == list(range(TestDataStructure.comm.size)), name + " missing packets " + str(i) + " " + str(ranks)
 
             # Will have duplicates seq numbers coming from different ranks
-            # We can't guarentee the order without more synchronization
-            # Instead check to see that the last seq number exists if failPush=False since we are guarenteed someone has to be last
+            # We can't guarantee the order without more synchronization
+            # Instead check to see that the last seq number exists if failPush=False since we are guaranteed someone has to be last
             # Check the inverse is true for failPush=True
             seq_num = set([x[0] for x in pop_packets])
             if failPush and over > 0 and "buff" not in name:
@@ -500,7 +500,7 @@ class TestDataStructureMembers(TestDataStructure):
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         """
         self.length_single_rank(name, length, over=0, failPush=False)
 
@@ -516,7 +516,7 @@ class TestDataStructureMembers(TestDataStructure):
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         """
         self.length_multiple_ranks(name, length, over=0, failPush=False)
 
@@ -534,7 +534,7 @@ class TestDataStructureMembers(TestDataStructure):
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         over : int
             The amount of pushes to perform over the length of the data structure
         failPush : bool
@@ -554,7 +554,7 @@ class TestDataStructureMembers(TestDataStructure):
 
 class TestMessagePatterClass(TestDataStructure):
     """
-    This class is a collection of tests for data stuctures to test communication patterns used in Exarl.
+    This class is a collection of tests for data structures to test communication patterns used in Exarl.
     """
 
     @pytest.mark.parametrize("spread", [False, True])
@@ -688,16 +688,16 @@ class TestMessagePatterClass(TestDataStructure):
     def test_free_for_all(self, name, length, num_packets, spread, reps=TestDataStructure.reps, max_try=TestDataStructure.max_try):
         """
         This test has all ranks other than rank 0 pushing data.  At the same time rank 0 will pop data max_try attempts.
-        Pushing ranks will continue pushing a given packet until it succeeds.  FailPush=True guarenteeing no data will be
-        lost since we push until success.  Buffers cannot be used in the test as they cannot cannot guarentee data will
-        not be lost on a push.  We check that all data is recieved
+        Pushing ranks will continue pushing a given packet until it succeeds.  FailPush=True guaranteeing no data will be
+        lost since we push until success.  Buffers cannot be used in the test as they cannot cannot guarantee data will
+        not be lost on a push.  We check that all data is received
 
         Parameters
         ----------
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         num_packets : int
             The number of packets to push per rank
         spread : bool
@@ -781,9 +781,9 @@ class TestMessagePatterClass(TestDataStructure):
                                 loss_per_rank=TestDataStructure.loss_per_rank):
         """
         This test has all ranks other than rank 0 pushing data.  At the same time rank 0 will pop data max_try attempts.
-        Pushing ranks will push a given packet once.  FailPush=True guarenteeing no data will be
-        lost since we push until success.  Buffers cannot be used in the test as they cannot cannot guarentee data will
-        not be lost on a push.  We check that all data is recieved.
+        Pushing ranks will push a given packet once.  FailPush=True guaranteeing no data will be
+        lost since we push until success.  Buffers cannot be used in the test as they cannot cannot guarantee data will
+        not be lost on a push.  We check that all data is received.
 
         This test checks to see how much data is lost in a free for all.  The acceptable amount is not hard and fast.
         We originally set it to 50% of the data as a good approximation, but ultimately the performance of a data
@@ -798,7 +798,7 @@ class TestMessagePatterClass(TestDataStructure):
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         num_packets : int
             The number of packets to push per rank
         failPush : bool

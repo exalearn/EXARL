@@ -32,9 +32,9 @@ class record:
     """
     counters = {}
     events = []
-    verbose = True
+    verbose = False
 
-    def reset(verbose=True):
+    def reset(verbose=False):
         """
         Resets the record.
 
@@ -91,8 +91,6 @@ class WorkflowTestConstants:
         The maximum number of steps set in the environment
     workflow_max_steps : int
         The maximum number of steps set in the workflow
-    priority_replay : int
-        0 to turn off. 1 to turn on.
     on_policy : int
         How much delay an agent can tolerate.  Set to -1
         to ignore assert.
@@ -109,7 +107,6 @@ class WorkflowTestConstants:
     episodes = None
     env_max_steps = None
     workflow_max_steps = None
-    priority_replay = 1
     on_policy = -1
     behind = -1
     rank_sleep = False
@@ -444,7 +441,7 @@ class FakeAgent(ExaAgent):
         # These are required members
         self.env = env
         self.is_learner = is_learner
-        self.priority_scale = WorkflowTestConstants.priority_replay
+        self.priority_scale = 1
         self.batch_size = 0
         self.buffer_capacity = 0
         self.epsilon = 1
@@ -461,6 +458,7 @@ class FakeAgent(ExaAgent):
         This returns the weights.  _weight[0] is updated when the
         train flag is set (meaning a target train has happened).
         We use this delay because set_weights expect the weights
+
         to be increased by at least one.  From the perspective of
         the learner this should only happen when train/target_train
         are called. On startup however we do a get and set without
@@ -486,6 +484,7 @@ class FakeAgent(ExaAgent):
     def set_weights(self, weights):
         """
         This sets the weights.  The workflow should call set_weights
+
         when it receives an update from the learner.  The weights
         for this fake agent are a constantly increasing counter(s) that
         keeps track of how often train/target_train have been called.
@@ -713,7 +712,7 @@ if __name__ == "__main__":
     # Defaults
     num_learners = 1
     procs_per_env = 1
-    workflow_name = 'sync'
+    workflow_name = 'simple'
     episodes = 10
     steps = 10
 

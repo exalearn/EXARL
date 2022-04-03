@@ -1,8 +1,8 @@
 {
     "agent": "DQN-v0",
     "env": "ExaCartPoleStatic-v0",
-    "workflow": "sync",
-    "n_episodes": 50,
+    "workflow": "simple",
+    "n_episodes": 10,
     "n_steps": 10,
     "output_dir": "./results_dir/",
     "introspector_dir": "none",
@@ -13,5 +13,5 @@
         3,
         3
     ],
-    "profile": "none"
+    "profile": "None"
 }
