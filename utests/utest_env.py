@@ -361,13 +361,13 @@ class TestEnvFunctionality:
                 else:
                     if new not in reset_states:
                         reset_states.append(new)
-            assert len(reset_states) > 1, "Environment has only one intialization seed after " + str(num_resets) + " resets"
+            assert len(reset_states) > 1, "Environment has only one initialization seed after " + str(num_resets) + " resets"
         ExaComm.global_comm.barrier()
 
     def test_max_steps(self, environment, max_steps=TestEnvHelper.max_steps):
         """
         Test for a max number of steps for a given environment.  This looks for an environment
-        to return that it is finished by taking random actions up until some theshold.
+        to return that it is finished by taking random actions up until some threshold.
 
         Parameters
         ----------

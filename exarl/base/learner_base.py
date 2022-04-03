@@ -72,7 +72,8 @@ class ExaLearner:
         self.create_output_dir()
         self.agent, self.env, self.workflow = self.make(agent_id, env_id, workflow_id)
         self.set_training()
-        self.env.reset()
+        if ExaComm.is_actor():
+            self.env.reset()
 
     def make(self, agent_id, env_id, workflow_id):
         # Create environment object

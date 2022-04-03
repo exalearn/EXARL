@@ -55,6 +55,7 @@ my $path = defined $options{P} ? $options{P} : ".";
 my $seeds = defined $options{s} ? $options{s} : 1000000000;
 my $episodes = defined $options{e} ? $options{e} : 1000000000;
 my $steps = defined $options{p} ? "--n_steps $options{p}" : "";
+my $A = defined $options{A} ? $options{A} : "";
 my $throttle = defined $options{t} ? 0 : 1;
 my $run = defined $options{x} ? 0 : 1;
 my $bsuite_set = defined $options{b} ? $options{b} : "";
@@ -150,7 +151,7 @@ sub getSlurmCommand {
     if($exp_dir) {
         makeDir($exp_dir);
         my $output = "--output_dir $bench_dir_name";
-        return "srun -N $N -n $n $a python $driver_path --env Bsuite-v0 --bsuite_id $bench --seed_number $seed --n_episodes $episode $steps $output&> $outfile &";
+        return "srun -N $N -n $n $a python $driver_path --env Bsuite-v0 --bsuite_id $bench --seed_number $seed --n_episodes $episode $steps $A $output&> $outfile &";
     }
     return 0;
 }
