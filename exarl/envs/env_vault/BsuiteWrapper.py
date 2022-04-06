@@ -75,7 +75,6 @@ class BsuiteWrapper(gym.Env):
         self._log_every = False
 
     def step(self, action) -> _GymTimestep:
-        time.sleep(0)
         timestep = self.raw_env.step(action)
         self._track(timestep)
         next_state = timestep.observation

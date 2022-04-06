@@ -55,9 +55,9 @@ excluded_envs = ['cartpole_swingup',
                  'mountain_car',
                  'mountain_car_noise',
                  'mountain_car_scale']
-start_id = cd.lookup_params("driver_start_id", default=0)
-max_seed_number = cd.lookup_params("driver_max_seeds", default=20)
-max_episodes = cd.lookup_params("driver_max_episodes", default=-1)
+start_id = cd.run_params["driver_start_id"]
+max_seed_number = cd.run_params["driver_max_seeds"]
+max_episodes = cd.run_params["driver_max_episodes"]
 # End of experiment parameters
 
 for env_id in tqdm(sweep.SWEEP[start_id:]):

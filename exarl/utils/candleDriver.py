@@ -20,24 +20,20 @@
 #                    under Contract DE-AC05-76RL01830
 import argparse
 import json
-from exarl.utils import log
 from pprint import pformat
 from tensorflow import keras
 import os
 import sys
 import site
 file_path = os.path.dirname(os.path.realpath(__file__))
-import exarl.candlelib.candle as candle
 # from pprint import pprint
 
-
 # required = ['agent', 'env', 'n_episodes', 'n_steps']
-required = ['agent', 'model_type', 'env', 'workflow']
+required = ['agent', 'env', 'workflow']
 
 def resolve_path(*path_components) -> str:
     """ Resolve path to configuration files.
     Priority is as follows:
-
       1. <current working directory>/exarl/config
       2. ~/.exarl/config
       3. <site-packages dir>/exarl/config
@@ -59,26 +55,24 @@ def resolve_path(*path_components) -> str:
             return install_path
     raise FileNotFoundError("Could not find file {0}!".format(path))
 
-class BenchmarkDriver(candle.Benchmark):
-
-    def set_locals(self):
-        """ Functionality to set variables specific for the benchmark
-        - required: set of required parameters for the benchmark.
-        - additional_definitions: list of dictionaries describing the additional parameters for the
-        benchmark.
-        """
-
-        print('Additional definitions built from json files')
-        additional_definitions = get_driver_params()
-        # pprint(additional_definitions, flush=True)
-        if required is not None:
-            self.required = set(required)
-        if additional_definitions is not None:
-            self.additional_definitions = additional_definitions
-
-
 def initialize_parameters():
     # Build agent object
+    import exarl.candlelib.candle as candle
+    class BenchmarkDriver(candle.Benchmark):
+        def set_locals(self):
+            """ Functionality to set variables specific for the benchmark
+            - required: set of required parameters for the benchmark.
+            - additional_definitions: list of dictionaries describing the additional parameters for the
+            benchmark.
+            """
+
+            print('Additional definitions built from json files')
+            additional_definitions = get_driver_params()
+            # pprint(additional_definitions, flush=True)
+            if required is not None:
+                self.required = set(required)
+            if additional_definitions is not None:
+                self.additional_definitions = additional_definitions
     driver = BenchmarkDriver(file_path, '', 'keras',
                              prog='CANDLE_example', desc='CANDLE example driver script')
 
@@ -124,10 +118,6 @@ def base_parser(params):
     parser.add_argument("--env")
     parser.add_argument("--model_type")
     parser.add_argument("--workflow")
-    parser.add_argument("--data_structure")
-    parser.add_argument("--tester_data_file")
-    parser.add_argument("--tester_epocs")
-    parser.add_argument("--batch_size")
 
     args, leftovers = parser.parse_known_args()
 
@@ -139,32 +129,9 @@ def base_parser(params):
         params['env'] = args.env
         print("Environment overwitten from command line: ", args.env)
 
-    if args.model_type is not None:
-        params['model_type'] = args.model_type
-        print("Model overwitten from command line: ", args.model_type)
-
     if args.workflow is not None:
         params['workflow'] = args.workflow
         print("Workflow overwitten from command line: ", args.workflow)
-
-    # all the code below this shouldn't really be here
-    # since the keywords are not used by get_driver_params
-    # leaving for now, will file an issue
-    if args.data_structure is not None:
-        params['data_structure'] = args.data_structure
-        print("Data_structure overwitten from command line: ", args.data_structure)
-
-    if args.tester_data_file is not None:
-        params['tester_data_file'] = args.tester_data_file
-        print("tester_data_file overwitten from command line: ", args.tester_data_file)
-
-    if args.tester_epocs is not None:
-        params['tester_epocs'] = args.tester_epocs
-        print("tester_epocs overwitten from command line: ", args.tester_epocs)
-
-    if args.batch_size is not None:
-        params['batch_size'] = args.tester_epocs
-        print("batch_size overwitten from command line: ", args.batch_size)
 
     return params
 
@@ -186,7 +153,6 @@ def parser_from_json(json_file):
         -------
         new_defs : dictionary
             Dictionary of parameters
-
     """
     file = open(json_file,)
     params = json.load(file)
@@ -200,6 +166,23 @@ def parser_from_json(json_file):
 
     return new_defs
 
+def check_keyword_and_config(params, keyword):
+    """
+        This function performs a check for specific keywords to see if
+        they are set in the config file and also checks if there is a
+        corresponding configuration file.
+    """
+    if keyword in params.keys():
+        cfg = keyword + "_cfg"
+        try:
+            cfg_file = resolve_path(cfg, params[keyword] + '.json')
+            print('Agent parameters from ', cfg)
+        except FileNotFoundError:
+            cfg_file = resolve_path(cfg, 'default_' + cfg + '.json')
+            print(keyword + 'configuration does not exist, using default configuration')
+        return parser_from_json(cfg_file)
+    else:
+        sys.exit("CANDLELIB::ERROR The learner config file is malformed. There is no " + keyword + " selected.")
 
 def get_driver_params():
     """ Build the full set of run parameters by sequentially parsing the config files
@@ -207,47 +190,19 @@ def get_driver_params():
         Unless overwritten from the command line (via base_parser), the names for
         these config files are defined in the learner_cfg.json file.
     """
-
     learner_cfg = resolve_path('learner_cfg.json')
     learner_defs = parser_from_json(learner_cfg)
     print('Learner parameters from ', learner_cfg)
     params = json.load(open(learner_cfg))
     params = base_parser(params)
+    
+    agent_defs = check_keyword_and_config(params, "agent")
+    env_defs = check_keyword_and_config(params, "env")
+    workflow_defs = check_keyword_and_config(params, "workflow")
+
     print('_________________________________________________________________')
-    print("Running - {}, {}, {} and {}".format(params['agent'], params['model_type'], params['env'], params['workflow']))
+    print("Running - {}, {} and {}".format(params['agent'], params['env'], params['workflow']))
+    # print("Running - {}, {}, {} and {}".format(params['agent'], params['model_type'], params['env'], params['workflow']))
     print('_________________________________________________________________', flush=True)
-    try:
-        agent_cfg = resolve_path('agent_cfg',
-                                 params['agent'] + '.json')
-        print('Agent parameters from ', agent_cfg)
-    except FileNotFoundError:
-        agent_cfg = resolve_path('agent_cfg', 'default_agent_cfg.json')
-        print('Agent configuration does not exist, using default configuration')
-    agent_defs = parser_from_json(agent_cfg)
-
-    try:
-        model_cfg = resolve_path('model_cfg',
-                                 params['model_type'] + '.json')
-        print('Model parameters from ', model_cfg)
-    except FileNotFoundError:
-        model_cfg = resolve_path('model_cfg', 'default_model_cfg.json')
-        print('Model configuration does not exist, using default configuration')
-    model_defs = parser_from_json(model_cfg)
-
-    try:
-        env_cfg = resolve_path('env_cfg', params['env'] + '.json')
-        print('Environment parameters from ', env_cfg)
-    except FileNotFoundError:
-        env_cfg = resolve_path('env_cfg', 'default_env_cfg.json')
-        print('Environment configuration does not exist, using default configuration')
-    env_defs = parser_from_json(env_cfg)
-
-    try:
-        workflow_cfg = resolve_path('workflow_cfg', params['workflow'] + '.json')
-        print('Workflow parameters from ', workflow_cfg)
-    except FileNotFoundError:
-        workflow_cfg = resolve_path('workflow_cfg', 'default_workflow_cfg.json')
-        print('Workflow configuration does not exist, using default configuration')
-    workflow_defs = parser_from_json(workflow_cfg)
-
-    return learner_defs + agent_defs + model_defs + env_defs + workflow_defs
+    
+    return learner_defs + agent_defs + env_defs + workflow_defs

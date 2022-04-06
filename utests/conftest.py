@@ -16,3 +16,4 @@ def pytest_addoption(parser):
     parser.addoption("--rank_sleep", action="store_true", default=False)
     parser.addoption("--random_sleep", action="store_true", default=False)
     parser.addoption("--test_save_load_dir", action="store", default='./save_load_dir')
+    parser.addoption("--mpi4py_rc", action="store_true", default=False)

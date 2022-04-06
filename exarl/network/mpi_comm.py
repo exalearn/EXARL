@@ -1,12 +1,20 @@
-from exarl.utils.introspect import introspectTrace
-from exarl.base.comm_base import ExaComm
 import gc
 import numpy as np
+import exarl.utils.candleDriver as cd
+from exarl.base.comm_base import ExaComm
+from exarl.utils.introspect import introspectTrace
 
-import mpi4py.rc
+mpi4py_rc_map = {"true": True, "True": True,
+                 "false": False, "False": False,
+                 "0": False, "1": True,
+                 False: False, True: True}
+mpi4py_rc = mpi4py_rc_map[cd.run_params['mpi4py_rc']]
 
-mpi4py.rc.threads = False
-mpi4py.rc.recv_mprobe = False
+if mpi4py_rc:
+    print("Turning mpi4py.rc.threads and mpi4py.rc.recv_mprobe to false!")
+    import mpi4py.rc
+    mpi4py.rc.threads = False
+    mpi4py.rc.recv_mprobe = False
 from mpi4py import MPI
 
 

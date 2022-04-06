@@ -1,14 +1,21 @@
-from exarl.utils.introspect import ib
-from exarl.utils.introspect import introspectTrace
-from exarl.base.comm_base import ExaComm
 import os
 import numpy as np
-
 import exarl.utils.candleDriver as cd
-workflow = cd.lookup_params('workflow')
-# JS: THIS LOOKS WRONG... WHY IS IT ONLY FOR ASYNC.
-if workflow == 'async':
-    print("Turning mpi4py.rc.threads and mpi4py.rc.recv_mprobe to false!")
+from exarl.base.comm_base import ExaComm
+from exarl.utils.introspect import introspectTrace
+
+import pdb
+pdb.set_trace()
+
+temp = cd.run_params['mpi4py_rc']
+mpi4py_rc_map = {"true": True, "True": True,
+                 "false": False, "False": False,
+                 "0": False, "1": True,
+                 False: False, True: True}
+mpi4py_rc = mpi4py_rc_map[temp]
+
+if mpi4py_rc:
+    print("Turning mpi4py.rc.threads and mpi4py.rc.recv_mprobe to false!", flush=True)
     import mpi4py.rc
     mpi4py.rc.threads = False
     mpi4py.rc.recv_mprobe = False
@@ -18,7 +25,7 @@ class ExaSimple(ExaComm):
     """
     This class is built as a simple wrapper around mpi4py.
     Instances are a type of ExaComm which is used to send,
-    recieve, and synchronize data across the participating
+    receive, and synchronize data across the participating
     ranks.
 
     Attributes
@@ -94,7 +101,7 @@ class ExaSimple(ExaComm):
         data : any
             Not use
         source : int, optional
-            Rank to recieve data from.  Default allows data from any source.
+            Rank to receive data from.  Default allows data from any source.
         """
         return self.comm.recv(source=source)
 
