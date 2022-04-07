@@ -3,8 +3,8 @@ import os
 import functools
 import numpy as np
 import tensorflow as tf
-from exarl.network.simple_comm import ExaSimple
-MPI = ExaSimple.MPI
+# from exarl.network.simple_comm import ExaSimple
+# MPI = ExaSimple.MPI
 
 class TypeUtils:
     """

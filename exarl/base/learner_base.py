@@ -14,9 +14,8 @@ import gym
 import exarl.envs
 import exarl.agents
 import exarl.workflows
-from exarl.network.simple_comm import ExaSimple
+# from exarl.network.simple_comm import ExaSimple
 # from exarl.network.mpi_comm import ExaMPI
-from exarl.network.typing import TypeUtils
 from exarl.base.comm_base import ExaComm
 from exarl.base.env_base import ExaEnv
 from exarl.utils import log
@@ -39,6 +38,7 @@ class ExaLearner:
         self.results_dir = cd.run_params['output_dir']
 
         # Setup MPI Global communicator
+        from exarl.network.simple_comm import ExaSimple
         ExaSimple(comm, process_per_env, learner_procs)
 
         # Sanity check before we actually allocate resources
