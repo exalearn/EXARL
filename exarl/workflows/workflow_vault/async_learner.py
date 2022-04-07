@@ -112,6 +112,8 @@ class ASYNC(erl.ExaWorkflow):
                 epsilon = recv_data[3]
                 done = recv_data[4]
 
+                rank0_epsilon = min(rank0_epsilon, epsilon)
+
                 logger.debug('step:{}'.format(step))
                 logger.debug('done:{}'.format(done))
                 # Train
@@ -125,7 +127,7 @@ class ASYNC(erl.ExaWorkflow):
                 ib.update("Async_Learner_Target_Train", 1)
 
                 # Send target weights
-                logger.debug('rank0_epsilon:{}'.format(epsilon))
+                logger.debug('rank0_epsilon:{}'.format(rank0_epsilon))
                 # Increment episode when starting
                 if step == 0:
                     episode += 1
@@ -141,9 +143,9 @@ class ASYNC(erl.ExaWorkflow):
                     ib.update("Async_Learner_Episode", 1)
 
                 # Send target weights
-                logger.debug('rank0_epsilon:{}'.format(epsilon))
+                logger.debug('rank0_epsilon:{}'.format(rank0_epsilon))
                 target_weights = exalearner.agent.get_weights()
-                agent_comm.send([worker_episodes[whofrom - 1], epsilon, target_weights, indices, loss], whofrom)
+                agent_comm.send([worker_episodes[whofrom - 1], rank0_epsilon, target_weights, indices, loss], whofrom)
 
             filename_prefix = 'ExaLearner_Episodes%s_Steps%s_Rank%s_memory_v1' \
                 % (str(exalearner.nepisodes), str(exalearner.nsteps), str(agent_comm.rank))

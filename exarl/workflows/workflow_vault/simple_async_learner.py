@@ -89,7 +89,7 @@ class SIMPLE_ASYNC(SIMPLE):
         ret = ExaComm.agent_comm.recv(None, source=0)
         return ret
 
-    def send_batch(self, batch_data, policy_type, done):
+    def send_batch(self, batch_data, policy_type, done, epsilon):
         """
         This function is used to send batches of data from the actor to the
         learner using MPI_Send.
@@ -103,7 +103,7 @@ class SIMPLE_ASYNC(SIMPLE):
         policy_type : int
             This is the policy given by the actor performing inference to get an action
         """
-        ExaComm.agent_comm.send([ExaComm.agent_comm.rank, batch_data, policy_type, done], 0)
+        ExaComm.agent_comm.send([ExaComm.agent_comm.rank, batch_data, policy_type, done, epsilon], 0)
 
     def recv_batch(self):
         """
