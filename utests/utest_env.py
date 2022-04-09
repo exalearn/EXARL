@@ -1,12 +1,11 @@
-import importlib
-import pytest
-import numpy as np
 import gym
-from exarl.base.comm_base import ExaComm
-from exarl.network.simple_comm import ExaSimple
-from exarl.base.env_base import ExaEnv
-from exarl.envs.env_vault.UnitEvn import EnvGenerator
-import mpi4py
+import pytest
+import importlib
+import numpy as np
+from exarl.utils import candleDriver
+# from exarl.base.comm_base import ExaComm
+# from exarl.base.env_base import ExaEnv
+# from exarl.envs.env_vault.UnitEvn import EnvGenerator
 
 class TestEnvHelper:
     """"
@@ -74,7 +73,7 @@ class TestEnvHelper:
         return state
 
 @pytest.fixture(scope="session", params=list(TestEnvHelper.get_configs()))
-def init_comm(request):
+def init_comm(request, mpi4py_rc):
     """
     This sets up a comm to test environment with.  This test must be run
     with at least two ranks.

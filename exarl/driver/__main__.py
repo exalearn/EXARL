@@ -25,7 +25,7 @@ from tensorflow import keras
 
 import exarl
 import exarl.utils.analyze_reward as ar
-from exarl.utils import candleDriver as cd
+from exarl.utils.globals import ExaGlobals
 from exarl.utils.introspect import *
 
 # Create learner object and run
@@ -36,7 +36,7 @@ comm = exarl.ExaComm.global_comm
 rank = comm.rank
 size = comm.size
 
-writeDir = cd.run_params["introspector_dir"]
+writeDir = ExaGlobals.lookup_params("introspector_dir")
 if writeDir != "none":
     if not os.path.exists(writeDir):
         os.makedirs(writeDir)

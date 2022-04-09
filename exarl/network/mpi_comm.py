@@ -1,14 +1,8 @@
-from exarl.utils.introspect import introspectTrace
-from exarl.base.comm_base import ExaComm
 import gc
 import numpy as np
-
-import mpi4py.rc
-
-mpi4py.rc.threads = False
-mpi4py.rc.recv_mprobe = False
-from mpi4py import MPI
-
+from exarl.utils.globals import ExaGlobals
+from exarl.base.comm_base import ExaComm
+from exarl.utils.introspect import introspectTrace
 
 class ExaMPI(ExaComm):
     """
@@ -34,12 +28,13 @@ class ExaMPI(ExaComm):
         Flag indicating to use run length encoding
 
     buffers : map
-        These are preallocated buffers for sending and recieving to avoid memory thrashing
+        These are preallocated buffers for sending and receiving to avoid memory thrashing
 
     """
-    MPI = MPI
+    
+    MPI = None
 
-    def __init__(self, comm=MPI.COMM_WORLD, procs_per_env=1, num_learners=1, run_length=False):
+    def __init__(self, comm, procs_per_env, num_learners, run_length=False):
         """
         Parameters
         ----------
@@ -52,11 +47,26 @@ class ExaMPI(ExaComm):
             Number of learners (multi-learner)
         """
 
+        # Singleton
+        if ExaMPI.MPI is None:
+            mpi4py_rc = True if ExaGlobals.lookup_params('mpi4py_rc') in ["true", "True", 1] else False
+            if mpi4py_rc:
+                print("Turning mpi4py.rc.threads and mpi4py.rc.recv_mprobe to false!", flush=True)
+                import mpi4py.rc
+                mpi4py.rc.threads = False
+                mpi4py.rc.recv_mprobe = False
+            from mpi4py import MPI
+            ExaMPI.MPI = MPI
+
         if comm is None:
-            comm = MPI.COMM_WORLD
-        self.comm = comm
-        self.size = comm.Get_size()
-        self.rank = comm.Get_rank()
+            self.comm = ExaMPI.MPI.COMM_WORLD
+            self.size = ExaMPI.MPI.COMM_WORLD.Get_size()
+            self.rank = ExaMPI.MPI.COMM_WORLD.Get_rank()
+        else:
+            self.comm = comm
+            self.size = comm.size
+            self.rank = comm.rank
+
         self.run_length = run_length
         self.buffers = {}
         super().__init__(self, procs_per_env, num_learners)
@@ -70,13 +80,13 @@ class ExaMPI(ExaComm):
         the_type : type
             Type to convert
         """
-        if the_type == float or the_type == np.float64 or the_type == MPI.DOUBLE:
+        if the_type == float or the_type == np.float64 or the_type == ExaMPI.MPI.DOUBLE:
             return np.float64
-        if the_type == np.float32 or the_type == MPI.FLOAT:
+        if the_type == np.float32 or the_type == ExaMPI.MPI.FLOAT:
             return np.float32
-        if the_type == int or the_type == np.int64 or the_type == MPI.INT64_T:
+        if the_type == int or the_type == np.int64 or the_type == ExaMPI.MPI.INT64_T:
             return np.int64
-        if the_type == np.int32 or the_type == MPI.INT:
+        if the_type == np.int32 or the_type == ExaMPI.MPI.INT:
             return np.int32
         print("Failed to convert type", the_type)
         return the_type
@@ -91,13 +101,13 @@ class ExaMPI(ExaComm):
             Type to convert
         """
         if the_type == np.int32:
-            return MPI.INT
+            return ExaMPI.MPI.INT
         if the_type == np.int64:
-            return MPI.INT64_T
+            return ExaMPI.MPI.INT64_T
         if the_type == np.float32:
-            return MPI.FLOAT
+            return ExaMPI.MPI.FLOAT
         if the_type == np.float64:
-            return MPI.DOUBLE
+            return ExaMPI.MPI.DOUBLE
         return the_type
 
     def encode_type(self, the_type):
@@ -222,7 +232,7 @@ class ExaMPI(ExaComm):
         return sum([self.get_flat_size(x) for x in data])
 
     # We use this to encode the np.array shapes
-    # We are guarenteing this is an array
+    # We are guaranteeing this is an array
     @introspectTrace()
     def encode_int_list(self, data, buff=None, level=0):
         """
@@ -440,7 +450,7 @@ class ExaMPI(ExaComm):
     def run_length_encode(self, data):
         """
         This implements runlength encoding of ints.
-        Runlegth encoding takes duplicate values and
+        Runlength encoding takes duplicate values and
         reduces it to two, the number and the number
         of repeating values.
 
@@ -476,7 +486,7 @@ class ExaMPI(ExaComm):
     def run_length_decode(self, data):
         """
         This implements runlength encoding of ints.
-        Runlegth encoding takes duplicate values and
+        Runlength encoding takes duplicate values and
         reduces it to two, the number and the number
         of repeating values. This only supports ints
         so the data must be cast if coming from float buffer
@@ -585,7 +595,7 @@ class ExaMPI(ExaComm):
     def demarshall(self, data, buff, data_count=None, index=0, first=True):
         """
         This demarshalls the data from a marshall call.
-        This should be called immediatly after a receive.
+        This should be called immediately after a receive.
         The type is maintained by the data object.
         Be careful to make sure that the types are the same across send/recv.
         If not the underlying buffer type could mismatch and mashalling will fail.
@@ -641,7 +651,7 @@ class ExaMPI(ExaComm):
             data to prep
 
         copy : bool, optional
-            Inidicate if we should marshall data
+            Indicate if we should marshall data
 
         default_buffer_type : type, optional
             Buffer type
@@ -666,14 +676,14 @@ class ExaMPI(ExaComm):
 
     # This will send messages if we do not know what "types" are in the message
     # First it will find the data format and send it along with the size/buffer type of the data
-    # Next we send the actuall data
+    # Next we send the actual data
     # Can use compression to decrease message size
     @introspectTrace()
     def send_with_type(self, data, dest, default_buffer_type=np.int64):
         """
         This will send messages if we do not know what "types" are in the message.
         First it will find the data format and send it along with the size/buffer type of the data.
-        Next we send the actuall data.
+        Next we send the actual data.
         Can use compression to decrease message size.
 
         Parameters
@@ -714,7 +724,7 @@ class ExaMPI(ExaComm):
             ],
             dtype=np.int32,
         )
-        self.comm.Send([first, 5, MPI.INT], dest=dest)
+        self.comm.Send([first, 5, ExaMPI.MPI.INT], dest=dest)
 
         # Send second message with real data
         return self.comm.Send(second, dest=dest)
@@ -743,7 +753,7 @@ class ExaMPI(ExaComm):
     @introspectTrace()
     def recv_with_type(self, source, default_buffer_type=np.int64):
         """
-        The receives messagse when we don't know the type ahead of time.
+        The receives messages when we don't know the type ahead of time.
         This follows the procedures outline in send_with_type.
 
         Parameters
@@ -756,7 +766,7 @@ class ExaMPI(ExaComm):
         """
         # Recv the message sizes/buffer type
         buff = np.array([0, 0, 0, 0, 0], dtype=np.int32)
-        first = [buff, 5, MPI.INT]
+        first = [buff, 5, ExaMPI.MPI.INT]
         self.comm.Recv(first, source=source)
 
         # Unpack data properties
@@ -782,11 +792,11 @@ class ExaMPI(ExaComm):
         np_arrays = self.decode_int_list(buff_np_arrays)
         # Expand the data format with np.arrays
         data_shape = self.decode_list_format(buff_shape, np_arrays=np_arrays)
-        # Extract the actuall data
+        # Extract the actual data
         return self.demarshall(data_shape, buff_data, data_count=data_count)
 
     @introspectTrace()
-    def recv(self, data, source=MPI.ANY_SOURCE, default_buffer_type=np.int64):
+    def recv(self, data, source=None, default_buffer_type=np.int64):
         """
         Point-to-point communication between ranks.  Send must have
         matching send.
@@ -798,10 +808,12 @@ class ExaMPI(ExaComm):
         dest : int
             Rank within comm where data will be sent. Must have matching recv.
         source : int, optional
-            Rank to recieve data from.  Default allows data from any source.
+            Rank to receive data from.  Default allows data from any source.
         default_buffer_type: type, optional
             Buffer type
         """
+        if source is None:
+            source = ExaMPI.MPI.ANY_SOURCE
         # This is if we do not know the type on both sides of the send/recv
         if data is None:
             return self.recv_with_type(source)
@@ -861,12 +873,14 @@ class ExaMPI(ExaComm):
         recv_buff = np.array(arg, dtype=np_type)
         toSend = [send_buff, 1, mpi_type]
         toRecv = [recv_buff, 1, mpi_type]
-        converter = {sum: MPI.SUM, max: MPI.MAX, min: MPI.MIN}
+        converter = {sum: ExaMPI.MPI.SUM, 
+                     max: ExaMPI.MPI.MAX, 
+                     min: ExaMPI.MPI.MIN}
         self.comm.Reduce(toSend, toRecv, op=converter[op], root=root)
         return ret_type(toRecv[0])
 
     # TODO: This is only supporting single values
-    def allreduce(self, arg, op=MPI.LAND):
+    def allreduce(self, arg, op=None):
         """
         Data is joined from all processes in comm by doing op.
         Data is put on all processes in comm.
@@ -878,6 +892,8 @@ class ExaMPI(ExaComm):
         op : MPI op, optional
             Operation to perform
         """
+        if op is None:
+            ExaMPI.MPI.LAND
         ret_type = type(arg)
         np_type = self.np_type_converter(ret_type)
         mpi_type = self.mpi_type_converter(np_type)
@@ -885,15 +901,17 @@ class ExaMPI(ExaComm):
         recv_buff = np.array(arg, dtype=np_type)
         toSend = [send_buff, 1, mpi_type]
         toRecv = [recv_buff, 1, mpi_type]
-        converter = {sum: MPI.SUM, max: MPI.MAX, min: MPI.MIN}
-        self.comm.Allreduce(toSend, toRecv, op=converter[op], root=root)
+        converter = {sum: ExaMPI.MPI.SUM, 
+                     max: ExaMPI.MPI.MAX, 
+                     min: ExaMPI.MPI.MIN}
+        self.comm.Allreduce(toSend, toRecv, op=converter[op])
         return ret_type(toRecv[0])
 
     def time(self):
         """
         Returns MPI wall clock time
         """
-        return MPI.Wtime()
+        return ExaMPI.MPI.Wtime()
 
     def split(self, procs_per_env, num_learners):
         """
@@ -907,9 +925,9 @@ class ExaMPI(ExaComm):
         num_learners : int
             Number of processes per learner comm
         """
-        if MPI.COMM_WORLD.Get_size() == procs_per_env:
+        if ExaMPI.MPI.COMM_WORLD.Get_size() == procs_per_env:
             assert num_learners == 1, "num_learners should be 1 when global comm size == procs_per_env"
-            color = MPI.UNDEFINED
+            color = ExaMPI.MPI.UNDEFINED
             if self.rank == 0:
                 color = 0
             learner_comm = self.comm.Split(color, self.rank)
@@ -926,7 +944,7 @@ class ExaMPI(ExaComm):
             env_comm = ExaMPI(comm=env_comm)
         else:
             # Agent communicator
-            agent_color = MPI.UNDEFINED
+            agent_color = ExaMPI.MPI.UNDEFINED
             if (self.rank < num_learners) or ((self.rank - num_learners) % procs_per_env == 0):
                 agent_color = 0
             agent_comm = self.comm.Split(agent_color, self.rank)
@@ -936,7 +954,7 @@ class ExaMPI(ExaComm):
                 agent_comm = None
 
             # Environment communicator
-            if MPI.COMM_WORLD.Get_size() == procs_per_env:
+            if ExaMPI.MPI.COMM_WORLD.Get_size() == procs_per_env:
                 env_color = 0
                 env_comm = self.comm.Split(env_color, self.rank)
                 env_comm = ExaMPI(comm=env_comm)
@@ -952,7 +970,7 @@ class ExaMPI(ExaComm):
                     env_comm = None
 
             # Learner communicator
-            learner_color = MPI.UNDEFINED
+            learner_color = ExaMPI.MPI.UNDEFINED
             if self.rank < num_learners:
                 learner_color = 0
             learner_comm = self.comm.Split(learner_color, self.rank)
@@ -974,6 +992,6 @@ class ExaMPI(ExaComm):
         Prints size of internal buffers.
         """
         print("Printing buffers")
-        for i in buffers:
-            for j in buffers[i]:
+        for i in self.buffers:
+            for j in self.buffers[i]:
                 print(self.rank, "BUFFER:", i, j)

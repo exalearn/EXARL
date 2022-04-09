@@ -18,91 +18,83 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-import exarl as erl
-import pandas as pd
 import csv
+import time
+import pandas as pd
 from os.path import join
+import exarl
 from exarl.base.comm_base import ExaComm
-import tensorflow as tf
-from exarl.utils import log
-import exarl.utils.candleDriver as cd
-from exarl.utils.profile import *
-from exarl.utils.introspect import *
-from exarl.network.simple_comm import ExaSimple
-MPI = ExaSimple.MPI
+from exarl.utils.globals import ExaGlobals
 
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
-
-class RANDOM(erl.ExaWorkflow):
-    """Random workflow class: inherits from Exaworkflow base class.
+class RANDOM(exarl.ExaWorkflow):
+    """
+    Random workflow class: inherits from Exaworkflow base class.
     Used for testing inference against random actions.
-
     """
 
     def __init__(self):
-        """Random workflow class constructor. The weight file gets loaded for
+        """
+        Random workflow class constructor. The weight file gets loaded for
         inference.
         """
         print('Class Random learner')
-        data_dir = cd.run_params["output_dir"]
-        data_file = cd.run_params["random_results_file"]
-        self.load_data = cd.run_params["weight_file"]
+        data_dir = ExaGlobals.lookup_params("output_dir")
+        data_file = ExaGlobals.lookup_params("random_results_file")
+        self.load_data = ExaGlobals.lookup_params("weight_file")
         if self.load_data == "None":
             self.load_data = None
         self.out_file = join(data_dir, data_file)
 
-    def run(self, workflow):
-        """This function implements the random workflow in EXARL.
+    def run(self, exalearner):
+        """
+        This function implements the random workflow in EXARL.
         Args:
-            workflow (ExaLearner type object): The ExaLearner object is used to access
+            exalearner (ExaLearner type object): The ExaLearner object is used to access
             different members of the base class.
-
-        Returns:
-            None
         """
         agent_comm = ExaComm.agent_comm
         env_comm = ExaComm.env_comm
 
-        episodesPerActor = int(workflow.nepisodes / (agent_comm.size - 1))
-        if workflow.nepisodes % (agent_comm.size - 1):
+        episodesPerActor = int(exalearner.nepisodes / (agent_comm.size - 1))
+        if exalearner.nepisodes % (agent_comm.size - 1):
             episodesPerActor += 1
 
         df = pd.DataFrame(columns=['rank', 'episode', 'step', 'reward', 'totalReward', 'done'])
 
         if self.load_data is not None:
             if ExaComm.is_learner():
-                workflow.agent.load(self.load_data)
+                exalearner.agent.load(self.load_data)
 
-            target_weights = workflow.agent.get_weights()
+            target_weights = exalearner.agent.get_weights()
             target_weights = agent_comm.bcast(target_weights, 0)
 
             if not ExaComm.is_learner():
-                workflow.agent.set_weights(target_weights)
+                exalearner.agent.set_weights(target_weights)
 
         if not ExaComm.is_learner():
             if ExaComm.env_comm.rank == 0:
                 # Setup logger
                 filename_prefix = 'ExaLearner_Episodes%s_Steps%s_Rank%s_memory_v1' \
-                    % (str(workflow.nepisodes), str(workflow.nsteps), str(agent_comm.rank))
-                train_file = open(workflow.results_dir + '/' +
+                    % (str(exalearner.nepisodes), str(exalearner.nsteps), str(agent_comm.rank))
+                train_file = open(exalearner.results_dir + '/' +
                                   filename_prefix + ".log", 'w')
                 train_writer = csv.writer(train_file, delimiter=" ")
 
             for episode in range(episodesPerActor):
                 total_reward = 0
-                current_state = workflow.env.reset()
+                current_state = exalearner.env.reset()
 
-                for step in range(workflow.nsteps):
+                for step in range(exalearner.nsteps):
                     if ExaComm.env_comm.rank == 0:
                         if self.load_data is None:
-                            action = workflow.env.action_space.sample()
+                            action = exalearner.env.action_space.sample()
                         else:
-                            action, _ = workflow.agent.action(current_state)
+                            action, _ = exalearner.agent.action(current_state)
                     action = env_comm.bcast(action, 0)
-                    next_state, reward, done, _ = workflow.env.step(action)
+                    next_state, reward, done, _ = exalearner.env.step(action)
                     current_state = next_state
 
-                    if step + 1 == workflow.nsteps:
+                    if step + 1 == exalearner.nsteps:
                         done = True
 
                     done = env_comm.bcast(done, 0)
@@ -110,7 +102,7 @@ class RANDOM(erl.ExaWorkflow):
                         total_reward += reward
 
                     train_writer.writerow([time.time(), current_state, action, reward, next_state, total_reward,
-                                           done, episode, step, 1, workflow.agent.epsilon])
+                                           done, episode, step, 1, exalearner.agent.epsilon])
                     train_file.flush()
 
                     df = df.append({'rank': agent_comm.rank, 'episode': episode, 'step': step, 'reward': reward,

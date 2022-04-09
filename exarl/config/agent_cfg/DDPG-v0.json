@@ -6,5 +6,6 @@
     "tau": 0.005,
     "batch_size": 64,
     "priority_scale": 0.0,
-    "buffer_capacity": 50000
+    "buffer_capacity": 50000,
+    "model_type": "AC"
 }

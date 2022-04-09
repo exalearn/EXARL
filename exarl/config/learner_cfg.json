@@ -4,14 +4,14 @@
     "workflow": "simple",
     "n_episodes": 10,
     "n_steps": 10,
+    "model": "MLP",
     "output_dir": "./results_dir/",
     "introspector_dir": "none",
     "process_per_env": 1,
-    "model_type": "MLP",
-    "action_type": "variable",
     "log_level": [
         3,
-        3
+        0
     ],
-    "profile": "None"
+    "profile": "None",
+    "mpi4py_rc": "false"
 }

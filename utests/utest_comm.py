@@ -1,7 +1,8 @@
-import importlib
-from os import environ
 import pytest
-import numpy as np
+import importlib
+from exarl.utils.globals import ExaGlobals
+# candleDriver.run_params['log_level'] = [3, 3]
+# candleDriver.run_params['mpi4py_rc'] = False
 from exarl.base.comm_base import ExaComm
 from exarl.network.simple_comm import ExaSimple
 from exarl.network.mpi_comm import ExaMPI
@@ -42,6 +43,25 @@ class TestCommHelper:
                 if rem % procs_per_env == 0:
                     yield num_learners, procs_per_env
 
+@pytest.fixture(scope="session", autouse=True)
+def mpi4py_rc(pytestconfig):
+    """
+    This function takes the commandline parameter --mpi4py_rc and sets
+        mpi4py.rc.threads = False
+        mpi4py.rc.recv_mprobe = False
+    Parameters
+    ----------
+    pytestconfig :
+        Hook for pytest argument parser
+    """
+    candleDriver.run_params['mpi4py_rc'] = pytestconfig.getoption("mpi4py_rc")
+    if candleDriver.run_params['mpi4py_rc']:
+        print("DID WE DO THE THING", candleDriver.run_params['mpi4py_rc'])
+        del mpi4py
+        importlib(ExaSimple)
+        importlib(ExaMPI)
+    return not candleDriver.run_params['mpi4py_rc']
+
 @pytest.fixture(scope="function", autouse=True)
 def reset_comm():
     """
@@ -65,7 +85,7 @@ class TestEnvMembers:
     """
 
     @pytest.mark.parametrize("comm", TestCommHelper.comm_types)
-    def test_MPI_flags(self, comm):
+    def test_MPI_flags(self, comm, mpi4py_rc):
         """
         THIS TEST IS TO CHECK THAT THE MPI LAYERS SET THE FOLLOWING FLAGS!!!
         In reality this test will look to see the first comm imported and
@@ -80,8 +100,8 @@ class TestEnvMembers:
         comm : ExaComm
             Type of comm to test
         """
-        assert mpi4py.rc.threads == False
-        assert mpi4py.rc.recv_mprobe == False
+        assert mpi4py.rc.threads == mpi4py_rc
+        assert mpi4py.rc.recv_mprobe == mpi4py_rc
 
     @pytest.mark.parametrize("comm", TestCommHelper.comm_types)
     def test_has_MPI(self, comm):

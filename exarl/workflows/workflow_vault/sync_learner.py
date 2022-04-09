@@ -20,15 +20,14 @@
 #                    under Contract DE-AC05-76RL01830
 import time
 import csv
-import exarl as erl
+import exarl
 from exarl.base.comm_base import ExaComm
-from exarl.utils import log
-import exarl.utils.candleDriver as cd
+from exarl.utils.globals import ExaGlobals
 from exarl.utils.profile import *
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
+logger = ExaGlobals.setup_logger(__name__)
 
 
-class SYNC(erl.ExaWorkflow):
+class SYNC(exarl.ExaWorkflow):
     """Synchronous workflow class: inherits from the ExaWorkflow base class.
     It features a single learner and multiple actors. The MPI processes are statically
     launched and are split into multiple groups. The environment processes can be set
@@ -93,7 +92,7 @@ class SYNC(erl.ExaWorkflow):
                         memory[0], memory[1], memory[2], memory[3], memory[4])
                     # TODO: we need a memory class to scale
                     batch_data = next(exalearner.agent.generate_data())
-                    logger.info(
+                    logger().info(
                         'Rank[{}] - Generated data: {}'.format(env_comm.rank, len(batch_data[0])))
 
                 # Learner
@@ -109,7 +108,7 @@ class SYNC(erl.ExaWorkflow):
                 if ExaComm.env_comm.rank == 0:
                     # Update state
                     current_state = next_state
-                    logger.info('Rank[%s] - Total Reward:%s' %
+                    logger().info('Rank[%s] - Total Reward:%s' %
                                 (str(env_comm.rank), str(total_reward)))
                     steps += 1
                     if steps >= exalearner.nsteps:
@@ -125,9 +124,9 @@ class SYNC(erl.ExaWorkflow):
 
             end_time_episode = time.time()
             if ExaComm.env_comm.rank == 0:
-                logger.info('Rank[%s] run-time for episode %s: %s ' %
+                logger().info('Rank[%s] run-time for episode %s: %s ' %
                             (str(env_comm.rank), str(e), str(end_time_episode - start_time_episode)))
-                logger.info('Rank[%s] run-time for episode per step %s: %s '
+                logger().info('Rank[%s] run-time for episode per step %s: %s '
                             % (str(env_comm.rank), str(e), str((end_time_episode - start_time_episode) / steps)))
 
         if ExaComm.env_comm.rank == 0:

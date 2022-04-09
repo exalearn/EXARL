@@ -1,26 +1,25 @@
+
+import os
+import sys
+import errno
+import logging
+import requests
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
 import gym
 from gym import spaces
 from gym.utils import seeding
-import pandas as pd
-import os
-import errno
-import sys
-from tensorflow import keras
-import matplotlib.pyplot as plt
-import numpy as np
 import tensorflow as tf
-from tensorflow.keras.models import load_model
-import logging
-import requests
-from exarl.utils import log
-import exarl.utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.run_params['log_level'])
+from tensorflow import keras
+
+from exarl.utils.globals import ExaGlobals
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('RL-Logger')
 logger.setLevel(logging.INFO)
 np.seterr(divide='ignore', invalid='ignore')
-results_dir = cd.run_params['output_dir']
 
 def load_reformated_cvs(filename, nrows=100000):
     df = pd.read_csv(filename, nrows=nrows)
@@ -132,10 +131,10 @@ class ExaBooster_v2(gym.Env):
         self.rachael_beta = [0]  # unclear if needed... depends on whether the regulation should be allowed to build continuously
 
         try:
-            booster_data_dir = cd.run_params['booster_data_dir']
+            booster_data_dir = ExaGlobals.lookup_params('booster_data_dir')
         except:
             sys.exit("Must set booster_data_dir")
-        booster_dir = cd.run_params['model_dir']
+        booster_dir = ExaGlobals.lookup_params('model_dir')
         if booster_dir == 'None':
             self.file_dir = os.path.dirname(__file__)
             booster_dir = os.path.join(self.file_dir, 'env_data/booster_data')
@@ -147,7 +146,7 @@ class ExaBooster_v2(gym.Env):
                 logger.error("Creation of the directory %s failed" % booster_dir)
         else:
             logger.error("Successfully created the directory %s " % booster_dir)
-        booster_model_file = cd.run_params['model_file']
+        booster_model_file = ExaGlobals.lookup_params('model_file')
         booster_model_pfn = os.path.join(booster_dir, booster_model_file)
         print("booster model file=", booster_model_pfn, flush=True)
         with tf.device('/cpu:0'):
@@ -155,14 +154,14 @@ class ExaBooster_v2(gym.Env):
 
         # Check if data is available
         # booster_data_file = 'BOOSTR.csv'
-        booster_data_file = cd.run_params['data_file']
+        booster_data_file = ExaGlobals.lookup_params('data_file')
         booster_file_pfn = os.path.join(booster_data_dir, booster_data_file)
         logger.info('Booster data file pfn:{}'.format(booster_file_pfn))
         if not os.path.exists(booster_file_pfn):
             logger.info('No cached file. Downloading...')
             try:
                 # url = 'https://zenodo.org/record/4088982/files/data%20release.csv?download=1'
-                url = cd.run_params['url']
+                url = ExaGlobals.lookup_params('url')
                 r = requests.get(url, allow_redirects=True)
                 open(booster_file_pfn, 'wb').write(r.content)
             except:
@@ -430,7 +429,7 @@ class ExaBooster_v2(gym.Env):
         axs[1].plot(np.linspace(0, 14, 15), rachael_IMINER, label="PID Eq", color='blue', linestyle='dotted')
         axs[1].legend(loc='upper left')
 
-        plt.savefig(results_dir + 'episode{}_step{}_v1.png'.format(self.episodes, self.steps))
+        plt.savefig(ExaGlobals.lookup_params('output_dir') + 'episode{}_step{}_v1.png'.format(self.episodes, self.steps))
         plt.clf()
 
         fig, axs = plt.subplots(1, figsize=(12, 12))
@@ -452,5 +451,5 @@ class ExaBooster_v2(gym.Env):
         plt.xlabel('B:VIMIN')
         plt.ylabel('B:IMINER')
         plt.legend()
-        plt.savefig(results_dir + '/corr_episode{}_step{}.png'.format(self.episodes, self.steps))
+        plt.savefig(ExaGlobals.lookup_params('output_dir') + '/corr_episode{}_step{}.png'.format(self.episodes, self.steps))
         plt.close('all')

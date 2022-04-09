@@ -18,18 +18,8 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-import time
-import csv
-import exarl as erl
-from exarl.utils.introspect import ib
-from exarl.utils.profile import *
-from exarl.utils import log
-import exarl.utils.candleDriver as cd
 from exarl.base.comm_base import ExaComm
-from exarl.network.typing import TypeUtils
 from exarl.workflows.workflow_vault.simple_learner import SIMPLE
-
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
 
 class SIMPLE_ASYNC(SIMPLE):
     """
@@ -133,7 +123,6 @@ class SIMPLE_ASYNC(SIMPLE):
             self.episode_per_rank[dst] = self.next_episode
             self.next_episode += 1
 
-    @PROFILE
     def run(self, workflow):
         """
         This function is responsible for calling the appropriate initialization

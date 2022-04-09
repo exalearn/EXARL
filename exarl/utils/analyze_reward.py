@@ -18,16 +18,11 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-import pandas as pd
-import numpy as np
-import math
 import os
-import sys
+import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
-from exarl.utils import log
-import exarl.utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.run_params['log_level'])
-
+from exarl.utils.globals import ExaGlobals
 
 def read_data(filename, rank):
     """The function reads csv-based learning data from the given log file into a pandas frame for use in plotting and result analysis.
@@ -64,30 +59,23 @@ def save_reward_plot():
     df_ranks = []
     rank = 0
     # Candle directory stucture
-    results_dir = cd.run_params['output_dir'] + '/'
+    results_dir = ExaGlobals.lookup_params('output_dir') + '/'
     for filename in os.listdir(results_dir):
         if filename.endswith(".log"):
             rank += 1
-            logger.info('rank {}: filename:{}'.format(rank, filename))
             df = read_data(results_dir + filename, rank)
             df_ranks.append(df)
 
     df_merged = pd.concat(df_ranks)
     df_merged = df_merged.dropna()
     time_min = df_merged.time.min()
-    time_max = df_merged.time.max()
-    time_diff = time_max - time_min
-    logger.info('time_min:{}'.format(time_min))
-    logger.info('time_diff:{}'.format(time_diff))
     df_merged['rel_time'] = [idx - time_min for idx in df_merged.time]
     df_merged.sort_values(by=['rel_time'], inplace=True)
 
     rolling_setting = 25
     fig, ax = plt.subplots(1, 1, figsize=(10, 8))
     episodes_per_nodes = []
-    logger.info('Node path:{}'.format(results_dir))
     df_merged['total_reward_roll'] = df_merged['total_reward'].rolling(rolling_setting).mean()
-    logger.info((df_merged.shape))
     plt.plot(df_merged['rel_time'], df_merged['total_reward_roll'])
     episodes_per_nodes.append(len(df_merged))
     plt.xlabel('Relative Time')

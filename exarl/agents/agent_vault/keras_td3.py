@@ -25,23 +25,17 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
-
-from email import policy
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras.initializers import RandomUniform
 from tensorflow.keras.optimizers import Adam
-import numpy as np
-import matplotlib.pyplot as plt
-import exarl as erl
-import pickle
-from exarl.utils import log
-import exarl.utils.candleDriver as cd
+
+import exarl
+from exarl.utils.globals import ExaGlobals
 from exarl.agents.agent_vault._replay_buffer import ReplayBuffer
+logger = ExaGlobal.setup_logger(__name__)
 
-logger = log.setup_logger(__name__, cd.run_params['log_level'])
-
-
-class KerasTD3(erl.ExaAgent):
+class KerasTD3(exarl.ExaAgent):
 
     def __init__(self, env, is_learner, **kwargs):
         """ Define all key variables required for all agent """
@@ -60,8 +54,8 @@ class KerasTD3(erl.ExaAgent):
 
         # Buffer
         self.buffer_counter = 0
-        self.buffer_capacity = cd.run_params['buffer_capacity']
-        self.batch_size = cd.run_params['batch_size']
+        self.buffer_capacity = ExaGlobals.lookup_params('buffer_capacity')
+        self.batch_size = ExaGlobals.lookup_params('batch_size')
         self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions)
         # self.state_buffer = np.zeros((self.buffer_capacity, self.num_states))
         # self.action_buffer = np.zeros((self.buffer_capacity, self.num_actions))
@@ -71,12 +65,12 @@ class KerasTD3(erl.ExaAgent):
         self.per_buffer = np.ones((self.buffer_capacity, 1))
 
         # Used to update target networks
-        self.tau = cd.run_params['tau']
-        self.gamma = cd.run_params['gamma']
+        self.tau = ExaGlobals.lookup_params('tau')
+        self.gamma = ExaGlobals.lookup_params('gamma')
 
         # Setup Optimizers
-        critic_lr = cd.run_params['critic_lr']
-        actor_lr = cd.run_params['actor_lr']
+        critic_lr = ExaGlobals.lookup_params('critic_lr')
+        actor_lr = ExaGlobals.lookup_params('actor_lr')
         self.critic_optimizer1 = Adam(critic_lr, epsilon=1e-08)
         self.critic_optimizer2 = Adam(critic_lr, epsilon=1e-08)
         self.actor_optimizer = Adam(actor_lr, epsilon=1e-08)
@@ -105,17 +99,16 @@ class KerasTD3(erl.ExaAgent):
         self.critic_update_freq = 2
 
         # Not used by agent but required by the learner class
-        self.epsilon = cd.run_params['epsilon']
-        self.epsilon_min = cd.run_params['epsilon_min']
-        self.epsilon_decay = cd.run_params['epsilon_decay']
+        self.epsilon = ExaGlobals.lookup_params('epsilon')
+        self.epsilon_min = ExaGlobals.lookup_params('epsilon_min')
+        self.epsilon_decay = ExaGlobals.lookup_params('epsilon_decay')
 
-        logger.info("TD3 buffer capacity {}".format(self.buffer_capacity))
-        logger.info("TD3 batch size {}".format(self.batch_size))
-        logger.info("TD3 tau {}".format(self.tau))
-        logger.info("TD3 gamma {}".format(self.gamma))
-        logger.info("TD3 critic_lr {}".format(critic_lr))
-        logger.info("TD3 actor_lr {}".format(actor_lr))
-        plt.ion()
+        logger().info("TD3 buffer capacity {}".format(self.buffer_capacity))
+        logger().info("TD3 batch size {}".format(self.batch_size))
+        logger().info("TD3 tau {}".format(self.tau))
+        logger().info("TD3 gamma {}".format(self.gamma))
+        logger().info("TD3 critic_lr {}".format(critic_lr))
+        logger().info("TD3 actor_lr {}".format(actor_lr))
 
     @tf.function
     def train_critic(self, states, actions, rewards, next_states):
@@ -270,36 +263,6 @@ class KerasTD3(erl.ExaAgent):
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.store(state, action, reward, next_state, done)
-
-    def load(self, file_name):
-        try:
-            print('... loading models ...')
-            layers = self.target_actor.layers
-            pickle_list = []
-            for layerId in range(len(layers)):
-                weigths = layers[layerId].get_weights()
-                pickle_list.append([layers[layerId].name, weigths])
-
-            with open(file_name, "wb") as f:
-                pickle.dump(pickle_list, f, -1)
-
-        except:
-            # TODO: Could be improve, but ok for now
-            print("One of the model not present")
-
-    def save(self, file_name):
-        try:
-            print('... saving models ...')
-            layers = self.target_actor.layers
-            with open(file_name, "rb") as f:
-                pickle_list = pickle.load(f)
-
-            for layerId in range(len(layers)):
-                assert layers[layerId].name == pickle_list[layerId][0]
-                layers[layerId].set_weights(pickle_list[layerId][1])
-        except:
-            # TODO: Could be improve, but ok for now
-            print("One of the model not present")
 
     def has_data(self):
         """return true if agent has experiences from simulation

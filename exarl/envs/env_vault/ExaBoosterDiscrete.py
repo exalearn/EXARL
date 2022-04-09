@@ -18,39 +18,34 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-import gym
+
 import sys
 import os
 import errno
 import math
+import requests
+import numpy as np
+import pandas as pd
+
+import gym
 from gym import spaces
 from gym.utils import seeding
-import pandas as pd
+
+import tensorflow as tf
 from tensorflow import keras
 from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
-import numpy as np
-import requests
-import tensorflow as tf
 
-# import logging
-
-# logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
-# logger = logging.getLogger('RL-Logger')
-# logger.setLevel(logging.INFO)
-from exarl.utils import log
+from exarl.utils.globals import ExaGlobals
 import exarl.utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.run_params['log_level'])
-
+logger = ExaGlobals.setup_logger(__name__)
 np.seterr(divide='ignore', invalid='ignore')
-
 
 def load_reformated_cvs(filename, nrows=100000):
     df = pd.read_csv(filename, nrows=nrows)
     df = df.replace([np.inf, -np.inf], np.nan)
     df = df.dropna(axis=0)
     return df
-
 
 def create_dataset(dataset, look_back=10 * 15, look_forward=1):
     X, Y = [], []
@@ -61,7 +56,6 @@ def create_dataset(dataset, look_back=10 * 15, look_forward=1):
         X.append(xx)
         Y.append(yy)
     return np.array(X), np.array(Y)
-
 
 def get_dataset(df, variable='B:VIMIN'):
     dataset = df[variable].values
@@ -79,7 +73,6 @@ def get_dataset(df, variable='B:VIMIN'):
 
     return scaler, X_train, Y_train
 
-
 class ExaBooster_v1(gym.Env):
     def __init__(self):
 
@@ -87,21 +80,21 @@ class ExaBooster_v1(gym.Env):
         # https://zenodo.org/record/4088982#.X4836kJKhTY
 
         try:
-            booster_data_dir = cd.run_params['booster_data_dir']
+            booster_data_dir = ExaGlobals.lookup_params('booster_data_dir')
         except:
             sys.exit("Must set booster_data_dir")
-        booster_dir = cd.run_params['model_dir']
+        booster_dir = ExaGlobals.lookup_params('model_dir')
         if booster_dir == 'None':
             self.file_dir = os.path.dirname(__file__)
             booster_dir = os.path.join(self.file_dir, 'env_data/booster_data')
-        logger.info('booster related directory: '.format(booster_dir))
+        logger().info('booster related directory: '.format(booster_dir))
         try:
             os.mkdir(booster_dir)
         except OSError as exc:
             if exc.errno != errno.EEXIST:
-                logger.error("Creation of the directory %s failed" % booster_dir)
+                logger().error("Creation of the directory %s failed" % booster_dir)
         else:
-            logger.error("Successfully created the directory %s " % booster_dir)
+            logger().error("Successfully created the directory %s " % booster_dir)
 
         # Load surrogate models
         self.cpus = tf.config.list_physical_devices('CPU')
@@ -111,7 +104,7 @@ class ExaBooster_v1(gym.Env):
         tf.compat.v1.keras.backend.set_session(sess)
 
         # booster_model_file = 'fullbooster_noshift_e250_bs99_nsteps250k_invar5_outvar3_axis1_mmscaler_t0_D10122020-T175237_kfold2__e16_vl0.00038.h5'
-        booster_model_file = cd.run_params['model_file']
+        booster_model_file = ExaGlobals.lookup_params('model_file')
         booster_model_pfn = os.path.join(booster_dir, booster_model_file)
         print("booster model file=", booster_model_pfn, flush=True)
         with tf.device('/cpu:0'):
@@ -119,20 +112,20 @@ class ExaBooster_v1(gym.Env):
 
         # Check if data is available
         # booster_data_file = 'BOOSTR.csv'
-        booster_data_file = cd.run_params['data_file']
+        booster_data_file = ExaGlobals.lookup_params('data_file')
         booster_file_pfn = os.path.join(booster_data_dir, booster_data_file)
-        logger.info('Booster data file pfn:{}'.format(booster_file_pfn))
+        logger().info('Booster data file pfn:{}'.format(booster_file_pfn))
         if not os.path.exists(booster_file_pfn):
-            logger.info('No cached file. Downloading...')
+            logger().info('No cached file. Downloading...')
             try:
                 # url = 'https://zenodo.org/record/4088982/files/data%20release.csv?download=1'
-                url = cd.run_params['url']
+                url = ExaGlobals.lookup_params('url')
                 r = requests.get(url, allow_redirects=True)
                 open(booster_file_pfn, 'wb').write(r.content)
             except:
-                logger.error("Problem downloading file")
+                logger().error("Problem downloading file")
         else:
-            logger.info('Using exiting cached file')
+            logger().info('Using exiting cached file')
 
         # Load data to initialize the env
         data = load_reformated_cvs(booster_file_pfn, nrows=250000)
@@ -141,10 +134,10 @@ class ExaBooster_v1(gym.Env):
         data = data.dropna()
         data = data.drop_duplicates()
 
-        self.save_dir = cd.run_params['output_dir']
+        self.save_dir = ExaGlobals.lookup_params('output_dir')
         self.episodes = 0
         self.steps = 0
-        self.max_steps = cd.run_params['max_steps']
+        self.max_steps = ExaGlobals.lookup_params('max_steps')
         self.total_reward = 0
         self.data_total_reward = 0
         self.total_iminer = 0
@@ -152,11 +145,11 @@ class ExaBooster_v1(gym.Env):
         self.diff = 0
 
         # Define boundary
-        self.min_BIMIN = cd.run_params['min_BIMIN']
-        self.max_BIMIN = cd.run_params['max_BIMIN']
+        self.min_BIMIN = ExaGlobals.lookup_params('min_BIMIN')
+        self.max_BIMIN = ExaGlobals.lookup_params('max_BIMIN')
         self.variables = ['B:VIMIN', 'B:IMINER', 'B:LINFRQ', 'I:IB', 'I:MDAT40']
         self.nvariables = len(self.variables)
-        logger.info('Number of variables:{}'.format(self.nvariables))
+        logger().info('Number of variables:{}'.format(self.nvariables))
 
         self.scalers = []
         data_list = []
@@ -185,7 +178,7 @@ class ExaBooster_v1(gym.Env):
 
         # Dynamically allocate
         data['B:VIMIN_DIFF'] = data['B:VIMIN'] - data['B:VIMIN'].shift(-1)
-        self.nactions = cd.run_params['nactions']
+        self.nactions = ExaGlobals.lookup_params('nactions')
         self.action_space = spaces.Discrete(self.nactions)
         self.actionMap_VIMIN = []
         for i in range(1, self.nactions + 1):
@@ -194,7 +187,7 @@ class ExaBooster_v1(gym.Env):
         self.VIMIN = 0
         self.state = np.zeros(shape=(1, self.nvariables, self.nsamples))
         self.predicted_state = np.zeros(shape=(1, self.nvariables, 1))
-        logger.debug('Init pred shape:{}'.format(self.predicted_state.shape))
+        logger().debug('Init pred shape:{}'.format(self.predicted_state.shape))
         self.do_render = False  # True
 
     def seed(self, seed=None):
@@ -212,17 +205,17 @@ class ExaBooster_v1(gym.Env):
         # 4) Update B:IMINER
 
         # Step 1: Calculate the new B:VINMIN based on policy action
-        logger.info('Step() before action VIMIN:{}'.format(self.VIMIN))
+        logger().info('Step() before action VIMIN:{}'.format(self.VIMIN))
         delta_VIMIN = self.actionMap_VIMIN[action]
         DENORN_BVIMIN = self.scalers[0].inverse_transform(np.array([self.VIMIN]).reshape(1, -1))
         DENORN_BVIMIN += delta_VIMIN
-        logger.debug('Step() descaled VIMIN:{}'.format(DENORN_BVIMIN))
+        logger().debug('Step() descaled VIMIN:{}'.format(DENORN_BVIMIN))
         if DENORN_BVIMIN < self.min_BIMIN or DENORN_BVIMIN > self.max_BIMIN:
-            logger.info('Step() descaled VIMIN:{} is out of bounds.'.format(DENORN_BVIMIN))
+            logger().info('Step() descaled VIMIN:{} is out of bounds.'.format(DENORN_BVIMIN))
             done = True
 
         self.VIMIN = self.scalers[0].transform(DENORN_BVIMIN)
-        logger.debug('Step() updated VIMIN:{}'.format(self.VIMIN))
+        logger().debug('Step() updated VIMIN:{}'.format(self.VIMIN))
         self.state[0][0][self.nsamples - 1] = self.VIMIN
 
         # Step 2: Predict using booster model
@@ -246,9 +239,9 @@ class ExaBooster_v1(gym.Env):
         self.state[0, 2:self.nvariables, :] = self.data_state[0, 2:self.nvariables, :]
 
         iminer = self.predicted_state[0, 1]
-        logger.debug('norm iminer:{}'.format(iminer))
+        logger().debug('norm iminer:{}'.format(iminer))
         iminer = self.scalers[1].inverse_transform(np.array([iminer]).reshape(1, -1))
-        logger.debug('iminer:{}'.format(iminer))
+        logger().debug('iminer:{}'.format(iminer))
 
         # Reward
         reward = -abs(iminer)
@@ -256,14 +249,14 @@ class ExaBooster_v1(gym.Env):
         # reward = np.array(1. * math.exp(-5 * abs(np.asscalar(iminer))))
 
         if abs(iminer) >= 2:
-            logger.info('iminer:{} is out of bounds'.format(iminer))
+            logger().info('iminer:{} is out of bounds'.format(iminer))
             done = True
             penalty = 5 * (self.max_steps - self.steps)
             reward -= penalty
 
         # if done:
         #     penalty = 5 * (self.max_steps - self.steps)
-        #     logger.info('penalty:{} is out of bounds'.format(penalty))
+        #     logger().info('penalty:{} is out of bounds'.format(penalty))
         #     reward -= penalty
 
         if self.steps >= int(self.max_steps):
@@ -293,21 +286,21 @@ class ExaBooster_v1(gym.Env):
         # Prepare the random sample ##
         self.batch_id = 10
         # self.batch_id = np.random.randint(0, high=self.nbatches)
-        logger.info('Resetting env')
+        logger().info('Resetting env')
         # self.state = np.zeros(shape=(1,5,150))
-        logger.debug('self.state:{}'.format(self.state))
+        logger().debug('self.state:{}'.format(self.state))
         self.state = None
         self.state = np.copy(self.X_train[self.batch_id].reshape(1, self.nvariables, self.nsamples))
-        logger.debug('self.state:{}'.format(self.state))
-        logger.debug('reset_data.shape:{}'.format(self.state.shape))
+        logger().debug('self.state:{}'.format(self.state))
+        logger().debug('reset_data.shape:{}'.format(self.state.shape))
         self.min_BIMIN = self.scalers[0].inverse_transform(self.state[:, 0, :]).min()
         self.max_BIMIN = self.scalers[0].inverse_transform(self.state[:, 0, :]).max()
-        logger.info('Lower and upper B:VIMIN: [{},{}]'.format(self.min_BIMIN, self.max_BIMIN))
+        logger().info('Lower and upper B:VIMIN: [{},{}]'.format(self.min_BIMIN, self.max_BIMIN))
         # self.min_BIMIN = self.min_BIMIN * 0.9999
         # self.max_BIMIN = self.max_BIMIN * 1.0001
         self.VIMIN = self.state[0, 0, -1:]
-        logger.debug('Normed VIMIN:{}'.format(self.VIMIN))
-        logger.debug('B:VIMIN:{}'.format(self.scalers[0].inverse_transform(np.array([self.VIMIN]).reshape(1, -1))))
+        logger().debug('Normed VIMIN:{}'.format(self.VIMIN))
+        logger().debug('B:VIMIN:{}'.format(self.scalers[0].inverse_transform(np.array([self.VIMIN]).reshape(1, -1))))
         return self.state[0, :, -1:].flatten()
 
     def render(self):
@@ -323,17 +316,17 @@ class ExaBooster_v1(gym.Env):
         plt.rcParams['font.family'] = [u'serif']
         plt.rcParams['font.size'] = 16
 
-        logger.debug('render()')
-        logger.debug('Save path:{}'.format(self.save_dir))
+        logger().debug('render()')
+        logger().debug('Save path:{}'.format(self.save_dir))
         render_dir = os.path.join(self.save_dir, 'render')
-        logger.debug('Render path:{}'.format(render_dir))
+        logger().debug('Render path:{}'.format(render_dir))
         if not os.path.exists(render_dir):
             os.mkdir(render_dir)
         import seaborn as sns
         sns.set_style("ticks")
         nvars = 2  # len(self.variables)
         fig, axs = plt.subplots(nvars, figsize=(12, 8))
-        logger.debug('self.state:{}'.format(self.state))
+        logger().debug('self.state:{}'.format(self.state))
         for v in range(0, nvars):
             utrace = self.state[0, v, :]
             trace = self.scalers[v].inverse_transform(utrace.reshape(-1, 1))

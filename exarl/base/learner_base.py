@@ -14,66 +14,67 @@ import gym
 import exarl.envs
 import exarl.agents
 import exarl.workflows
+from exarl.utils.globals import ExaGlobals
+from exarl.base.env_base import ExaEnv
+from exarl.base.comm_base import ExaComm
 from exarl.network.simple_comm import ExaSimple
 # from exarl.network.mpi_comm import ExaMPI
-from exarl.network.typing import TypeUtils
-from exarl.base.comm_base import ExaComm
-from exarl.base.env_base import ExaEnv
-from exarl.utils import log
-import exarl.utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
+logger = ExaGlobals.setup_logger(__name__)
 
 class ExaLearner:
     def __init__(self, comm=None):
-        learner_procs = int(cd.run_params['learner_procs'])
-        process_per_env = int(cd.run_params['process_per_env'])
-
         # Setup agent and environments
-        agent_id = cd.run_params['agent']
-        env_id = cd.run_params['env']
-        workflow_id = cd.run_params['workflow']
+        agent_id = ExaGlobals.lookup_params('agent')
+        env_id = ExaGlobals.lookup_params('env')
+        workflow_id = ExaGlobals.lookup_params('workflow')
+        
+        learner_procs = int(ExaGlobals.lookup_params('learner_procs'))
+        process_per_env = int(ExaGlobals.lookup_params('process_per_env'))
 
-        self.nepisodes = int(cd.run_params['n_episodes'])
-        self.nsteps = int(cd.run_params['n_steps'])
-        self.action_type = cd.run_params['action_type']
-        self.results_dir = cd.run_params['output_dir']
+        self.nepisodes = int(ExaGlobals.lookup_params('n_episodes'))
+        self.nsteps = int(ExaGlobals.lookup_params('n_steps'))
+        self.action_type = ExaGlobals.lookup_params('action_type')
+        self.results_dir = ExaGlobals.lookup_params('output_dir')
 
         # Setup MPI Global communicator
         ExaSimple(comm, process_per_env, learner_procs)
 
         # Sanity check before we actually allocate resources
-        # global_size = ExaComm.global_comm.size
-        # if global_size > nepisodes:
-        #     sys.exit("EXARL::ERROR More resources allocated for the number of episodes.\n" +
-        #              "Number of ranks should be less than the number of episodes.")
-        # if global_size < process_per_env:
-        #     sys.exit('EXARL::ERROR Not enough processes.')
-        # if workflow_id == 'exarl.workflows:sync':
-        #     if learner_procs > 1:
-        #         sys.exit('EXARL::sync learner only works with single learner.')
-        #     if global_size != process_per_env:
-        #         sys.exit('EXARL::sync learner can only run one env group.')
-        # else:
-        #     if (global_size - learner_procs) % process_per_env != 0:
-        #         sys.exit('EXARL::ERROR Uneven number of processes.')
-        # if learner_procs > 1 and workflow_id != 'exarl.workflows:rma':
-        #     print('')
-        #     print('_________________________________________________________________')
-        #     print('Multilearner is only supported in RMA, running rma workflow ...')
-        #     print('_________________________________________________________________', flush=True)
-        #     workflow_id = 'exarl.workflows:' + 'rma'
-        # if global_size < 2 and workflow_id != 'exarl.workflows:sync':
-        #     print('')
-        #     print('_________________________________________________________________')
-        #     print('Not enough processes, running synchronous single learner ...')
-        #     print('_________________________________________________________________', flush=True)
-        #     workflow_id = 'exarl.workflows:' + 'sync'
+        
 
         self.create_output_dir()
         self.agent, self.env, self.workflow = self.make(agent_id, env_id, workflow_id)
         self.set_training()
         if ExaComm.is_actor():
             self.env.reset()
+
+    # def sanity_check(self, agent_id, env_id, workflow_id):
+    #     global_size = ExaComm.global_comm.size
+    #     if global_size > nepisodes:
+    #         sys.exit("EXARL::ERROR More resources allocated for the number of episodes.\n" +
+    #                  "Number of ranks should be less than the number of episodes.")
+    #     if global_size < process_per_env:
+    #         sys.exit('EXARL::ERROR Not enough processes.')
+    #     if workflow_id == 'exarl.workflows:sync':
+    #         if learner_procs > 1:
+    #             sys.exit('EXARL::sync learner only works with single learner.')
+    #         if global_size != process_per_env:
+    #             sys.exit('EXARL::sync learner can only run one env group.')
+    #     else:
+    #         if (global_size - learner_procs) % process_per_env != 0:
+    #             sys.exit('EXARL::ERROR Uneven number of processes.')
+    #     if learner_procs > 1 and workflow_id != 'exarl.workflows:rma':
+    #         print('')
+    #         print('_________________________________________________________________')
+    #         print('Multilearner is only supported in RMA, running rma workflow ...')
+    #         print('_________________________________________________________________', flush=True)
+    #         workflow_id = 'exarl.workflows:' + 'rma'
+    #     if global_size < 2 and workflow_id != 'exarl.workflows:sync':
+    #         print('')
+    #         print('_________________________________________________________________')
+    #         print('Not enough processes, running synchronous single learner ...')
+    #         print('_________________________________________________________________', flush=True)
+    #         workflow_id = 'exarl.workflows:' + 'sync'
 
     def make(self, agent_id, env_id, workflow_id):
         # Create environment object

@@ -33,7 +33,6 @@ import sys
 import pickle
 from abc import ABC, abstractmethod
 
-
 file_path = os.path.dirname(os.path.realpath(__file__))
 lib_path = os.path.abspath(os.path.join(file_path, '..', 'candlelib'))
 sys.path.append(lib_path)

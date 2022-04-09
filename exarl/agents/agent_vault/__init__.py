@@ -1,5 +1,8 @@
-import exarl.utils.candleDriver as cd
-agent = cd.lookup_params('agent')
+from exarl.utils.globals import ExaGlobals
+try:
+    agent = ExaGlobals.lookup_params('agent')
+except:
+    agent = None
 
 if agent == 'DQN-v0':
     from exarl.agents.agent_vault.dqn import DQN

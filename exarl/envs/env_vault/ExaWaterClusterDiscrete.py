@@ -18,15 +18,16 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-from exarl.base.comm_base import ExaComm
-import gym
-import time
 import numpy as np
+import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
-from exarl.utils import log
+
+from exarl.utils.globals import ExaGlobals
 import exarl.utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.run_params['log_level'])
+from exarl.base.comm_base import ExaComm
+
+logger = ExaGlobals.setup_logger(__name__)
 
 from ase.io import read, write
 from ase import Atom, Atoms
@@ -172,7 +173,7 @@ def get_activation(name, activation={}):
 def get_state_embedding(model, structure):
     data_loader = load_data(structure, idx=0)
     activation = {}
-    logger.debug('torch.no_grad()')
+    logger().debug('torch.no_grad()')
     with torch.no_grad():
         for batch in data_loader:
             model.module.output_modules[0].standardize.register_forward_hook(get_activation('standardize', activation))
@@ -263,14 +264,14 @@ class ExaWaterClusterDiscrete(gym.Env):
 
         # Setup water molecule application (should be configurable)
         self.file_dir = os.path.dirname(__file__)
-        self.env_input_name = cd.run_params['env_input_name']
+        self.env_input_name = ExaGlobals.lookup_params('env_input_name')
         self.env_input_dir = os.path.join(self.file_dir, 'env_data/water_cluster_data')
         self.env_input = os.path.join(self.env_input_dir, self.env_input_name)
-        self.output_dir = cd.run_params['output_dir']
+        self.output_dir = ExaGlobals.lookup_params('output_dir')
         self.calc = TTMCalculator()
 
         # Schnet encodering model
-        self.schnet_model_name = cd.run_params['env_schnet_model_name']
+        self.schnet_model_name = ExaGlobals.lookup_params('env_schnet_model_name')
         self.schnet_model_pfn = os.path.join(self.env_input_dir, self.schnet_model_name)
         model = torch.load(self.schnet_model_pfn, map_location='cpu')
         self.schnet_model = torch.nn.DataParallel(model.module)
@@ -303,20 +304,20 @@ class ExaWaterClusterDiscrete(gym.Env):
 
     def _load_structure(self, env_input):
         # Read initial XYZ file
-        logger.debug('Env Input: {}'.format(env_input))
+        logger().debug('Env Input: {}'.format(env_input))
         structure = read(env_input, parallel=False)
-        logger.debug('Structure: {}'.format(structure))
+        logger().debug('Structure: {}'.format(structure))
         nclusters = (''.join(structure.get_chemical_symbols()).count("OHH")) - 1
-        logger.debug('Number of atoms: %s' % len(structure))
-        logger.debug('Number of water clusters: %s ' % (nclusters + 1))
+        logger().debug('Number of atoms: %s' % len(structure))
+        logger().debug('Number of water clusters: %s ' % (nclusters + 1))
         return (structure, nclusters)
 
     def step(self, action):
-        logger.debug('Env::step()')
+        logger().debug('Env::step()')
         self.steps += 1
-        logger.debug('Env::step(); steps[{0:3d}]'.format(self.steps))
-        logger.debug('Current energy:{}'.format(self.current_energy))
-        logger.debug('Action Choice:{}'.format(action))
+        logger().debug('Env::step(); steps[{0:3d}]'.format(self.steps))
+        logger().debug('Current energy:{}'.format(self.current_energy))
+        logger().debug('Action Choice:{}'.format(action))
 
         # Initialize outut
         done = False
@@ -326,7 +327,7 @@ class ExaWaterClusterDiscrete(gym.Env):
         natoms = 3
         # Extract actions
         action = self.action_map[action]
-        logger.debug('Action:{}'.format(action))
+        logger().debug('Action:{}'.format(action))
         cluster_id = action[0]
         cluster_id = self.state_order[cluster_id]
         rotation_z = action[1]
@@ -340,7 +341,7 @@ class ExaWaterClusterDiscrete(gym.Env):
             dyn = SciPyFminLBFGSB(self.current_ase)
             dyn.run(fmax=1e-2)
             energy = self.calc.get_potential_energy(self.current_ase)
-            logger.debug('energy from ttm {}'.format(energy))
+            logger().debug('energy from ttm {}'.format(energy))
         except:
             done = True
             self.current_state = np.zeros(self.embedded_state_size)
@@ -354,8 +355,8 @@ class ExaWaterClusterDiscrete(gym.Env):
         # Reward is currently based on the potential energy
         lowest_energy_xyz = ''
 
-        logger.debug('lowest_energy:{}'.format(self.lowest_energy))
-        logger.debug('energy:{}'.format(energy))
+        logger().debug('lowest_energy:{}'.format(self.lowest_energy))
+        logger().debug('energy:{}'.format(energy))
 
         # Big reward and end episode if a lower energy is reached
         if round(self.lowest_energy, 3) > round(energy, 3):
@@ -363,11 +364,11 @@ class ExaWaterClusterDiscrete(gym.Env):
             # done = True
             # bias by episode
             # reward = (2*(self.current_energy - energy))*self.episode
-            logger.debug('Lowest energy found. status {}, reward {}'.format(done, reward))
+            logger().debug('Lowest energy found. status {}, reward {}'.format(done, reward))
             # self.current_state, self.state_order = get_state_embedding(self.schnet_model, self.current_ase)
             lowest_energy_xyz = os.path.join(self.output_dir, 'rotationz_rank{}_episode{}_steps{}_energy{}.xyz'.format(
                 ExaComm.agent_comm.rank, self.episode, self.steps, round(self.lowest_energy, 4)))
-            logger.info("\t Found lower energy:{}".format(energy))
+            logger().info("\t Found lower energy:{}".format(energy))
             write_structure(lowest_energy_xyz, self.current_ase, self.current_energy)
             # return self.current_state, reward, done, {}
 
@@ -382,9 +383,9 @@ class ExaWaterClusterDiscrete(gym.Env):
                        reward, done])
             return self.current_state, reward, done, {}
 
-        logger.debug('Pre-step current energy:{}'.format(self.current_energy))
-        logger.debug('Energy:{}'.format(energy))
-        logger.debug('Reward:{}'.format(reward))
+        logger().debug('Pre-step current energy:{}'.format(self.current_energy))
+        logger().debug('Energy:{}'.format(energy))
+        logger().debug('Reward:{}'.format(reward))
 
         # Update state information
         self.current_state, self.state_order = get_state_embedding(self.schnet_model, self.current_ase)
@@ -417,18 +418,18 @@ class ExaWaterClusterDiscrete(gym.Env):
                    translation, self.current_energy, self.current_state[0],
                    reward, done])
 
-        logger.debug('Reward:{}'.format(reward))
-        logger.debug('Energy:{}'.format(energy))
+        logger().debug('Reward:{}'.format(reward))
+        logger().debug('Energy:{}'.format(energy))
         return self.current_state, reward, done, {}
 
     def reset(self):
-        logger.info("Resetting the environemnts.")
-        logger.info("Current lowest energy: {}".format(self.lowest_energy))
+        logger().info("Resetting the environemnts.")
+        logger().info("Current lowest energy: {}".format(self.lowest_energy))
 
         self.episode += 1
         self.steps = 0
         self.streak = 0
-        logger.debug('Env::reset(); episode[{0:4d}]'.format(self.episode, self.steps))
+        logger().debug('Env::reset(); episode[{0:4d}]'.format(self.episode, self.steps))
         (self.current_ase, self.nclusters) = self._load_structure(self.env_input)
         self.current_ase.calc = self.calc
         # self.current_structure = self.init_structure
@@ -437,7 +438,7 @@ class ExaWaterClusterDiscrete(gym.Env):
         self.initial_energy = read_energy(self.env_input)
         self.current_energy = self.initial_energy
         self.current_state = state_embedding
-        logger.debug('self.current_state shape:{}'.format(self.current_state.shape))
+        logger().debug('self.current_state shape:{}'.format(self.current_state.shape))
         return self.current_state
 
     def render(self, mode='human'):

@@ -18,18 +18,13 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-from textwrap import indent
 import time
 import csv
+import numpy as np
 import exarl
-import exarl.utils.candleDriver as cd
+from exarl.utils.globals import ExaGlobals
 from exarl.base.comm_base import ExaComm
 from exarl.network.typing import TypeUtils
-from exarl.utils.profile import *
-from exarl.utils import log
-import numpy as np
-
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
 
 class SIMPLE(exarl.ExaWorkflow):
     """
@@ -136,17 +131,17 @@ class SIMPLE(exarl.ExaWorkflow):
         self.debug('Creating SIMPLE', ExaComm.global_comm.rank, ExaComm.is_learner(), ExaComm.is_agent(), ExaComm.is_actor())
 
         self.block_size = 1
-        block = TypeUtils.get_bool(cd.lookup_params('episode_block', default=False))
+        block = TypeUtils.get_bool(ExaGlobals.lookup_params('episode_block'))
         if block:
             if ExaComm.global_comm.rank == 0:
                 self.block_size = ExaComm.agent_comm.size
             self.block_size = ExaComm.global_comm.bcast(self.block_size, 0)
 
         # How often do we send batches
-        self.batch_frequency = cd.lookup_params('batch_frequency', default=1)
+        self.batch_frequency = ExaGlobals.lookup_params('batch_frequency')
         # If it is set to -1 then we only send an update when the episode is over
         if self.batch_frequency == -1:
-            self.batch_frequency = cd.lookup_params('n_steps', default=1)
+            self.batch_frequency = ExaGlobals.lookup_params('n_steps')
 
         # Learner episode counters
         self.next_episode = 0
@@ -171,7 +166,7 @@ class SIMPLE(exarl.ExaWorkflow):
         self.init_logging()
 
         # Save weights after each episode
-        self.save_weights_per_episode = TypeUtils.get_bool(cd.lookup_params('save_weights_per_episode', default=False))
+        self.save_weights_per_episode = TypeUtils.get_bool(ExaGlobals.lookup_params('save_weights_per_episode'))
 
         # This is for print/debug
         self.episode_reward_list = []
@@ -188,9 +183,9 @@ class SIMPLE(exarl.ExaWorkflow):
         Initialize the logging on rank 0.
         """
         # Get parameters
-        results_dir = cd.lookup_params('output_dir', default="./results_dir")
-        nepisodes = cd.lookup_params('n_episodes', default=0)
-        nsteps = cd.lookup_params('n_steps', default=0)
+        results_dir = ExaGlobals.lookup_params('output_dir')
+        nepisodes = ExaGlobals.lookup_params('n_episodes')
+        nsteps = ExaGlobals.lookup_params('n_steps')
 
         # Do the initialization
         if ExaComm.is_agent():
