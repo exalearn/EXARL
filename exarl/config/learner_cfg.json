@@ -1,13 +1,17 @@
 {
     "agent": "DQN-v0",
     "env": "ExaCartPoleStatic-v0",
-    "workflow": "async",
-    "n_episodes": 50,
+    "workflow": "simple",
+    "n_episodes": 10,
     "n_steps": 10,
+    "model": "MLP",
     "output_dir": "./results_dir/",
+    "introspector_dir": "none",
     "process_per_env": 1,
-    "model_type": "LSTM",
-    "action_type": "variable",
-    "log_level": [3, 3],
-    "profile": "none"
+    "log_level": [
+        3,
+        0
+    ],
+    "profile": "None",
+    "mpi4py_rc": "false"
 }

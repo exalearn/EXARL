@@ -18,25 +18,28 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-from tensorflow import keras
-import exarl as erl
-import exarl.utils.analyze_reward as ar
+import os
 import time
-from exarl.utils.candleDriver import lookup_params
-from exarl.utils.introspect import *
 import numpy as np
+from tensorflow import keras
 
+import exarl
+import exarl.utils.analyze_reward as ar
+from exarl.utils.globals import ExaGlobals
+from exarl.utils.introspect import *
 
 # Create learner object and run
-exa_learner = erl.ExaLearner()
+exa_learner = exarl.ExaLearner()
 
 # MPI communicator
-comm = erl.ExaComm.global_comm
+comm = exarl.ExaComm.global_comm
 rank = comm.rank
 size = comm.size
 
-writeDir = lookup_params("introspector_dir")
-if writeDir is not None:
+writeDir = ExaGlobals.lookup_params("introspector_dir")
+if writeDir != "none":
+    if not os.path.exists(writeDir):
+        os.makedirs(writeDir)
     ibLoadReplacement(comm, writeDir)
 
 # Run the learner, measure time

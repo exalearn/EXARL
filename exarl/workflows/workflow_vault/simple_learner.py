@@ -18,128 +18,130 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-from textwrap import indent
 import time
 import csv
-import exarl as erl
-from exarl.utils.introspect import ib
-from exarl.utils.profile import *
-from exarl.utils import log
-import exarl.utils.candleDriver as cd
+import numpy as np
+import exarl
+from exarl.utils.globals import ExaGlobals
 from exarl.base.comm_base import ExaComm
 from exarl.network.typing import TypeUtils
-import traceback
 
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
-
-class SIMPLE(erl.ExaWorkflow):
+class SIMPLE(exarl.ExaWorkflow):
     """
-        This class implements a workflow by breaking the functionality into pieces.
-        We define 3 key terms used throughout the implementation/documentation:
-        
-        Learner - the rank responsible for running the train/target train functions.
-        Agents - the ranks responsible for training/inference.  Agents include learners.
-        Actors - agents that are not learners.
+    This class implements a workflow by breaking the functionality into pieces.
+    We define 3 key terms used throughout the implementation/documentation:
 
-        The following is an example useful for understanding the above descriptions.
-        The example assumes 14 ranks (2 Learners, 5 Agents, 4 Environment)
-        There is no actor comm so we add * to depict actors 
-        Rank  0  1  2  3  4  5  6  7  8  9  10 11 12 13
-        Learn     0  1  -  -  -  -  -  -  -  -  -  -  -  -
-        Agent     0  1  2  -  -  -  3  -  -  -  4  -  -  - 
-        Actor     -  -  *  -  -  -  *  -  -  -  *  -  -  -
-        Envir     -  -  0  1  2  3  0  1  2  3  0  1  2  3
+    Learner - the rank responsible for running the train/target train functions.
+    Agents - the ranks responsible for training/inference.  Agents include learners.
+    Actors - everyone that is not a learner.
 
-        For a single rank execution, global rank 0 is the learner, agent, and environment.
+    The following is an example useful for understanding the above descriptions.
+    The example assumes 14 ranks (2 Learners, 5 Agents, 4 Environment)
+    We present both the comms and the ranks.
+    There is no actor comm so we add * to depict actors.
+    Rank  0  1  2  3  4  5  6  7  8  9  10 11 12 13
+    Learn     0  1  -  -  -  -  -  -  -  -  -  -  -  -
+    Agent     0  1  2  -  -  -  3  -  -  -  4  -  -  -
+    Actor     -  -  *  *  *  *  *  *  *  *  *  *  *  *
+    Envir     -  -  0  1  2  3  0  1  2  3  0  1  2  3
 
-        The cut-off condition for this is based on how many episodes the
-        done learner observes.  We have two sets of internal variables
-        one set used by the learners and another used by the actors.
-        Batches and weights are passed via the leaner and actor calls by 
-        setting self.batch and self.weights.
-        
-        We maintain a distinction between learner and agent variables even in the single 
-        rank such that this can serve as a base class for future workflows.  The actor 
-        and learner functions should remain unchanged.  The easiest changes should be
-        made to the send/recv, init_learner, and run functions.
+    For a single rank execution, global rank 0 is the learner, agent, and environment.
 
-        TODO:
-            - Add multi-learner - We can think if this should be in this class or in
-            a inherited class.
+    The cut-off condition for this is based on how many episodes the
+    done learner observes.  We have two sets of internal variables
+    one set used by the learners and another used by the actors.
+    Batches and weights are passed via the leaner and actor calls by
+    setting self.batch and self.weights.
 
-        Attributes
-        ----------
-        block_size : int
-            This is used to indicate we want on-policy learning
-            and is used by the learner. When we want on-policy 
-            learning we set this to the total number of number of 
-            actors. We can allow off-policy learning by setting
-            the value to one.  For sequential learning this
-            is set to one.
+    We maintain a distinction between learner and agent variables even in the single
+    rank such that this can serve as a base class for future workflows.  The actor
+    and learner functions should remain unchanged.  The easiest changes should be
+    made to the send/recv, init_learner, and run functions.
 
-        batch_frequency : int
-            This value is used to determine how often we should
-            send a batch of data.  The value represents performing
-            batch_frequency steps per 1 batch send.
+    TODO:
+        - Add multi-learner - We can think if this should be in this class or in
+        a inherited class.
 
-        next_episode : int
-            This value is used by the learner to keep track of
-            what the next episode to run is.
+    Attributes
+    ----------
+    block_size : int
+        This is used to indicate we want on-policy learning
+        and is used by the learner. When we want on-policy
+        learning we set this to the total number of agents.
+        We can allow off-policy learning by setting
+        the value to one.  For sequential learning this
+        is set to one.
 
-        done_episode : int
-            This is a counter of how many episodes have been
-            finished used by the learner.
+    batch_frequency : int
+        This value is used to determine how often we should
+        send a batch of data.  The value represents performing
+        batch_frequency steps per 1 batch send.
 
-        episode_per_rank : list
-            This is a list of ints that indicate what episode
-            each rank is working on. This is used by the learner.
+    next_episode : int
+        This value is used by the learner to keep track of
+        what the next episode to run is.
 
-        total_reward : int
-            This is the sum of rewards for the current episode.
-            This is used by an actor.
+    done_episode : int
+        This is a counter of how many episodes have been
+        finished used by the learner.
 
-        steps : int
-            This is the current step within an episode.
-            This is used by the actor
+    episode_per_rank : list
+        This is a list of ints that indicate what episode
+        each rank is working on. This is used by the learner.
 
-        done : bool
-            This flag indicates if the episode is done.
-            This is used by the actor.
+    total_reward : int
+        This is the sum of rewards for the current episode.
+        This is used by an actor.
 
-        model_count : int
-            This is the current generation of the model.  This counter
-            is set on the learner.  It is up to the send/recv to
-            propagate this to the actors.
+    steps : int
+        This is the current step within an episode.
+        This is used by the actor
 
-        save_weight_per_episode : bool
-            This will cause the workflow to save the weights for each
-            learner model generation.
+    done : bool
+        This flag indicates if the episode is done.
+        This is used by the actor.
 
-        filename_prefix : string
-            Prefix of the log file.
+    model_count : int
+        This is the current generation of the model.  This counter
+        is set on the learner.  It is up to the send/recv to
+        propagate this to the actors.
 
-        train_file : file
-            File we use to write logs to.
+    save_weight_per_episode : bool
+        This will cause the workflow to save the weights for each
+        learner model generation.
 
-        train_writer : csv.writer
-            Logger that writes to train_file.
+    filename_prefix : string
+        Prefix of the log file.
 
-        """
+    train_file : file
+        File we use to write logs to.
+
+    train_writer : csv.writer
+        Logger that writes to train_file.
+
+    episode_reward_list : list
+        This store total reward at the end of an episode.
+
+    verbose : bool
+        Debug print flag
+    """
+    verbose = False
+
     def __init__(self):
-        print('Creating SIMPLE', ExaComm.global_comm.rank, ExaComm.is_learner(), ExaComm.is_agent(), ExaComm.is_actor(), flush=True)
+        self.debug('Creating SIMPLE', ExaComm.global_comm.rank, ExaComm.is_learner(), ExaComm.is_agent(), ExaComm.is_actor())
 
         self.block_size = 1
-        block = TypeUtils.get_bool(cd.lookup_params('episode_block', default=False))
+        block = TypeUtils.get_bool(ExaGlobals.lookup_params('episode_block'))
         if block:
             if ExaComm.global_comm.rank == 0:
                 self.block_size = ExaComm.agent_comm.size
-            self.block_size = ExaComm.global_comm.bcast(self.block_size, 0) 
+            self.block_size = ExaComm.global_comm.bcast(self.block_size, 0)
 
         # How often do we send batches
-        self.batch_frequency = cd.lookup_params('batch_frequency', default=1)
+        self.batch_frequency = ExaGlobals.lookup_params('batch_frequency')
         # If it is set to -1 then we only send an update when the episode is over
         if self.batch_frequency == -1:
-            self.batch_frequency = cd.lookup_params('n_steps', default=1)
+            self.batch_frequency = ExaGlobals.lookup_params('n_steps')
 
         # Learner episode counters
         self.next_episode = 0
@@ -164,16 +166,26 @@ class SIMPLE(erl.ExaWorkflow):
         self.init_logging()
 
         # Save weights after each episode
-        self.save_weights_per_episode = TypeUtils.get_bool(cd.lookup_params('save_weights_per_episode', default=False))
+        self.save_weights_per_episode = TypeUtils.get_bool(ExaGlobals.lookup_params('save_weights_per_episode'))
+
+        # This is for print/debug
+        self.episode_reward_list = []
+
+    def debug(self, *args):
+        """
+        Function to turn on and off debug print statements
+        """
+        if SIMPLE.verbose:
+            print("[", self.__class__.__name__, ExaComm.global_comm.rank, "]", *args, flush=True)
 
     def init_logging(self):
         """
         Initialize the logging on rank 0.
         """
         # Get parameters
-        results_dir = cd.lookup_params('output_dir', default="./results_dir")
-        nepisodes = cd.lookup_params('n_episodes', default=0)
-        nsteps = cd.lookup_params('n_steps', default=0)
+        results_dir = ExaGlobals.lookup_params('output_dir')
+        nepisodes = ExaGlobals.lookup_params('n_episodes')
+        nsteps = ExaGlobals.lookup_params('n_steps')
 
         # Do the initialization
         if ExaComm.is_agent():
@@ -189,14 +201,14 @@ class SIMPLE(erl.ExaWorkflow):
         ----------
         current_state : gym.space
             The state from the observation space at the current step
-        
+
         action : gym.space
             The action from the action space given via inference
 
         reward : float
             The value of the state transition given by the environment
             performing a step
-        
+
         next_state : gym.space
             The resulting state after performing action on current observation space
 
@@ -218,7 +230,7 @@ class SIMPLE(erl.ExaWorkflow):
             self.train_writer.writerow([time.time(), current_state, action, reward, next_state, total_reward, done, episode, steps, policy_type, epsilon])
             self.train_file.flush()
 
-    def save_weights(self, workflow, episode, nepisodes):
+    def save_weights(self, exalearner, episode, nepisodes):
         """
         This function is a wrapper around save weights.  If save_weights_per_episode flag
         is set in configuration, we will store all the weights for each model generation.
@@ -226,7 +238,7 @@ class SIMPLE(erl.ExaWorkflow):
 
         Parameters
         ----------
-        workflow : ExaWorkflow
+        exalearner : ExaLearner
             This contains the agent and env
 
         episode : int
@@ -236,11 +248,11 @@ class SIMPLE(erl.ExaWorkflow):
             Total number of episodes to be performed
         """
         if self.save_weights_per_episode and episode != nepisodes:
-           workflow.agent.save(workflow.results_dir + '/' + self.filename_prefix + '_' + str(episode) + '.h5')
+            exalearner.agent.save(exalearner.results_dir + '/' + self.filename_prefix + '_' + str(episode) + '.h5')
         elif episode == nepisodes:
-            workflow.agent.save(workflow.results_dir + '/' + self.filename_prefix + '.h5')
+            exalearner.agent.save(exalearner.results_dir + '/' + self.filename_prefix + '.h5')
 
-    def send_model(self, workflow, episode, train_return, dst):
+    def send_model(self, exalearner, episode, train_return, dst):
         """
         This function is responsible for sending the model from the learner to
         other agents.  For the sync learner, we just store the weights in the workflow.
@@ -253,9 +265,9 @@ class SIMPLE(erl.ExaWorkflow):
 
         Parameters
         ----------
-        workflow : ExaWorkflow
+        exalearner : ExaLearner
             This contains the agent and env
-        
+
         episode : int
             The current episode curresponding to the model generation
 
@@ -266,18 +278,18 @@ class SIMPLE(erl.ExaWorkflow):
         dst : int
             This is the destination rank given by the agent communicator
         """
-        weights = workflow.agent.get_weights()
-        self.weights = [episode, workflow.agent.epsilon, weights]
+        weights = exalearner.agent.get_weights()
+        self.weights = [episode, exalearner.agent.epsilon, weights]
         if train_return:
             self.weights.append(train_return)
 
     def recv_model(self):
         """
         This function is the corresponding receive function to
-        the send_model function.  Here the weights are being received by the actors
-        (sent from the learner).  Again for the simple learner we retrieve this
-        data which is stored locally, however this function is to be overloaded
-        for more interesting workflows.
+        the send_model function.  Here the weights are being received by the
+        the other agents (sent from the learner).  Again for the simple learner
+        we retrieve this data which is stored locally, however this function is
+        to be overloaded for more interesting workflows.
 
         Returns
         ----------
@@ -287,7 +299,7 @@ class SIMPLE(erl.ExaWorkflow):
         """
         return self.weights
 
-    def send_batch(self, batch_data, policy_type, done):
+    def send_batch(self, batch_data, policy_type, done, epsilon):
         """
         This function is used to send batches of data from the actor to the
         learner.  For the simple learner data is being stored locally.  This
@@ -303,7 +315,7 @@ class SIMPLE(erl.ExaWorkflow):
             This is the policy given by the actor performing inference to get an action
             TODO: Make this description better
         """
-        self.batch = [ExaComm.agent_comm.rank, batch_data, policy_type, done]
+        self.batch = [ExaComm.agent_comm.rank, batch_data, policy_type, done, epsilon]
 
     def recv_batch(self):
         """
@@ -321,26 +333,26 @@ class SIMPLE(erl.ExaWorkflow):
         """
         return self.batch
 
-    def reset_env(self, workflow):
+    def reset_env(self, exalearner):
         """
         This function resets an environment if the done flag has been set.
-        
+
         Parameters
         ----------
-        workflow : ExaWorkflow
+        exalearner : ExaLearner
             This contains the agent and env
         """
         if self.done:
             self.total_reward = 0
             self.steps = 0
             self.done = False
-            self.current_state = workflow.env.reset()
+            self.current_state = exalearner.env.reset()
 
-    def init_learner(self, workflow):
+    def init_learner(self, exalearner):
         """
         This function is used to initialize the model on every agent.  The learner
         is responsible for sending out the model to each actor.  The actors will
-        read in the values in the actor function.  The learner uses the 
+        read in the values in the actor function.  The learner uses the
         episode_per_rank to keep track of which rank each episode is running and
         used next_episode to record which episode is next to send to an actor.
 
@@ -350,23 +362,23 @@ class SIMPLE(erl.ExaWorkflow):
         next episode.
 
         For this simple learning we are assuming that the learner and actor
-        are running on the same rank.  In this case we only care about 
+        are running on the same rank.  In this case we only care about
         episode_per_rank[0].  This function should be overwritten for the
         multi-agent case which should iterate over the agent comm and update
         the episode_per_rank[i] where i is the agent_comm.rank.
 
         Parameters
         ----------
-        workflow : ExaWorkflow
+        exalearner : ExaLearner
             This contains the agent and env
         """
         if ExaComm.is_learner():
             # We are assuming there is only one right here
             self.episode_per_rank[0] = self.next_episode
-            self.send_model(workflow, self.next_episode, None, 0)
+            self.send_model(exalearner, self.next_episode, None, 0)
             self.next_episode += 1
 
-    def learner(self, workflow, nepisodes, start_rank):
+    def learner(self, exalearner, nepisodes, start_rank):
         """
         This function is performed by the learner.  The learner
         performs the following key steps:
@@ -415,9 +427,9 @@ class SIMPLE(erl.ExaWorkflow):
 
         Parameters
         ----------
-        workflow : ExaWorkflow
+        exalearner : ExaLearner
             This contains the agent and env
-        
+
         nepisodes : int
             The number of episodes to be performed
 
@@ -426,14 +438,13 @@ class SIMPLE(erl.ExaWorkflow):
         """
         to_send = []
         for dst in range(start_rank, self.block_size):
-            src, batch, policy_type, done = self.recv_batch()
-            self.train_return[src] = workflow.agent.train(batch)
-            workflow.agent.target_train()
+            src, batch, policy_type, done, epsilon = self.recv_batch()
+            self.train_return[src] = exalearner.agent.train(batch)
+            exalearner.agent.target_train()
             self.model_count += 1
             to_send.append(src)
 
-            if policy_type == 0:
-                workflow.agent.epsilon_adj()
+            exalearner.agent.epsilon = min(exalearner.agent.epsilon, epsilon)
 
             if done:
                 self.done_episode += 1
@@ -441,23 +452,23 @@ class SIMPLE(erl.ExaWorkflow):
                 self.next_episode += 1
 
         for dst in to_send:
-            self.send_model(workflow, self.episode_per_rank[dst], self.train_return[dst], dst)
+            self.send_model(exalearner, self.episode_per_rank[dst], self.train_return[dst], dst)
 
-        self.save_weights(workflow, self.done_episode, nepisodes)
+        self.save_weights(exalearner, self.done_episode, nepisodes)
 
-    def actor(self, workflow, nepisodes):
+    def actor(self, exalearner, nepisodes):
         """
         This function is performed by actors.  It performs the follow:
 
         1. Receives model weights from the learner
         2. Set agents with new model weights
-        3. Resets the environment if necessary 
+        3. Resets the environment if necessary
         4. Performs inference based on current state to get action
         5. Broadcasts that action to the other ranks in the env_comm
         6. Performs the action and determines the reward and next state
         7. Records the experience (i.e. states, action, and reward)
         8. Updates the current state to the new state
-        9. Check for max number of steps and broadcast 
+        9. Check for max number of steps and broadcast
         10. Sends batches of experiences to the learner
 
         We use the batch_frequency to determine how often we send
@@ -467,7 +478,7 @@ class SIMPLE(erl.ExaWorkflow):
 
         Parameters
         ----------
-        workflow : ExaWorkflow
+        exalearner : ExaLearner
             This contains the agent and env
 
         nepisodes : int
@@ -485,7 +496,6 @@ class SIMPLE(erl.ExaWorkflow):
         epsilon = 0
         action = 0
         policy_type = 0
-        
         # Get model and update the other env ranks (1)
         if ExaComm.env_comm.rank == 0:
             episode, epsilon, weights, *train_ret = self.recv_model()
@@ -495,31 +505,31 @@ class SIMPLE(erl.ExaWorkflow):
 
         # Set agent for rank 0 (2)
         if ExaComm.env_comm.rank == 0:
-            workflow.agent.epsilon = epsilon
-            workflow.agent.set_weights(weights)
+            exalearner.agent.epsilon = epsilon
+            exalearner.agent.set_weights(weights)
             if train_ret:
                 # JS: This call flattens the list from *train_ret above
                 train_ret = [item for sublist in train_ret for item in sublist]
-                workflow.agent.set_priorities(*train_ret)
-        
+                exalearner.agent.set_priorities(*train_ret)
+
         # Reset environment if required (3)
-        self.reset_env(workflow)
+        self.reset_env(exalearner)
 
         for i in range(self.batch_frequency):
             # Do inference (4)
             if ExaComm.env_comm.rank == 0:
-                action, policy_type = workflow.agent.action(self.current_state)
-                if workflow.action_type == "fixed":
+                action, policy_type = exalearner.agent.action(self.current_state)
+                if exalearner.action_type == "fixed":
                     action, policy_type = 0, -11
-            
+
             # Broadcast action and do step (5 and 6)
             action = ExaComm.env_comm.bcast(action, root=0)
-            next_state, reward, self.done, _ = workflow.env.step(action)
+            next_state, reward, self.done, _ = exalearner.env.step(action)
             self.step_count += 1
-            
+
             # Record experience (7)
             if ExaComm.env_comm.rank == 0:
-                workflow.agent.remember(self.current_state, action, reward, next_state, self.done)
+                exalearner.agent.remember(self.current_state, action, reward, next_state, self.done)
                 self.total_reward += reward
             self.write_log(self.current_state, action, reward, next_state, self.total_reward, self.done, episode, self.steps, policy_type, epsilon)
 
@@ -528,20 +538,24 @@ class SIMPLE(erl.ExaWorkflow):
             self.steps += 1
 
             # Check number of steps and broadcast (9)
-            if self.steps == workflow.nsteps:
-                self.done = True 
+            if self.steps == exalearner.nsteps:
+                self.done = True
             self.done = ExaComm.env_comm.bcast(self.done, 0)
             if self.done:
                 self.episode_count += 1
+                # Lets us know how we are doing
+                self.episode_reward_list.append(self.total_reward)
+                average_reward = np.mean(self.episode_reward_list[-40:])
+                self.debug("Episode:", episode, "Average Reward:", average_reward)
                 break
-    
+
         # Send batches back to the learner (10)
         if ExaComm.env_comm.rank == 0:
-            batch_data = next(workflow.agent.generate_data())
-            self.send_batch(batch_data, policy_type, self.done)
+            batch_data = next(exalearner.agent.generate_data())
+            self.send_batch(batch_data, policy_type, self.done, exalearner.agent.epsilon)
         return True
 
-    def episode_round(self, workflow):
+    def episode_round(self, exalearner):
         """
         Rounds to an even number of episodes for blocking purposes.
         We broadcast this result to everyone.  This is also a good
@@ -549,24 +563,26 @@ class SIMPLE(erl.ExaWorkflow):
 
         Parameters
         ----------
-        workflow : ExaWorkflow
+        exalearner : ExaLearner
             This contains the agent and env
         """
-        # 
-        nepisodes = workflow.nepisodes
+        nepisodes = exalearner.nepisodes
         if ExaComm.global_comm.rank == 0:
-            if self.block_size == ExaComm.agent_comm.size:
-                nactors = ExaComm.global_comm.size - ExaComm.num_learners
-                if workflow.nepisodes % nactors:
-                    nepisodes = (int(workflow.nepisodes / nactors) + 1) * nactors
-        
-        # This ensures everyone has the same nepisodes as well 
+            if self.block_size == ExaComm.agent_comm.size and ExaComm.agent_comm.size > 1:
+                nactors = ExaComm.agent_comm.size - ExaComm.num_learners
+                if exalearner.nepisodes % nactors:
+                    nepisodes = (int(exalearner.nepisodes / nactors) + 1) * nactors
+
+            # Just make it so everyone does at least one
+            if nepisodes < ExaComm.agent_comm.size - ExaComm.num_learners:
+                nepisodes = ExaComm.agent_comm.size - ExaComm.num_learners
+
+        # This ensures everyone has the same nepisodes as well
         # as ensuring everyone is starting at the same time
         nepisodes = ExaComm.global_comm.bcast(nepisodes, 0)
         return nepisodes
 
-    @PROFILE
-    def run(self, workflow):
+    def run(self, exalearner):
         """
         This function is responsible for calling the appropriate initialization
         and looping over the actor/learner functions.  This function should
@@ -578,20 +594,20 @@ class SIMPLE(erl.ExaWorkflow):
 
         Parameters
         ----------
-        workflow : ExaWorkflow
+        exalearner : ExaLearner
             This contains the agent and env
         """
-        nepisodes = self.episode_round(workflow)
-
-        self.init_learner(workflow)
+        nepisodes = self.episode_round(exalearner)
+        self.init_learner(exalearner)
         if ExaComm.is_agent():
             while self.done_episode < nepisodes:
-                self.actor(workflow, nepisodes)
-                self.learner(workflow, nepisodes, 0)
+                self.actor(exalearner, nepisodes)
+                self.learner(exalearner, nepisodes, 0)
+                self.debug("Learner:", self.done_episode, nepisodes)
             # Send the done signal to the rest
             ExaComm.env_comm.bcast(self.done_episode, 0)
         else:
             keep_running = True
             while keep_running:
-                keep_running = self.actor(workflow, nepisodes)
-        
+                keep_running = self.actor(exalearner, nepisodes)
+                self.debug("Actor:", keep_running)

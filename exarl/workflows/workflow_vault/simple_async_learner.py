@@ -18,18 +18,8 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-import time
-import csv
-import exarl as erl
-from exarl.utils.introspect import ib
-from exarl.utils.profile import *
-from exarl.utils import log
-import exarl.utils.candleDriver as cd
 from exarl.base.comm_base import ExaComm
-from exarl.network.typing import TypeUtils
 from exarl.workflows.workflow_vault.simple_learner import SIMPLE
-
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
 
 class SIMPLE_ASYNC(SIMPLE):
     """
@@ -40,16 +30,15 @@ class SIMPLE_ASYNC(SIMPLE):
     We are currently supporting single learner thus we set block_size = 2
     for off-policy learning.
 
-    This class assumes a single learner. 
+    This class assumes a single learner.
     """
 
     def __init__(self):
         super(SIMPLE_ASYNC, self).__init__()
-        print('Creating SIMPLE ASYNC learner!', flush=True)
+        print('Creating SIMPLE ASYNC learner!')
 
         if self.block_size == 1:
             self.block_size = 2
-        # print("priority_scale", cd.lookup_params('priority_scale'), "batch_frequency", cd.lookup_params('batch_frequency'), "block_size", self.block_size, flush=True)
 
     def send_model(self, workflow, episode, train_ret, dst):
         """
@@ -60,7 +49,7 @@ class SIMPLE_ASYNC(SIMPLE):
         ----------
         workflow : ExaWorkflow
             This contains the agent and env
-        
+
         episode : int
             The current episode curresponding to the model generation
 
@@ -90,7 +79,7 @@ class SIMPLE_ASYNC(SIMPLE):
         ret = ExaComm.agent_comm.recv(None, source=0)
         return ret
 
-    def send_batch(self, batch_data, policy_type, done):
+    def send_batch(self, batch_data, policy_type, done, epsilon):
         """
         This function is used to send batches of data from the actor to the
         learner using MPI_Send.
@@ -104,12 +93,12 @@ class SIMPLE_ASYNC(SIMPLE):
         policy_type : int
             This is the policy given by the actor performing inference to get an action
         """
-        ExaComm.agent_comm.send([ExaComm.agent_comm.rank, batch_data, policy_type, done], 0)
+        ExaComm.agent_comm.send([ExaComm.agent_comm.rank, batch_data, policy_type, done, epsilon], 0)
 
     def recv_batch(self):
         """
         This function receives batches of experiences sent from an actor
-        using MPI_Recv.  
+        using MPI_Recv.
 
         Returns
         -------
@@ -118,7 +107,7 @@ class SIMPLE_ASYNC(SIMPLE):
             The done flag indicates if the episode the actor was working on finished.
         """
         return ExaComm.agent_comm.recv(None)
-    
+
     def init_learner(self, workflow):
         """
         This function is used to initialize the model on every agent.
@@ -134,7 +123,6 @@ class SIMPLE_ASYNC(SIMPLE):
             self.episode_per_rank[dst] = self.next_episode
             self.next_episode += 1
 
-    @PROFILE
     def run(self, workflow):
         """
         This function is responsible for calling the appropriate initialization
@@ -145,16 +133,16 @@ class SIMPLE_ASYNC(SIMPLE):
         workflow : ExaWorkflow
             This contains the agent and env
         """
-        nepisodes = self.episode_round(workflow)                
-        
+        nepisodes = self.episode_round(workflow)
+
         # These are the loops used to keep everyone running
         if ExaComm.is_learner():
             self.init_learner(workflow)
             while self.done_episode < nepisodes:
                 self.learner(workflow, nepisodes, 1)
+                self.debug("Learner:", self.done_episode, nepisodes)
         else:
             keep_running = True
             while keep_running:
                 keep_running = self.actor(workflow, nepisodes)
-
-        
+                self.debug("Actor:", keep_running)

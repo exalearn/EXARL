@@ -11,6 +11,8 @@ from exarl.base.env_base import ExaEnv
 from exarl.base.agent_base import ExaAgent
 from exarl.envs.env_vault.UnitEvn import EnvGenerator
 import functools
+import time
+import random
 
 class record:
     """"
@@ -23,9 +25,9 @@ class record:
 
     Vector clocks are implemented by having p counters (i.e. clock) on
     each process (i.e. rank).  P is the total number of processes (thus
-    we have P^2 total clock across all ranks).  We increase our clock 
-    (i.e. clock[rank]) every event we encounter.  When we "send" a 
-    recieve a message we update our vector of clocks to the max time 
+    we have P^2 total clock across all ranks).  We increase our clock
+    (i.e. clock[rank]) every event we encounter.  When we "send" a
+    receive a message we update our vector of clocks to the max time
     (i.e. count) observed by each clock.
 
     When an event occurs and we increase our clock, we also record
@@ -44,9 +46,9 @@ class record:
 
     This is not a complete DAG, as we are still developing the partial
     order based on the observed order of events.  In otherwords, events
-    could be reordered from the point of view of exection reduce the
+    could be reordered from the point of view of execution reduce the
     number of dependencies.
-    
+
     To create a complete view of the events across a run, we gather all
     the events from each node and stitch them together.  Since events
     are recorded in order on a single node, we do not need to perform
@@ -54,14 +56,14 @@ class record:
 
     Events are recorded via a decorator, which we attach to each function
     we care about.  Functions that can be seen as message sends, will
-    call get_clock_to_send while messages that recieve will call update_clocks.
-    
+    call get_clock_to_send while messages that receive will call update_clocks.
+
     Attributes
     ----------
     counters : Dictionary
         This contains a name of each function and how many times it ran
     events : List
-        This contains a list of events that have occured on a single node
+        This contains a list of events that have occurred on a single node
     clocks : list
         These are clocks, one for each rank
     """
@@ -72,7 +74,7 @@ class record:
     def reset(num_nodes):
         """
         Resets the record.
-        
+
         Parameters
         ----------
         verbose : bool
@@ -86,7 +88,7 @@ class record:
         """
         This function adds one to ranks clock and returns
         a copy of the clock to send.
-        
+
         Returns
         -------
         list
@@ -97,21 +99,21 @@ class record:
 
     def update_clock(clocks):
         """
-        This recieves a vector clock and updates the local
+        This receives a vector clock and updates the local
         vector clock with the max per rank.
-        
+
         Parameters
         ----------
         clocks : list
             Incoming vector clock
         """
-        record.clocks = [max(a,b) for a,b in zip(record.clocks, clocks)]
+        record.clocks = [max(a, b) for a, b in zip(record.clocks, clocks)]
 
     def equal(A, B):
         """
         This compares two clocks to see if they are equal.
         They are only equal if all of clocks are equal.
-        
+
         Parameters
         ----------
         A : list
@@ -119,18 +121,18 @@ class record:
         A : list
             Vector clock
         """
-        for a,b in zip(A[2],B[2]):
+        for a, b in zip(A[2], B[2]):
             if(a != b):
                 return False
         return True
-    
+
     def less_than(A, B):
         """
         This compares two clocks to see if A is less than B.
         We assume that A != B !!!  A's clocks must be
-        less than or equal to B for event A to have occured
+        less than or equal to B for event A to have occurred
         before B.
-        
+
         Parameters
         ----------
         A : list
@@ -141,10 +143,10 @@ class record:
         Returns
         -------
         bool
-            If A occured before B
+            If A occurred before B
         """
         # We assume that A != B
-        for a,b in zip(A[2],B[2]):
+        for a, b in zip(A[2], B[2]):
             if(a > b):
                 return False
         return True
@@ -152,11 +154,11 @@ class record:
     def compare(A, B):
         """
         This does a full comparison of two vector clocks.  We return:
-        -1 iff A occures before B
-         1 iff B occures before A
+        -1 iff A occurs before B
+         1 iff B occurs before A
          0 otherwise
         We do this by checking A == B, A < B, B < A in order.
-        
+
         Parameters
         ----------
         A : list
@@ -167,7 +169,7 @@ class record:
         Returns
         -------
         int
-            -1 iff A occures before B, 1 iff B occures before A, and 0 otherwise
+            -1 iff A occurs before B, 1 iff B occurs before A, and 0 otherwise
         """
         if record.equal(A, B):
             return 0
@@ -183,9 +185,9 @@ class record:
     def sort(data):
         """
         This function sorts events from every rank.
-        We assume that events within a rank are ordered 
+        We assume that events within a rank are ordered
         based on observation.
-        
+
         Parameters
         ----------
         data : list
@@ -218,12 +220,12 @@ class record:
         how many times it has been call in the counters dictionary and
         add an entry under events.  It will also increment the appropriate
         clock within the vector clocks.
-        
+
         Parameters
         ----------
         func : function
             This is the function to record
-        
+
         Returns
         -------
         result
@@ -238,7 +240,7 @@ class record:
                 record.counters[func.__name__] = 1
             record.clocks[ExaComm.global_comm.rank] += 1
             record.events.append((ExaComm.global_comm.rank, record.counters[func.__name__], record.clocks[:], func.__name__,))
-            
+
             return result
         return wrapper
 
@@ -256,17 +258,35 @@ class WorkflowTestConstants:
         The maximum number of steps set in the environment
     workflow_max_steps : int
         The maximum number of steps set in the workflow
+    rank_sleep : bool
+        Flag to turn on sleeping in step and train based on
+        rank
+    random_sleep : bool
+        Flag to turn on sleeping in step and train based on
+        a random amount
     """
     episodes = None
     env_max_steps = None
     workflow_max_steps = None
+    rank_sleep = False
+    random_sleep = False
+
+    def do_random_sleep():
+        """
+        This function look at the constants and performs a sleep
+        for some amount of microseconds
+        """
+        if WorkflowTestConstants.rank_sleep > 0:
+            time.sleep(ExaComm.global_comm.rank * 10**(-3))
+        elif WorkflowTestConstants.random_sleep > 0:
+            time.sleep(int(random.random() * 100) * 10**(-4))
 
 class FakeLearner:
     """
     This class is used to fake out a learner base.  It seems all we really
     need is something that can link the workflow, agent, and environment
     together plus the number of episodes and steps.
-    
+
     Attributes
     ----------
     global_comm : ExaComm
@@ -351,7 +371,7 @@ class FakeEnv(gym.Env):
     """
 
     name = "FakeEnv-v0"
-    
+
     def __init__(self):
         super().__init__()
         self.action_space = spaces.Discrete(WorkflowTestConstants.env_max_steps)
@@ -359,7 +379,7 @@ class FakeEnv(gym.Env):
 
         self.state = 0
         self.max_steps = WorkflowTestConstants.env_max_steps
-    
+
     @record.event
     def step(self, action):
         """
@@ -371,7 +391,7 @@ class FakeEnv(gym.Env):
         action : int
             This is the step to perform. Its an int since the action
             space is Discrete.
-        
+
         Returns
         -------
         Pair
@@ -380,9 +400,11 @@ class FakeEnv(gym.Env):
         if self.state < self.max_steps:
             self.state += 1
         done = self.state == self.max_steps
+
+        WorkflowTestConstants.do_random_sleep()
         return self.state, 1, done, {}
 
-    @record.event 
+    @record.event
     def reset(self):
         """
         This resets the environment.
@@ -394,14 +416,13 @@ class FakeEnv(gym.Env):
         """
         self.state = 0
         return self.state
-        
-    
+
 class FakeAgent(ExaAgent):
     """
     This class is a fake agent.  Each method is tagged with vector clocks to
     keep track of events.  A send is a method that will generate data for
-    another rank.  A recieve is a method that will take data in from another
-    rank.  Instead of passing weight, indicies, or loss around, we replace
+    another rank.  A receive is a method that will take data in from another
+    rank.  Instead of passing weight, indices, or loss around, we replace
     this with passing the vector clocks allowing us to create the partial
     orders.
 
@@ -445,7 +466,7 @@ class FakeAgent(ExaAgent):
         # These are "required" members
         self.env = env
         self.is_learner = is_learner
-        self.priority_scale = 0
+        self.priority_scale = 1
         self.batch_size = 0
         self.buffer_capacity = 0
         self.epsilon = 1
@@ -470,8 +491,8 @@ class FakeAgent(ExaAgent):
     @record.event
     def set_weights(self, weights):
         """
-        This is the recieve for the vector clocks originating
-        from get_weights.  We update our local clock with 
+        This is the receive for the vector clocks originating
+        from get_weights.  We update our local clock with
         incoming clocks.
 
         Parameters
@@ -495,7 +516,7 @@ class FakeAgent(ExaAgent):
     @record.event
     def train(self, batch):
         """
-        This is the recieve of a vector clock coming from a agent rank.
+        This is the receive of a vector clock coming from a agent rank.
         We update our clock accordingly.
 
         Parameters
@@ -512,6 +533,7 @@ class FakeAgent(ExaAgent):
         _, clocks = batch
         # This is where the learner receives from the agent
         record.update_clock(clocks)
+        WorkflowTestConstants.do_random_sleep()
         if self.priority_scale:
             # This is where the learner sends to the agent
             return self._data, record.get_clock_to_send()
@@ -571,7 +593,7 @@ class FakeAgent(ExaAgent):
     @record.event
     def set_priorities(self, indices, loss):
         """
-        This is the recieve function coming from the learners train
+        This is the receive function coming from the learners train
         when priority_scale is turned on.
 
         Parameters
@@ -604,12 +626,12 @@ if __name__ == "__main__":
         print("[STAND-ALONE WORKFLOW TEST] Require 5 args: num_learners procs_per_env workflow_name episodes steps")
         print("[STAND-ALONE WORKFLOW TEST] Running with default.")
 
-    print("[STAND-ALONE WORKFLOW TEST] num_learners:", num_learners, 
-        "procs_per_env", procs_per_env, 
-        "workflow_name", workflow_name, 
-        "episodes", episodes, 
-        "steps", steps,
-        flush=True)
+    print("[STAND-ALONE WORKFLOW TEST] num_learners:", num_learners,
+          "procs_per_env", procs_per_env,
+          "workflow_name", workflow_name,
+          "episodes", episodes,
+          "steps", steps,
+          flush=True)
 
     # Set constants
     WorkflowTestConstants.episodes = episodes
@@ -627,7 +649,8 @@ if __name__ == "__main__":
     if rank == 0 and not os.path.isdir(dir_name):
         os.mkdir(dir_name)
         made_dir = True
-    candleDriver.run_params = {'output_dir' : dir_name}
+
+    candleDriver.run_params = {'output_dir': dir_name}
 
     # Register fake env and agent
     gym.envs.registration.register(id=FakeEnv.name, entry_point=FakeEnv)
@@ -642,7 +665,7 @@ if __name__ == "__main__":
         agent = exarl.agents.make(FakeAgent.name, env=env, is_learner=ExaComm.is_learner())
     workflow = exarl.workflows.make(workflow_name)
     learner = FakeLearner(episodes, steps, agent, env, workflow, dir_name)
-    
+
     # Run workflow
     learner.run()
     # record.print()
@@ -657,15 +680,15 @@ if __name__ == "__main__":
             data = ExaComm.global_comm.recv(data, source=i)
             all.append(data)
         all = record.sort(all)
-        
+
         last = 0
         group = [(0, 0)]
         for i in range(1, len(all)):
-            res = record.compare(all[i-1], all[i])
+            res = record.compare(all[i - 1], all[i])
             if res == -1:
                 last += 1
             group.append((last, res))
-                
+
         for i, j in zip(all, group):
             print(i[0], i[1], j[0], j[1], i[2], i[3])
 

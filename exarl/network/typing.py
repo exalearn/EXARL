@@ -3,8 +3,7 @@ import os
 import functools
 import numpy as np
 import tensorflow as tf
-from exarl.network.simple_comm import ExaSimple
-MPI = ExaSimple.MPI
+from exarl.base.comm_base import ExaComm
 
 class TypeUtils:
     """
@@ -136,7 +135,7 @@ class TypeUtils:
         """
         list_flag, _ = TypeUtils.list_like(data)
         if not list_flag:
-            return len(MPI.pickle.dumps(data))
+            return len(ExaComm.get_MPI().pickle.dumps(data))
         return [TypeUtils.get_dumps(x) for x in data]
 
     def check_diff(data1, data2):
@@ -211,8 +210,8 @@ class TypeUtils:
             print("Data 2:", data2_shape)
             return False
 
-        data1_dump_len = len(MPI.pickle.dumps(data1))
-        data2_dump_len = len(MPI.pickle.dumps(data2))
+        data1_dump_len = len(ExaComm.get_MPI().pickle.dumps(data1))
+        data2_dump_len = len(ExaComm.get_MPI().pickle.dumps(data2))
         if data1_dump_len != data2_dump_len:
             print("Dump Error", data1_dump_len, data2_dump_len)
             data1_dumps = TypeUtils.get_dumps(data1)
@@ -240,6 +239,7 @@ class TypeUtils:
         type
             return corresponding np type
         """
+        MPI = ExaComm.get_MPI()
         if the_type == float or the_type == np.float64 or the_type == tf.float64 or the_type == MPI.DOUBLE:
             return np.float64
         if the_type == np.float32 or the_type == tf.float32 or the_type == MPI.FLOAT:
@@ -274,6 +274,7 @@ class TypeUtils:
         type
             return corresponding tensorflow type
         """
+        MPI = ExaComm.get_MPI()
         if the_type == float or the_type == np.float64 or the_type == tf.float64 or the_type == MPI.DOUBLE:
             return tf.float64
         if the_type == np.float32 or the_type == tf.float32 or the_type == MPI.FLOAT:
@@ -308,6 +309,7 @@ class TypeUtils:
         type
             return corresponding mpi type
         """
+        MPI = ExaComm.get_MPI()
         if the_type == float or the_type == np.float64 or the_type == tf.float64 or the_type == MPI.DOUBLE:
             return MPI.DOUBLE
         if the_type == np.float32 or the_type == tf.float32 or the_type == MPI.FLOAT:
@@ -356,12 +358,14 @@ class TypeUtils:
     def get_bool(val, default=False):
         """
         This function turns versions of string true/false into bool
+
         Parameters
         ----------
         value : strine
             String to convert
         default : bool, optional
             value to return if conversion fails
+
         Returns
         -------
         bool
@@ -369,9 +373,8 @@ class TypeUtils:
         """
         if isinstance(val, bool):
             return val
-        
+
         bool_map = {"true": True, "True": True, "false": False, "False": False}
         if val in bool_map:
             return bool_map[val]
-        
         return default

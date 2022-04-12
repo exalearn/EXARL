@@ -1,17 +1,16 @@
-import importlib
-import pytest
-import numpy as np
 import gym
-from exarl.base.comm_base import ExaComm
-from exarl.network.simple_comm import ExaSimple
-from exarl.base.env_base import ExaEnv
-from exarl.envs.env_vault.UnitEvn import EnvGenerator
-import mpi4py
+import pytest
+import importlib
+import numpy as np
+from exarl.utils import candleDriver
+# from exarl.base.comm_base import ExaComm
+# from exarl.base.env_base import ExaEnv
+# from exarl.envs.env_vault.UnitEvn import EnvGenerator
 
 class TestEnvHelper:
     """"
     This is a helper class with constants used throughout the environment tests.
-    
+
     Attributes
     ----------
     max_steps : int
@@ -25,9 +24,9 @@ class TestEnvHelper:
     def get_configs():
         """
         This is a generator that spits out configurations of learners, agents, and procs per agent.
-        This is used to generate tests for split.  If there are no configurations (i.e. size=1) 
+        This is used to generate tests for split.  If there are no configurations (i.e. size=1)
         then nothing will be returned and the test will be skipped
-        
+
         Returns
         -------
         Pair
@@ -35,7 +34,7 @@ class TestEnvHelper:
         """
         size = mpi4py.MPI.COMM_WORLD.Get_size()
         # We start at 1 because we have to have at least one learner
-        for num_learners in range(1, size): 
+        for num_learners in range(1, size):
             rem = size - num_learners
             # Iterate over all potential procs_per_env counts
             for i in range(0, rem):
@@ -47,14 +46,14 @@ class TestEnvHelper:
 
     def reset(env):
         """
-        This helper resets the environment and checks that the 
+        This helper resets the environment and checks that the
         resulting state is consistent across ranks.
 
         Attributes
         ----------
         env : ExaComm
             Environment to reset
-        
+
         Returns
         -------
         gym.space
@@ -74,7 +73,7 @@ class TestEnvHelper:
         return state
 
 @pytest.fixture(scope="session", params=list(TestEnvHelper.get_configs()))
-def init_comm(request):
+def init_comm(request, mpi4py_rc):
     """
     This sets up a comm to test environment with.  This test must be run
     with at least two ranks.
@@ -83,7 +82,7 @@ def init_comm(request):
     ----------
     env : ExaComm
         Environment to reset
-    
+
     Returns
     -------
     Pair
@@ -94,14 +93,13 @@ def init_comm(request):
     assert ExaComm.num_learners == num_learners
     assert ExaComm.procs_per_env == procs_per_env
     yield num_learners, procs_per_env
-   
+
     ExaComm.reset()
-    assert ExaComm.global_comm == None
-    assert ExaComm.agent_comm == None
-    assert ExaComm.env_comm == None
+    assert ExaComm.global_comm is None
+    assert ExaComm.agent_comm is None
+    assert ExaComm.env_comm is None
     assert ExaComm.num_learners == 1
     assert ExaComm.procs_per_env == 1
-    
 
 @pytest.fixture(scope="session")
 def registered_environment(pytestconfig, init_comm):
@@ -121,7 +119,7 @@ def registered_environment(pytestconfig, init_comm):
 
     Parameters
     ----------
-    pytestconfig : 
+    pytestconfig :
         Hook for pytest argument parser
     init_comm : pair
         Number of learners and the proccesses per environment coming from init_comm fixture
@@ -143,7 +141,7 @@ def registered_environment(pytestconfig, init_comm):
     else:
         entry = EnvGenerator.createClass("Discrete", "Box", False, False, True, 75, 20)
         env_name = entry.name
-    
+
     # Cantor pair
     num_learners, procs_per_env = init_comm
     cantor_pair = int(((num_learners + procs_per_env) * (num_learners + procs_per_env + 1)) / 2 + procs_per_env)
@@ -153,7 +151,7 @@ def registered_environment(pytestconfig, init_comm):
     temp = env_name.split("-")
     if len(temp) > 1:
         temp.pop()
-    temp.append("v"+str(cantor_pair))
+    temp.append("v" + str(cantor_pair))
     env_name = "-".join(temp)
     gym.envs.registration.register(id=env_name, entry_point=entry)
     return env_name
@@ -162,7 +160,7 @@ def registered_environment(pytestconfig, init_comm):
 def environment(registered_environment):
     """
     This fixture generates an new environment from the gym registry.
-    
+
     Parameters
     ----------
     registered_environment : String
@@ -177,13 +175,13 @@ def environment(registered_environment):
 
 class TestEnvMembers:
     """
-    This class checks an environment has the approapriate memember and methods.
+    This class checks an environment has the appropriate memember and methods.
     """
-    
+
     def test_exa_env(self, environment):
         """
         Checks that environment is of type ExaEnv.
-        
+
         Parameters
         ----------
         environment : ExaEnv
@@ -194,7 +192,7 @@ class TestEnvMembers:
     def test_action_space(self, environment):
         """
         Checks that class has a gym action space.
-        
+
         Parameters
         ----------
         environment : ExaEnv
@@ -206,7 +204,7 @@ class TestEnvMembers:
     def test_observation_space(self, environment):
         """
         Checks that class has a gym observation space.
-        
+
         Parameters
         ----------
         environment : ExaEnv
@@ -218,7 +216,7 @@ class TestEnvMembers:
     def test_reset(self, environment):
         """
         Checks that class has a callable reset function and has the correct return type.
-        
+
         Parameters
         ----------
         environment : ExaEnv
@@ -233,7 +231,7 @@ class TestEnvMembers:
     def test_step(self, environment):
         """
         Checks that class has a callable step fuction and has the correct return types.
-        
+
         Parameters
         ----------
         environment : ExaEnv
@@ -241,7 +239,7 @@ class TestEnvMembers:
         """
         assert hasattr(environment, "step")
         assert callable(getattr(environment, 'step'))
-        
+
         # Must call reset to use a fresh environment
         environment.reset()
         ret = environment.step(environment.action_space.sample())
@@ -254,7 +252,7 @@ class TestEnvMembers:
         """
         Checks that class has an env_comm.  This should be the case as
         it is an ExaComm.  The comm is only set when called from MPI.
-        
+
         Parameters
         ----------
         environment : ExaEnv
@@ -271,7 +269,7 @@ class TestEnvMembers:
         """
         Checks that class has an base_dir.  This should be the case as
         it is an ExaComm.  The base_dir is used to store environment specfic results.
-        
+
         Parameters
         ----------
         environment : ExaEnv
@@ -286,9 +284,9 @@ class TestEnvFunctionality:
 
     def test_step(self, environment, max_steps=TestEnvHelper.max_steps):
         """
-        Records the initial state after reset and compares the difference after taking a step.  
+        Records the initial state after reset and compares the difference after taking a step.
         Will take up to max steps to see if state will change.
-        
+
         Parameters
         ----------
         environment : ExaEnv
@@ -317,7 +315,7 @@ class TestEnvFunctionality:
         """
         Records the compares the state after taking one step and after reset.
         Will attempt max_steps to see a change from first reset.
-        
+
         Parameters
         ----------
         environment : ExaEnv
@@ -330,7 +328,7 @@ class TestEnvFunctionality:
             # Attempt to change the state
             done = False
             count = 0
-            while not done and count < max_steps: 
+            while not done and count < max_steps:
                 old, _, done, _ = environment.step(environment.action_space.sample())
                 count += 1
             # Hit reset and compare
@@ -344,7 +342,7 @@ class TestEnvFunctionality:
     def test_seeds(self, environment, num_resets=TestEnvHelper.max_resets):
         """
         Resets the environment num_resets times and looks for how often initial observation space repeats.
-        
+
         Parameters
         ----------
         environment : ExaEnv
@@ -362,14 +360,14 @@ class TestEnvFunctionality:
                 else:
                     if new not in reset_states:
                         reset_states.append(new)
-            assert len(reset_states) > 1, "Environment has only one intialization seed after " + str(num_resets) + " resets"
+            assert len(reset_states) > 1, "Environment has only one initialization seed after " + str(num_resets) + " resets"
         ExaComm.global_comm.barrier()
 
     def test_max_steps(self, environment, max_steps=TestEnvHelper.max_steps):
         """
         Test for a max number of steps for a given environment.  This looks for an environment
-        to return that it is finished by taking random actions up until some theshold.
-        
+        to return that it is finished by taking random actions up until some threshold.
+
         Parameters
         ----------
         environment : ExaEnv
@@ -385,6 +383,6 @@ class TestEnvFunctionality:
                 if done:
                     end_step = i
                     break
-                    
+
             assert end_step < max_steps, "Did not encounter a done state after " + str(max_steps) + " steps"
         ExaComm.global_comm.barrier()

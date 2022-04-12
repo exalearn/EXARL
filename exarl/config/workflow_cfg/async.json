@@ -1,4 +1,6 @@
 {
     "learner_procs": 1,
-    "process_per_env": 1
+    "process_per_env": 1,
+    "action_type": "variable",
+    "mpi4py_rc": "false"
 }

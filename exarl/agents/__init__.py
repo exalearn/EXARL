@@ -1,6 +1,9 @@
 from exarl.agents.registration import register, make
-import exarl.utils.candleDriver as cd
-agent = cd.lookup_params('agent')
+from exarl.utils.globals import ExaGlobals
+try:
+    agent = ExaGlobals.lookup_params('agent')
+except:
+    agent = None
 
 if agent == 'DQN-v0':
     register(
@@ -27,5 +30,8 @@ elif agent == 'TD3-v1':
         id=agent,
         entry_point='exarl.agents.agent_vault:KerasTD3'
     )
-else:
-    print("No agent selected!")
+elif agent == 'PARS-v0':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:PARS'
+    )

@@ -356,7 +356,9 @@ def finalize_parameters(bmk):
     # print("Configuration file: ", conffile)
     fileParameters = bmk.read_config_file(conffile)  # aux.config_file)#args.config_file)
     # Get command-line parameters
-    args = bmk.parser.parse_args()
+    # args = bmk.parser.parse_args()
+    args, extras = bmk.parser.parse_known_args()
+    print('The following arguments were not processed:', extras)
     # print ('Params:', fileParameters)
     # Consolidate parameter set. Command-line parameters overwrite file configuration
     gParameters = args_overwrite_config(args, fileParameters)

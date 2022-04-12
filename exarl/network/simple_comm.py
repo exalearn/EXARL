@@ -1,24 +1,12 @@
-from exarl.utils.introspect import ib
-from exarl.utils.introspect import introspectTrace
+from exarl.utils.globals import ExaGlobals
 from exarl.base.comm_base import ExaComm
-import os
-import numpy as np
-
-import exarl.utils.candleDriver as cd
-workflow = cd.lookup_params('workflow')
-# JS: THIS LOOKS WRONG... WHY IS IT ONLY FOR ASYNC.
-if workflow == 'async':
-    print("Turning mpi4py.rc.threads and mpi4py.rc.recv_mprobe to false!")
-    import mpi4py.rc
-    mpi4py.rc.threads = False
-    mpi4py.rc.recv_mprobe = False
-from mpi4py import MPI
+from exarl.utils.introspect import introspectTrace
 
 class ExaSimple(ExaComm):
     """
     This class is built as a simple wrapper around mpi4py.
     Instances are a type of ExaComm which is used to send,
-    recieve, and synchronize data across the participating
+    receive, and synchronize data across the participating
     ranks.
 
     Attributes
@@ -37,9 +25,9 @@ class ExaSimple(ExaComm):
 
     """
 
-    MPI = MPI
+    MPI = None
 
-    def __init__(self, comm=MPI.COMM_WORLD, procs_per_env=1, num_learners=1):
+    def __init__(self, comm, procs_per_env, num_learners):
         """
         Parameters
         ----------
@@ -52,18 +40,26 @@ class ExaSimple(ExaComm):
             Number of learners (multi-learner)
         """
 
+        # Singleton
+        if ExaSimple.MPI is None:
+            mpi4py_rc = True if ExaGlobals.lookup_params('mpi4py_rc') in ["true", "True", 1] else False
+            if mpi4py_rc:
+                print("Turning mpi4py.rc.threads and mpi4py.rc.recv_mprobe to false!", flush=True)
+                import mpi4py.rc
+                mpi4py.rc.threads = False
+                mpi4py.rc.recv_mprobe = False
+            from mpi4py import MPI
+            ExaSimple.MPI = MPI
+
         if comm is None:
-            self.comm = MPI.COMM_WORLD
-            self.size = MPI.COMM_WORLD.Get_size()
-            self.rank = MPI.COMM_WORLD.Get_rank()
+            self.comm = ExaSimple.MPI.COMM_WORLD
+            self.size = ExaSimple.MPI.COMM_WORLD.Get_size()
+            self.rank = ExaSimple.MPI.COMM_WORLD.Get_rank()
         else:
             self.comm = comm
             self.size = comm.size
             self.rank = comm.rank
 
-        # if self.rank > 0:
-        #     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-        self.buffers = {}
         super().__init__(self, procs_per_env, num_learners)
 
     @introspectTrace()
@@ -84,7 +80,7 @@ class ExaSimple(ExaComm):
         return self.comm.send(data, dest=dest)
 
     @introspectTrace()
-    def recv(self, data, source=MPI.ANY_SOURCE):
+    def recv(self, data, source=None):
         """
         Point-to-point communication between ranks.  Send must have
         matching send.
@@ -94,8 +90,10 @@ class ExaSimple(ExaComm):
         data : any
             Not use
         source : int, optional
-            Rank to recieve data from.  Default allows data from any source.
+            Rank to receive data from.  Default allows data from any source.
         """
+        if source is None:
+            source = ExaSimple.MPI.ANY_SOURCE
         return self.comm.recv(source=source)
 
     @introspectTrace()
@@ -132,10 +130,12 @@ class ExaSimple(ExaComm):
         root : int
             Rank the result will end on
         """
-        converter = {sum: MPI.SUM, max: MPI.MAX, min: MPI.MIN}
+        converter = {sum: ExaSimple.MPI.SUM, 
+                     max: ExaSimple.MPI.MAX, 
+                     min: ExaSimple.MPI.MIN}
         return self.comm.reduce(arg, op=converter[op], root=root)
 
-    def allreduce(self, arg, op=MPI.LAND):
+    def allreduce(self, arg, op=None):
         """
         Data is joined from all processes in comm by doing op.
         Data is put on all processes in comm.
@@ -147,13 +147,20 @@ class ExaSimple(ExaComm):
         op : MPI op, optional
             Operation to perform
         """
+        converter = {sum: ExaSimple.MPI.SUM, 
+                     max: ExaSimple.MPI.MAX, 
+                     min: ExaSimple.MPI.MIN}
+        if op is None:
+            op = ExaSimple.MPI.LAND
+        elif op in converter:
+            op = converter[sum]
         return self.comm.allreduce(arg, op)
 
     def time(self):
         """
         Returns MPI wall clock time
         """
-        return MPI.Wtime()
+        return ExaSimple.MPI.Wtime()
 
     def split(self, procs_per_env, num_learners):
         """
@@ -168,26 +175,26 @@ class ExaSimple(ExaComm):
             Number of processes per learner comm
         """
 
-        if MPI.COMM_WORLD.Get_size() == procs_per_env:
+        if ExaSimple.MPI.COMM_WORLD.Get_size() == procs_per_env:
             assert num_learners == 1, "num_learners should be 1 when global comm size == procs_per_env"
-            color = MPI.UNDEFINED
+            color = ExaSimple.MPI.UNDEFINED
             if self.rank == 0:
                 color = 0
             learner_comm = self.comm.Split(color, self.rank)
             agent_comm = self.comm.Split(color, self.rank)
             if self.rank == 0:
-                learner_comm = ExaSimple(comm=learner_comm)
-                agent_comm = ExaSimple(comm=agent_comm)
+                learner_comm = ExaSimple(comm=learner_comm, procs_per_env=procs_per_env, num_learners=num_learners)
+                agent_comm = ExaSimple(comm=agent_comm, procs_per_env=procs_per_env, num_learners=num_learners)
             else:
                 learner_comm = None
                 agent_comm = None
 
             env_color = 0
             env_comm = self.comm.Split(env_color, self.rank)
-            env_comm = ExaSimple(comm=env_comm)
+            env_comm = ExaSimple(comm=env_comm, procs_per_env=procs_per_env, num_learners=num_learners)
         else:
             # Agent communicator
-            agent_color = MPI.UNDEFINED
+            agent_color = ExaSimple.MPI.UNDEFINED
             if (self.rank < num_learners) or ((self.rank - num_learners) % procs_per_env == 0):
                 agent_color = 0
             agent_comm = self.comm.Split(agent_color, self.rank)
@@ -208,7 +215,7 @@ class ExaSimple(ExaComm):
                 env_comm = None
 
             # Learner communicator
-            learner_color = MPI.UNDEFINED
+            learner_color = ExaSimple.MPI.UNDEFINED
             if self.rank < num_learners:
                 learner_color = 0
             learner_comm = self.comm.Split(learner_color, self.rank)

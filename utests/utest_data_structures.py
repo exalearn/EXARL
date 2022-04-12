@@ -36,26 +36,25 @@ class TestDataStructure:
     """
     comm = ExaSimple()
     packet_size = 1000
-    constructor = {
-            "buff_unchecked": ds.ExaMPIBuffUnchecked,
-            "buff_checked": ds.ExaMPIBuffChecked,
-            "queue_distribute": ds.ExaMPIDistributedQueue,
-            "stack_distribute": ds.ExaMPIDistributedStack
-            # "queue_central": ds.ExaMPICentralizedQueue,
-            # "stack_central": ds.ExaMPICentralizedStack
-        }
+    constructor = {"buff_unchecked": ds.ExaMPIBuffUnchecked,
+                   "buff_checked": ds.ExaMPIBuffChecked,
+                   "queue_distribute": ds.ExaMPIDistributedQueue,
+                   "stack_distribute": ds.ExaMPIDistributedStack}
+    # "queue_central": ds.ExaMPICentralizedQueue,
+    # "stack_central": ds.ExaMPICentralizedStack
+
     length_list = [1, 10, 100, 1000]
     over_list = [0, 1, 10, 100]
     max_model_lag_list = [None, 1, 10, 100, 1000]
-    num_packets_list=[1, 10, 100]
+    num_packets_list = [1, 10, 100]
     reps = 10
     max_try = 1000000
     loss_per_rank = .5
-    lossy_length_list=[100000, 10000, 1000, 100, 10]
-    
+    lossy_length_list = [100000, 10000, 1000, 100, 10]
+
     def filter(to_remove):
         """
-        Convience function to reduce test cases 
+        Convince function to reduce test cases
 
         Parameters
         ----------
@@ -76,9 +75,9 @@ class TestDataStructure:
 
     def make_packet(self, data_size, seq_num):
         """
-        Constructs a standard (testing) packet.  
+        Constructs a standard (testing) packet.
         A packet will contain a sequence number, data size, random data, checksum, and rank.
-        
+
         Sequence Number: user provided identifier
         Data Size: the size of the random data in bytes
         Data: random bytes
@@ -103,7 +102,7 @@ class TestDataStructure:
 
     def check_packet(self, packet, data_size, name):
         """
-        Check a packet conforms to standard construction.  This does not check the sequence number as it is 
+        Check a packet conforms to standard construction.  This does not check the sequence number as it is
         a user defined parameter.
 
         Parameters
@@ -133,7 +132,7 @@ class TestDataStructure:
             First standard packet to compare
         B : tuple
             Second standard packet to compare
-        
+
         Returns
         -------
         bool
@@ -157,7 +156,7 @@ class TestDataStructure:
         Compares the order of sequence numbers popped assuming a given data structure.
         This functions only takes the sequence numbers not a list of standard packets.
         This function assumes that sequence numbers range from 0 to N-1 where N is the
-        number of messages.  To use this check, N packets should be pushed into the 
+        number of messages.  To use this check, N packets should be pushed into the
         data structure first.  Once all data is pushed, N packets should be popped.
 
         Parameters
@@ -168,7 +167,7 @@ class TestDataStructure:
             List of sequence numbers in order received from a pop
         N: int
             Number of packets pushed
-        
+
         Returns
         -------
         bool
@@ -202,7 +201,7 @@ class TestDataStructure:
             What ranks should participate in the data structure.  An example use for this parameter is
             rank_mask=TestDataStructure.comm.rank < 5.  For most tests this parameter should be True to
             include all ranks.
-        
+
         Returns
         -------
         ExaData :
@@ -211,12 +210,18 @@ class TestDataStructure:
         if data is None:
             data = self.make_packet(TestDataStructure.packet_size, -1)
         else:
-            assert data[0] == -1, name + " should have an inial standard packet with sequence number -1 but got " + str(data[0])
-        return TestDataStructure.constructor[name](TestDataStructure.comm, data, name=name, length=length, rank_mask=rank_mask, max_model_lag=max_model_lag, failPush=failPush)
+            assert data[0] == -1, name + " should have an initial standard packet with sequence number -1 but got " + str(data[0])
+        return TestDataStructure.constructor[name](TestDataStructure.comm,
+                                                   data,
+                                                   name=name,
+                                                   length=length,
+                                                   rank_mask=rank_mask,
+                                                   max_model_lag=max_model_lag,
+                                                   failPush=failPush)
 
 class TestDataStructureMembers(TestDataStructure):
     """
-    This class is a collection of basic tests for data stuctures.  These include tests to check the basic required
+    This class is a collection of basic tests for data structures.  These include tests to check the basic required
     members and the return values of the methods for popping and pushing data.
     """
 
@@ -224,22 +229,22 @@ class TestDataStructureMembers(TestDataStructure):
     def test_name(self, name):
         """
         This test checks the ability to test naming the data structure.
-        The name is set by TestDataStructure.constructor in TestDataStructure.init_data_structure. 
+        The name is set by TestDataStructure.constructor in TestDataStructure.init_data_structure.
 
         Parameters
         ----------
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor.
         """
-        data_stucture = self.init_data_structure(name)
-        assert data_stucture.name == name, name + " failed name comparison but got " + data_stucture.name
-        assert isinstance(data_stucture, TestDataStructure.constructor[name])
+        data_structure = self.init_data_structure(name)
+        assert data_structure.name == name, name + " failed name comparison but got " + data_structure.name
+        assert isinstance(data_structure, TestDataStructure.constructor[name])
 
     @pytest.mark.parametrize("max_model_lag", TestDataStructure.max_model_lag_list)
     @pytest.mark.parametrize("name", TestDataStructure.constructor.keys())
     def test_max_model_lag(self, name, max_model_lag):
         """
-        This test setting max_model_lag. 
+        This test setting max_model_lag.
 
         Parameters
         ----------
@@ -250,7 +255,7 @@ class TestDataStructureMembers(TestDataStructure):
         """
         data_structure = self.init_data_structure(name, max_model_lag=max_model_lag)
         if "buff" in name:
-            assert data_structure.max_model_lag == None, name + " max model lag for buffer should be None but is " + data_structure.max_model_lag
+            assert data_structure.max_model_lag is None, name + " max model lag for buffer should be None but is " + data_structure.max_model_lag
         else:
             assert data_structure.max_model_lag == max_model_lag, name + " max model lag not set"
 
@@ -258,7 +263,7 @@ class TestDataStructureMembers(TestDataStructure):
     @pytest.mark.parametrize("name", TestDataStructure.constructor.keys())
     def test_empty(self, name, length):
         """
-        This test checks the return of a data structure that is empty.  For an unchecked data structure (e.g. unchecked_buffer) 
+        This test checks the return of a data structure that is empty.  For an unchecked data structure (e.g. unchecked_buffer)
         the return value should be the data it was initialized with.  Otherwise, a data structure should not return any data.
 
         Parameters
@@ -266,7 +271,7 @@ class TestDataStructureMembers(TestDataStructure):
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         """
         data_structure = self.init_data_structure(name, length=length)
         for i in range(length * 2):
@@ -274,11 +279,15 @@ class TestDataStructureMembers(TestDataStructure):
             if packet:
                 assert "unchecked" in name, name + " should not return packet"
                 assert packet[0] == -1, name + " should have -1 sequence number from empty pop " + str(packet[0])
-                assert packet[-1] == TestDataStructure.comm.rank, name + " rank should be " + str(TestDataStructure.comm.rank) + " from empty pop put got " + str(packet[-1])
+                assert packet[-1] == TestDataStructure.comm.rank, (name +
+                                                                   " rank should be " +
+                                                                   str(TestDataStructure.comm.rank) +
+                                                                   " from empty pop put got "
+                                                                   + str(packet[-1]))
                 self.check_packet(packet, TestDataStructure.packet_size, name)
             else:
                 assert packet is None, name + " should not return a packet"
-                
+
     # def test_rank_mask(self):
     #     for name in TestDataStructure.constructor:
     #         # data_structure = self.init_data_structure(name, rank_mask=TestClass.comm.rank%2==0)
@@ -304,7 +313,7 @@ class TestDataStructureMembers(TestDataStructure):
             failPush == True - The data lost value will indicate that the push did not succeed
                 0 - successful push
                 1 - failed push
-            failPush == False - The data lost value in the data structure was overwritten and the push succeded
+            failPush == False - The data lost value in the data structure was overwritten and the push succeeded
                 0 - No data was lost
                 1 - One entry of data was overwritten
 
@@ -313,7 +322,7 @@ class TestDataStructureMembers(TestDataStructure):
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         over : int
             The amount of pushes to perform over the length of the data structure
         failPush : bool
@@ -323,7 +332,6 @@ class TestDataStructureMembers(TestDataStructure):
         for i in range(length + over):
             packet = self.make_packet(TestDataStructure.packet_size, i)
             capacity, lost = data_structure.push(packet, TestDataStructure.comm.rank)
-            
             if "buff" in name:
                 assert capacity == 1, name + " capacity should be one " + str(capacity)
                 if "unchecked" not in name and i > 0:
@@ -337,7 +345,7 @@ class TestDataStructureMembers(TestDataStructure):
                     assert lost == 1, name + " data should be lost but got " + str(lost)
 
     @pytest.mark.parametrize("length", TestDataStructure.length_list)
-    @pytest.mark.parametrize("name", TestDataStructure.constructor.keys())                         
+    @pytest.mark.parametrize("name", TestDataStructure.constructor.keys())
     def test_pop_order(self, name, length):
         """
         This test checks the order in which data is popped.  This test is based on the naming convention of
@@ -348,7 +356,7 @@ class TestDataStructureMembers(TestDataStructure):
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         """
         data_structure = self.init_data_structure(name, length=length)
 
@@ -365,7 +373,6 @@ class TestDataStructureMembers(TestDataStructure):
 
         assert self.check_order(name, pop_packets, length), name + " sequence numbers out of order " + str(pop_packets)
 
-
     def length_single_rank(self, name, length, over, failPush):
         """
         This function is used to test simple pushing and popping functionality.  Each rank pushes and pops
@@ -378,7 +385,7 @@ class TestDataStructureMembers(TestDataStructure):
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         over : int
             The amount of pushes to perform over the length of the data structure
         failPush : bool
@@ -405,9 +412,12 @@ class TestDataStructureMembers(TestDataStructure):
                 self.check_packet(packet, TestDataStructure.packet_size, name)
                 pop_packets.append(packet)
             elif "unchecked" not in name:
-                assert packet == None, name + " pop should fail"
-        assert len(pop_packets) == data_structure.length, name + " data structure length " + str(data_structure.length) + " doesn't match " + str(len(pop_packets))
-        
+                assert packet is None, name + " pop should fail"
+        assert len(pop_packets) == data_structure.length, (name + " data structure length " +
+                                                           str(data_structure.length) +
+                                                           " doesn't match " +
+                                                           str(len(pop_packets)))
+
         # For the buffer only the last element should popped
         # In the case of unchecked there will be length copies of the last push
         # For checked buffer there will only be one
@@ -421,19 +431,19 @@ class TestDataStructureMembers(TestDataStructure):
     def length_multiple_ranks(self, name, length, over=0, failPush=False):
         """
         This function is used to test pushing and popping functionality across ranks.  The data structure
-        is initialized to a size of length * number of ranks to ensure that when over = 0, no data will be 
-        lost.  Every rank (including rank 0) pushes length + over packets of data to rank 0.  All ranks 
+        is initialized to a size of length * number of ranks to ensure that when over = 0, no data will be
+        lost.  Every rank (including rank 0) pushes length + over packets of data to rank 0.  All ranks
         then hit a barrier.  Rank 0 then pops all the data and checks for the appropriate number of packets.
-        If over == 0, we check to see all packetes have arrived from each rank.  We are not guarenteed any
-        other packets when over > 0 since data will be overwritten.  The last check looks for a packet with 
+        If over == 0, we check to see all packets have arrived from each rank.  We are not guaranteed any
+        other packets when over > 0 since data will be overwritten.  The last check looks for a packet with
         the last data sequence number.
-        
+
         Parameters
         ----------
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         over : int
             The amount of pushes to perform over the length of the data structure
         failPush : bool
@@ -453,9 +463,12 @@ class TestDataStructureMembers(TestDataStructure):
                     self.check_packet(packet, TestDataStructure.packet_size, name)
                     pop_packets.append(packet)
                 elif "unchecked" not in name:
-                    assert packet == None, name + " pop should fail"
-            assert len(pop_packets) == data_structure.length, name + " data structure length " + str(data_structure.length) + " doesn't match " + str(len(pop_packets))
-            
+                    assert packet is None, name + " pop should fail"
+            assert len(pop_packets) == data_structure.length, (name + " data structure length " +
+                                                               str(data_structure.length) +
+                                                               " doesn't match " +
+                                                               str(len(pop_packets)))
+
             if ((length + over) * TestDataStructure.comm.size) == data_structure.length:
                 reduced = sorted([(x[0], x[-1]) for x in pop_packets])
                 for i in range(length):
@@ -463,46 +476,46 @@ class TestDataStructureMembers(TestDataStructure):
                     assert ranks == list(range(TestDataStructure.comm.size)), name + " missing packets " + str(i) + " " + str(ranks)
 
             # Will have duplicates seq numbers coming from different ranks
-            # We can't guarentee the order without more synchronization
-            # Instead check to see that the last seq number exists if failPush=False since we are guarenteed someone has to be last
+            # We can't guarantee the order without more synchronization
+            # Instead check to see that the last seq number exists if failPush=False since we are guaranteed someone has to be last
             # Check the inverse is true for failPush=True
             seq_num = set([x[0] for x in pop_packets])
             if failPush and over > 0 and "buff" not in name:
-                assert over+length-1 not in seq_num, name + " sequence number should not be received " + str(over+length-1)
+                assert over + length - 1 not in seq_num, name + " sequence number should not be received " + str(over + length - 1)
             else:
-                assert over+length-1 in seq_num, name + " sequence number should be received " + str(over+length-1)
+                assert over + length - 1 in seq_num, name + " sequence number should be received " + str(over + length - 1)
 
         TestDataStructure.comm.barrier()
 
     @pytest.mark.parametrize("length", TestDataStructure.length_list)
-    @pytest.mark.parametrize("name", TestDataStructure.constructor.keys()) 
+    @pytest.mark.parametrize("name", TestDataStructure.constructor.keys())
     def test_simple_push_pop_single_rank(self, name, length):
         """
         This tests basic pushing and popping to and from local rank.  All pushes and pops
         do not exceed the total size of the data structure's length.
-        
+
         Parameters
         ----------
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         """
         self.length_single_rank(name, length, over=0, failPush=False)
 
     @pytest.mark.parametrize("length", TestDataStructure.length_list)
-    @pytest.mark.parametrize("name", TestDataStructure.constructor.keys()) 
+    @pytest.mark.parametrize("name", TestDataStructure.constructor.keys())
     def test_simple_push_pop_single_multi_rank(self, name, length):
         """
         This tests basic pushing and popping to and from rank 0.  All pushes and pops
         do not exceed the total size of the data structure's length.
-        
+
         Parameters
         ----------
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         """
         self.length_multiple_ranks(name, length, over=0, failPush=False)
 
@@ -514,13 +527,13 @@ class TestDataStructureMembers(TestDataStructure):
         """
         This tests basic pushing and popping to and from a single rank.  All pushes and pops
         will exceed the total size of the data structure's length to test data loss and failPush.
-        
+
         Parameters
         ----------
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         over : int
             The amount of pushes to perform over the length of the data structure
         failPush : bool
@@ -540,7 +553,7 @@ class TestDataStructureMembers(TestDataStructure):
 
 class TestMessagePatterClass(TestDataStructure):
     """
-    This class is a collection of tests for data stuctures to test communication patterns used in Exarl.
+    This class is a collection of tests for data structures to test communication patterns used in Exarl.
     """
 
     @pytest.mark.parametrize("spread", [False, True])
@@ -550,7 +563,7 @@ class TestMessagePatterClass(TestDataStructure):
         """
         This tests all ranks but one pushing, and rank 0 pops all data.  There is a barrier between
         the pushing and popping phase of the test.  The number of packets and their order is checked.
-        
+
         Parameters
         ----------
         name : string
@@ -604,11 +617,12 @@ class TestMessagePatterClass(TestDataStructure):
                 for i, val in enumerate(seq_num):
                     if i > 0:
                         assert len(val) == num_packets, name + " missing packet " + str(i) + " " + str(len(val)) + " != " + str(num_packets)
-                        assert self.check_order(data_structure.name, val, num_packets), name + " sequence number out of order " + data_structure.name + " " + str(val)
+                        assert self.check_order(data_structure.name, val, num_packets), (name + " sequence number out of order " +
+                                                                                         data_structure.name + " " + str(val))
                     else:
                         assert len(val) == 0, name + " no data should be received from rank 0"
 
-            # Block between iterations        
+            # Block between iterations
             TestDataStructure.comm.barrier()
 
     @pytest.mark.parametrize("num_packets", TestDataStructure.num_packets_list)
@@ -618,7 +632,7 @@ class TestMessagePatterClass(TestDataStructure):
         This tests rank 0 pushing and all other ranks popping data  There is a barrier between
         the pushing and popping phase of the test.  Each packet checks that they receive data from
         rank 0.
-        
+
         Parameters
         ----------
         name : string
@@ -628,7 +642,7 @@ class TestMessagePatterClass(TestDataStructure):
         reps : int
             Number of reps to perform
         """
-        # 
+
         data_structure = self.init_data_structure(name, length=num_packets)
         for rep in range(reps):
             # Rank 0 will send all the data
@@ -636,7 +650,7 @@ class TestMessagePatterClass(TestDataStructure):
                 for j in range(TestDataStructure.comm.size - 1):
                     for i in range(num_packets):
                         # Should push to other ranks
-                        _, loss = data_structure.push(self.make_packet(TestDataStructure.packet_size, i), j+1)
+                        _, loss = data_structure.push(self.make_packet(TestDataStructure.packet_size, i), j + 1)
                         assert loss == 0, name + " should not loose any data for broadcast test"
                 # Barrier makes sure we wont pop data until all data is there
                 TestDataStructure.comm.barrier()
@@ -654,16 +668,17 @@ class TestMessagePatterClass(TestDataStructure):
                     self.check_packet(packet, TestDataStructure.packet_size, name)
                     # Update the sequence per rank
                     seq_num[packet[-1]].append(packet[0])
-                
+
                 # Check to see that all packets have arrived and in the correct order
                 for i, val in enumerate(seq_num):
                     if i == 0:
                         assert len(val) == num_packets, name + " missing packet " + str(i) + " " + str(len(val)) + " != " + str(num_packets)
-                        assert self.check_order(data_structure.name, val, num_packets), name + " sequence number out of order " + data_structure.name + " " + str(val)
+                        assert self.check_order(data_structure.name, val, num_packets), (name + " sequence number out of order " +
+                                                                                         data_structure.name + " " + str(val))
                     else:
                         assert len(val) == 0, name + " no data should be received from rank 0"
 
-            # Block between iterations        
+            # Block between iterations
             TestDataStructure.comm.barrier()
 
     @pytest.mark.parametrize("spread", [False, True])
@@ -673,16 +688,16 @@ class TestMessagePatterClass(TestDataStructure):
     def test_free_for_all(self, name, length, num_packets, spread, reps=TestDataStructure.reps, max_try=TestDataStructure.max_try):
         """
         This test has all ranks other than rank 0 pushing data.  At the same time rank 0 will pop data max_try attempts.
-        Pushing ranks will continue pushing a given packet until it succeeds.  FailPush=True guarenteeing no data will be
-        lost since we push until success.  Buffers cannot be used in the test as they cannot cannot guarentee data will
-        not be lost on a push.  We check that all data is recieved
-        
+        Pushing ranks will continue pushing a given packet until it succeeds.  FailPush=True guaranteeing no data will be
+        lost since we push until success.  Buffers cannot be used in the test as they cannot cannot guarantee data will
+        not be lost on a push.  We check that all data is received
+
         Parameters
         ----------
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         num_packets : int
             The number of packets to push per rank
         spread : bool
@@ -694,7 +709,7 @@ class TestMessagePatterClass(TestDataStructure):
         """
         data_structure = self.init_data_structure(name, length=length, failPush=True)
         for rep in range(reps):
-            # Block between iterations        
+            # Block between iterations
             TestDataStructure.comm.barrier()
 
             # All ranks > 0 will send data
@@ -724,21 +739,22 @@ class TestMessagePatterClass(TestDataStructure):
                 num_try = 0
                 while total_packets < (TestDataStructure.comm.size - 1) * num_packets and num_try < max_try:
                     packet = data_structure.pop(src)
-                     
+
                     if packet is not None:
                         self.check_packet(packet, TestDataStructure.packet_size, name)
                         # Update the sequence per rank
                         assert packet[0] > -1, name + " gave invalid packet sequence number " + packet[0]
-                        assert not spread or packet[-1] == src, name + " packet " + str(packet[-1]) + " and src " + str(src) + " do not match for spread: " + spread 
+                        assert not spread or packet[-1] == src, (name + " packet " + str(packet[-1]) + " and src " +
+                                                                 str(src) + " do not match for spread: " + spread)
                         seq_num[packet[-1]].append(packet[0])
-                        total_packets+=1
-                    
+                        total_packets += 1
+
                     if spread:
                         src = (src + 1) % TestDataStructure.comm.size
                         src = 1 if src == 0 else src
-                    
-                    num_try+=1
-                
+
+                    num_try += 1
+
                 # Check to see that all packets have arrived
                 assert num_try != max_try, name + " did not collect all packets in less than max_try: " + str(num_try)
                 for i, val in enumerate(seq_num):
@@ -750,7 +766,6 @@ class TestMessagePatterClass(TestDataStructure):
                         assert self.check_order("queue", val, num_packets), name + " sequence number out of order " + data_structure.name + " " + str(val)
                     else:
                         assert len(val) == 0
-      
         TestDataStructure.comm.barrier()
 
     @pytest.mark.skip(reason="This test requires manual tuning, but is useful for workflow design")
@@ -759,12 +774,15 @@ class TestMessagePatterClass(TestDataStructure):
     @pytest.mark.parametrize("num_packets", TestDataStructure.num_packets_list)
     @pytest.mark.parametrize("length", TestDataStructure.lossy_length_list)
     @pytest.mark.parametrize("name", TestDataStructure.filter("buff"))
-    def test_lossy_free_for_all(self,name, length, num_packets, failPush, spread, reps=TestDataStructure.reps, max_try=TestDataStructure.max_try, loss_per_rank=TestDataStructure.loss_per_rank):
-        """ 
+    def test_lossy_free_for_all(self, name, length, num_packets, failPush, spread,
+                                reps=TestDataStructure.reps,
+                                max_try=TestDataStructure.max_try,
+                                loss_per_rank=TestDataStructure.loss_per_rank):
+        """
         This test has all ranks other than rank 0 pushing data.  At the same time rank 0 will pop data max_try attempts.
-        Pushing ranks will push a given packet once.  FailPush=True guarenteeing no data will be
-        lost since we push until success.  Buffers cannot be used in the test as they cannot cannot guarentee data will
-        not be lost on a push.  We check that all data is recieved.
+        Pushing ranks will push a given packet once.  FailPush=True guaranteeing no data will be
+        lost since we push until success.  Buffers cannot be used in the test as they cannot cannot guarantee data will
+        not be lost on a push.  We check that all data is received.
 
         This test checks to see how much data is lost in a free for all.  The acceptable amount is not hard and fast.
         We originally set it to 50% of the data as a good approximation, but ultimately the performance of a data
@@ -779,7 +797,7 @@ class TestMessagePatterClass(TestDataStructure):
         name : string
             Name of the data structure corresponding to TestDataStructure.constructor
         length : int
-            Length of the data structure to inialize
+            Length of the data structure to initialize
         num_packets : int
             The number of packets to push per rank
         failPush : bool
@@ -819,21 +837,21 @@ class TestMessagePatterClass(TestDataStructure):
                 num_try = 0
                 while total_packets < (TestDataStructure.comm.size - 1) * num_packets and num_try < max_try:
                     packet = data_structure.pop(src)
-                     
                     if packet is not None:
                         self.check_packet(packet, TestDataStructure.packet_size, name)
                         # Update the sequence per rank
                         assert packet[0] > -1, name + " gave invalid packet sequence number " + str(packet[0])
-                        assert not spread or packet[-1] == src, name + " packet " + str(packet[-1]) + " and src " + str(src) + " do not match for spread: " + spread 
+                        assert not spread or packet[-1] == src, (name + " packet " + str(packet[-1]) + " and src " +
+                                                                 str(src) + " do not match for spread: " + spread)
                         seq_num[packet[-1]].append(packet[0])
-                        total_packets+=1
-                    
+                        total_packets += 1
+
                     if spread:
                         src = (src + 1) % TestDataStructure.comm.size
                         src = 1 if src == 0 else src
-                    
-                    num_try+=1
-                
+
+                    num_try += 1
+
                 if TestDataStructure.comm.rank == 0:
                     print("Total Packets:", total_packets)
                     print("Rank", "NumPackets", "NumUniqueSeqNums")
@@ -845,8 +863,10 @@ class TestMessagePatterClass(TestDataStructure):
                 for i, val in enumerate(seq_num):
                     if i > 0:
                         val = set(val)
-                        assert len(val) >= num_packets * (1 - loss_per_rank), name + " rank " + str(i) + " did not collect enough packets total unique packets: " + str(len(val)) + " < " + str(num_packets * (1 - loss_per_rank))
+                        assert len(val) >= num_packets * (1 - loss_per_rank), (name + " rank " + str(i) +
+                                                                               " did not collect enough packets total unique packets: " +
+                                                                               str(len(val)) + " < " + str(num_packets * (1 - loss_per_rank)))
                     else:
                         assert len(val) == 0
-       
+
         TestDataStructure.comm.barrier()

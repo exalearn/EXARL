@@ -20,6 +20,7 @@ Welcome to EXARL's documentation!
    usage/agent_doc
    usage/tutorial
    usage/utests
+   usage/bsuite
 
 
 Indices and tables

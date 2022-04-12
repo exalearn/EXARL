@@ -8,9 +8,6 @@
 # nonexclusive, paid-up, irrevocable worldwide license in this material to reproduce, prepare
 # derivative works, distribute copies to the public, perform publicly and display publicly, and
 # to permit others to do so.
-
-import sys
-import os
 from abc import ABC, abstractmethod
 
 class ExaComm(ABC):
@@ -30,7 +27,7 @@ class ExaComm(ABC):
 
     @abstractmethod
     def raw(self):
-        pass 
+        pass
 
     @abstractmethod
     def send(self, data, dest, pack=False):
@@ -84,3 +81,6 @@ class ExaComm(ABC):
         ExaComm.learner_comm = None
         ExaComm.num_learners = 1
         ExaComm.procs_per_env = 1
+
+    def get_MPI():
+        return ExaComm.global_comm.MPI

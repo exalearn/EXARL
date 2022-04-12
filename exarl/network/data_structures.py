@@ -650,7 +650,7 @@ class ExaMPIDistributedQueue(ExaData):
         else:
             lost = 0
             capacity = head[0] - tail[0] + 1
-        
+            
         if write:
             self.win.Lock(rank)
             self.win.Accumulate(

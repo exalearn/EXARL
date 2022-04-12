@@ -6,7 +6,7 @@ from exarl.base.comm_base import ExaComm
 class EnvGenerator:
     """"
     This class is used to generate environments to use for testing.
-    
+
     Attributes
     ----------
     high : np.array
@@ -31,7 +31,7 @@ class EnvGenerator:
     }
 
     @staticmethod
-    def createClass(action_space, observation_space, 
+    def createClass(action_space, observation_space,
                     action_tuple, observation_tuple,
                     reset_flag, max_steps,
                     num_seeds):
@@ -54,14 +54,14 @@ class EnvGenerator:
             The max steps before sending done after step
         num_seeds : int
             Number of unique seeds
-        
+
         Returns
         -------
         gym.Env
             Environment to use for testing
         """
         class envTester(gym.Env):
-            name = "_".join((action_space, observation_space, 
+            name = "_".join((action_space, observation_space,
                             str(action_tuple), str(observation_tuple),
                             str(reset_flag), str(max_steps),
                             str(num_seeds))) + "-v0"
@@ -84,20 +84,20 @@ class EnvGenerator:
                 self.seed = (self.seed + 1) % self.num_seeds
                 self.step_index = 0
                 self.max_steps = max_steps
-                
+
             def step(self, action):
                 if self.step_index < self.max_steps:
                     self.state = self.observation_space.sample()
                     self.step_index += 1
                 done = self.step_index == self.max_steps
                 return self.state, 1, done, {}
-                
+
             def reset(self):
                 if reset_flag:
                     self.state = self.initial_state[self.seed]
                     self.seed = (self.seed + 1) % self.num_seeds
                 return self.state
-        
+
         return envTester
 
     @staticmethod
@@ -113,7 +113,7 @@ class EnvGenerator:
             Max step of the classes generated
         num_seeds : int
             Number of seed of the classes generated
-        
+
         Returns
         -------
         gym.env
@@ -138,7 +138,7 @@ class EnvGenerator:
             for observation_tuple in [False, True]:
                 for action_space in EnvGenerator.spaceDict:
                     for observation_space in EnvGenerator.spaceDict:
-                        yield "_".join((action_space, observation_space, 
-                                            str(action_tuple), str(observation_tuple),
-                                            str(reset_flag), str(max_steps),
-                                            str(num_seeds))) + "-v0"
+                        yield "_".join((action_space, observation_space,
+                                        str(action_tuple), str(observation_tuple),
+                                        str(reset_flag), str(max_steps),
+                                        str(num_seeds))) + "-v0"

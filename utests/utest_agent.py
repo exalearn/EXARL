@@ -15,7 +15,7 @@ import pickle
 class TestAgentHelper:
     """"
     This is a helper class with constants used throughout the agent tests.
-    
+
     Attributes
     ----------
     dqn_args : dictionary
@@ -52,30 +52,30 @@ class TestAgentHelper:
 
     ddpg_args = {
         "epsilon": 1.0,
-        "epsilon_min" : 0.01,
-        "epsilon_decay" : 0.999,
+        "epsilon_min": 0.01,
+        "epsilon_decay": 0.999,
         "gamma": 0.99,
-        "tau" : 0.005,
-        "batch_size" : 64,
+        "tau": 0.005,
+        "batch_size": 64,
         "buffer_capacity": 50000
     }
 
     ac_args = {
-        "actor_lr" : 0.001,
-        "actor_dense_act" : "relu",
+        "actor_lr": 0.001,
+        "actor_dense_act": "relu",
         "actor_dense": [256, 256],
-        "actor_out_act" : "tanh",
-        "actor_optimizer" : "adam",
-        "critic_lr" : 0.002,
+        "actor_out_act": "tanh",
+        "actor_optimizer": "adam",
+        "critic_lr": 0.002,
         "critic_state_dense": [16, 32],
-        "critic_state_dense_act" : "relu",
+        "critic_state_dense_act": "relu",
         "critic_action_dense": [32],
-        "critic_action_dense_act" : "relu",
+        "critic_action_dense_act": "relu",
         "critic_concat_dense": [256, 256],
-        "critic_concat_dense_act" : "relu",
-        "critic_out_act" : "linear",
-        "critic_optimizer" : "adam",
-        "loss" : "mse",
+        "critic_concat_dense_act": "relu",
+        "critic_out_act": "linear",
+        "critic_optimizer": "adam",
+        "loss": "mse",
         "std_dev": 0.2
     }
 
@@ -93,21 +93,21 @@ class TestAgentHelper:
     }
 
     mlp_args = {
-        "dense" : [64, 128],
-        "activation" : "relu",
-        "optimizer" : "adam",
-        "out_activation" : "linear",
-        "loss" : "mse"
+        "dense": [64, 128],
+        "activation": "relu",
+        "optimizer": "adam",
+        "out_activation": "linear",
+        "loss": "mse"
     }
 
-    model_types = {"LSTM" : lstm_args, "MLP" : mlp_args}
+    model_types = {"LSTM": lstm_args, "MLP": mlp_args}
     priority_scale = [0.0, 1.0]
     max_attempts = 100
 
     def get_configs():
         """
         This is a generator that spits out configurations of learners, agents, and procs per agent.
-        This is used to generate tests for split.  If there are no configurations (i.e. size=1) 
+        This is used to generate tests for split.  If there are no configurations (i.e. size=1)
         then nothing will be returned and the test will be skipped
 
         Returns
@@ -117,7 +117,7 @@ class TestAgentHelper:
         """
         size = mpi4py.MPI.COMM_WORLD.Get_size()
         # We start at 1 because we have to have at least one learner
-        for num_learners in range(1, size): 
+        for num_learners in range(1, size):
             rem = size - num_learners
             # Iterate over all potential procs_per_env counts
             for i in range(0, rem):
@@ -152,7 +152,7 @@ class TestAgentHelper:
 
     def make_weights_from_old_weights(weights):
         """
-        This is a helper function creates a new list of weights based on the 
+        This is a helper function creates a new list of weights based on the
         size and type of the old ones.  The new ones will be filled with the
         index of their position in the list.
 
@@ -179,7 +179,7 @@ def init_comm(request):
 
     Attributes
     ----------
-    request : 
+    request :
         This is the parameter from fixture decorator.  Use request.param to get value.
         Each request.param is a tuple of Number of learners and Process per environment
         configuration.
@@ -194,11 +194,11 @@ def init_comm(request):
     assert ExaComm.num_learners == num_learners
     assert ExaComm.procs_per_env == procs_per_env
     yield num_learners, procs_per_env
-   
+
     ExaComm.reset()
-    assert ExaComm.global_comm == None
-    assert ExaComm.agent_comm == None
-    assert ExaComm.env_comm == None
+    assert ExaComm.global_comm is None
+    assert ExaComm.agent_comm is None
+    assert ExaComm.env_comm is None
     assert ExaComm.num_learners == 1
     assert ExaComm.procs_per_env == 1
 
@@ -220,7 +220,7 @@ def registered_environment(pytestconfig, init_comm):
 
     Parameters
     ----------
-    pytestconfig : 
+    pytestconfig :
         Hook for pytest argument parser
     init_comm : pair
         Number of learners and the proccesses per environment coming from init_comm fixture
@@ -242,7 +242,7 @@ def registered_environment(pytestconfig, init_comm):
     else:
         entry = EnvGenerator.createClass("Discrete", "Box", False, False, True, 75, 20)
         env_name = entry.name
-    
+
     # Cantor pair
     num_learners, procs_per_env = init_comm
     cantor_pair = int(((num_learners + procs_per_env) * (num_learners + procs_per_env + 1)) / 2 + procs_per_env)
@@ -252,7 +252,7 @@ def registered_environment(pytestconfig, init_comm):
     temp = env_name.split("-")
     if len(temp) > 1:
         temp.pop()
-    temp.append("v"+str(cantor_pair))
+    temp.append("v" + str(cantor_pair))
     env_name = "-".join(temp)
     gym.envs.registration.register(id=env_name, entry_point=entry)
     return env_name
@@ -276,12 +276,12 @@ def registered_agent(pytestconfig, init_comm):
         test_agent_file - name of the file containing test_env_class omitting the ".py" (e.g. dqn)
     To use call pytest ./utest_agent.py --test_agent_name DQN-v0 --test_agent_class DQN --test_agent_file dqn
     The scope is set to session as to only add to the registry once per pytest session (run).
-    In order to allow for multiple agents of the same class but with different comm configs, we pass in 
+    In order to allow for multiple agents of the same class but with different comm configs, we pass in
     a cantor pair of the number of learners and process per environment and append that to the name of the agent.
 
     Parameters
     ----------
-    pytestconfig : 
+    pytestconfig :
         Hook for pytest argument parser
     init_comm : pair
         The number of learners and process per environment
@@ -295,7 +295,7 @@ def registered_agent(pytestconfig, init_comm):
     agent_class = pytestconfig.getoption("test_agent_class")
     agent_file_name = pytestconfig.getoption("test_agent_file")
     entry = getattr(importlib.import_module("exarl.agents.agent_vault." + agent_file_name), agent_class)
-    
+
     # Cantor pair
     num_learners, procs_per_env = init_comm
     cantor_pair = int(((num_learners + procs_per_env) * (num_learners + procs_per_env + 1)) / 2 + procs_per_env)
@@ -305,7 +305,7 @@ def registered_agent(pytestconfig, init_comm):
     temp = agent_name.split("-")
     if len(temp) > 1:
         temp.pop()
-    temp.append("v"+str(cantor_pair))
+    temp.append("v" + str(cantor_pair))
     agent_name = "-".join(temp)
     exarl.agents.registration.register(id=agent_name, entry_point=entry)
 
@@ -314,16 +314,16 @@ def registered_agent(pytestconfig, init_comm):
 @pytest.fixture(scope="function", params=TestAgentHelper.model_types.keys())
 def run_params(request):
     """
-    Attempt to set candle drivers run_params.  We set this up instead of the 
+    Attempt to set candle drivers run_params.  We set this up instead of the
     candle driver.
 
     Parameters
     ----------
-    request : 
+    request :
         This is the parameter from fixture decorator.  Use request.param to get value.
         Model types are passed in as request.param.
     """
-    candleDriver.run_params = {'output_dir' : "./test"}
+    candleDriver.run_params = {'output_dir': "./test"}
     candleDriver.run_params.update(TestAgentHelper.dqn_args)
     candleDriver.run_params["model_type"] = request.param
     candleDriver.run_params.update(TestAgentHelper.model_types[request.param])
@@ -412,12 +412,12 @@ def pre_agent(registered_agent, registered_synth_environment, run_params, reques
 @pytest.fixture(scope="function")
 def agent_with_synth_env(registered_agent, registered_synth_environment, run_params, request):
     """
-    This fixture generates an new agent from the agent registry with an environment.  
-    The environment is passed via request allowing it to be passed by setting 
+    This fixture generates an new agent from the agent registry with an environment.
+    The environment is passed via request allowing it to be passed by setting
     indirect=True being in @pytest.mark.parametrize:
     (e.g. @pytest.mark.parametrize("syth_agent", listOfEnvs, indirect=True) )
-    This allows us to test other evironments than what we passed in on command line.
-    Ultimatly the list that should be passed in is the list of synthetic environments.
+    This allows us to test other environments than what we passed in on command line.
+    Ultimately the list that should be passed in is the list of synthetic environments.
 
     Parameters
     ----------
@@ -427,7 +427,7 @@ def agent_with_synth_env(registered_agent, registered_synth_environment, run_par
         Ensures all synthetic environments have been registered via fixture
     run_params : None
         Ensures run_params fixture runs before this
-    request : 
+    request :
         request.param is the name of the synthetic environment to create
 
     Returns
@@ -441,8 +441,6 @@ def agent_with_synth_env(registered_agent, registered_synth_environment, run_par
         agent = exarl.agents.make(registered_agent, env=env, is_learner=ExaComm.is_learner())
     return agent
 
-
-
 @pytest.fixture(scope="session")
 def save_load_dir(init_comm, pytestconfig):
     """
@@ -454,7 +452,7 @@ def save_load_dir(init_comm, pytestconfig):
     --test_save_load_dir option.  By default it will write to
     ./save_load_dir.
 
-    Example: 
+    Example:
     pytest ./utest_env.py --test_save_load_dir /path/to/my/dir
 
     Parameters
@@ -473,7 +471,7 @@ def save_load_dir(init_comm, pytestconfig):
     if rank == 0 and not os.path.isdir(dir_name):
         os.mkdir(dir_name)
         made_dir = True
-    
+
     ExaComm.global_comm.barrier()
     yield dir_name
 
@@ -512,7 +510,7 @@ class TestAgentMembers:
     @pytest.mark.parametrize("pre_agent", list(EnvGenerator.getNames()), indirect=True)
     def test_agent_creation(self, pre_agent):
         """
-        Tests the initalization of synthetic agents.  The synthetic agents iterate over all possible 
+        Tests the initialization of synthetic agents.  The synthetic agents iterate over all possible
         gym action/observation space combinations.  This will test the agents ability to handle creating
         a model (mlp/lstm) for such spaces.
 
@@ -531,7 +529,7 @@ class TestAgentMembers:
 
     def test_init(self, agent):
         """
-        Tests the initalization of agents relative to comm.
+        Tests the initialization of agents relative to comm.
 
         Parameters
         ----------
@@ -542,12 +540,12 @@ class TestAgentMembers:
             assert agent.is_learner == ExaComm.is_learner()
             assert hasattr(agent, 'batch_size')
         else:
-            assert agent == None
+            assert agent is None
 
     def test_get_weights(self, agent):
         """
         Test getting weights from an agent.  Currently get weights calls
-        into tensorflow get_weights 
+        into tensorflow get_weights
         (https://www.tensorflow.org/api_docs/python/tf/keras/layers/Layer#get_weights).
         To check, we are asserting we get a list of numpy arrays.
         A better check would be to assert the size and length of these array
@@ -570,19 +568,18 @@ class TestAgentMembers:
             #     assert len(weights) == len(TestAgentHelper.lstm_args["lstm_layers"])
             # else:
             #     assert False, "Unclear the number of layers of ml model for " + run_params
-            
             # TODO: Check the length of each np.array
             for layer_weights in weights:
                 assert isinstance(layer_weights, np.ndarray)
         else:
-            assert agent == None
+            assert agent is None
 
     def test_set_weights(self, agent):
         """
         Test set target model weights.  This test works by getting weights,
-        setting arbitrary values for "new" weights, updating, and then 
+        setting arbitrary values for "new" weights, updating, and then
         re-calling get to see if the new return equals the set values.
-        
+
         Parameters
         ----------
         agent : ExaAgent
@@ -595,13 +592,13 @@ class TestAgentMembers:
             weights = agent.get_weights()
             # Make new weights
             new_weights = TestAgentHelper.make_weights_from_old_weights(weights)
-            # Set weigthts    
+            # Set weights
             agent.set_weights(new_weights)
             # Check weights
             to_check = agent.get_weights()
             assert TestAgentHelper.compare_weights(new_weights, to_check)
         else:
-            assert agent == None
+            assert agent is None
 
     def test_save(self, agent, save_load_file):
         """
@@ -617,7 +614,7 @@ class TestAgentMembers:
         if ExaComm.is_agent():
             assert hasattr(agent, 'save')
             assert callable(getattr(agent, 'save'))
-            
+
             weights = agent.get_weights()
             agent.save(save_load_file)
             assert os.path.isfile(save_load_file)
@@ -630,12 +627,12 @@ class TestAgentMembers:
             #     assert np.array_equal(i, j)
             assert TestAgentHelper.compare_weights(weights, read_weights)
         else:
-            assert agent == None
+            assert agent is None
 
     def test_load(self, agent, save_load_file):
         """
         Tests loading weights.
-        
+
         Parameters
         ----------
         agent : ExaAgent
@@ -651,7 +648,7 @@ class TestAgentMembers:
             old_weights = agent.get_weights()
             # Make new weights
             new_weights = TestAgentHelper.make_weights_from_old_weights(old_weights)
-            # Set new weights, save, check file exists   
+            # Set new weights, save, check file exists
             agent.set_weights(new_weights)
             agent.save(save_load_file)
             assert os.path.isfile(save_load_file)
@@ -664,14 +661,14 @@ class TestAgentMembers:
             to_check = agent.get_weights()
             assert TestAgentHelper.compare_weights(new_weights, to_check)
         else:
-            assert agent == None
+            assert agent is None
 
     def test_has_data(self, agent):
         """
         This tests that has_data returns false when the agent
-        is first initialized.  Testing if has_data == True is 
+        is first initialized.  Testing if has_data == True is
         tested under test_remember.
-        
+
         Parameters
         ----------
         agent : ExaAgent
@@ -682,14 +679,13 @@ class TestAgentMembers:
             assert callable(getattr(agent, 'has_data'))
             assert agent.has_data() == False
         else:
-            assert agent == None
-        
+            assert agent is None
 
     def test_remember(self, agent, max_attempts=TestAgentHelper.max_attempts):
         """
-        This tests that the remember function stores entries up to 
+        This tests that the remember function stores entries up to
         max_add times.  We verify using has_data method.
-        
+
         Parameters
         ----------
         agent : ExaAgent
@@ -708,11 +704,11 @@ class TestAgentMembers:
                 action = agent.env.action_space.sample()
                 reward = 100
                 done = False
-            
+
                 agent.remember(state, action, reward, next_state, done)
                 assert agent.has_data() == True
         else:
-            assert agent == None
+            assert agent is None
 
     def test_generate_data_size(self, agent, max_attempts=TestAgentHelper.max_attempts):
         """
@@ -720,8 +716,8 @@ class TestAgentMembers:
         data stored, generate data outputs fake data.  This is to setup
         RMA windows for data structures.  This test checks that the size
         of the fake data is >= the size of real data.  Sometimes the size
-        issue is related to how pickle opperates.
-        
+        issue is related to how pickle operates.
+
         Parameters
         ----------
         agent : ExaAgent
@@ -733,7 +729,7 @@ class TestAgentMembers:
             assert hasattr(agent, 'generate_data')
             assert callable(getattr(agent, 'generate_data'))
             assert hasattr(agent, 'batch_size')
-            
+
             data = next(agent.generate_data())
             pickle_empty_data = pickle.dumps(data)
             for i in range(max_attempts):
@@ -744,20 +740,20 @@ class TestAgentMembers:
                     reward = 100
                     done = False
                     agent.remember(state, action, reward, next_state, done)
-                    
+
                 data = next(agent.generate_data())
                 pickle_full_data = pickle.dumps(data)
                 assert len(pickle_empty_data) >= len(pickle_full_data)
         else:
-            assert agent == None
+            assert agent is None
 
     def test_generate_data_small(self, agent):
         """
         This tests that the return of generate_data when the data is less
         than the batch size.  When there is no data stored, generate data
-        outputs fake data.  This test checks that the size of the fake 
-        data is > the size of real data.  
-        
+        outputs fake data.  This test checks that the size of the fake
+        data is > the size of real data.
+
         Parameters
         ----------
         agent : ExaAgent
@@ -780,14 +776,14 @@ class TestAgentMembers:
                 pickle_full_data = pickle.dumps(data)
                 assert len(pickle_empty_data) > len(pickle_full_data)
         else:
-            assert agent == None
+            assert agent is None
 
     @pytest.mark.parametrize("agent_with_priority_scale", TestAgentHelper.priority_scale, indirect=True)
     def test_train(self, agent_with_priority_scale):
         """
         This tests to see if there is a train method and its return values.
-        The return value passes back the indicies and lost if scale_priority
-        is set greater than 0.  We check to see that the number of indicies 
+        The return value passes back the indices and lost if scale_priority
+        is set greater than 0.  We check to see that the number of indices
         matches the total amount of data.  Only learner is able to call train.
 
         Parameters
@@ -800,7 +796,7 @@ class TestAgentMembers:
             assert hasattr(agent, 'train')
             assert callable(getattr(agent, 'train'))
             assert hasattr(agent, 'priority_scale')
-            
+
             if ExaComm.is_learner():
                 for i in range(agent.batch_size):
                     state = agent.env.observation_space.sample()
@@ -823,7 +819,7 @@ class TestAgentMembers:
                     else:
                         assert ret is None
         else:
-            assert agent == None
+            assert agent is None
 
     def test_target_train(self, agent):
         """
@@ -849,7 +845,7 @@ class TestAgentMembers:
                 weights = agent.get_weights()
                 assert not TestAgentHelper.compare_weights(weights, old_weights), "Weights should have changed"
         else:
-            assert agent == None
+            assert agent is None
 
     def test_for_changing_weights(self, agent, max_attempts=TestAgentHelper.max_attempts):
         """
@@ -870,7 +866,7 @@ class TestAgentMembers:
         if ExaComm.is_agent():
             assert hasattr(agent, 'train')
             assert callable(getattr(agent, 'train'))
-            
+
             if ExaComm.is_learner():
                 for j in range(max_attempts):
                     for i in range(agent.batch_size):
@@ -880,7 +876,7 @@ class TestAgentMembers:
                         reward = 100
                         done = False
                         agent.remember(state, action, reward, next_state, done)
-                    
+
                     data = next(agent.generate_data())
                     old_weights = agent.get_weights()
                     agent.train(data)
@@ -889,11 +885,11 @@ class TestAgentMembers:
                     weights = agent.get_weights()
                     assert not TestAgentHelper.compare_weights(weights, old_weights), "Weights should have changed"
         else:
-            assert agent == None
+            assert agent is None
 
     def do_actions(self, agent, max_attempts):
         """
-        This function tests the action method of an agent.  Action will perform inference 
+        This function tests the action method of an agent.  Action will perform inference
         using its internal model and will return an appropriate action to take.  We test
         that the action is "correct" by ensuring that it is part of the action space.
         The contains method given by gym checks both the type and if the action falls
@@ -910,7 +906,7 @@ class TestAgentMembers:
             assert hasattr(agent, 'action')
             assert callable(getattr(agent, 'action'))
             assert hasattr(agent, "env")
-            
+
             env = agent.env
             assert hasattr(env, "action_space")
             assert isinstance(env.action_space, gym.Space)
@@ -920,7 +916,7 @@ class TestAgentMembers:
                 assert env.action_space.contains(action)
 
         else:
-            assert agent == None
+            assert agent is None
 
     def test_action(self, agent, max_attempts=TestAgentHelper.max_attempts):
         """
@@ -935,7 +931,7 @@ class TestAgentMembers:
             The number of times to check actions
         """
         self.do_actions(agent, max_attempts)
-        
+
     @pytest.mark.skip(reason="This is a really long test... Fails because agent models are broken!!!")
     @pytest.mark.parametrize("agent_with_synth_env", list(EnvGenerator.getNames()), indirect=True)
     def test_action_synth(self, agent_with_synth_env, max_attempts=TestAgentHelper.max_attempts):
@@ -976,4 +972,4 @@ class TestAgentMembers:
             assert callable(getattr(agent, 'set_priorities'))
             assert hasattr(agent, "buffer_capacity")
         else:
-            assert agent == None
+            assert agent is None

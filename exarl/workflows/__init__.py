@@ -34,8 +34,3 @@ register(
     id='simple_async',
     entry_point='exarl.workflows.workflow_vault:SIMPLE_ASYNC'
 )
-
-register(
-    id='simple_rma',
-    entry_point='exarl.workflows.workflow_vault:SIMPLE_RMA'
-)

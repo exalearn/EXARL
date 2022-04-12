@@ -7,6 +7,7 @@ A scalable software framework for reinforcement learning environments and agents
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Build Status](https://travis-ci.com/exalearn/EXARL.svg?token=nVtzNrBfRo4qpVpEQP21&branch=develop)](https://travis-ci.com/exalearn/EXARL)
 [![Documentation Status](https://readthedocs.org/projects/exarl/badge/?version=latest)](https://exarl.readthedocs.io/en/latest/?badge=latest)
+[![codecov](https://codecov.io/gh/exalearn/EXARL/branch/develop/graph/badge.svg?token=VMHFSSZ7MJ)](https://codecov.io/gh/exalearn/EXARL)
 
 [Complete documentation](https://exarl.readthedocs.io/en/latest/index.html) is available.
 

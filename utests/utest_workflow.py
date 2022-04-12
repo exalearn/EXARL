@@ -19,7 +19,7 @@ import mpi4py
 class TestWorkflowHelper:
     """"
     This is a helper class with constants used throughout the workflow tests.
-    
+
     Attributes
     ----------
     workflows : list
@@ -38,12 +38,11 @@ class TestWorkflowHelper:
         Indicates how often a batch of data should be sent to learner.
         1 sends data each step, -1 sends data each episode.
     """
-    workflows = ["simple", "simple_async"] #["sync", "async", "rma"]
+    workflows = ["simple", "simple_async"]  # ["sync", "async", "rma"]
     episodes = [1, 10, 100]
     env_steps = [1, 10, 100]
     workflow_steps = [1, 10, 100]
     block = [True, False]
-    priority_scale = [0, 1]
     batch_frequency = [1, -1]
 
     # workflows = ["simple_rma"]
@@ -51,13 +50,12 @@ class TestWorkflowHelper:
     # env_steps = [10]
     # workflow_steps = [10]
     # block = [False]
-    # priority_scale = [1]
     # batch_frequency = [1]
 
     def get_configs(workflow):
         """
         This is a generator that spits out configurations of learners, agents, and procs per agent.
-        This is used to generate tests for split. 
+        This is used to generate tests for split.
 
         Currently, multi-learner configs are turned off
         Parameters
@@ -65,7 +63,14 @@ class TestWorkflowHelper:
         workflow : string
             Name of workflow.  For simple and sync we only give out 1 learner/agent.
             The rest go to env.  For rest we do various combinations of learner/actor.
-        
+
+        Currently, multi-learner configs are turned off
+        Parameters
+        ----------
+        workflow : string
+            Name of workflow.  For simple and sync we only give out 1 learner/agent.
+            The rest go to env.  For rest we do various combinations of learner/actor.
+
         Returns
         -------
         Pair
@@ -94,20 +99,20 @@ class TestWorkflowHelper:
         Returns
         -------
         List
-            Number of learners, processes per environment, workflow name, 
+            Number of learners, processes per environment, workflow name,
             number of episodes, number of max steps from the environments perspective,
             number of max steps from the workflows perspective, blocking (on/off-policy),
-            priority replay, and batch frequency.
+            and batch frequency.
         """
         for workflows in TestWorkflowHelper.workflows:
             for episodes in TestWorkflowHelper.episodes:
                 for env_steps in TestWorkflowHelper.env_steps:
                     for workflow_steps in TestWorkflowHelper.workflow_steps:
                         for block in TestWorkflowHelper.block:
-                            for priority_scale in TestWorkflowHelper.priority_scale:
-                                for batch_frequency in TestWorkflowHelper.batch_frequency:
-                                    for num_learners, procs_per_env in TestWorkflowHelper.get_configs(workflows):
-                                        yield num_learners, procs_per_env, workflows, episodes, env_steps, workflow_steps, block, priority_scale, batch_frequency
+                            for batch_frequency in TestWorkflowHelper.batch_frequency:
+                                for num_learners, procs_per_env in TestWorkflowHelper.get_configs(workflows):
+                                    yield (num_learners, procs_per_env, workflows, episodes,
+                                           env_steps, workflow_steps, block, batch_frequency)
 
     def reduce_value(value):
         """
@@ -144,17 +149,16 @@ def get_args(pytestconfig):
         --random_sleep - sleeps for a random time
 
     To use call pytest ./utest_env.py --on_policy -1 --behind -1 --random_sleep
-    
+
     Parameters
     ----------
-    pytestconfig : 
+    pytestconfig :
         Hook for pytest argument parser
     """
     WorkflowTestConstants.on_policy = int(pytestconfig.getoption("on_policy"))
     WorkflowTestConstants.behind = int(pytestconfig.getoption("behind"))
     WorkflowTestConstants.rank_sleep = bool(pytestconfig.getoption("rank_sleep"))
     WorkflowTestConstants.random_sleep = bool(pytestconfig.getoption("random_sleep"))
-    print("ARGS:", WorkflowTestConstants.on_policy, WorkflowTestConstants.behind, WorkflowTestConstants.rank_sleep, WorkflowTestConstants.random_sleep)
 
 @pytest.fixture(scope="session", params=list(TestWorkflowHelper.get_workflows()))
 def init_comm(request):
@@ -163,7 +167,7 @@ def init_comm(request):
 
     Attributes
     ----------
-    request : 
+    request :
         This is the parameter from fixture decorator.  Use request.param to get value.
         Each request.param has a tuple with the Number of learners and Process per environment
         configuration.
@@ -178,11 +182,11 @@ def init_comm(request):
     assert ExaComm.num_learners == num_learners
     assert ExaComm.procs_per_env == procs_per_env
     yield request.param
-   
+
     ExaComm.reset()
-    assert ExaComm.global_comm == None
-    assert ExaComm.agent_comm == None
-    assert ExaComm.env_comm == None
+    assert ExaComm.global_comm is None
+    assert ExaComm.agent_comm is None
+    assert ExaComm.env_comm is None
     assert ExaComm.num_learners == 1
     assert ExaComm.procs_per_env == 1
 
@@ -210,8 +214,8 @@ def log_dir(init_comm):
     if rank == 0 and not os.path.isdir(dir_name):
         os.mkdir(dir_name)
         made_dir = True
-    
-    candleDriver.run_params = {'output_dir' : dir_name}
+
+    candleDriver.run_params = {'output_dir': dir_name}
     ExaComm.global_comm.barrier()
     yield dir_name
 
@@ -222,14 +226,14 @@ def log_dir(init_comm):
 @pytest.fixture(scope="session")
 def run_params(log_dir, init_comm):
     """
-    Attempt to set candle drivers run_params.  We set this up instead of the 
+    Attempt to set candle drivers run_params.  We set this up instead of the
     candle driver.
 
     Parameters
     ----------
     log_dir :
         Makes sure the first candleDriver.run_params is created
-    init_comm : 
+    init_comm :
         Test parameters used to populate candleDriver.run_params
 
     Returns
@@ -237,13 +241,12 @@ def run_params(log_dir, init_comm):
     List :
         Returns the test parameters
     """
-    _, _, workflow_name, episodes, env_steps, workflow_steps, block, priority_scale, batch_frequency = init_comm
+    _, _, workflow_name, episodes, env_steps, workflow_steps, block, batch_frequency = init_comm
     candleDriver.run_params["n_episodes"] = episodes
     candleDriver.run_params["n_steps"] = workflow_steps
     candleDriver.run_params["episode_block"] = block
-    candleDriver.run_params["priority_scale"] = priority_scale
+    candleDriver.run_params["priority_scale"] = 1
     candleDriver.run_params["batch_frequency"] = batch_frequency
-    # WorkflowTestConstants.priority_replay = priority_scale
     return init_comm
 
 @pytest.fixture(scope="session")
@@ -259,7 +262,7 @@ def registration():
 def learner(registration, log_dir, get_args, run_params):
     """
     This fixture generates an new workflow from the workflow registry.
-    
+
     Parameters
     ----------
     init_comm : pair
@@ -272,7 +275,7 @@ def learner(registration, log_dir, get_args, run_params):
     FakeLearner
         The fake learner containing the env, agent, and workflow
     """
-    _, _, workflow_name, episodes, env_steps, workflow_steps, block, priority_scale, batch_frequency = run_params
+    _, _, workflow_name, episodes, env_steps, workflow_steps, block, batch_frequency = run_params
     WorkflowTestConstants.episodes = episodes
     WorkflowTestConstants.env_max_steps = env_steps
     WorkflowTestConstants.workflow_max_steps = workflow_steps
@@ -326,25 +329,45 @@ def run_learner(learner):
     ExaComm.global_comm.barrier()
     return learner
 
+@pytest.mark.skip(reason="This is for debugging other broken tests")
+def test_run(learner, init_comm):
+    """
+    This tests just running a learner.  The workflow class has asserts in it
+    and if they crash, it can be hard to figure out the configuration and
+    why.  This test can be turned on to help this processes.
+    It is also helpful to run pytest with -s to see the config:
+    Parameters
+    ----------
+    learner : FakeLearner
+        From fixture, ensures WorkflowTestConstants are set.
+    init_comm : list
+        This is the configuration we are running.
+    """
+    print("RUNNING:", init_comm)
+    ExaComm.global_comm.barrier()
+    learner.run()
+    ExaComm.global_comm.barrier()
+
 class TestWorkflowEnv:
     """
     This is a class of tests that looks at the environment counters.
     """
     def test_steps_per_rank(self, run_learner, steps):
         """
-        Checks if all actors have run at least one step. 
+        Checks if all actors have run at least one step.
 
         Parameters
         ----------
         run_learner : FakeLearner
             Contains workflow that has already run
         """
+        print("PARAMETERS:", init_comm, flush=True)
         if ExaComm.is_actor():
             assert run_learner.env.total_steps > 0
 
     def test_steps(self, run_learner, steps):
         """
-        Checks if total steps is equal to the episodes * steps 
+        Checks if total steps is equal to the episodes * steps
 
         Parameters
         ----------
@@ -369,7 +392,7 @@ class TestWorkflowEnv:
         """
         if ExaComm.is_actor():
             assert run_learner.env.total_resets > 0
-    
+
     def test_reset(self, run_learner):
         """
         Checks if the total number of resets is at least the number of episodes
@@ -429,7 +452,7 @@ class TestWorkflowAgent:
         total = TestWorkflowHelper.reduce_value(total)
         if not ExaComm.global_comm.rank:
             assert total >= WorkflowTestConstants.episodes
-    
+
     def test_target_train_per_learner(self, run_learner):
         """
         Checks if each learner calls target_train
@@ -509,7 +532,7 @@ class TestWorkflowDelays:
         it comes from an actor who does inference with some model.
         This records compares how many models have been generated
         since when this data was created
-    
+
     2. Off-policy learning:
         This is the other side of the 1. The actor records how
         out of data its model is when it is updated with a new
@@ -547,7 +570,6 @@ class TestWorkflowDelays:
         """
         if ExaComm.is_learner():
             assert max(run_learner.agent._behind) <= TestWorkflowDelays.max_behind
-            
 
     def test_most_off_policy(self, run_learner):
         """

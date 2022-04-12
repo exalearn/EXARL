@@ -18,35 +18,31 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-import time
 import os
-import math
-import json
-import csv
-import random
-import tensorflow as tf
 import sys
-import gym
-import pickle
-import exarl as erl
-from exarl.base.comm_base import ExaComm
-from tensorflow import keras
-from collections import deque
-from datetime import datetime
+import random
 import numpy as np
-from exarl.agents.agent_vault._prioritized_replay import PrioritizedReplayBuffer
-import exarl.utils.candleDriver as cd
-from exarl.utils import log
-from exarl.utils.introspect import introspectTrace
-from tensorflow.compat.v1.keras.backend import set_session
+from datetime import datetime
 
+import gym
+from gym.spaces.utils import flatten
+import tensorflow as tf
+from tensorflow import keras
+
+import exarl as erl
+from exarl.utils.globals import ExaGlobals
+from exarl.base.comm_base import ExaComm
+from exarl.candlelib import candle
+from exarl.agents.agent_vault._prioritized_replay import PrioritizedReplayBuffer
+from exarl.utils.introspect import introspectTrace
+logger = ExaGlobals.setup_logger(__name__)
+
+# TODO: ExaComm is probably not set at import time
 if ExaComm.num_learners > 1:
     import horovod.tensorflow as hvd
     multiLearner = True
 else:
     multiLearner = False
-
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
 
 class LossHistory(keras.callbacks.Callback):
     """Loss history for training
@@ -92,7 +88,7 @@ class DQN(erl.ExaAgent):
         self.dataprep_time = 0
         self.ndataprep_time = 0
 
-        self.enable_xla = True if cd.run_params['xla'] == "True" else False
+        self.enable_xla = True if ExaGlobals.lookup_params('xla') == "True" else False
         if self.enable_xla:
             # Optimization using XLA (1.1x speedup)
             tf.config.optimizer.set_jit(True)
@@ -104,35 +100,35 @@ class DQN(erl.ExaAgent):
             mixed_precision.set_policy(policy)
 
         # dqn intrinsic variables
-        self.results_dir = cd.run_params['output_dir']
-        self.gamma = cd.run_params['gamma']
-        self.epsilon = cd.run_params['epsilon']
-        self.epsilon_min = cd.run_params['epsilon_min']
-        self.epsilon_decay = cd.run_params['epsilon_decay']
-        self.learning_rate = cd.run_params['learning_rate']
-        self.batch_size = cd.run_params['batch_size']
-        self.tau = cd.run_params['tau']
-        self.model_type = cd.run_params['model_type']
+        self.results_dir = ExaGlobals.lookup_params('output_dir')
+        self.gamma = ExaGlobals.lookup_params('gamma')
+        self.epsilon = ExaGlobals.lookup_params('epsilon')
+        self.epsilon_min = ExaGlobals.lookup_params('epsilon_min')
+        self.epsilon_decay = ExaGlobals.lookup_params('epsilon_decay')
+        self.learning_rate = ExaGlobals.lookup_params('learning_rate')
+        self.batch_size = ExaGlobals.lookup_params('batch_size')
+        self.tau = ExaGlobals.lookup_params('tau')
+        self.model_type = ExaGlobals.lookup_params('model_type')
 
         if self.model_type == 'MLP':
             # for mlp
-            self.dense = cd.run_params['dense']
+            self.dense = ExaGlobals.lookup_params('dense')
 
         if self.model_type == 'LSTM':
             # for lstm
-            self.lstm_layers = cd.run_params['lstm_layers']
-            self.gauss_noise = cd.run_params['gauss_noise']
-            self.regularizer = cd.run_params['regularizer']
-            self.clipnorm = cd.run_params['clipnorm']
-            self.clipvalue = cd.run_params['clipvalue']
+            self.lstm_layers = ExaGlobals.lookup_params('lstm_layers')
+            self.gauss_noise = ExaGlobals.lookup_params('gauss_noise')
+            self.regularizer = ExaGlobals.lookup_params('regularizer')
+            self.clipnorm = ExaGlobals.lookup_params('clipnorm')
+            self.clipvalue = ExaGlobals.lookup_params('clipvalue')
 
         # for both
-        self.activation = cd.run_params['activation']
-        self.out_activation = cd.run_params['out_activation']
-        self.optimizer = cd.run_params['optimizer']
-        self.loss = cd.run_params['loss']
-        self.n_actions = cd.run_params['nactions']
-        self.priority_scale = cd.run_params['priority_scale']
+        self.activation = ExaGlobals.lookup_params('activation')
+        self.out_activation = ExaGlobals.lookup_params('out_activation')
+        self.optimizer = ExaGlobals.lookup_params('optimizer')
+        self.loss = ExaGlobals.lookup_params('loss')
+        self.n_actions = ExaGlobals.lookup_params('nactions')
+        self.priority_scale = ExaGlobals.lookup_params('priority_scale')
 
         # Check if the action space is discrete
         self.is_discrete = (type(env.action_space) == gym.spaces.discrete.Discrete)
@@ -143,15 +139,18 @@ class DQN(erl.ExaAgent):
             self.actions = np.linspace(env.action_space.low, env.action_space.high, self.n_actions)
 
         # Data types of action and observation space
-        self.dtype_action = np.array(self.env.action_space.sample()).dtype
-        self.dtype_observation = self.env.observation_space.sample().dtype
+        self.dim_action = np.array(self.env.action_space.sample()).dtype
+
+        flat_sample = flatten(self.env.observation_space, self.env.observation_space.sample())
+        self.dtype_observation = flat_sample.dtype
+        self.dim_observation = flat_sample.shape[0]
 
         # Setup GPU cfg
         if ExaComm.is_learner():
-            logger.info("Setting GPU rank", self.rank)
+            logger().info("Setting GPU rank", self.rank)
             config = tf.compat.v1.ConfigProto(device_count={'GPU': 1, 'CPU': 1})
         else:
-            logger.info("Setting no GPU rank", self.rank)
+            logger().info("Setting no GPU rank", self.rank)
             config = tf.compat.v1.ConfigProto(device_count={'GPU': 0, 'CPU': 1})
         # Get which device to run on
         self.device = self._get_device()
@@ -167,12 +166,12 @@ class DQN(erl.ExaAgent):
                 self.model.compile(loss=self.loss, optimizer=self.optimizer)
                 self.model.summary()
             # self.mirrored_strategy = tf.distribute.MirroredStrategy()
-            # logger.info("Using learner strategy: {}".format(self.mirrored_strategy))
+            # logger().info("Using learner strategy: {}".format(self.mirrored_strategy))
             # with self.mirrored_strategy.scope():
             #     self.model = self._build_model()
             #     self.model._name = "learner"
             #     self.model.compile(loss=self.loss, optimizer=self.optimizer)
-            #     logger.info("Active model: \n".format(self.model.summary()))
+            #     logger().info("Active model: \n".format(self.model.summary()))
         else:
             self.model = None
         with tf.device('/CPU:0'):
@@ -188,11 +187,11 @@ class DQN(erl.ExaAgent):
             # TODO: Update candle driver to include different losses and optimizers
             # Default reduction is tf.keras.losses.Reduction.AUTO which errors out with distributed training
             # self.loss_fn = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
-            self.loss_fn = cd.candle.build_loss(self.loss, cd.kerasDefaults, reduction='none')
+            self.loss_fn = candle.build_loss(self.loss, ExaGlobals.keras_defaults(), reduction='none')
             # self.opt = tf.keras.optimizers.Adam(self.learning_rate * hvd.size())
-            self.opt = cd.candle.build_optimizer(self.optimizer, self.learning_rate * hvd.size(), cd.kerasDefaults)
+            self.opt = candle.build_optimizer(self.optimizer, self.learning_rate * hvd.size(), ExaGlobals.keras_default())
 
-        self.buffer_capacity = cd.run_params['buffer_capacity']
+        self.buffer_capacity = ExaGlobals.lookup_params('buffer_capacity')
         self.replay_buffer = PrioritizedReplayBuffer(maxlen=self.buffer_capacity)
 
     def _get_device(self):
@@ -204,7 +203,7 @@ class DQN(erl.ExaAgent):
         cpus = tf.config.experimental.list_physical_devices('CPU')
         gpus = tf.config.experimental.list_physical_devices('GPU')
         ngpus = len(gpus)
-        logger.info('Number of available GPUs: {}'.format(ngpus))
+        logger().info('Number of available GPUs: {}'.format(ngpus))
         if ngpus > 0:
             gpu_id = self.rank % ngpus
             return '/GPU:{}'.format(gpu_id)
@@ -226,6 +225,12 @@ class DQN(erl.ExaAgent):
         else:
             sys.exit("Oops! That was not a valid model type. Try again...")
 
+    def flatten_observation(self, state):
+        state = flatten(self.env.observation_space, state)
+        if self.model_type == 'LSTM':
+            return state.reshape(1, 1, state.shape[0])
+        return state.reshape(1, state.shape[0])
+
     def remember(self, state, action, reward, next_state, done):
         """Add experience to replay buffer
 
@@ -238,7 +243,7 @@ class DQN(erl.ExaAgent):
         """
         lost_data = self.replay_buffer.add((state, action, reward, next_state, done))
         if lost_data and self.priority_scale:
-            # logger.warning("Priority replay buffer size too small. Data loss negates replay effect!")
+            # logger().warning("Priority replay buffer size too small. Data loss negates replay effect!")
             print("Priority replay buffer size too small. Data loss negates replay effect!", flush=True)
 
     def get_action(self, state):
@@ -256,10 +261,10 @@ class DQN(erl.ExaAgent):
         rdm = np.random.rand()
         if rdm <= self.epsilon:
             self.epsilon_adj()
-            action = random.randrange(self.env.action_space.n)
+            action = self.env.action_space.sample()
             return action, 0
         else:
-            np_state = np.array(state).reshape(1, 1, len(state))
+            np_state = self.flatten_observation(state)
             with tf.device(self.device):
                 act_values = self.target_model.predict(np_state)
             action = np.argmax(act_values[0])
@@ -277,6 +282,7 @@ class DQN(erl.ExaAgent):
             policy (int): random (0) or inference (1)
         """
         action, policy = self.get_action(state)
+
         if not self.is_discrete:
             action = [self.actions[action]]
         return action, policy
@@ -292,12 +298,13 @@ class DQN(erl.ExaAgent):
             target Q value (array): [description]
         """
         state, action, reward, next_state, done = exp
-        np_state = np.array(state, dtype=self.dtype_observation).reshape(1, 1, len(state))
-        np_next_state = np.array(next_state, dtype=self.dtype_observation).reshape(1, 1, len(next_state))
+        np_state = self.flatten_observation(state)
+        np_next_state = self.flatten_observation(next_state)
+
         expectedQ = 0
         if not done:
             with tf.device(self.device):
-                expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state)[0])
+                expectedQ = self.gamma * np.amax(self.target_model.predict(np_next_state))
         target = reward + expectedQ
         with tf.device(self.device):
             target_f = self.target_model.predict(np_state)
@@ -317,7 +324,9 @@ class DQN(erl.ExaAgent):
 
     @introspectTrace()
     def generate_data(self):
-        """Unpack and yield training data
+        """
+        Unpack and yield training data
+        Has data checks if the buffer is greater than batch size for training
 
         Yields:
             batch_states (numpy array): training input
@@ -326,19 +335,25 @@ class DQN(erl.ExaAgent):
                 indices (numpy array): data indices
                 importance (numpy array): importance weights
         """
-        # Has data checks if the buffer is greater than batch size for training
+        size = self.batch_size
         if not self.has_data():
             # Worker method to create samples for training
-            batch_states = np.zeros((self.batch_size, 1, self.env.observation_space.shape[0]), dtype=self.dtype_observation)
-            batch_target = np.zeros((self.batch_size, self.env.action_space.n), dtype=self.dtype_action)
+            batch_states = np.zeros((self.batch_size, np.prod(self.dim_observation)), dtype=self.dtype_observation)
+            batch_target = np.zeros((self.batch_size, self.env.action_space.n), dtype=self.dim_action)
             indices = -1 * np.ones(self.batch_size)
             importance = np.ones(self.batch_size)
         else:
             minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=self.priority_scale)
             batch_target = list(map(self.calc_target_f, minibatch))
-            batch_states = [np.array(exp[0], dtype=self.dtype_observation).reshape(1, 1, len(exp[0]))[0] for exp in minibatch]
-            batch_states = np.reshape(batch_states, [len(minibatch), 1, len(minibatch[0][0])])
-            batch_target = np.reshape(batch_target, [len(minibatch), self.env.action_space.n])
+            batch_states = [self.flatten_observation(exp[0]) for exp in minibatch]
+            size = len(minibatch)
+
+        # JS: Always reshape... Even the zeros.
+        batch_target = np.reshape(batch_target, [size, self.env.action_space.n])
+        if self.model_type == 'LSTM':
+            batch_states = np.reshape(batch_states, [size, 1, self.dim_observation])
+        else:
+            batch_states = np.reshape(batch_states, [size, self.dim_observation])
 
         if self.priority_scale > 0:
             yield batch_states, batch_target, indices, importance
@@ -360,31 +375,22 @@ class DQN(erl.ExaAgent):
                 None
         """
         ret = None
-        if self.is_learner:
-            start_time = time.time()
-            with tf.device(self.device):
-                if self.priority_scale > 0:
-                    if multiLearner:
-                        loss = self.training_step(batch)
-                    else:
-                        loss = LossHistory()
-                        sample_weight = batch[3] ** (1 - self.epsilon)
-                        self.model.fit(batch[0], batch[1], epochs=1, batch_size=1, verbose=0, callbacks=loss, sample_weight=sample_weight)
-                        loss = loss.loss
-                    ret = batch[2], loss
+        with tf.device(self.device):
+            if self.priority_scale > 0:
+                if multiLearner:
+                    loss = self.training_step(batch)
                 else:
-                    if multiLearner:
-                        loss = self.training_step(batch)
-                    else:
-                        self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
-            end_time = time.time()
-            self.training_time += (end_time - start_time)
-            self.ntraining_time += 1
-            logger.info('Agent[{}]- Training: {} '.format(self.rank, (end_time - start_time)))
-            start_time_episode = time.time()
-            logger.info('Agent[%s] - Target update time: %s ' % (str(self.rank), str(time.time() - start_time_episode)))
-        else:
-            logger.warning('Training will not be done because this instance is not set to learn.')
+                    loss = LossHistory()
+                    sample_weight = batch[3] ** (1 - self.epsilon)
+                    self.model.fit(batch[0], batch[1], epochs=1, batch_size=1, verbose=0, callbacks=loss, sample_weight=sample_weight)
+                    loss = loss.loss
+                ret = batch[2], loss
+            else:
+                if multiLearner:
+                    loss = self.training_step(batch)
+                else:
+                    self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
+        self.ntraining_time += 1
         return ret
 
     @tf.function
@@ -431,7 +437,7 @@ class DQN(erl.ExaAgent):
         Returns:
             weights (list): target model weights
         """
-        logger.debug("Agent[%s] - get target weight." % str(self.rank))
+        logger().debug("Agent[%s] - get target weight." % str(self.rank))
         return self.target_model.get_weights()
 
     def set_weights(self, weights):
@@ -440,8 +446,8 @@ class DQN(erl.ExaAgent):
         Args:
             weights (list): model weights
         """
-        logger.info("Agent[%s] - set target weight." % str(self.rank))
-        logger.debug("Agent[%s] - set target weight: %s" % (str(self.rank), weights))
+        logger().info("Agent[%s] - set target weight." % str(self.rank))
+        logger().debug("Agent[%s] - set target weight: %s" % (str(self.rank), weights))
         with tf.device(self.device):
             self.target_model.set_weights(weights)
 
@@ -450,7 +456,7 @@ class DQN(erl.ExaAgent):
         """Update target model
         """
         if self.is_learner:
-            logger.info("Agent[%s] - update target weights." % str(self.rank))
+            logger().info("Agent[%s] - update target weights." % str(self.rank))
             with tf.device(self.device):
                 model_weights = self.model.get_weights()
                 target_weights = self.target_model.get_weights()
@@ -460,7 +466,7 @@ class DQN(erl.ExaAgent):
                 )
             self.set_weights(target_weights)
         else:
-            logger.warning(
+            logger().warning(
                 "Weights will not be updated because this instance is not set to learn."
             )
 
@@ -469,32 +475,3 @@ class DQN(erl.ExaAgent):
         """
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
-
-    # def load(self, filename):
-    #     """Load model weights from pickle file
-
-    #     Args:
-    #         filename (string): full path of model file
-    #     """
-    #     layers = self.target_model.layers
-    #     with open(filename, 'rb') as f:
-    #         pickle_list = pickle.load(f)
-
-    #     for layerId in range(len(layers)):
-    #         # assert(layers[layerId].name == pickle_list[layerId][0])
-    #         layers[layerId].set_weights(pickle_list[layerId][1])
-
-    # def save(self, filename):
-    #     """Save model weights to pickle file
-
-    #     Args:
-    #         filename (string): full path of model file
-    #     """
-    #     layers = self.target_model.layers
-    #     pickle_list = []
-    #     for layerId in range(len(layers)):
-    #         weigths = layers[layerId].get_weights()
-    #         pickle_list.append([layers[layerId].name, weigths])
-
-    #     with open(filename, 'wb') as f:
-    #         pickle.dump(pickle_list, f, -1)

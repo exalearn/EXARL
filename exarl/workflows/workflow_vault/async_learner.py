@@ -24,11 +24,9 @@ import numpy as np
 import exarl as erl
 from exarl.utils.introspect import ib
 from exarl.utils.profile import *
-from exarl.utils import log
-import exarl.utils.candleDriver as cd
+from exarl.utils.globals import ExaGlobals
 from exarl.base.comm_base import ExaComm
-
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
+logger = ExaGlobals.setup_logger(__name__)
 
 class ASYNC(erl.ExaWorkflow):
     """Asynchronous workflow class: inherits from ExaWorkflow base class.
@@ -55,7 +53,7 @@ class ASYNC(erl.ExaWorkflow):
         """Async class constructor.
         """
         print('Creating ASYNC learner workflow...')
-        priority_scale = cd.lookup_params('priority_scale')
+        priority_scale = ExaGlobals.lookup_params('priority_scale')
         self.use_priority_replay = (priority_scale is not None and priority_scale > 0)
 
     @PROFILE
@@ -85,9 +83,9 @@ class ASYNC(erl.ExaWorkflow):
         if ExaComm.is_learner():
             start = agent_comm.time()
             worker_episodes = np.arange(1, agent_comm.size)
-            logger.debug("worker_episodes:{}".format(worker_episodes))
+            logger().debug("worker_episodes:{}".format(worker_episodes))
 
-            logger.info("Initializing ...\n")
+            logger().info("Initializing ...\n")
             for s in range(1, agent_comm.size):
                 # Send target weights
                 indices, loss = None, None
@@ -98,9 +96,9 @@ class ASYNC(erl.ExaWorkflow):
                     [episode, rank0_epsilon, target_weights, indices, loss], dest=s)
 
             init_nepisodes = episode
-            logger.debug("init_nepisodes:{}".format(init_nepisodes))
+            logger().debug("init_nepisodes:{}".format(init_nepisodes))
 
-            logger.debug("Continuing ...\n")
+            logger().debug("Continuing ...\n")
             while episode_done < exalearner.nepisodes:
                 # Receive the rank of the worker ready for more work
                 recv_data = agent_comm.recv(None)
@@ -112,8 +110,10 @@ class ASYNC(erl.ExaWorkflow):
                 epsilon = recv_data[3]
                 done = recv_data[4]
 
-                logger.debug('step:{}'.format(step))
-                logger.debug('done:{}'.format(done))
+                rank0_epsilon = min(rank0_epsilon, epsilon)
+
+                logger().debug('step:{}'.format(step))
+                logger().debug('done:{}'.format(done))
                 # Train
                 train_return = exalearner.agent.train(batch)
                 ib.update("Async_Learner_Train", 1)
@@ -125,11 +125,11 @@ class ASYNC(erl.ExaWorkflow):
                 ib.update("Async_Learner_Target_Train", 1)
 
                 # Send target weights
-                logger.debug('rank0_epsilon:{}'.format(epsilon))
+                logger().debug('rank0_epsilon:{}'.format(rank0_epsilon))
                 # Increment episode when starting
                 if step == 0:
                     episode += 1
-                    logger.debug("if episode:{}".format(episode))
+                    logger().debug("if episode:{}".format(episode))
 
                 # Increment the number of completed episodes
                 if done:
@@ -137,19 +137,19 @@ class ASYNC(erl.ExaWorkflow):
                     latest_episode = worker_episodes.max()
                     # Updated episode = latest_episode + 1
                     worker_episodes[whofrom - 1] = latest_episode + 1
-                    logger.debug("episode_done:{}".format(episode_done))
+                    logger().debug("episode_done:{}".format(episode_done))
                     ib.update("Async_Learner_Episode", 1)
 
                 # Send target weights
-                logger.debug('rank0_epsilon:{}'.format(epsilon))
+                logger().debug('rank0_epsilon:{}'.format(rank0_epsilon))
                 target_weights = exalearner.agent.get_weights()
-                agent_comm.send([worker_episodes[whofrom - 1], epsilon, target_weights, indices, loss], whofrom)
+                agent_comm.send([worker_episodes[whofrom - 1], rank0_epsilon, target_weights, indices, loss], whofrom)
 
             filename_prefix = 'ExaLearner_Episodes%s_Steps%s_Rank%s_memory_v1' \
                 % (str(exalearner.nepisodes), str(exalearner.nsteps), str(agent_comm.rank))
             exalearner.agent.save(exalearner.results_dir + '/' + filename_prefix + '.h5')
 
-            logger.info("Finishing up ...\n")
+            logger().info("Finishing up ...\n")
             episode = -1
             for s in range(1, agent_comm.size):
                 recv_data = agent_comm.recv(None)
@@ -159,8 +159,8 @@ class ASYNC(erl.ExaWorkflow):
                 epsilon = recv_data[3]
                 done = recv_data[4]
 
-                logger.debug('step:{}'.format(step))
-                logger.debug('done:{}'.format(done))
+                logger().debug('step:{}'.format(step))
+                logger().debug('done:{}'.format(done))
 
                 # Train
                 train_return = exalearner.agent.train(batch)
@@ -174,7 +174,7 @@ class ASYNC(erl.ExaWorkflow):
                     exalearner.agent.save(exalearner.results_dir + '/target_weights.pkl')
                 agent_comm.send([episode, epsilon, 0, indices, loss], s)
 
-            logger.info("Learner time: {}".format(agent_comm.time() - start))
+            logger().info("Learner time: {}".format(agent_comm.time() - start))
 
         else:
             if ExaComm.env_comm.rank == 0:
@@ -193,11 +193,12 @@ class ASYNC(erl.ExaWorkflow):
                 total_reward = 0
                 steps = 0
                 action = 0
+                done = False
                 episode_reward_list = []
 
                 # Steps in an episode
-                while steps < exalearner.nsteps:
-                    logger.debug('ASYNC::run() agent_comm.rank{}; step({} of {})'
+                while done != True:
+                    logger().debug('ASYNC::run() agent_comm.rank{}; step({} of {})'
                                  .format(agent_comm.rank, steps, (exalearner.nsteps - 1)))
                     if ExaComm.env_comm.rank == 0:
                         # Receive target weights
@@ -214,14 +215,14 @@ class ASYNC(erl.ExaWorkflow):
                     if episode_interim == -1:
                         episode = -1
                         if ExaComm.env_comm.rank == 0:
-                            logger.info(
+                            logger().info(
                                 "Rank[%s] - Episode/Step:%s/%s"
                                 % (str(agent_comm.rank), str(episode), str(steps))
                             )
                         break
 
                     send_data = False
-                    done = False
+                    # done = False
                     while send_data == False and done == False:
                         if ExaComm.env_comm.rank == 0:
                             exalearner.agent.epsilon = recv_data[1]
@@ -229,7 +230,7 @@ class ASYNC(erl.ExaWorkflow):
 
                             action, policy_type = exalearner.agent.action(current_state)
                             ib.update("Async_Env_Inference", 1)
-
+                            # Fixed action for performance measurement
                             if exalearner.action_type == "fixed":
                                 action, policy_type = 0, -11
 
@@ -247,14 +248,8 @@ class ASYNC(erl.ExaWorkflow):
                             batch_data = next(exalearner.agent.generate_data())
                             ib.update("Async_Env_Generate_Data", 1)
 
-                            logger.info(
+                            logger().info(
                                 'Rank[{}] - Generated data: {}'.format(agent_comm.rank, len(batch_data[0])))
-                            # try:
-                            #     buffer_length = len(exalearner.agent.memory)
-                            # except:
-                            #     buffer_length = exalearner.agent.replay_buffer.get_buffer_length()
-                            # logger.info(
-                            #     'Rank[{}] - # Memories: {}'.format(agent_comm.rank, buffer_length))
 
                             if steps >= exalearner.nsteps - 1:
                                 done = True
@@ -266,9 +261,9 @@ class ASYNC(erl.ExaWorkflow):
                             indices, loss = recv_data[3:5]
                             if indices is not None:
                                 exalearner.agent.set_priorities(indices, loss)
-                            logger.info('Rank[%s] - Total Reward:%s' %
+                            logger().info('Rank[%s] - Total Reward:%s' %
                                         (str(agent_comm.rank), str(total_reward)))
-                            logger.info(
+                            logger().info(
                                 'Rank[%s] - Episode/Step/Status:%s/%s/%s' % (str(agent_comm.rank), str(episode), str(steps), str(done)))
 
                             # TODO: make this configurable so we don't always suffer IO
@@ -280,6 +275,8 @@ class ASYNC(erl.ExaWorkflow):
                             current_state = next_state
                             steps += 1
 
+                        # Broadcast send_data
+                        send_data = env_comm.bcast(send_data, 0)
                         # Broadcast done
                         done = env_comm.bcast(done, 0)
                     # Break loop if done
@@ -288,8 +285,8 @@ class ASYNC(erl.ExaWorkflow):
                 episode_reward_list.append(total_reward)
                 # Mean of last 40 episodes
                 average_reward = np.mean(episode_reward_list[-40:])
-                # print("Episode * {} * Avg Reward is ==> {}".format(episode, average_reward))
+                print("Episode * {} * Avg Reward is ==> {}".format(episode, average_reward), flush=True)
             ib.update("Async_Env_Episode", 1)
-            logger.info("Worker time = {}".format(env_comm.time() - start))
+            logger().info("Worker time = {}".format(env_comm.time() - start))
             if ExaComm.is_actor():
                 train_file.close()

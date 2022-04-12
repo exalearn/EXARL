@@ -1,7 +1,8 @@
-import importlib
-from os import environ
 import pytest
-import numpy as np
+import importlib
+from exarl.utils.globals import ExaGlobals
+# candleDriver.run_params['log_level'] = [3, 3]
+# candleDriver.run_params['mpi4py_rc'] = False
 from exarl.base.comm_base import ExaComm
 from exarl.network.simple_comm import ExaSimple
 from exarl.network.mpi_comm import ExaMPI
@@ -10,18 +11,18 @@ import mpi4py
 class TestCommHelper:
     """"
     This is a helper class with constants used throughout the comm tests.
-    
+
     Attributes
     ----------
     comm_types : list
         List of comm types to test
     """
     comm_types = [ExaSimple, ExaMPI]
-    
+
     def get_configs():
         """
         This is a generator that spits out configurations of learners, agents, and procs per agent.
-        This is used to generate tests for split.  If there are no configurations (i.e. size=1) 
+        This is used to generate tests for split.  If there are no configurations (i.e. size=1)
         then nothing will be returned and the test will be skipped
 
         Returns
@@ -32,7 +33,8 @@ class TestCommHelper:
         size = mpi4py.MPI.COMM_WORLD.Get_size()
         yield 1, size
         # We start at 1 because we have to have at least one learner
-        for num_learners in range(1, size): 
+
+        for num_learners in range(1, size):
             rem = size - num_learners
             # Iterate over all potential procs_per_env counts
             for i in range(0, rem):
@@ -42,34 +44,53 @@ class TestCommHelper:
                 if rem % procs_per_env == 0:
                     yield num_learners, procs_per_env
 
+@pytest.fixture(scope="session", autouse=True)
+def mpi4py_rc(pytestconfig):
+    """
+    This function takes the commandline parameter --mpi4py_rc and sets
+        mpi4py.rc.threads = False
+        mpi4py.rc.recv_mprobe = False
+    Parameters
+    ----------
+    pytestconfig :
+        Hook for pytest argument parser
+    """
+    candleDriver.run_params['mpi4py_rc'] = pytestconfig.getoption("mpi4py_rc")
+    if candleDriver.run_params['mpi4py_rc']:
+        print("DID WE DO THE THING", candleDriver.run_params['mpi4py_rc'])
+        del mpi4py
+        importlib(ExaSimple)
+        importlib(ExaMPI)
+    return not candleDriver.run_params['mpi4py_rc']
+
 @pytest.fixture(scope="function", autouse=True)
 def reset_comm():
     """
     This decorator is used to reset the comm before each function
     """
     ExaComm.reset()
-    assert ExaComm.global_comm == None
-    assert ExaComm.agent_comm == None
-    assert ExaComm.env_comm == None
+    assert ExaComm.global_comm is None
+    assert ExaComm.agent_comm is None
+    assert ExaComm.env_comm is None
     assert ExaComm.num_learners == 1
     assert ExaComm.procs_per_env == 1
-    
+
 class TestEnvMembers:
     """
     This class test the basic functionality of the ExaComm class.
     These tests focus on testing the make up of a comm as well
-    as its initialization. 
+    as its initialization.
     We are omitting test for the message passing and synchronization
     for now.
     TODO: Write tests for general functionality!
     """
-    
+
     @pytest.mark.parametrize("comm", TestCommHelper.comm_types)
-    def test_MPI_flags(self, comm):
+    def test_MPI_flags(self, comm, mpi4py_rc):
         """
         THIS TEST IS TO CHECK THAT THE MPI LAYERS SET THE FOLLOWING FLAGS!!!
         In reality this test will look to see the first comm imported and
-        if it sets these flags.  Subsequent imports will not help.  I am 
+        if it sets these flags.  Subsequent imports will not help.  I am
         unsure how to unload and reload modules in meaningful way such that
         it resets these flags.  This is why I have the simple_comm loaded
         before mpi_comm or mpi4py since it is the comm that is used 99% of
@@ -80,8 +101,8 @@ class TestEnvMembers:
         comm : ExaComm
             Type of comm to test
         """
-        assert mpi4py.rc.threads == False
-        assert mpi4py.rc.recv_mprobe == False
+        assert mpi4py.rc.threads == mpi4py_rc
+        assert mpi4py.rc.recv_mprobe == mpi4py_rc
 
     @pytest.mark.parametrize("comm", TestCommHelper.comm_types)
     def test_has_MPI(self, comm):
@@ -151,7 +172,7 @@ class TestEnvMembers:
         assert hasattr(a_comm, "rank")
         assert isinstance(a_comm.size, int)
         assert a_comm.rank == mpi4py.MPI.COMM_WORLD.Get_rank()
-        
+
     @pytest.mark.parametrize("comm", TestCommHelper.comm_types)
     def test_comm_empty_init(self, comm):
         """
@@ -183,12 +204,13 @@ class TestEnvMembers:
             Environment - Number per agent
 
         The following is an example of how ranks should be layed
-        out assuming 14 ranks (2 Learners, 5 Agents, 4 Environment) 
+        out assuming 14 ranks (2 Learners, 5 Agents, 4 Environment)
         Rank  0  1  2  3  4  5  6  7  8  9  10 11 12 13
         L     0  1  -  -  -  -  -  -  -  -  -  -  -  -
-        A     0  1  2  -  -  -  3  -  -  -  4  -  -  - 
+        A     0  1  2  -  -  -  3  -  -  -  4  -  -  -
         E     -  -  0  1  2  3  0  1  2  3  0  1  2  3
 
+        This is also a valid rank for sync workflow.
         Rank  0  1  2  3
         L     0  -  -  -
         A     0  -  -  -
@@ -209,10 +231,10 @@ class TestEnvMembers:
         if procs_per_env == size:
             assert num_learners == 1, "Only single learner is supported when procs_per_env == global comm size"
         else:
-            total_env = procs_per_env * int((size - num_learners)/procs_per_env)
+            total_env = procs_per_env * int((size - num_learners) / procs_per_env)
             assert total_env > 0
-            assert size == total_env + num_learners, "Invalide configuration"
-        
+            assert size == total_env + num_learners, "Invalided configuration"
+
         # Do the split
         comm(procs_per_env=procs_per_env, num_learners=num_learners)
 
@@ -231,8 +253,8 @@ class TestEnvMembers:
             assert ExaComm.learner_comm.size == num_learners
             assert ExaComm.learner_comm.rank == rank
         else:
-            assert ExaComm.learner_comm == None
-        
+            assert ExaComm.learner_comm is None
+
         # Check the agent comm
         if procs_per_env == size:
             if rank == 0:
@@ -240,7 +262,7 @@ class TestEnvMembers:
                 assert ExaComm.agent_comm.size == 1
                 assert ExaComm.agent_comm.rank == 0
             else:
-                assert ExaComm.agent_comm == None
+                assert ExaComm.agent_comm is None
         else:
             num_agents = num_learners + (size - num_learners) / procs_per_env
             if rank < num_learners:
@@ -256,17 +278,17 @@ class TestEnvMembers:
                         assert ExaComm.agent_comm.rank == i + num_learners
                         checked = True
                     else:
-                        assert ExaComm.learner_comm == None
+                        assert ExaComm.learner_comm is None
                         checked = True
                 assert checked == True, "Double check on logic failed. Rank " + str(rank) + " was not checked!"
-                    
+
         # Check the env comm
         if procs_per_env == size:
             assert isinstance(ExaComm.env_comm, ExaComm)
             assert ExaComm.env_comm.size == procs_per_env
             assert ExaComm.env_comm.rank == rank
         elif rank < num_learners:
-            assert ExaComm.env_comm == None
+            assert ExaComm.env_comm is None
         else:
             checked = 0
             for global_rank in range(num_learners, size, procs_per_env):
@@ -323,7 +345,7 @@ class TestEnvMembers:
         rank = mpi4py.MPI.COMM_WORLD.Get_rank()
         size = mpi4py.MPI.COMM_WORLD.Get_size()
         a_comm = comm(procs_per_env=procs_per_env, num_learners=num_learners)
-        
+
         if ExaComm.global_comm.size == procs_per_env:
             if rank == 0:
                 assert ExaComm.is_agent()
@@ -373,5 +395,3 @@ class TestEnvMembers:
             else:
                 assert ExaComm.is_actor()
                 assert a_comm.is_actor()
-            
-            

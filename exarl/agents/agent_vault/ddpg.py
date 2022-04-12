@@ -21,20 +21,12 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
-import random
-import os
-import pickle
-from datetime import datetime
+import exarl
+from exarl.utils.globals import ExaGlobals
 from exarl.utils.OUActionNoise import OUActionNoise
 from exarl.utils.OUActionNoise import OUActionNoise2
 from exarl.utils.introspect import introspectTrace
-
-import exarl as erl
-
-from exarl.utils import log
-import exarl.utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
-
+logger = ExaGlobals.setup_logger(__name__)
 
 @tf.function
 def update_target(target_weights, weights, tau):
@@ -42,7 +34,7 @@ def update_target(target_weights, weights, tau):
         a.assign(b * tau + a * (1 - tau))
 
 
-class DDPG(erl.ExaAgent):
+class DDPG(exarl.ExaAgent):
     """Deep deterministic policy gradient agent.
     Inherits from ExaAgent base class.
     """
@@ -66,28 +58,28 @@ class DDPG(erl.ExaAgent):
         self.upper_bound = env.action_space.high
         self.lower_bound = env.action_space.low
 
-        logger.info("Size of State Space:  {}".format(self.num_states))
-        logger.info("Size of Action Space:  {}".format(self.num_actions))
-        logger.info('Env upper bounds: {}'.format(self.upper_bound))
-        logger.info('Env lower bounds: {}'.format(self.lower_bound))
+        logger().info("Size of State Space:  {}".format(self.num_states))
+        logger().info("Size of Action Space:  {}".format(self.num_actions))
+        logger().info('Env upper bounds: {}'.format(self.upper_bound))
+        logger().info('Env lower bounds: {}'.format(self.lower_bound))
 
-        self.gamma = cd.run_params['gamma']
-        self.tau = cd.run_params['tau']
+        self.gamma = ExaGlobals.lookup_params('gamma')
+        self.tau = ExaGlobals.lookup_params('tau')
 
         # model definitions
-        self.actor_dense = cd.run_params['actor_dense']
-        self.actor_dense_act = cd.run_params['actor_dense_act']
-        self.actor_out_act = cd.run_params['actor_out_act']
-        self.actor_optimizer = cd.run_params['actor_optimizer']
-        self.critic_state_dense = cd.run_params['critic_state_dense']
-        self.critic_state_dense_act = cd.run_params['critic_state_dense_act']
-        self.critic_action_dense = cd.run_params['critic_action_dense']
-        self.critic_action_dense_act = cd.run_params['critic_action_dense_act']
-        self.critic_concat_dense = cd.run_params['critic_concat_dense']
-        self.critic_concat_dense_act = cd.run_params['critic_concat_dense_act']
-        self.critic_out_act = cd.run_params['critic_out_act']
-        self.critic_optimizer = cd.run_params['critic_optimizer']
-        self.tau = cd.run_params['tau']
+        self.actor_dense = ExaGlobals.lookup_params('actor_dense')
+        self.actor_dense_act = ExaGlobals.lookup_params('actor_dense_act')
+        self.actor_out_act = ExaGlobals.lookup_params('actor_out_act')
+        self.actor_optimizer = ExaGlobals.lookup_params('actor_optimizer')
+        self.critic_state_dense = ExaGlobals.lookup_params('critic_state_dense')
+        self.critic_state_dense_act = ExaGlobals.lookup_params('critic_state_dense_act')
+        self.critic_action_dense = ExaGlobals.lookup_params('critic_action_dense')
+        self.critic_action_dense_act = ExaGlobals.lookup_params('critic_action_dense_act')
+        self.critic_concat_dense = ExaGlobals.lookup_params('critic_concat_dense')
+        self.critic_concat_dense_act = ExaGlobals.lookup_params('critic_concat_dense_act')
+        self.critic_out_act = ExaGlobals.lookup_params('critic_out_act')
+        self.critic_optimizer = ExaGlobals.lookup_params('critic_optimizer')
+        self.tau = ExaGlobals.lookup_params('tau')
 
         # TODO: Parameterize these
         std_dev = 0.2
@@ -98,15 +90,15 @@ class DDPG(erl.ExaAgent):
         self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(std_dev) * np.ones(1))
 
         # Not used by agent but required by the learner class
-        self.epsilon = cd.run_params['epsilon']
-        self.epsilon_min = cd.run_params['epsilon_min']
-        self.epsilon_decay = cd.run_params['epsilon_decay']
+        self.epsilon = ExaGlobals.lookup_params('epsilon')
+        self.epsilon_min = ExaGlobals.lookup_params('epsilon_min')
+        self.epsilon_decay = ExaGlobals.lookup_params('epsilon_decay')
 
         # Experience data
         self.buffer_counter = 0
-        self.buffer_capacity = cd.run_params['buffer_capacity']
-        self.batch_size = cd.run_params['batch_size']
-        # self.buffer_counter = cd.run_params['buffer_counter']
+        self.buffer_capacity = ExaGlobals.lookup_params('buffer_capacity')
+        self.batch_size = ExaGlobals.lookup_params('batch_size')
+        # self.buffer_counter = ExaGlobals.lookup_params('buffer_counter')
 
         self.state_buffer = np.zeros((self.buffer_capacity, self.num_states))
         self.action_buffer = np.zeros((self.buffer_capacity, self.num_actions))
@@ -143,8 +135,8 @@ class DDPG(erl.ExaAgent):
                 self.target_critic = self.get_critic()
 
         # Learning rate for actor-critic models
-        self.critic_lr = cd.run_params['critic_lr']
-        self.actor_lr = cd.run_params['actor_lr']
+        self.critic_lr = ExaGlobals.lookup_params('critic_lr')
+        self.actor_lr = ExaGlobals.lookup_params('actor_lr')
         # TODO: Parameterize
         self.critic_optimizer = tf.keras.optimizers.Adam(self.critic_lr)
         self.actor_optimizer = tf.keras.optimizers.Adam(self.actor_lr)
@@ -188,7 +180,7 @@ class DDPG(erl.ExaAgent):
             critic_value = self.critic_model([state_batch, action_batch], training=True)
             critic_loss = tf.math.reduce_mean(tf.math.square(y - critic_value))
 
-        logger.warning("Critic loss: {}".format(critic_loss))
+        logger().warning("Critic loss: {}".format(critic_loss))
         critic_grad = tape.gradient(critic_loss, self.critic_model.trainable_variables)
         self.critic_optimizer.apply_gradients(
             zip(critic_grad, self.critic_model.trainable_variables)
@@ -200,7 +192,7 @@ class DDPG(erl.ExaAgent):
             actor_loss = -tf.math.reduce_mean(critic_value)
             # actor_loss = tf.math.reduce_mean(critic_value)
 
-        logger.warning("Actor loss: {}".format(actor_loss))
+        logger().warning("Actor loss: {}".format(actor_loss))
         actor_grad = tape.gradient(actor_loss, self.actor_model.trainable_variables)
         self.actor_optimizer.apply_gradients(
             zip(actor_grad, self.actor_model.trainable_variables)
@@ -298,13 +290,13 @@ class DDPG(erl.ExaAgent):
         """
         if self.has_data():
             record_range = min(self.buffer_counter, self.buffer_capacity)
-            logger.info('record_range:{}'.format(record_range))
+            logger().info('record_range:{}'.format(record_range))
             # Randomly sample indices
             batch_indices = np.random.choice(record_range, self.batch_size)
         else:
             batch_indices = [0] * self.batch_size
 
-        logger.info('batch_indices:{}'.format(batch_indices))
+        logger().info('batch_indices:{}'.format(batch_indices))
         state_batch = tf.convert_to_tensor(self.state_buffer[batch_indices])
         action_batch = tf.convert_to_tensor(self.action_buffer[batch_indices])
         reward_batch = tf.convert_to_tensor(self.reward_buffer[batch_indices])
@@ -321,10 +313,10 @@ class DDPG(erl.ExaAgent):
             batch (list): sampled batch of experiences
         """
         if self.is_learner:
-            logger.warning('Training...')
+            logger().warning('Training...')
             self.update_grad(batch[0], batch[1], batch[2], batch[3])
         else:
-            logger.warning('Why is is_learner false...')
+            logger().warning('Why is is_learner false...')
 
     @introspectTrace()
     def target_train(self):
@@ -366,8 +358,8 @@ class DDPG(erl.ExaAgent):
         # if isValid == False:
         #     legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
         #     policy_type = 0
-        #     logger.warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn, legal_action))
-        #     logger.warning('Policy action: {}; noise: {}'.format(sampled_actions, noise))
+        #     logger().warning('Bad action: {}; Replaced with: {}'.format(sampled_actions_wn, legal_action))
+        #     logger().warning('Policy action: {}; noise: {}'.format(sampled_actions, noise))
 
         return legal_action, policy_type
 
@@ -391,36 +383,6 @@ class DDPG(erl.ExaAgent):
     # Extra methods
     def update(self):
         print("Implement update method in ddpg.py")
-
-    # def load(self, filename):
-    #     """Load model weights from pickle file
-
-    #     Args:
-    #         filename (string): full path of model file
-    #     """
-    #     print("Loading from: ", filename)
-    #     layers = self.target_actor.layers
-    #     with open(filename, "rb") as f:
-    #         pickle_list = pickle.load(f)
-
-    #     for layerId in range(len(layers)):
-    #         assert layers[layerId].name == pickle_list[layerId][0]
-    #         layers[layerId].set_weights(pickle_list[layerId][1])
-
-    # def save(self, filename):
-    #     """Save model weights to pickle file
-
-    #     Args:
-    #         filename (string): full path of model file
-    #     """
-    #     layers = self.target_actor.layers
-    #     pickle_list = []
-    #     for layerId in range(len(layers)):
-    #         weigths = layers[layerId].get_weights()
-    #         pickle_list.append([layers[layerId].name, weigths])
-
-    #     with open(filename, "wb") as f:
-    #         pickle.dump(pickle_list, f, -1)
 
     def epsilon_adj(self):
         """Update epsilon value

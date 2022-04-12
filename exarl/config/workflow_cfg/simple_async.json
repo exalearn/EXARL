@@ -1,0 +1,9 @@
+{
+    "learner_procs": 1,
+    "process_per_env": 1,
+    "episode_block": "false",
+    "batch_frequency": 1,
+    "save_weights_per_episode": "false",
+    "action_type": "variable",
+    "mpi4py_rc": "false"
+}

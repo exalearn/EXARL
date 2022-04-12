@@ -21,16 +21,32 @@
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, BatchNormalization, LSTM
 from tensorflow.keras.regularizers import l1_l2
-
+from gym.spaces.utils import flatdim
 
 def build_model(self):
 
     num_layers = len(self.lstm_layers)
 
     model = Sequential()
-    # special case for input layer
-    model.add(LSTM(self.lstm_layers[0], activation=self.activation,
-                   return_sequences=True, input_shape=(1, self.env.observation_space.shape[0])))
+    """ TODO: This input layer is not taking advantage of memory
+    The input shape should be of the form (batch_size, sequence_size, feature_size)
+    See the following for clarification:
+    https://machinelearningmastery.com/reshape-input-data-long-short-term-memory-networks-keras/
+    https://github.com/MohammadFneish7/Keras_LSTM_Diagram
+
+    Batch size - how many sequences we are passing in
+    Sequence size - sequence of events.  This is related to our memory
+    Feature size - this is the flatten dimension of the observation space
+
+    It seems we need to omit the batch size:
+    https://stackoverflow.com/questions/44583254/valueerror-input-0-is-incompatible-with-layer-lstm-13-expected-ndim-3-found-n
+    https://github.com/keras-team/keras/issues/7403
+
+    Ultimately what needs to change is the 1 for sequence size.  The question is, how does this change the way we pass
+    data between the learner and actors.  It would seem that instead of randomly picking out experiences, we would need
+    to pick out a series of contiguous experiences.  In this case changing between lstm and mlp is not trivial.
+    """
+    model.add(LSTM(self.lstm_layers[0], activation=self.activation, return_sequences=True, input_shape=(1, flatdim(self.env.observation_space))))
     model.add(BatchNormalization())
     model.add(Dropout(self.gauss_noise[0]))
 
