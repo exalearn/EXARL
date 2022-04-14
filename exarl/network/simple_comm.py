@@ -1,3 +1,5 @@
+import sys
+from importlib import reload
 from exarl.utils.globals import ExaGlobals
 from exarl.base.comm_base import ExaComm
 from exarl.utils.introspect import introspectTrace
@@ -42,12 +44,17 @@ class ExaSimple(ExaComm):
 
         # Singleton
         if ExaSimple.MPI is None:
+            print("DOING THE IMPORT!!!!!!!!!!")
             mpi4py_rc = True if ExaGlobals.lookup_params('mpi4py_rc') in ["true", "True", 1] else False
             if mpi4py_rc:
                 print("Turning mpi4py.rc.threads and mpi4py.rc.recv_mprobe to false!", flush=True)
                 import mpi4py.rc
                 mpi4py.rc.threads = False
                 mpi4py.rc.recv_mprobe = False
+            if "mpi4py" not in sys.modules:
+                import mpi4py
+            else:
+                mpi4py = reload(sys.modules["mpi4py"])
             from mpi4py import MPI
             ExaSimple.MPI = MPI
 
@@ -183,15 +190,15 @@ class ExaSimple(ExaComm):
             learner_comm = self.comm.Split(color, self.rank)
             agent_comm = self.comm.Split(color, self.rank)
             if self.rank == 0:
-                learner_comm = ExaSimple(comm=learner_comm, procs_per_env=procs_per_env, num_learners=num_learners)
-                agent_comm = ExaSimple(comm=agent_comm, procs_per_env=procs_per_env, num_learners=num_learners)
+                learner_comm = ExaSimple(learner_comm, procs_per_env, num_learners)
+                agent_comm = ExaSimple(agent_comm, procs_per_env, num_learners)
             else:
                 learner_comm = None
                 agent_comm = None
 
             env_color = 0
             env_comm = self.comm.Split(env_color, self.rank)
-            env_comm = ExaSimple(comm=env_comm, procs_per_env=procs_per_env, num_learners=num_learners)
+            env_comm = ExaSimple(env_comm, procs_per_env, num_learners)
         else:
             # Agent communicator
             agent_color = ExaSimple.MPI.UNDEFINED
@@ -199,7 +206,7 @@ class ExaSimple(ExaComm):
                 agent_color = 0
             agent_comm = self.comm.Split(agent_color, self.rank)
             if agent_color == 0:
-                agent_comm = ExaSimple(comm=agent_comm)
+                agent_comm = ExaSimple(agent_comm, procs_per_env, num_learners)
             else:
                 agent_comm = None
 
@@ -210,7 +217,7 @@ class ExaSimple(ExaComm):
                 env_color = (int((self.rank - num_learners) / procs_per_env)) + 1
             env_comm = self.comm.Split(env_color, self.rank)
             if env_color > 0:
-                env_comm = ExaSimple(comm=env_comm)
+                env_comm = ExaSimple(env_comm, procs_per_env, num_learners)
             else:
                 env_comm = None
 
@@ -220,7 +227,7 @@ class ExaSimple(ExaComm):
                 learner_color = 0
             learner_comm = self.comm.Split(learner_color, self.rank)
             if learner_color == 0:
-                learner_comm = ExaSimple(comm=learner_comm)
+                learner_comm = ExaSimple(learner_comm, procs_per_env, num_learners)
             else:
                 learner_comm = None
 
