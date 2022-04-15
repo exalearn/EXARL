@@ -135,6 +135,7 @@ sub getSlurmCommand {
     my $bench = shift(@_);
     my $seed = shift(@_);
     my $episode = shift(@_);
+    my $partition = shift(@_);
     my $driver_path = $path . "/exarl/driver";
 
     my $bench_dir_name = $bench;
@@ -150,7 +151,7 @@ sub getSlurmCommand {
     if($exp_dir) {
         makeDir($exp_dir);
         my $output = "--output_dir $bench_dir_name";
-        return "srun -N $N -n $n $a python $driver_path --env Bsuite-v0 --bsuite_id $bench --seed_number $seed --n_episodes $episode $steps $output&> $outfile &";
+        return "srun -p $partition -N $N -n $n $a python $driver_path --env Bsuite-v0 --bsuite_id $bench --seed_number $seed --n_episodes $episode $steps $output&> $outfile &";
     }
     return 0;
 }
@@ -177,7 +178,7 @@ foreach my $benchmark (keys %bsuite_bench) {
     my $min_seed = $bsuite_bench{$benchmark}[0] <= $seeds ? $bsuite_bench{$benchmark}[0] : $seeds;
     my $min_episode = $bsuite_bench{$benchmark}[1] <= $episodes ? $bsuite_bench{$benchmark}[1] : $episodes;
     for(my $i=0; $i<$min_seed; $i++) {
-        my $command = getSlurmCommand($benchmark, $i, $min_episode);
+        my $command = getSlurmCommand($benchmark, $i, $min_episode, $partition);
         if($command) {
             if($run) {
                 # If we don't use throttling, all jobs will be dumped into the system
