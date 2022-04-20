@@ -24,7 +24,6 @@ from gym import error, spaces, utils
 from gym.utils import seeding
 
 from exarl.utils.globals import ExaGlobals
-import exarl.utils.candleDriver as cd
 from exarl.base.comm_base import ExaComm
 
 logger = ExaGlobals.setup_logger(__name__)

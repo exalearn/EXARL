@@ -25,6 +25,8 @@ import exarl
 from exarl.utils.globals import ExaGlobals
 from exarl.base.comm_base import ExaComm
 from exarl.network.typing import TypeUtils
+from exarl.utils.profile import PROFILE
+from exarl.utils.introspect import introspect
 
 class SIMPLE(exarl.ExaWorkflow):
     """
@@ -252,6 +254,7 @@ class SIMPLE(exarl.ExaWorkflow):
         elif episode == nepisodes:
             exalearner.agent.save(exalearner.results_dir + '/' + self.filename_prefix + '.h5')
 
+    @introspect
     def send_model(self, exalearner, episode, train_return, dst):
         """
         This function is responsible for sending the model from the learner to
@@ -282,7 +285,8 @@ class SIMPLE(exarl.ExaWorkflow):
         self.weights = [episode, exalearner.agent.epsilon, weights]
         if train_return:
             self.weights.append(train_return)
-
+    
+    @introspect
     def recv_model(self):
         """
         This function is the corresponding receive function to
@@ -299,6 +303,7 @@ class SIMPLE(exarl.ExaWorkflow):
         """
         return self.weights
 
+    @introspect
     def send_batch(self, batch_data, policy_type, done, epsilon):
         """
         This function is used to send batches of data from the actor to the
@@ -317,6 +322,7 @@ class SIMPLE(exarl.ExaWorkflow):
         """
         self.batch = [ExaComm.agent_comm.rank, batch_data, policy_type, done, epsilon]
 
+    @introspect
     def recv_batch(self):
         """
         This function is the corresponding receive function to the send_batch
@@ -333,6 +339,7 @@ class SIMPLE(exarl.ExaWorkflow):
         """
         return self.batch
 
+    @introspect
     def reset_env(self, exalearner):
         """
         This function resets an environment if the done flag has been set.
@@ -377,7 +384,8 @@ class SIMPLE(exarl.ExaWorkflow):
             self.episode_per_rank[0] = self.next_episode
             self.send_model(exalearner, self.next_episode, None, 0)
             self.next_episode += 1
-
+    
+    @introspect
     def learner(self, exalearner, nepisodes, start_rank):
         """
         This function is performed by the learner.  The learner
@@ -456,6 +464,7 @@ class SIMPLE(exarl.ExaWorkflow):
 
         self.save_weights(exalearner, self.done_episode, nepisodes)
 
+    @introspect
     def actor(self, exalearner, nepisodes):
         """
         This function is performed by actors.  It performs the follow:
@@ -583,6 +592,7 @@ class SIMPLE(exarl.ExaWorkflow):
         nepisodes = ExaComm.global_comm.bcast(nepisodes, 0)
         return nepisodes
 
+    @PROFILE
     def run(self, exalearner):
         """
         This function is responsible for calling the appropriate initialization

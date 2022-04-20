@@ -8,8 +8,8 @@ try:
     def ibLoaded():
         return True
 
-    def ibLoadReplacement(comm, writeDir):
-        pass
+    def ibLoadReplacement(comm):
+        return ib
 
     def ibWrite(writeDir):
         pass
@@ -76,7 +76,8 @@ except:
                 comm.barrier()
                 self.skew.append(globalTimeStamp())
                 comm.barrier()
-
+        
+        @staticmethod
         def start():
             """Starts tracing this rank.
 
@@ -91,6 +92,7 @@ except:
                 return 1
             return 0
 
+        @staticmethod
         def stop():
             """Stops tracing for this rank.
             """
@@ -98,6 +100,7 @@ except:
                 print("---------------STOPPING REPLACEMENT IB", ib.rank, "---------------", flush=True)
                 ib.end_time = globalTimeStamp()
 
+        @staticmethod
         def update(name, toAdd):
             """Updates tracing metrics for the given name.
 
@@ -125,6 +128,7 @@ except:
                     return 1
             return -1
 
+        @staticmethod
         def startTrace(name, size):
             """Begin a trace of a metric for a function.
 
@@ -153,6 +157,7 @@ except:
                         return 1
             return 0
 
+        @staticmethod
         def simpleTrace(name, size, seqNum, endTimeStamp, trace):
             """Create a trace associated with a function
 
@@ -182,6 +187,7 @@ except:
                     return 1
             return 0
 
+        @staticmethod
         def stopTrace():
             """Stops the trace if it was started.
             """
@@ -232,15 +238,13 @@ except:
         """
         return ib.replace
 
-    def ibLoadReplacement(comm, writeDir):
+    def ibLoadReplacement(comm):
         """Start tracing.
 
         Parameters
         ----------
         comm : MPI communicator
             [description]
-        writeDir : str
-
 
         Returns
         -------

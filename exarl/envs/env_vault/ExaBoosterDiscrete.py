@@ -37,7 +37,6 @@ from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 
 from exarl.utils.globals import ExaGlobals
-import exarl.utils.candleDriver as cd
 logger = ExaGlobals.setup_logger(__name__)
 np.seterr(divide='ignore', invalid='ignore')
 
