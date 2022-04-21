@@ -389,3 +389,7 @@ class DDPG(exarl.ExaAgent):
         """
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
+
+    def set_priorities(self, indices, loss):
+        # TODO implement this
+        pass

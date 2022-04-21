@@ -2,12 +2,12 @@
     "agent": "DQN-v0",
     "env": "ExaCartPoleStatic-v0",
     "workflow": "simple",
-    "n_episodes": 10,
-    "n_steps": 10,
+    "n_episodes": 100,
+    "n_steps": 100,
     "model": "MLP",
     "output_dir": "./results_dir/",
     "process_per_env": 1,
-    "log_level": [3, 0],
+    "log_level": [3, 3],
     "profile": "None",
     "mpi4py_rc": "false"
 }

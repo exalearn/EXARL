@@ -43,11 +43,14 @@ class ExaGlobals:
         Indicates if the logs have been initialized
     __logger : dictionary
         Private member that holds all loggers
+    __global_log_level : int
+        Private member that give the log level from candleDriver
     """
 
     __keras_defaults = None
     __run_params = None
     __logger = {}
+    __global_log_level = None
 
     class GlobalsNotInitialized(Exception):
         """
@@ -152,6 +155,8 @@ class ExaGlobals:
         """
         Initialize a single logger.
         """
+        if level is None:
+            level = ExaGlobals.__global_log_level
         formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
         handler = logging.StreamHandler()
         handler.setFormatter(formatter)
@@ -176,10 +181,9 @@ class ExaGlobals:
         # Set TensorFlow log level
         # 0: debug, 1: info, 2: warning, 3: error
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = str(tensorflow_log_level)
+        ExaGlobals.__global_log_level = global_log_level
         for key in ExaGlobals.__logger:
             log_level = ExaGlobals.__logger[key]
-            if log_level is None:
-                log_level = global_log_level
             ExaGlobals.__logger[key] = ExaGlobals.__init_log(key, log_level)
 
     def setup_logger(name=None, level=None):

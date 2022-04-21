@@ -476,8 +476,8 @@ class SIMPLE(exarl.ExaWorkflow):
         5. Broadcasts that action to the other ranks in the env_comm
         6. Performs the action and determines the reward and next state
         7. Records the experience (i.e. states, action, and reward)
-        8. Updates the current state to the new state
-        9. Check for max number of steps and broadcast
+        8. Check for max number of steps and broadcast
+        9. Updates the current state to the new state
         10. Sends batches of experiences to the learner
 
         We use the batch_frequency to determine how often we send
@@ -541,16 +541,17 @@ class SIMPLE(exarl.ExaWorkflow):
             if ExaComm.env_comm.rank == 0:
                 exalearner.agent.remember(self.current_state, action, reward, next_state, self.done)
                 self.total_reward += reward
-            self.write_log(self.current_state, action, reward, next_state, self.total_reward, self.done, episode, self.steps, policy_type, epsilon)
 
-            # Update state (8)
-            self.current_state = next_state
-            self.steps += 1
-
-            # Check number of steps and broadcast (9)
+            # Check number of steps and broadcast (8)
             if self.steps == exalearner.nsteps:
                 self.done = True
             self.done = ExaComm.env_comm.bcast(self.done, 0)
+            self.write_log(self.current_state, action, reward, next_state, self.total_reward, self.done, episode, self.steps, policy_type, epsilon)
+
+            # Update state (9)
+            self.current_state = next_state
+            self.steps += 1
+
             if self.done:
                 self.episode_count += 1
                 # Lets us know how we are doing
