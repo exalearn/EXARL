@@ -109,7 +109,7 @@ class SYNC(exarl.ExaWorkflow):
                     # Update state
                     current_state = next_state
                     logger().info('Rank[%s] - Total Reward:%s' %
-                                (str(env_comm.rank), str(total_reward)))
+                                  (str(env_comm.rank), str(total_reward)))
                     steps += 1
                     if steps >= exalearner.nsteps:
                         done = True
@@ -125,9 +125,9 @@ class SYNC(exarl.ExaWorkflow):
             end_time_episode = time.time()
             if ExaComm.env_comm.rank == 0:
                 logger().info('Rank[%s] run-time for episode %s: %s ' %
-                            (str(env_comm.rank), str(e), str(end_time_episode - start_time_episode)))
+                              (str(env_comm.rank), str(e), str(end_time_episode - start_time_episode)))
                 logger().info('Rank[%s] run-time for episode per step %s: %s '
-                            % (str(env_comm.rank), str(e), str((end_time_episode - start_time_episode) / steps)))
+                              % (str(env_comm.rank), str(e), str((end_time_episode - start_time_episode) / steps)))
 
         if ExaComm.env_comm.rank == 0:
             # Save Learning target model

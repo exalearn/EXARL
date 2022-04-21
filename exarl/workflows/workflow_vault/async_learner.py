@@ -199,7 +199,7 @@ class ASYNC(erl.ExaWorkflow):
                 # Steps in an episode
                 while done != True:
                     logger().debug('ASYNC::run() agent_comm.rank{}; step({} of {})'
-                                 .format(agent_comm.rank, steps, (exalearner.nsteps - 1)))
+                                   .format(agent_comm.rank, steps, (exalearner.nsteps - 1)))
                     if ExaComm.env_comm.rank == 0:
                         # Receive target weights
                         recv_data = agent_comm.recv(None, source=0)
@@ -262,7 +262,7 @@ class ASYNC(erl.ExaWorkflow):
                             if indices is not None:
                                 exalearner.agent.set_priorities(indices, loss)
                             logger().info('Rank[%s] - Total Reward:%s' %
-                                        (str(agent_comm.rank), str(total_reward)))
+                                          (str(agent_comm.rank), str(total_reward)))
                             logger().info(
                                 'Rank[%s] - Episode/Step/Status:%s/%s/%s' % (str(agent_comm.rank), str(episode), str(steps), str(done)))
 

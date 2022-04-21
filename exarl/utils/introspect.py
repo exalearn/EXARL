@@ -76,7 +76,7 @@ except:
                 comm.barrier()
                 self.skew.append(globalTimeStamp())
                 comm.barrier()
-        
+
         @staticmethod
         def start():
             """Starts tracing this rank.

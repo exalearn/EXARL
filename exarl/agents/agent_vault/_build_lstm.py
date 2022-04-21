@@ -62,8 +62,8 @@ def build_model(self):
                    kernel_regularizer=l1_l2(self.regularizer[0], self.regularizer[1]),
                    ))
     model.add(Dropout(self.gauss_noise[l]))
-    model.add(Dense(self.env.action_space.n, activation=self.out_activation))
+    model.add(Dense(flatdim(self.env.action_space), activation=self.out_activation))
 
     # model.summary()
-    print('', flush=True)
+    # print('', flush=True)
     return model

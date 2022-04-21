@@ -1,7 +1,24 @@
 import pytest
 import numpy as np
+from exarl.utils.candleDriver import initialize_parameters
+from exarl.base.comm_base import ExaComm
 from exarl.network.simple_comm import ExaSimple
 import exarl.network.data_structures as ds
+
+@pytest.fixture(scope="session", autouse=True)
+def mpi4py_rc(pytestconfig):
+    """
+    This function sets up the mpi4py import.
+
+    Attributes
+    ----------
+    pytestconfig :
+        Parameters passed from pytest.
+    """
+    mpi_flag = pytestconfig.getoption("mpi4py_rc")
+    initialize_parameters(params={"mpi4py_rc": mpi_flag,
+                                  "log_level": [3, 3]})
+    return ExaSimple(None, 1, 1)
 
 class TestDataStructure:
     """
@@ -10,8 +27,6 @@ class TestDataStructure:
 
     Attributes
     ----------
-    comm : exarl.network.simple_comm
-        Provides wrapped network comm (MPI communicator)
     packet_size : int
         Standard size of random data to send in bytes
     constructor : dictionary
@@ -34,7 +49,6 @@ class TestDataStructure:
         This is the length of the data structure to test for loosing packets.  We invert the numbers because it is easier
         to not loose data for bigger sizes and we want the test to go as far as possible before failing.
     """
-    comm = ExaSimple()
     packet_size = 1000
     constructor = {"buff_unchecked": ds.ExaMPIBuffUnchecked,
                    "buff_checked": ds.ExaMPIBuffChecked,
@@ -98,7 +112,7 @@ class TestDataStructure:
         """
         data = np.random.bytes(data_size)
         checksum = sum([int(x) for x in data])
-        return (seq_num, data_size, data, checksum, TestDataStructure.comm.rank)
+        return (seq_num, data_size, data, checksum, ExaComm.global_comm.rank)
 
     def check_packet(self, packet, data_size, name):
         """
@@ -119,7 +133,7 @@ class TestDataStructure:
         assert data_size == len(packet[2]), name + " size of data should be " + str(data_size) + " but is " + str(len(packet[2]))
         checksum = sum([int(x) for x in packet[2]])
         assert checksum == packet[3], name + " failed packet checksum " + str(checksum) + " but is " + str(packet[3])
-        assert packet[4] >= 0 and packet[4] < TestDataStructure.comm.size
+        assert packet[4] >= 0 and packet[4] < ExaComm.global_comm.size
 
     def compare_packet(self, A, B):
         """
@@ -199,7 +213,7 @@ class TestDataStructure:
             Size of the desired data structure
         rank_mask: bool
             What ranks should participate in the data structure.  An example use for this parameter is
-            rank_mask=TestDataStructure.comm.rank < 5.  For most tests this parameter should be True to
+            rank_mask=ExaComm.global_comm.rank < 5.  For most tests this parameter should be True to
             include all ranks.
 
         Returns
@@ -211,7 +225,7 @@ class TestDataStructure:
             data = self.make_packet(TestDataStructure.packet_size, -1)
         else:
             assert data[0] == -1, name + " should have an initial standard packet with sequence number -1 but got " + str(data[0])
-        return TestDataStructure.constructor[name](TestDataStructure.comm,
+        return TestDataStructure.constructor[name](ExaComm.global_comm,
                                                    data,
                                                    name=name,
                                                    length=length,
@@ -275,15 +289,15 @@ class TestDataStructureMembers(TestDataStructure):
         """
         data_structure = self.init_data_structure(name, length=length)
         for i in range(length * 2):
-            packet = data_structure.pop(TestDataStructure.comm.rank)
+            packet = data_structure.pop(ExaComm.global_comm.rank)
             if packet:
                 assert "unchecked" in name, name + " should not return packet"
                 assert packet[0] == -1, name + " should have -1 sequence number from empty pop " + str(packet[0])
-                assert packet[-1] == TestDataStructure.comm.rank, (name +
-                                                                   " rank should be " +
-                                                                   str(TestDataStructure.comm.rank) +
-                                                                   " from empty pop put got "
-                                                                   + str(packet[-1]))
+                assert packet[-1] == ExaComm.global_comm.rank, (name +
+                                                                " rank should be " +
+                                                                str(ExaComm.global_comm.rank) +
+                                                                " from empty pop put got "
+                                                                + str(packet[-1]))
                 self.check_packet(packet, TestDataStructure.packet_size, name)
             else:
                 assert packet is None, name + " should not return a packet"
@@ -292,7 +306,7 @@ class TestDataStructureMembers(TestDataStructure):
     #     for name in TestDataStructure.constructor:
     #         # data_structure = self.init_data_structure(name, rank_mask=TestClass.comm.rank%2==0)
     #         data_structure = self.init_data_structure(name, rank_mask=False)
-    #         for i in range(TestDataStructure.comm.size):
+    #         for i in range(ExaComm.global_comm.size):
     #             # if i%2==1:
     #             try:
     #                 data_structure.push(self.make_packet(TestDataStructure.packet_size, 0), i)
@@ -331,8 +345,7 @@ class TestDataStructureMembers(TestDataStructure):
         data_structure = self.init_data_structure(name, length=length, failPush=failPush)
         for i in range(length + over):
             packet = self.make_packet(TestDataStructure.packet_size, i)
-            capacity, lost = data_structure.push(packet, TestDataStructure.comm.rank)
-
+            capacity, lost = data_structure.push(packet, ExaComm.global_comm.rank)
             if "buff" in name:
                 assert capacity == 1, name + " capacity should be one " + str(capacity)
                 if "unchecked" not in name and i > 0:
@@ -363,11 +376,11 @@ class TestDataStructureMembers(TestDataStructure):
 
         for i in range(length):
             packet = self.make_packet(TestDataStructure.packet_size, i)
-            data_structure.push(packet, TestDataStructure.comm.rank)
+            data_structure.push(packet, ExaComm.global_comm.rank)
 
         pop_packets = []
         for i in range(length):
-            packet = data_structure.pop(TestDataStructure.comm.rank)
+            packet = data_structure.pop(ExaComm.global_comm.rank)
             if packet:
                 self.check_packet(packet, TestDataStructure.packet_size, name)
                 pop_packets.append(packet[0])
@@ -397,7 +410,7 @@ class TestDataStructureMembers(TestDataStructure):
         push_packets = []
         for i in range(length + over):
             packet = self.make_packet(TestDataStructure.packet_size, i)
-            data_structure.push(packet, TestDataStructure.comm.rank)
+            data_structure.push(packet, ExaComm.global_comm.rank)
             # Set up the list of packets pushed to compare against
             push_packets.append(packet)
             if i >= data_structure.length:
@@ -408,7 +421,7 @@ class TestDataStructureMembers(TestDataStructure):
 
         pop_packets = []
         for i in range(length + over):
-            packet = data_structure.pop(TestDataStructure.comm.rank)
+            packet = data_structure.pop(ExaComm.global_comm.rank)
             if i < data_structure.length:
                 self.check_packet(packet, TestDataStructure.packet_size, name)
                 pop_packets.append(packet)
@@ -450,15 +463,15 @@ class TestDataStructureMembers(TestDataStructure):
         failPush : bool
             Flag to indicate failPush value of data structure
         """
-        data_structure = self.init_data_structure(name, length=length * TestDataStructure.comm.size, failPush=failPush)
+        data_structure = self.init_data_structure(name, length=length * ExaComm.global_comm.size, failPush=failPush)
 
         for i in range(length + over):
             data_structure.push(self.make_packet(TestDataStructure.packet_size, i), 0)
-            TestDataStructure.comm.barrier()
+            ExaComm.global_comm.barrier()
 
-        if TestDataStructure.comm.rank == 0:
+        if ExaComm.global_comm.rank == 0:
             pop_packets = []
-            for i in range((length + over) * TestDataStructure.comm.size):
+            for i in range((length + over) * ExaComm.global_comm.size):
                 packet = data_structure.pop(0)
                 if i < data_structure.length:
                     self.check_packet(packet, TestDataStructure.packet_size, name)
@@ -470,11 +483,11 @@ class TestDataStructureMembers(TestDataStructure):
                                                                " doesn't match " +
                                                                str(len(pop_packets)))
 
-            if ((length + over) * TestDataStructure.comm.size) == data_structure.length:
+            if ((length + over) * ExaComm.global_comm.size) == data_structure.length:
                 reduced = sorted([(x[0], x[-1]) for x in pop_packets])
                 for i in range(length):
                     ranks = [x[1] for x in reduced if i == x[0]]
-                    assert ranks == list(range(TestDataStructure.comm.size)), name + " missing packets " + str(i) + " " + str(ranks)
+                    assert ranks == list(range(ExaComm.global_comm.size)), name + " missing packets " + str(i) + " " + str(ranks)
 
             # Will have duplicates seq numbers coming from different ranks
             # We can't guarantee the order without more synchronization
@@ -486,7 +499,7 @@ class TestDataStructureMembers(TestDataStructure):
             else:
                 assert over + length - 1 in seq_num, name + " sequence number should be received " + str(over + length - 1)
 
-        TestDataStructure.comm.barrier()
+        ExaComm.global_comm.barrier()
 
     @pytest.mark.parametrize("length", TestDataStructure.length_list)
     @pytest.mark.parametrize("name", TestDataStructure.constructor.keys())
@@ -579,10 +592,10 @@ class TestMessagePatterClass(TestDataStructure):
         if spread:
             data_structure = self.init_data_structure(name, length=num_packets)
         else:
-            data_structure = self.init_data_structure(name, length=num_packets * TestDataStructure.comm.size)
+            data_structure = self.init_data_structure(name, length=num_packets * ExaComm.global_comm.size)
         for rep in range(reps):
             # All ranks > 0 will send data
-            if TestDataStructure.comm.rank > 0:
+            if ExaComm.global_comm.rank > 0:
                 for i in range(num_packets):
                     # Push to my local ds
                     if spread:
@@ -593,16 +606,16 @@ class TestMessagePatterClass(TestDataStructure):
                         _, loss = data_structure.push(self.make_packet(TestDataStructure.packet_size, i), 0)
                     assert loss == 0, name + " should not loose any data for sync test"
                 # Barrier makes sure all data has been sent
-                TestDataStructure.comm.barrier()
+                ExaComm.global_comm.barrier()
 
             # Rank 0 will read all the data
             else:
                 # This keeps track of the seq numbers per rank
-                seq_num = [[] for x in range(TestDataStructure.comm.size)]
+                seq_num = [[] for x in range(ExaComm.global_comm.size)]
 
                 # Barrier makes sure we wont pop data until all data is there
-                TestDataStructure.comm.barrier()
-                for j in range(TestDataStructure.comm.size - 1):
+                ExaComm.global_comm.barrier()
+                for j in range(ExaComm.global_comm.size - 1):
                     for i in range(num_packets):
                         if spread:
                             # Pops from individual rank
@@ -624,7 +637,7 @@ class TestMessagePatterClass(TestDataStructure):
                         assert len(val) == 0, name + " no data should be received from rank 0"
 
             # Block between iterations
-            TestDataStructure.comm.barrier()
+            ExaComm.global_comm.barrier()
 
     @pytest.mark.parametrize("num_packets", TestDataStructure.num_packets_list)
     @pytest.mark.parametrize("name", TestDataStructure.filter("buff"))
@@ -643,28 +656,29 @@ class TestMessagePatterClass(TestDataStructure):
         reps : int
             Number of reps to perform
         """
+
         data_structure = self.init_data_structure(name, length=num_packets)
         for rep in range(reps):
             # Rank 0 will send all the data
-            if TestDataStructure.comm.rank == 0:
-                for j in range(TestDataStructure.comm.size - 1):
+            if ExaComm.global_comm.rank == 0:
+                for j in range(ExaComm.global_comm.size - 1):
                     for i in range(num_packets):
                         # Should push to other ranks
                         _, loss = data_structure.push(self.make_packet(TestDataStructure.packet_size, i), j + 1)
                         assert loss == 0, name + " should not loose any data for broadcast test"
                 # Barrier makes sure we wont pop data until all data is there
-                TestDataStructure.comm.barrier()
+                ExaComm.global_comm.barrier()
 
             # All ranks > 0 read data
             else:
                 # This keeps track of the seq numbers per rank
-                seq_num = [[] for x in range(TestDataStructure.comm.size)]
+                seq_num = [[] for x in range(ExaComm.global_comm.size)]
 
                 # Barrier makes sure all data has been sent
-                TestDataStructure.comm.barrier()
+                ExaComm.global_comm.barrier()
                 for i in range(num_packets):
                     # Pops from individual rank
-                    packet = data_structure.pop(TestDataStructure.comm.rank)
+                    packet = data_structure.pop(ExaComm.global_comm.rank)
                     self.check_packet(packet, TestDataStructure.packet_size, name)
                     # Update the sequence per rank
                     seq_num[packet[-1]].append(packet[0])
@@ -679,7 +693,7 @@ class TestMessagePatterClass(TestDataStructure):
                         assert len(val) == 0, name + " no data should be received from rank 0"
 
             # Block between iterations
-            TestDataStructure.comm.barrier()
+            ExaComm.global_comm.barrier()
 
     @pytest.mark.parametrize("spread", [False, True])
     @pytest.mark.parametrize("num_packets", TestDataStructure.num_packets_list)
@@ -710,10 +724,10 @@ class TestMessagePatterClass(TestDataStructure):
         data_structure = self.init_data_structure(name, length=length, failPush=True)
         for rep in range(reps):
             # Block between iterations
-            TestDataStructure.comm.barrier()
+            ExaComm.global_comm.barrier()
 
             # All ranks > 0 will send data
-            if TestDataStructure.comm.rank > 0:
+            if ExaComm.global_comm.rank > 0:
                 for i in range(num_packets):
                     for t in range(max_try):
                         # Push to my local ds
@@ -730,14 +744,14 @@ class TestMessagePatterClass(TestDataStructure):
             # Rank 0 will read all the data
             else:
                 # This keeps track of the seq numbers per rank
-                seq_num = [[] for x in range(TestDataStructure.comm.size)]
+                seq_num = [[] for x in range(ExaComm.global_comm.size)]
                 # This is the src to read from
                 src = 0
                 # Total number of received packets
                 total_packets = 0
                 # Time out based on max_try
                 num_try = 0
-                while total_packets < (TestDataStructure.comm.size - 1) * num_packets and num_try < max_try:
+                while total_packets < (ExaComm.global_comm.size - 1) * num_packets and num_try < max_try:
                     packet = data_structure.pop(src)
 
                     if packet is not None:
@@ -750,7 +764,7 @@ class TestMessagePatterClass(TestDataStructure):
                         total_packets += 1
 
                     if spread:
-                        src = (src + 1) % TestDataStructure.comm.size
+                        src = (src + 1) % ExaComm.global_comm.size
                         src = 1 if src == 0 else src
 
                     num_try += 1
@@ -766,8 +780,7 @@ class TestMessagePatterClass(TestDataStructure):
                         assert self.check_order("queue", val, num_packets), name + " sequence number out of order " + data_structure.name + " " + str(val)
                     else:
                         assert len(val) == 0
-
-        TestDataStructure.comm.barrier()
+        ExaComm.global_comm.barrier()
 
     @pytest.mark.skip(reason="This test requires manual tuning, but is useful for workflow design")
     @pytest.mark.parametrize("spread", [False, True])
@@ -814,9 +827,9 @@ class TestMessagePatterClass(TestDataStructure):
         """
         data_structure = self.init_data_structure(name, length=length, failPush=failPush)
         for rep in range(reps):
-            TestDataStructure.comm.barrier()
+            ExaComm.global_comm.barrier()
             # All ranks > 0 will send data
-            if TestDataStructure.comm.rank > 0:
+            if ExaComm.global_comm.rank > 0:
                 for i in range(num_packets):
                     # Push to my local ds
                     if spread:
@@ -829,16 +842,15 @@ class TestMessagePatterClass(TestDataStructure):
             # Rank 0 will read all the data
             else:
                 # This keeps track of the seq numbers per rank
-                seq_num = [[] for x in range(TestDataStructure.comm.size)]
+                seq_num = [[] for x in range(ExaComm.global_comm.size)]
                 # This is the src to read from
                 src = 0
                 # Total number of received packets
                 total_packets = 0
                 # Time out based on max_try
                 num_try = 0
-                while total_packets < (TestDataStructure.comm.size - 1) * num_packets and num_try < max_try:
+                while total_packets < (ExaComm.global_comm.size - 1) * num_packets and num_try < max_try:
                     packet = data_structure.pop(src)
-
                     if packet is not None:
                         self.check_packet(packet, TestDataStructure.packet_size, name)
                         # Update the sequence per rank
@@ -849,12 +861,12 @@ class TestMessagePatterClass(TestDataStructure):
                         total_packets += 1
 
                     if spread:
-                        src = (src + 1) % TestDataStructure.comm.size
+                        src = (src + 1) % ExaComm.global_comm.size
                         src = 1 if src == 0 else src
 
                     num_try += 1
 
-                if TestDataStructure.comm.rank == 0:
+                if ExaComm.global_comm.rank == 0:
                     print("Total Packets:", total_packets)
                     print("Rank", "NumPackets", "NumUniqueSeqNums")
                     for i, val in enumerate(seq_num):
@@ -871,4 +883,4 @@ class TestMessagePatterClass(TestDataStructure):
                     else:
                         assert len(val) == 0
 
-        TestDataStructure.comm.barrier()
+        ExaComm.global_comm.barrier()

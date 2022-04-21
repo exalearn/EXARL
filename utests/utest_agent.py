@@ -3,14 +3,20 @@ import importlib
 import pytest
 import numpy as np
 import gym
-from exarl.utils import candleDriver
+from exarl.utils.candleDriver import initialize_parameters
+from exarl.utils.globals import ExaGlobals
 from exarl.base.comm_base import ExaComm
 from exarl.network.simple_comm import ExaSimple
 from exarl.base.env_base import ExaEnv
 from exarl.envs.env_vault.UnitEvn import EnvGenerator
 import exarl.agents
-import mpi4py
 import pickle
+
+import mpi4py
+# Unfortunatly, this line is starting MPI instead of the communicators.
+# I can't figure out how to parameterize a fixture from a fixture which
+# ultimately causes the problem.
+from mpi4py import MPI
 
 class TestAgentHelper:
     """"
@@ -116,7 +122,7 @@ class TestAgentHelper:
             Number of learners and proccesses per environment for comm setup
         """
         size = mpi4py.MPI.COMM_WORLD.Get_size()
-        # We start at 1 because we have to have at least one learner
+        yield 1, size
         for num_learners in range(1, size):
             rem = size - num_learners
             # Iterate over all potential procs_per_env counts
@@ -171,8 +177,22 @@ class TestAgentHelper:
             new_weights.append(np.full_like(some_array, i))
         return new_weights
 
+@pytest.fixture(scope="session")
+def mpi4py_rc(pytestconfig):
+    """
+    This function sets up the mpi4py import.
+
+    Attributes
+    ----------
+    pytestconfig :
+        Parameters passed from pytest.
+    """
+    mpi_flag = pytestconfig.getoption("mpi4py_rc")
+    initialize_parameters(params={"mpi4py_rc": mpi_flag,
+                                  "log_level": [3, 3]})
+
 @pytest.fixture(scope="session", params=list(TestAgentHelper.get_configs()))
-def init_comm(request):
+def init_comm(request, mpi4py_rc):
     """
     This sets up a comm to test agent with.  This test must be run
     with at least two ranks.
@@ -190,7 +210,7 @@ def init_comm(request):
         Number of learners and proccesses per environment for comm setup
     """
     num_learners, procs_per_env = request.param
-    ExaSimple(procs_per_env=procs_per_env, num_learners=num_learners)
+    ExaSimple(None, procs_per_env, num_learners)
     assert ExaComm.num_learners == num_learners
     assert ExaComm.procs_per_env == procs_per_env
     yield num_learners, procs_per_env
@@ -323,10 +343,10 @@ def run_params(request):
         This is the parameter from fixture decorator.  Use request.param to get value.
         Model types are passed in as request.param.
     """
-    candleDriver.run_params = {'output_dir': "./test"}
-    candleDriver.run_params.update(TestAgentHelper.dqn_args)
-    candleDriver.run_params["model_type"] = request.param
-    candleDriver.run_params.update(TestAgentHelper.model_types[request.param])
+    ExaGlobals.set_param('output_dir', "./test")
+    ExaGlobals.set_params(TestAgentHelper.dqn_args)
+    ExaGlobals.set_param("model_type", request.param)
+    ExaGlobals.set_params(TestAgentHelper.model_types[request.param])
     return request.param
 
 @pytest.fixture(scope="function")
@@ -375,7 +395,7 @@ def agent_with_priority_scale(registered_agent, registered_environment, run_para
     ExaAgent
         Returns an agent to test
     """
-    candleDriver.run_params["priority_scale"] = request.param
+    ExaGlobals.set_param("priority_scale", request.param)
     env = ExaEnv(gym.make(registered_environment).unwrapped)
     agent = None
     if ExaComm.is_agent():
@@ -568,7 +588,6 @@ class TestAgentMembers:
             #     assert len(weights) == len(TestAgentHelper.lstm_args["lstm_layers"])
             # else:
             #     assert False, "Unclear the number of layers of ml model for " + run_params
-
             # TODO: Check the length of each np.array
             for layer_weights in weights:
                 assert isinstance(layer_weights, np.ndarray)

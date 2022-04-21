@@ -71,10 +71,10 @@ def initialize_parameters(params=None):
                     self.required = set(required)
                 if additional_definitions is not None:
                     self.additional_definitions = additional_definitions
-        
+
         driver = BenchmarkDriver(file_path, '', 'keras',
-                                prog='CANDLE_example', 
-                                desc='CANDLE example driver script')
+                                 prog='CANDLE_example',
+                                 desc='CANDLE example driver script')
         params = candle.finalize_parameters(driver)
     ExaGlobals(params, candle.keras_default_config())
 
@@ -172,7 +172,7 @@ def check_keyword_and_config(params, keyword):
         sys.exit("CANDLELIB::ERROR The learner config file is malformed. There is no " + keyword + " selected.")
 
 def get_driver_params():
-    """ 
+    """
         Build the full set of run parameters by sequentially parsing the config files
         for agent, model, env and workflow.
         Unless overwritten from the command line (via base_parser), the names for
@@ -183,7 +183,7 @@ def get_driver_params():
     print('Learner parameters from ', learner_cfg)
     params = json.load(open(learner_cfg))
     params = base_parser(params)
-    
+
     agent_defs = check_keyword_and_config(params, "agent")
     env_defs = check_keyword_and_config(params, "env")
     workflow_defs = check_keyword_and_config(params, "workflow")
@@ -193,5 +193,5 @@ def get_driver_params():
     print("Running - {}, {} and {}".format(params['agent'], params['env'], params['workflow']))
     # print("Running - {}, {}, {} and {}".format(params['agent'], params['model_type'], params['env'], params['workflow']))
     print('_________________________________________________________________', flush=True)
-    
+
     return learner_defs + agent_defs + env_defs + workflow_defs + model_defs

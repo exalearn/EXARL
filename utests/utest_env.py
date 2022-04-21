@@ -2,10 +2,17 @@ import gym
 import pytest
 import importlib
 import numpy as np
-from exarl.utils import candleDriver
-# from exarl.base.comm_base import ExaComm
-# from exarl.base.env_base import ExaEnv
-# from exarl.envs.env_vault.UnitEvn import EnvGenerator
+from exarl.base.comm_base import ExaComm
+from exarl.network.simple_comm import ExaSimple
+from exarl.base.env_base import ExaEnv
+from exarl.envs.env_vault.UnitEvn import EnvGenerator
+from exarl.utils.candleDriver import initialize_parameters
+
+import mpi4py
+# Unfortunatly, this line is starting MPI instead of the communicators.
+# I can't figure out how to parameterize a fixture from a fixture which
+# ultimately causes the problem.
+from mpi4py import MPI
 
 class TestEnvHelper:
     """"
@@ -24,16 +31,16 @@ class TestEnvHelper:
     def get_configs():
         """
         This is a generator that spits out configurations of learners, agents, and procs per agent.
-        This is used to generate tests for split.  If there are no configurations (i.e. size=1)
-        then nothing will be returned and the test will be skipped
+        This is used to generate tests for split.
 
         Returns
         -------
         Pair
             Number of learners and proccesses per environment for comm setup
         """
-        size = mpi4py.MPI.COMM_WORLD.Get_size()
-        # We start at 1 because we have to have at least one learner
+
+        size = MPI.COMM_WORLD.Get_size()
+        yield 1, size
         for num_learners in range(1, size):
             rem = size - num_learners
             # Iterate over all potential procs_per_env counts
@@ -72,6 +79,20 @@ class TestEnvHelper:
         assert count == ExaComm.env_comm.size
         return state
 
+@pytest.fixture(scope="session")
+def mpi4py_rc(pytestconfig):
+    """
+    This function sets up the mpi4py import.
+
+    Attributes
+    ----------
+    pytestconfig :
+        Parameters passed from pytest.
+    """
+    mpi_flag = pytestconfig.getoption("mpi4py_rc")
+    initialize_parameters(params={"mpi4py_rc": mpi_flag,
+                                  "log_level": [3, 3]})
+
 @pytest.fixture(scope="session", params=list(TestEnvHelper.get_configs()))
 def init_comm(request, mpi4py_rc):
     """
@@ -89,7 +110,7 @@ def init_comm(request, mpi4py_rc):
         Number of learners and proccesses per environment for comm setup
     """
     num_learners, procs_per_env = request.param
-    ExaSimple(procs_per_env=procs_per_env, num_learners=num_learners)
+    ExaSimple(None, procs_per_env, num_learners)
     assert ExaComm.num_learners == num_learners
     assert ExaComm.procs_per_env == procs_per_env
     yield num_learners, procs_per_env
@@ -175,7 +196,7 @@ def environment(registered_environment):
 
 class TestEnvMembers:
     """
-    This class checks an environment has the approapriate memember and methods.
+    This class checks an environment has the appropriate memember and methods.
     """
 
     def test_exa_env(self, environment):

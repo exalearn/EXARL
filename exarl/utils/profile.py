@@ -28,7 +28,7 @@ class ProfileConstants:
     """
     Singleton class to deal with loading results directory from candle parameters.
     The appropriate class is loaded the first time the initializer is called.
-    
+
     Attributes
     ----------
     initialized : bool
@@ -53,8 +53,9 @@ class ProfileConstants:
     results_dir = None
     file = None
     profile = None
-    
+
     ib = None
+    ib_loaded = lambda: False
 
     def __init__(self):
         if not ProfileConstants.initialized:
@@ -62,35 +63,36 @@ class ProfileConstants:
             ProfileConstants.results_dir = os.path.join(ExaGlobals.lookup_params('output_dir'), 'Profile')
             if not os.path.exists(ProfileConstants.results_dir):
                 os.makedirs(ProfileConstants.results_dir, exist_ok=True)
-            
+
             if ProfileConstants.profile_type == 'mem':
                 import memory_profiler
                 ProfileConstants.profile = memory_profiler.profile
                 ProfileConstants.file = os.path.join(ProfileConstants.results_dir, 'mem_profile.txt')
-            
+
             elif ProfileConstants.profile_type == 'line':
                 import line_profiler
                 ProfileConstants.profile = line_profiler.LineProfiler()
                 ProfileConstants.file = os.path.join(ProfileConstants.results_dir, 'line_profile.txt')
+
                 def write_profile_to_file():
                     with open(ProfileConstants.file, 'w') as file:
                         ProfileConstants.profile.print_stats(stream=file)
                 atexit.register(write_profile_to_file)
-            
+
             elif ProfileConstants.profile_type == 'intro':
                 import exarl.utils.introspect
                 from exarl.base.comm_base import ExaComm
                 ProfileConstants.ib = exarl.utils.introspect.ibLoadReplacement(ExaComm.global_comm)
                 ProfileConstants.ib_loaded = exarl.utils.introspect.ibLoaded
-                atexit.register(lambda : exarl.utils.introspect.ibWrite(ProfileConstants.results_dir))
+                atexit.register(lambda: exarl.utils.introspect.ibWrite(ProfileConstants.results_dir))
             ProfileConstants.initialized = True
-    
+
     @staticmethod
     def introspected():
         """
         Returns if introspector is loaded and ran.
         """
-        if ProfileConstants.ib_started:
+        if ProfileConstants.started:
             return ProfileConstants.ib_loaded()
         return False
 

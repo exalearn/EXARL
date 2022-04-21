@@ -2,7 +2,8 @@ import os
 import sys
 import gym
 from gym import spaces
-from exarl.utils import candleDriver
+from exarl.utils.candleDriver import initialize_parameters
+from exarl.utils.globals import ExaGlobals
 from exarl.base.comm_base import ExaComm
 from exarl.network.simple_comm import ExaSimple
 from exarl.base.env_base import ExaEnv
@@ -32,6 +33,7 @@ class record:
     """
     counters = {}
     events = []
+
     verbose = False
 
     def reset(verbose=False):
@@ -298,7 +300,6 @@ class FakeEnv(gym.Env):
         self.total_resets += 1
         return self.state
 
-
 class FakeAgent(ExaAgent):
     """
     This is a fake agent.  It is used in coordination with the fake env
@@ -484,7 +485,6 @@ class FakeAgent(ExaAgent):
     def set_weights(self, weights):
         """
         This sets the weights.  The workflow should call set_weights
-
         when it receives an update from the learner.  The weights
         for this fake agent are a constantly increasing counter(s) that
         keeps track of how often train/target_train have been called.
@@ -739,17 +739,27 @@ if __name__ == "__main__":
     WorkflowTestConstants.env_max_steps = steps
     WorkflowTestConstants.workflow_max_steps = steps
 
+    # Set params
+    dir_name = './log_dir'
+    initialize_parameters(params={"mpi4py_rc": "false",
+                                  "log_level": [3, 3],
+                                  "output_dir": dir_name,
+                                  "episode_block": "false",
+                                  "batch_frequency": 1,
+                                  "n_episodes": episodes,
+                                  "n_steps": steps,
+                                  "save_weights_per_episode": "false",
+                                  "profile": "None"})
+
     # Set up comm
-    ExaSimple(procs_per_env=procs_per_env, num_learners=num_learners)
+    ExaSimple(None, procs_per_env, num_learners)
 
     # Make log dir
     rank = ExaComm.global_comm.rank
     made_dir = False
-    dir_name = './log_dir'
     if rank == 0 and not os.path.isdir(dir_name):
         os.mkdir(dir_name)
         made_dir = True
-    candleDriver.run_params = {'output_dir': dir_name}
 
     # Register fake env and agent
     gym.envs.registration.register(id=FakeEnv.name, entry_point=FakeEnv)

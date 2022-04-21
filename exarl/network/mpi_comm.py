@@ -1,8 +1,11 @@
+import sys
+from importlib import reload
 import gc
 import numpy as np
 from exarl.utils.globals import ExaGlobals
 from exarl.base.comm_base import ExaComm
 from exarl.utils.introspect import introspectTrace
+import mpi4py
 
 class ExaMPI(ExaComm):
     """
@@ -31,7 +34,7 @@ class ExaMPI(ExaComm):
         These are preallocated buffers for sending and receiving to avoid memory thrashing
 
     """
-    
+
     MPI = None
 
     def __init__(self, comm, procs_per_env, num_learners, run_length=False):
@@ -52,9 +55,9 @@ class ExaMPI(ExaComm):
             mpi4py_rc = True if ExaGlobals.lookup_params('mpi4py_rc') in ["true", "True", 1] else False
             if mpi4py_rc:
                 print("Turning mpi4py.rc.threads and mpi4py.rc.recv_mprobe to false!", flush=True)
-                import mpi4py.rc
                 mpi4py.rc.threads = False
                 mpi4py.rc.recv_mprobe = False
+            # This statement actually starts MPI assuming this is the first call
             from mpi4py import MPI
             ExaMPI.MPI = MPI
 
@@ -873,8 +876,8 @@ class ExaMPI(ExaComm):
         recv_buff = np.array(arg, dtype=np_type)
         toSend = [send_buff, 1, mpi_type]
         toRecv = [recv_buff, 1, mpi_type]
-        converter = {sum: ExaMPI.MPI.SUM, 
-                     max: ExaMPI.MPI.MAX, 
+        converter = {sum: ExaMPI.MPI.SUM,
+                     max: ExaMPI.MPI.MAX,
                      min: ExaMPI.MPI.MIN}
         self.comm.Reduce(toSend, toRecv, op=converter[op], root=root)
         return ret_type(toRecv[0])
@@ -901,8 +904,8 @@ class ExaMPI(ExaComm):
         recv_buff = np.array(arg, dtype=np_type)
         toSend = [send_buff, 1, mpi_type]
         toRecv = [recv_buff, 1, mpi_type]
-        converter = {sum: ExaMPI.MPI.SUM, 
-                     max: ExaMPI.MPI.MAX, 
+        converter = {sum: ExaMPI.MPI.SUM,
+                     max: ExaMPI.MPI.MAX,
                      min: ExaMPI.MPI.MIN}
         self.comm.Allreduce(toSend, toRecv, op=converter[op])
         return ret_type(toRecv[0])
@@ -933,15 +936,15 @@ class ExaMPI(ExaComm):
             learner_comm = self.comm.Split(color, self.rank)
             agent_comm = self.comm.Split(color, self.rank)
             if self.rank == 0:
-                learner_comm = ExaMPI(comm=learner_comm)
-                agent_comm = ExaMPI(comm=agent_comm)
+                learner_comm = ExaMPI(learner_comm, procs_per_env, num_learners)
+                agent_comm = ExaMPI(agent_comm, procs_per_env, num_learners)
             else:
                 learner_comm = None
                 agent_comm = None
 
             env_color = 0
             env_comm = self.comm.Split(env_color, self.rank)
-            env_comm = ExaMPI(comm=env_comm)
+            env_comm = ExaMPI(env_comm, procs_per_env, num_learners)
         else:
             # Agent communicator
             agent_color = ExaMPI.MPI.UNDEFINED
@@ -949,25 +952,20 @@ class ExaMPI(ExaComm):
                 agent_color = 0
             agent_comm = self.comm.Split(agent_color, self.rank)
             if agent_color == 0:
-                agent_comm = ExaMPI(comm=agent_comm)
+                agent_comm = ExaMPI(agent_comm, procs_per_env, num_learners)
             else:
                 agent_comm = None
 
             # Environment communicator
-            if ExaMPI.MPI.COMM_WORLD.Get_size() == procs_per_env:
+            if self.rank < num_learners:
                 env_color = 0
-                env_comm = self.comm.Split(env_color, self.rank)
-                env_comm = ExaMPI(comm=env_comm)
             else:
-                if self.rank < num_learners:
-                    env_color = 0
-                else:
-                    env_color = (int((self.rank - num_learners) / procs_per_env)) + 1
-                env_comm = self.comm.Split(env_color, self.rank)
-                if env_color > 0:
-                    env_comm = ExaMPI(comm=env_comm)
-                else:
-                    env_comm = None
+                env_color = (int((self.rank - num_learners) / procs_per_env)) + 1
+            env_comm = self.comm.Split(env_color, self.rank)
+            if env_color > 0:
+                env_comm = ExaMPI(env_comm, procs_per_env, num_learners)
+            else:
+                env_comm = None
 
             # Learner communicator
             learner_color = ExaMPI.MPI.UNDEFINED
@@ -975,7 +973,7 @@ class ExaMPI(ExaComm):
                 learner_color = 0
             learner_comm = self.comm.Split(learner_color, self.rank)
             if learner_color == 0:
-                learner_comm = ExaMPI(comm=learner_comm)
+                learner_comm = ExaMPI(learner_comm, procs_per_env, num_learners)
             else:
                 learner_comm = None
 

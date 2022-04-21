@@ -2,19 +2,23 @@ import os
 import pytest
 import gym
 from gym import spaces
-from exarl.utils import candleDriver
+from exarl.utils.candleDriver import initialize_parameters
+from exarl.utils.globals import ExaGlobals
 from exarl.base.comm_base import ExaComm
 from exarl.network.simple_comm import ExaSimple
 from exarl.base.env_base import ExaEnv
-from exarl.base.agent_base import ExaAgent
-from exarl.envs.env_vault.UnitEvn import EnvGenerator
 import exarl.agents
 from .workflow import FakeLearner
 from .workflow import FakeAgent
 from .workflow import FakeEnv
 from .workflow import WorkflowTestConstants
 from .workflow import record
+
 import mpi4py
+# Unfortunatly, this line is starting MPI instead of the communicators.
+# I can't figure out how to parameterize a fixture from a fixture which
+# ultimately causes the problem.
+from mpi4py import MPI
 
 class TestWorkflowHelper:
     """"
@@ -45,7 +49,7 @@ class TestWorkflowHelper:
     block = [True, False]
     batch_frequency = [1, -1]
 
-    # workflows = ["simple_rma"]
+    # workflows = ["simple"]
     # episodes = [10]
     # env_steps = [10]
     # workflow_steps = [10]
@@ -76,7 +80,7 @@ class TestWorkflowHelper:
         Pair
             Number of learners and proccesses per environment for comm setup
         """
-        size = mpi4py.MPI.COMM_WORLD.Get_size()
+        size = MPI.COMM_WORLD.Get_size()
         if workflow == "simple" or workflow == "sync":
             yield 1, size
         else:
@@ -160,8 +164,22 @@ def get_args(pytestconfig):
     WorkflowTestConstants.rank_sleep = bool(pytestconfig.getoption("rank_sleep"))
     WorkflowTestConstants.random_sleep = bool(pytestconfig.getoption("random_sleep"))
 
+@pytest.fixture(scope="session")
+def mpi4py_rc(pytestconfig):
+    """
+    This function sets up the mpi4py import.
+
+    Attributes
+    ----------
+    pytestconfig :
+        Parameters passed from pytest.
+    """
+    mpi_flag = pytestconfig.getoption("mpi4py_rc")
+    initialize_parameters(params={"mpi4py_rc": mpi_flag,
+                                  "log_level": [3, 3]})
+
 @pytest.fixture(scope="session", params=list(TestWorkflowHelper.get_workflows()))
-def init_comm(request):
+def init_comm(request, mpi4py_rc):
     """
     This sets up a comm to test agent with.
 
@@ -178,7 +196,7 @@ def init_comm(request):
         Returns the test parameters
     """
     num_learners, procs_per_env, *rem = request.param
-    ExaSimple(procs_per_env=procs_per_env, num_learners=num_learners)
+    ExaSimple(None, procs_per_env, num_learners)
     assert ExaComm.num_learners == num_learners
     assert ExaComm.procs_per_env == procs_per_env
     yield request.param
@@ -215,7 +233,7 @@ def log_dir(init_comm):
         os.mkdir(dir_name)
         made_dir = True
 
-    candleDriver.run_params = {'output_dir': dir_name}
+    ExaGlobals.set_param('output_dir', dir_name)
     ExaComm.global_comm.barrier()
     yield dir_name
 
@@ -242,11 +260,13 @@ def run_params(log_dir, init_comm):
         Returns the test parameters
     """
     _, _, workflow_name, episodes, env_steps, workflow_steps, block, batch_frequency = init_comm
-    candleDriver.run_params["n_episodes"] = episodes
-    candleDriver.run_params["n_steps"] = workflow_steps
-    candleDriver.run_params["episode_block"] = block
-    candleDriver.run_params["priority_scale"] = 1
-    candleDriver.run_params["batch_frequency"] = batch_frequency
+    ExaGlobals.set_param("n_episodes", episodes)
+    ExaGlobals.set_param("n_steps", workflow_steps)
+    ExaGlobals.set_param("episode_block", block)
+    ExaGlobals.set_param("priority_scale", 1)
+    ExaGlobals.set_param("batch_frequency", batch_frequency)
+    ExaGlobals.set_param("save_weights_per_episode", "false")
+    ExaGlobals.set_param("profile", "None")
     return init_comm
 
 @pytest.fixture(scope="session")
@@ -532,6 +552,7 @@ class TestWorkflowDelays:
         it comes from an actor who does inference with some model.
         This records compares how many models have been generated
         since when this data was created
+
     2. Off-policy learning:
         This is the other side of the 1. The actor records how
         out of data its model is when it is updated with a new

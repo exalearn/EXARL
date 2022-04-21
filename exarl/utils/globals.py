@@ -48,7 +48,7 @@ class ExaGlobals:
     __keras_defaults = None
     __run_params = None
     __logger = {}
-    
+
     class GlobalsNotInitialized(Exception):
         """
         Exception raised when trying to access globals that have not
@@ -81,7 +81,7 @@ class ExaGlobals:
                 message += " : " + str(self.value)
             message += "\n" + pformat(self.which)
             return message
-    
+
     def __init__(self, run_params, keras_defaults):
         if ExaGlobals.__run_params is None and ExaGlobals.__keras_defaults is None:
             if isinstance(run_params, dict):
@@ -117,6 +117,15 @@ class ExaGlobals:
         if ExaGlobals.__run_params is None:
             raise ExaGlobals.GlobalsNotInitialized(key, value=value)
         ExaGlobals.__run_params[key] = value
+
+    def set_params(dic):
+        """
+        Updates parameters with a dictionary of new params.
+        """
+        if ExaGlobals.__run_params is None:
+            raise ExaGlobals.GlobalsNotInitialized("")
+        assert isinstance(dic, dict), "Params must be a dictionary."
+        ExaGlobals.__run_params.update(dic)
 
     def keras_default(key):
         """
@@ -183,31 +192,4 @@ class ExaGlobals:
                 ExaGlobals.__logger[name] = ExaGlobals.__init_log(name, level)
             else:
                 ExaGlobals.__logger[name] = level
-        return lambda : ExaGlobals.log_helper(name)
-
-
-if __name__ == "__main__":
-    log = ExaGlobals.setup_logger("HELLO.you.what", 1)
-    log1 = ExaGlobals.setup_logger("HEY", 2)
-    log2 = ExaGlobals.setup_logger("UMM")
-    log3 = ExaGlobals.setup_logger()
-    # log().debug("HEYYYY")
-    ExaGlobals({"hello": "world", "log_level": [1,3]}, {"Poop": 1})
-    ExaGlobals.lookup_params("hello")
-    ExaGlobals.keras_default("Poop")
-    log().info("INFO")
-    log().debug("DEBUG")
-    log().warning("WARNING")
-    log().error("ERROR")
-    log1().info("INFO")
-    log1().debug("DEBUG")
-    log1().warning("WARNING")
-    log1().error("ERROR")
-    log2().info("INFO")
-    log2().debug("DEBUG")
-    log2().warning("WARNING")
-    log2().error("ERROR")
-    log3().info("INFO")
-    log3().debug("DEBUG")
-    log3().warning("WARNING")
-    log3().error("ERROR")
+        return lambda: ExaGlobals.log_helper(name)

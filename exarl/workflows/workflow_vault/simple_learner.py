@@ -285,7 +285,7 @@ class SIMPLE(exarl.ExaWorkflow):
         self.weights = [episode, exalearner.agent.epsilon, weights]
         if train_return:
             self.weights.append(train_return)
-    
+
     @introspect
     def recv_model(self):
         """
@@ -384,7 +384,7 @@ class SIMPLE(exarl.ExaWorkflow):
             self.episode_per_rank[0] = self.next_episode
             self.send_model(exalearner, self.next_episode, None, 0)
             self.next_episode += 1
-    
+
     @introspect
     def learner(self, exalearner, nepisodes, start_rank):
         """

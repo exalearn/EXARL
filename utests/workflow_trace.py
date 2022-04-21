@@ -4,7 +4,8 @@ import numpy as np
 import gym
 from gym import spaces
 import exarl
-from exarl.utils import candleDriver
+from exarl.utils.candleDriver import initialize_parameters
+from exarl.utils.globals import ExaGlobals
 from exarl.base.comm_base import ExaComm
 from exarl.network.simple_comm import ExaSimple
 from exarl.base.env_base import ExaEnv
@@ -400,6 +401,7 @@ class FakeEnv(gym.Env):
         if self.state < self.max_steps:
             self.state += 1
         done = self.state == self.max_steps
+
         WorkflowTestConstants.do_random_sleep()
         return self.state, 1, done, {}
 
@@ -415,7 +417,6 @@ class FakeEnv(gym.Env):
         """
         self.state = 0
         return self.state
-
 
 class FakeAgent(ExaAgent):
     """
@@ -639,18 +640,28 @@ if __name__ == "__main__":
     WorkflowTestConstants.env_max_steps = steps
     WorkflowTestConstants.workflow_max_steps = steps
 
+    # Set params
+    dir_name = './log_dir'
+    initialize_parameters(params={"mpi4py_rc": "false",
+                                  "log_level": [3, 3],
+                                  "output_dir": dir_name,
+                                  "episode_block": "false",
+                                  "batch_frequency": 1,
+                                  "n_episodes": episodes,
+                                  "n_steps": steps,
+                                  "save_weights_per_episode": "false",
+                                  "profile": "None"})
+
     # Init comms and record
-    ExaSimple(procs_per_env=procs_per_env, num_learners=num_learners)
+    ExaSimple(None, procs_per_env, num_learners)
     record.reset(ExaComm.global_comm.size)
 
     # Make log dir
     rank = ExaComm.global_comm.rank
     made_dir = False
-    dir_name = './log_dir'
     if rank == 0 and not os.path.isdir(dir_name):
         os.mkdir(dir_name)
         made_dir = True
-    candleDriver.run_params = {'output_dir': dir_name}
 
     # Register fake env and agent
     gym.envs.registration.register(id=FakeEnv.name, entry_point=FakeEnv)

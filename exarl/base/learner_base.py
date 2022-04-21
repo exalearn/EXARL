@@ -27,7 +27,7 @@ class ExaLearner:
         agent_id = ExaGlobals.lookup_params('agent')
         env_id = ExaGlobals.lookup_params('env')
         workflow_id = ExaGlobals.lookup_params('workflow')
-        
+
         learner_procs = int(ExaGlobals.lookup_params('learner_procs'))
         process_per_env = int(ExaGlobals.lookup_params('process_per_env'))
 
@@ -40,7 +40,7 @@ class ExaLearner:
         ExaSimple(comm, process_per_env, learner_procs)
 
         # Sanity check before we actually allocate resources
-        
+        workflow_id = self.sanity_check(workflow_id)
 
         self.create_output_dir()
         self.agent, self.env, self.workflow = self.make(agent_id, env_id, workflow_id)
@@ -48,33 +48,32 @@ class ExaLearner:
         if ExaComm.is_actor():
             self.env.reset()
 
-    # def sanity_check(self, agent_id, env_id, workflow_id):
-    #     global_size = ExaComm.global_comm.size
-    #     if global_size > nepisodes:
-    #         sys.exit("EXARL::ERROR More resources allocated for the number of episodes.\n" +
-    #                  "Number of ranks should be less than the number of episodes.")
-    #     if global_size < process_per_env:
-    #         sys.exit('EXARL::ERROR Not enough processes.')
-    #     if workflow_id == 'exarl.workflows:sync':
-    #         if learner_procs > 1:
-    #             sys.exit('EXARL::sync learner only works with single learner.')
-    #         if global_size != process_per_env:
-    #             sys.exit('EXARL::sync learner can only run one env group.')
-    #     else:
-    #         if (global_size - learner_procs) % process_per_env != 0:
-    #             sys.exit('EXARL::ERROR Uneven number of processes.')
-    #     if learner_procs > 1 and workflow_id != 'exarl.workflows:rma':
-    #         print('')
-    #         print('_________________________________________________________________')
-    #         print('Multilearner is only supported in RMA, running rma workflow ...')
-    #         print('_________________________________________________________________', flush=True)
-    #         workflow_id = 'exarl.workflows:' + 'rma'
-    #     if global_size < 2 and workflow_id != 'exarl.workflows:sync':
-    #         print('')
-    #         print('_________________________________________________________________')
-    #         print('Not enough processes, running synchronous single learner ...')
-    #         print('_________________________________________________________________', flush=True)
-    #         workflow_id = 'exarl.workflows:' + 'sync'
+    def sanity_check(self, workflow_id):
+        global_size = ExaComm.global_comm.size
+        if global_size >= self.nepisodes:
+            sys.exit("EXARL::ERROR More resources allocated for the number of episodes.\n" +
+                     "Number of ranks should be less than or equal to the number of episodes.")
+        if global_size < ExaComm.procs_per_env:
+            sys.exit('EXARL::ERROR Not enough processes.')
+        if workflow_id == 'exarl.workflows:sync' or workflow_id == 'exarl.workflows:simple':
+            if ExaComm.num_learners > 1:
+                sys.exit('EXARL::sync learner only works with single learner.')
+        else:
+            if (global_size - ExaComm.num_learners) % ExaComm.procs_per_env != 0:
+                sys.exit('EXARL::ERROR Uneven number of processes.')
+        if ExaComm.num_learners > 1 and workflow_id != 'exarl.workflows:rma':
+            print('')
+            print('_________________________________________________________________')
+            print('Multilearner is only supported in RMA, running rma workflow ...')
+            print('_________________________________________________________________', flush=True)
+            workflow_id = 'exarl.workflows:' + 'rma'
+        if global_size < 2 and workflow_id != 'exarl.workflows:sync':
+            print('')
+            print('_________________________________________________________________')
+            print('Not enough processes, running synchronous single learner ...')
+            print('_________________________________________________________________', flush=True)
+            workflow_id = 'exarl.workflows:' + 'simple'
+        return workflow_id
 
     def make(self, agent_id, env_id, workflow_id):
         # Create environment object
