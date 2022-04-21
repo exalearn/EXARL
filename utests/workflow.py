@@ -712,7 +712,7 @@ if __name__ == "__main__":
     # Defaults
     num_learners = 1
     procs_per_env = 1
-    workflow_name = 'simple'
+    workflow_name = 'sync'
     episodes = 10
     steps = 10
 

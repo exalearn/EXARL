@@ -60,7 +60,7 @@ class ExaLearner:
                      "Number of ranks should be less than or equal to the number of episodes.")
         if global_size < ExaComm.procs_per_env:
             sys.exit('EXARL::ERROR Not enough processes.')
-        if workflow_id == 'sync' or workflow_id == 'simple':
+        if workflow_id == 'sync':
             if learner_size > 1:
                 sys.exit('EXARL::sync learner only works with single learner.')
             if global_size != ExaComm.procs_per_env:
@@ -75,13 +75,13 @@ class ExaLearner:
             print('Multilearner is only supported in RMA, running rma workflow ...')
             print('_________________________________________________________________', flush=True)
             workflow_id = 'rma'
-        
+
         if (global_size < 2 or ExaComm.procs_per_env == global_size) and workflow_id != 'sync':
             print('')
             print('_________________________________________________________________')
             print('Not enough processes, running synchronous single learner ...')
             print('_________________________________________________________________', flush=True)
-            workflow_id = 'simple'
+            workflow_id = 'sync'
         return workflow_id
 
     def make(self, agent_id, env_id, workflow_id):

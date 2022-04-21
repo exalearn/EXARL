@@ -42,14 +42,14 @@ class TestWorkflowHelper:
         Indicates how often a batch of data should be sent to learner.
         1 sends data each step, -1 sends data each episode.
     """
-    workflows = ["simple", "simple_async"]  # ["sync", "async", "rma"]
+    workflows = ["sync", "async", "rma"]
     episodes = [1, 10, 100]
     env_steps = [1, 10, 100]
     workflow_steps = [1, 10, 100]
     block = [True, False]
     batch_frequency = [1, -1]
 
-    # workflows = ["simple"]
+    # workflows = ["simple_rma"]
     # episodes = [10]
     # env_steps = [10]
     # workflow_steps = [10]
@@ -65,14 +65,14 @@ class TestWorkflowHelper:
         Parameters
         ----------
         workflow : string
-            Name of workflow.  For simple and sync we only give out 1 learner/agent.
+            Name of workflow.  For sync we only give out 1 learner/agent.
             The rest go to env.  For rest we do various combinations of learner/actor.
 
         Currently, multi-learner configs are turned off
         Parameters
         ----------
         workflow : string
-            Name of workflow.  For simple and sync we only give out 1 learner/agent.
+            Name of workflow.  For sync we only give out 1 learner/agent.
             The rest go to env.  For rest we do various combinations of learner/actor.
 
         Returns
@@ -81,7 +81,7 @@ class TestWorkflowHelper:
             Number of learners and proccesses per environment for comm setup
         """
         size = MPI.COMM_WORLD.Get_size()
-        if workflow == "simple" or workflow == "sync":
+        if workflow == "sync":
             yield 1, size
         else:
             # We start at 1 because we have to have at least one learner

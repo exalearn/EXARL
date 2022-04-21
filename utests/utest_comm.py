@@ -99,8 +99,8 @@ class TestEnvMembers:
             Type of comm to test
         """
         acomm = comm(None, 1, 1)
-        assert mpi4py.rc.threads != mpi4py_rc
-        assert mpi4py.rc.recv_mprobe != mpi4py_rc
+        assert mpi4py.rc.threads == mpi4py_rc
+        assert mpi4py.rc.recv_mprobe == mpi4py_rc
 
     @pytest.mark.parametrize("comm", TestCommHelper.comm_types)
     def test_has_MPI(self, comm):

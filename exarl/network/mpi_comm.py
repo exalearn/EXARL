@@ -53,7 +53,7 @@ class ExaMPI(ExaComm):
         # Singleton
         if ExaMPI.MPI is None:
             mpi4py_rc = True if ExaGlobals.lookup_params('mpi4py_rc') in ["true", "True", 1] else False
-            if mpi4py_rc:
+            if not mpi4py_rc:
                 print("Turning mpi4py.rc.threads and mpi4py.rc.recv_mprobe to false!", flush=True)
                 mpi4py.rc.threads = False
                 mpi4py.rc.recv_mprobe = False
