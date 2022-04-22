@@ -127,7 +127,7 @@ class SYNC(exarl.ExaWorkflow):
     verbose : bool
         Debug print flag
     """
-    verbose = True
+    verbose = False
 
     def __init__(self):
         self.debug('Creating SYNC', ExaComm.global_comm.rank, ExaComm.is_learner(), ExaComm.is_agent(), ExaComm.is_actor())
