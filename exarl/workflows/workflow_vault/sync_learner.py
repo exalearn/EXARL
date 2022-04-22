@@ -599,9 +599,9 @@ class SYNC(exarl.ExaWorkflow):
                 nepisodes = ExaComm.agent_comm.size - ExaComm.num_learners
 
         # Add episode and step counters to env
-        if not hasattr(exalearner.env, "workflow_episode"):
+        if not hasattr(exalearner.env.env, "workflow_episode"):
             setattr(exalearner.env.env, "workflow_episode", 0)
-        if not hasattr(exalearner.env, "workflow_step"):
+        if not hasattr(exalearner.env.env, "workflow_step"):
             setattr(exalearner.env.env, "workflow_step", 0)
 
         # This ensures everyone has the same nepisodes as well
