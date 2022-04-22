@@ -1,6 +1,6 @@
 {
     "agent": "DQN-v0",
-    "env": "ExaCartPoleStatic-v0",
+    "env": "Bsuite-v0",
     "workflow": "sync",
     "n_episodes": 10,
     "n_steps": 10,
