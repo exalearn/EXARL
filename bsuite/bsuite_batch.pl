@@ -185,7 +185,7 @@ sub getSbatchCommand {
         print $fh $to_write;
         close($fh);
 
-        return "sbatch -p $partition -N $N $filename"; 
+        return "sbatch -N $N $filename"; 
     }
     return 0;
 }
