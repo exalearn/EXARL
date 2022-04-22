@@ -14,10 +14,8 @@ import os
 import numpy as np
 from exarl.base import ExaData
 from exarl.base.comm_base import ExaComm
-from exarl.network.simple_comm import ExaSimple
 from exarl.network.typing import TypeUtils
 from exarl.utils.introspect import introspectTrace
-MPI = ExaSimple.MPI
 
 class ExaMPIConstant:
     """
@@ -55,6 +53,9 @@ class ExaMPIConstant:
         """
         Parameters
         ----------
+        MPI : mpi4py.MPI
+            mpi4py's MPI access point
+
         comm : mpi4py.MPI.Comm
             Communicator for all ranks involved
 
@@ -67,6 +68,7 @@ class ExaMPIConstant:
         name : string, optional
             name of constant for debbuging
         """
+        self.MPI = ExaComm.get_MPI()
         self.comm = comm.raw()
         self.npType = TypeUtils.np_type_converter(the_type, promote=True)
         self.mpiType = TypeUtils.mpi_type_converter(the_type, promote=True)
@@ -75,7 +77,7 @@ class ExaMPIConstant:
         if rank_mask:
             self.rank = self.comm.rank
             data = np.zeros(1, dtype=self.npType)
-        self.win = MPI.Win.Create(data, self.size, comm=self.comm)
+        self.win = self.MPI.Win.Create(data, self.size, comm=self.comm)
         self.sum = np.ones(1, dtype=self.npType)
         self.buff = np.zeros(1, dtype=self.npType)
         self.name = name
@@ -96,7 +98,7 @@ class ExaMPIConstant:
         """
         data = np.array(value, dtype=self.npType)
         self.win.Lock(rank)
-        self.win.Accumulate(data, target_rank=rank, op=MPI.REPLACE)
+        self.win.Accumulate(data, target_rank=rank, op=self.MPI.REPLACE)
         self.win.Unlock(rank)
 
     @introspectTrace(name=True)
@@ -116,7 +118,7 @@ class ExaMPIConstant:
             Constant from host rank
         """
         self.win.Lock(rank)
-        self.win.Get_accumulate(self.sum, self.buff, target_rank=rank, op=MPI.NO_OP)
+        self.win.Get_accumulate(self.sum, self.buff, target_rank=rank, op=self.MPI.NO_OP)
         self.win.Unlock(rank)
         return self.buff[0]
 
@@ -137,7 +139,7 @@ class ExaMPIConstant:
             Constant from host rank before the increment
         """
         self.win.Lock(rank)
-        self.win.Get_accumulate(self.sum, self.buff, target_rank=rank, op=MPI.SUM)
+        self.win.Get_accumulate(self.sum, self.buff, target_rank=rank, op=self.MPI.SUM)
         self.win.Unlock(rank)
         return self.buff[0]
 
@@ -161,7 +163,7 @@ class ExaMPIConstant:
         """
         data = np.array(value, dtype=self.npType)
         self.win.Lock(rank)
-        self.win.Get_accumulate(data, self.buff, target_rank=rank, op=MPI.MIN)
+        self.win.Get_accumulate(data, self.buff, target_rank=rank, op=self.MPI.MIN)
         self.win.Unlock(rank)
         return min(self.buff[0], value)
 
@@ -188,6 +190,8 @@ class ExaMPIBuffUnchecked(ExaData):
 
     Parameters
     ----------
+    MPI : mpi4py.MPI
+            mpi4py's MPI access point
     comm : MPI Comm
         Communicator for all ranks involved
     data : list
@@ -222,17 +226,19 @@ class ExaMPIBuffUnchecked(ExaData):
         name : string, optional
             name of constant for debbuging
         """
+        self.MPI = ExaComm.get_MPI()
         self.comm = comm
-
-        dataBytes = MPI.pickle.dumps(data)
-        size = len(dataBytes)
+        self.length = 1
+        dataBytes = self.MPI.pickle.dumps(data)
+        # JS: adding one because pickle is dumb
+        size = len(dataBytes) + 1
 
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=None, name=name)
 
         totalSize = 0
         if rank_mask:
             totalSize = size
-        self.win = MPI.Win.Allocate(totalSize, disp_unit=1, comm=self.comm.raw())
+        self.win = self.MPI.Win.Allocate(totalSize, disp_unit=1, comm=self.comm.raw())
         self.buff = bytearray(self.dataSize)
 
         # If we are given data to start lets put it in our buffer
@@ -268,10 +274,10 @@ class ExaMPIBuffUnchecked(ExaData):
             self.buff,
             rank,
             target=[0, self.dataSize],
-            op=MPI.NO_OP,
+            op=self.MPI.NO_OP,
         )
         self.win.Unlock(rank)
-        return MPI.pickle.loads(self.buff)
+        return self.MPI.pickle.loads(self.buff)
 
     @introspectTrace(name=True)
     def push(self, data, rank=None):
@@ -294,13 +300,13 @@ class ExaMPIBuffUnchecked(ExaData):
         if rank is None:
             rank = self.comm.rank
 
-        toSend = MPI.pickle.dumps(data)
-        assert len(toSend) <= self.dataSize
+        toSend = self.MPI.pickle.dumps(data)
+        assert len(toSend) <= self.dataSize, str(len(toSend)) + " vs " + str(self.dataSize)
 
         self.win.Lock(rank)
         # Accumulate is element-wise atomic vs put which is not
         self.win.Accumulate(
-            toSend, rank, target=[0, len(toSend)], op=MPI.REPLACE
+            toSend, rank, target=[0, len(toSend)], op=self.MPI.REPLACE
         )
         self.win.Unlock(rank)
         return 1, 1
@@ -313,6 +319,9 @@ class ExaMPIBuffChecked(ExaData):
 
     Attributes
     ----------
+    MPI : mpi4py.MPI
+            mpi4py's MPI access point
+
     comm : mpi4py.MPI.Comm
         raw MPI communicator
 
@@ -350,10 +359,11 @@ class ExaMPIBuffChecked(ExaData):
         name : string, optional
             name of constant for debbuging
         """
-
+        self.MPI = ExaComm.get_MPI()
         self.comm = comm
+        self.length = 1
 
-        self.dataBytes = bytearray(MPI.pickle.dumps((data, np.int64(0))))
+        self.dataBytes = bytearray(self.MPI.pickle.dumps((data, np.int64(0))))
         size = len(self.dataBytes)
 
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=None, name=name)
@@ -361,13 +371,13 @@ class ExaMPIBuffChecked(ExaData):
         totalSize = 0
         if rank_mask:
             totalSize = size
-        self.win = MPI.Win.Allocate(totalSize, disp_unit=1, comm=self.comm.raw())
+        self.win = self.MPI.Win.Allocate(totalSize, disp_unit=1, comm=self.comm.raw())
         self.buff = bytearray(self.dataSize)
 
         if rank_mask:
             self.win.Lock(self.comm.rank)
             self.win.Accumulate(
-                self.dataBytes, self.comm.rank, target=[0, self.dataSize], op=MPI.REPLACE
+                self.dataBytes, self.comm.rank, target=[0, self.dataSize], op=self.MPI.REPLACE
             )
             self.win.Unlock(self.comm.rank)
 
@@ -399,11 +409,11 @@ class ExaMPIBuffChecked(ExaData):
             self.buff,
             rank,
             target=[0, self.dataSize],
-            op=MPI.REPLACE
+            op=self.MPI.REPLACE
         )
 
         self.win.Unlock(rank)
-        data, valid = MPI.pickle.loads(self.buff)
+        data, valid = self.MPI.pickle.loads(self.buff)
         if valid:
             return data
         return None
@@ -429,7 +439,7 @@ class ExaMPIBuffChecked(ExaData):
         if rank is None:
             rank = self.comm.rank
 
-        toSend = bytearray(MPI.pickle.dumps((data, np.int64(1))))
+        toSend = bytearray(self.MPI.pickle.dumps((data, np.int64(1))))
         assert len(toSend) <= self.dataSize
 
         self.win.Lock(rank)
@@ -438,10 +448,10 @@ class ExaMPIBuffChecked(ExaData):
             self.buff,
             rank,
             target=[0, self.dataSize],
-            op=MPI.REPLACE
+            op=self.MPI.REPLACE
         )
         self.win.Unlock(rank)
-        _, valid = MPI.pickle.loads(self.buff)
+        _, valid = self.MPI.pickle.loads(self.buff)
         return 1, valid == 1
 
 class ExaMPIDistributedQueue(ExaData):
@@ -451,6 +461,9 @@ class ExaMPIDistributedQueue(ExaData):
 
     Attributes
     ----------
+    MPI : mpi4py.MPI
+            mpi4py's MPI access point
+
     comm : mpi4py.MPI.Comm
         raw MPI communicator
 
@@ -504,15 +517,15 @@ class ExaMPIDistributedQueue(ExaData):
         name : string, optional
             name of constant for debbuging
         """
-
+        self.MPI = ExaComm.get_MPI()
         self.comm = comm
         self.length = length
         # This lets us fail a push when at full capacity
         # Otherwise will overwrite the oldest data
         self.failPush = failPush
 
-        dataBytes = MPI.pickle.dumps(data)
-        size = len(dataBytes)
+        dataBytes = self.MPI.pickle.dumps(data)
+        size = len(dataBytes) + 1
 
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag, name=name)
         self.buff = bytearray(self.dataSize)
@@ -522,20 +535,20 @@ class ExaMPIDistributedQueue(ExaData):
         totalSize = 0
         self.headBuff = None
         self.tailBuff = None
-        disp = MPI.DOUBLE.Get_size()
+        disp = self.MPI.DOUBLE.Get_size()
         if rank_mask:
             totalSize = size * self.length
             self.headBuff = np.zeros(1, dtype=np.int64)
             self.tailBuff = np.zeros(1, dtype=np.int64)
 
         # Setup head window
-        self.head = MPI.Win.Create(self.headBuff, disp, comm=self.comm.raw())
+        self.head = self.MPI.Win.Create(self.headBuff, disp, comm=self.comm.raw())
 
         # Setup tail window
-        self.tail = MPI.Win.Create(self.tailBuff, disp, comm=self.comm.raw())
+        self.tail = self.MPI.Win.Create(self.tailBuff, disp, comm=self.comm.raw())
 
         # Setup data window
-        self.win = MPI.Win.Allocate(totalSize, disp_unit=size, comm=self.comm.raw())
+        self.win = self.MPI.Win.Allocate(totalSize, disp_unit=size, comm=self.comm.raw())
 
     def __del__(self):
         self.win.Free()
@@ -567,8 +580,8 @@ class ExaMPIDistributedQueue(ExaData):
         self.tail.Lock(rank)
 
         # Read the head and tail pointers.
-        reqHead = self.head.Rget_accumulate(self.minus, head, rank, op=MPI.NO_OP)
-        reqTail = self.tail.Rget_accumulate(self.plus, tail, rank, op=MPI.SUM)
+        reqHead = self.head.Rget_accumulate(self.minus, head, rank, op=self.MPI.NO_OP)
+        reqTail = self.tail.Rget_accumulate(self.plus, tail, rank, op=self.MPI.SUM)
         reqHead.wait()
         reqTail.wait()
 
@@ -581,19 +594,19 @@ class ExaMPIDistributedQueue(ExaData):
                 self.buff,
                 rank,
                 target=[index, self.dataSize],
-                op=MPI.NO_OP,
+                op=self.MPI.NO_OP,
             )
             self.win.Unlock(rank)
         else:
             # Dec the tail pointer
-            self.tail.Accumulate(self.minus, rank, op=MPI.SUM)
+            self.tail.Accumulate(self.minus, rank, op=self.MPI.SUM)
             ret = False
 
         self.tail.Unlock(rank)
         self.head.Unlock(rank)
 
         if ret:
-            return MPI.pickle.loads(self.buff)
+            return self.MPI.pickle.loads(self.buff)
         return None
 
     @introspectTrace(name=True)
@@ -616,7 +629,7 @@ class ExaMPIDistributedQueue(ExaData):
         """
         if rank is None:
             rank = self.comm.rank
-        toSend = MPI.pickle.dumps(data)
+        toSend = self.MPI.pickle.dumps(data)
         assert len(toSend) <= self.dataSize
 
         head = np.zeros(1, dtype=np.int64)
@@ -624,34 +637,35 @@ class ExaMPIDistributedQueue(ExaData):
 
         self.head.Lock(rank)
         self.tail.Lock(rank)
-        reqHead = self.head.Rget_accumulate(self.plus, head, rank, op=MPI.SUM)
-        reqTail = self.tail.Rget_accumulate(self.plus, tail, rank, op=MPI.NO_OP)
+        reqHead = self.head.Rget_accumulate(self.plus, head, rank, op=self.MPI.SUM)
+        reqTail = self.tail.Rget_accumulate(self.plus, tail, rank, op=self.MPI.NO_OP)
         reqHead.wait()
         reqTail.wait()
 
         write = True
         headIndex = head[0] % self.length
         tailIndex = tail[0] % self.length
+
         if head[0] > tail[0] and headIndex == tailIndex:
             if self.failPush:
                 write = False
                 self.head.Accumulate(
-                    self.minus, rank, op=MPI.SUM
+                    self.minus, rank, op=self.MPI.SUM
                 )
             else:
                 self.tail.Accumulate(
-                    self.plus, rank, op=MPI.SUM
+                    self.plus, rank, op=self.MPI.SUM
                 )
             lost = 1
             capacity = self.length
         else:
             lost = 0
-            capacity = head[0] - tail[0]
+            capacity = head[0] - tail[0] + 1
 
         if write:
             self.win.Lock(rank)
             self.win.Accumulate(
-                toSend, rank, target=[headIndex, len(toSend)], op=MPI.REPLACE
+                toSend, rank, target=[headIndex, len(toSend)], op=self.MPI.REPLACE
             )
             self.win.Unlock(rank)
 
@@ -667,6 +681,9 @@ class ExaMPIDistributedStack(ExaData):
 
     Attributes
     ----------
+    MPI : mpi4py.MPI
+            mpi4py's MPI access point
+
     comm : mpi4py.MPI.Comm
         raw MPI communicator
 
@@ -720,14 +737,15 @@ class ExaMPIDistributedStack(ExaData):
         name : string, optional
             name of constant for debbuging
         """
+        self.MPI = ExaComm.get_MPI()
         self.comm = comm
         self.length = length
         # This lets us fail a push when at full capacity
         # Otherwise will overwrite the oldest data
         self.failPush = failPush
 
-        dataBytes = MPI.pickle.dumps(data)
-        size = len(dataBytes)
+        dataBytes = self.MPI.pickle.dumps(data)
+        size = len(dataBytes) + 1
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag, name=name)
 
         self.buff = bytearray(self.dataSize)
@@ -737,20 +755,20 @@ class ExaMPIDistributedStack(ExaData):
         totalSize = 0
         self.headBuff = None
         self.tailBuff = None
-        disp = MPI.DOUBLE.Get_size()
+        disp = self.MPI.DOUBLE.Get_size()
         if rank_mask:
             totalSize = size * self.length
             self.headBuff = np.zeros(1, dtype=np.int64)
             self.tailBuff = np.zeros(1, dtype=np.int64)
 
         # Setup head window
-        self.head = MPI.Win.Create(self.headBuff, disp, comm=self.comm.raw())
+        self.head = self.MPI.Win.Create(self.headBuff, disp, comm=self.comm.raw())
 
         # Setup tail window
-        self.tail = MPI.Win.Create(self.tailBuff, disp, comm=self.comm.raw())
+        self.tail = self.MPI.Win.Create(self.tailBuff, disp, comm=self.comm.raw())
 
         # Setup data window
-        self.win = MPI.Win.Allocate(totalSize, disp_unit=size, comm=self.comm.raw())
+        self.win = self.MPI.Win.Allocate(totalSize, disp_unit=size, comm=self.comm.raw())
 
     def __del__(self):
         self.win.Free()
@@ -782,8 +800,8 @@ class ExaMPIDistributedStack(ExaData):
         self.tail.Lock(rank)
 
         # Read the head and tail pointers.
-        reqHead = self.head.Rget_accumulate(self.minus, head, rank, op=MPI.SUM)
-        reqTail = self.tail.Rget_accumulate(self.minus, tail, rank, op=MPI.NO_OP)
+        reqHead = self.head.Rget_accumulate(self.minus, head, rank, op=self.MPI.SUM)
+        reqTail = self.tail.Rget_accumulate(self.minus, tail, rank, op=self.MPI.NO_OP)
         reqHead.wait()
         reqTail.wait()
         # print("InPop", head[0], tail[0])
@@ -797,20 +815,20 @@ class ExaMPIDistributedStack(ExaData):
                 self.buff,
                 rank,
                 target=[index, self.dataSize],
-                op=MPI.NO_OP,
+                op=self.MPI.NO_OP,
             )
             self.win.Unlock(rank)
 
         else:
             self.head.Accumulate(
-                self.plus, rank, op=MPI.SUM
+                self.plus, rank, op=self.MPI.SUM
             )
 
         self.tail.Unlock(rank)
         self.head.Unlock(rank)
 
         if ret:
-            return MPI.pickle.loads(self.buff)
+            return self.MPI.pickle.loads(self.buff)
         return None
 
     @introspectTrace(name=True)
@@ -833,8 +851,8 @@ class ExaMPIDistributedStack(ExaData):
         """
         if rank is None:
             rank = self.comm.rank
-        toSend = MPI.pickle.dumps(data)
-        assert len(toSend) == self.dataSize
+        toSend = self.MPI.pickle.dumps(data)
+        assert len(toSend) <= self.dataSize
 
         head = np.zeros(1, dtype=np.int64)
         tail = np.zeros(1, dtype=np.int64)
@@ -844,8 +862,8 @@ class ExaMPIDistributedStack(ExaData):
         self.tail.Lock(rank)
 
         # Read the head and tail pointers.
-        reqHead = self.head.Rget_accumulate(self.plus, head, rank, op=MPI.SUM)
-        reqTail = self.tail.Rget_accumulate(self.plus, tail, rank, op=MPI.NO_OP)
+        reqHead = self.head.Rget_accumulate(self.plus, head, rank, op=self.MPI.SUM)
+        reqTail = self.tail.Rget_accumulate(self.plus, tail, rank, op=self.MPI.NO_OP)
         reqHead.wait()
         reqTail.wait()
 
@@ -855,11 +873,11 @@ class ExaMPIDistributedStack(ExaData):
             if self.failPush:
                 write = False
                 self.head.Accumulate(
-                    self.minus, rank, op=MPI.SUM
+                    self.minus, rank, op=self.MPI.SUM
                 )
             else:
                 self.tail.Accumulate(
-                    self.plus, rank, op=MPI.SUM
+                    self.plus, rank, op=self.MPI.SUM
                 )
             lost = 1
             capacity = self.length
@@ -872,7 +890,7 @@ class ExaMPIDistributedStack(ExaData):
             index = head[0] % self.length
             self.win.Lock(rank)
             self.win.Accumulate(
-                toSend, rank, target=[index, self.dataSize], op=MPI.REPLACE
+                toSend, rank, target=[index, self.dataSize], op=self.MPI.REPLACE
             )
             self.win.Unlock(rank)
 
@@ -887,6 +905,9 @@ class ExaMPICentralizedStack(ExaData):
 
     Attributes
     ----------
+    MPI : mpi4py.MPI
+            mpi4py's MPI access point
+
     comm : mpi4py.MPI.Comm
         raw MPI communicator
 
@@ -940,6 +961,7 @@ class ExaMPICentralizedStack(ExaData):
         name : string, optional
             name of constant for debbuging
         """
+        self.MPI = ExaComm.get_MPI()
         self.comm = comm
         if rank_mask:
             self.rank = self.comm.rank
@@ -948,8 +970,8 @@ class ExaMPICentralizedStack(ExaData):
         # Otherwise will overwrite the oldest data
         self.failPush = failPush
 
-        dataBytes = MPI.pickle.dumps(data)
-        size = len(dataBytes)
+        dataBytes = self.MPI.pickle.dumps(data)
+        size = len(dataBytes) + 1
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag, name=name)
 
         self.buff = bytearray(self.dataSize)
@@ -963,34 +985,34 @@ class ExaMPICentralizedStack(ExaData):
         # if comm.rank == rank:
         if rank_mask:
             totalSize = size * self.length
-            headSize = MPI.INT64_T.Get_size()
-            tailSize = MPI.INT64_T.Get_size()
+            headSize = self.MPI.INT64_T.Get_size()
+            tailSize = self.MPI.INT64_T.Get_size()
 
         self.head = []
         self.tail = []
         self.win = []
         for i in range(comm.size):
             # Setup head window
-            self.head.append(MPI.Win.Allocate(headSize, comm=self.comm.raw()))
+            self.head.append(self.MPI.Win.Allocate(headSize, comm=self.comm.raw()))
             self.head[i].Lock(self.rank)
             self.head[i].Accumulate(
-                np.zeros(1, dtype=np.int64), self.rank, op=MPI.REPLACE
+                np.zeros(1, dtype=np.int64), self.rank, op=self.MPI.REPLACE
             )
             self.head[i].Unlock(self.rank)
             self.head[i].Fence(self.rank)
 
             # Setup tail window
-            self.tail.append(MPI.Win.Allocate(tailSize, comm=self.comm.raw()))
+            self.tail.append(self.MPI.Win.Allocate(tailSize, comm=self.comm.raw()))
             self.tail[i].Lock(self.rank)
             self.tail[i].Accumulate(
-                np.zeros(1, dtype=np.int64), self.rank, op=MPI.REPLACE
+                np.zeros(1, dtype=np.int64), self.rank, op=self.MPI.REPLACE
             )
             self.tail[i].Unlock(self.rank)
             self.tail[i].Fence(self.rank)
 
             # Setup data window
             self.win.append(
-                MPI.Win.Allocate(totalSize, disp_unit=size, comm=self.comm.raw())
+                self.MPI.Win.Allocate(totalSize, disp_unit=size, comm=self.comm.raw())
             )
             self.win[i].Fence(self.rank)
 
@@ -1026,8 +1048,8 @@ class ExaMPICentralizedStack(ExaData):
         self.tail[rank].Lock(self.rank)
 
         # Read the head and tail pointers.
-        reqHead = self.head[rank].Rget_accumulate(self.minus, head, self.rank, op=MPI.SUM)
-        reqTail = self.tail[rank].Rget_accumulate(self.minus, tail, self.rank, op=MPI.NO_OP)
+        reqHead = self.head[rank].Rget_accumulate(self.minus, head, self.rank, op=self.MPI.SUM)
+        reqTail = self.tail[rank].Rget_accumulate(self.minus, tail, self.rank, op=self.MPI.NO_OP)
         reqHead.wait()
         reqTail.wait()
         # print("InPop", head[0], tail[0])
@@ -1041,20 +1063,20 @@ class ExaMPICentralizedStack(ExaData):
                 self.buff,
                 self.rank,
                 target=[index, self.dataSize],
-                op=MPI.NO_OP,
+                op=self.MPI.NO_OP,
             )
             self.win[rank].Unlock(self.rank)
 
         else:
             self.head[rank].Accumulate(
-                self.plus, self.rank, op=MPI.SUM
+                self.plus, self.rank, op=self.MPI.SUM
             )
 
         self.tail[rank].Unlock(self.rank)
         self.head[rank].Unlock(self.rank)
 
         if ret:
-            return MPI.pickle.loads(self.buff)
+            return self.MPI.pickle.loads(self.buff)
         return None
 
     @introspectTrace(name=True)
@@ -1077,7 +1099,7 @@ class ExaMPICentralizedStack(ExaData):
         """
         if rank is None:
             rank = self.comm.rank
-        toSend = MPI.pickle.dumps(data)
+        toSend = self.MPI.pickle.dumps(data)
         assert len(toSend) == self.dataSize
 
         head = np.zeros(1, dtype=np.int64)
@@ -1088,8 +1110,8 @@ class ExaMPICentralizedStack(ExaData):
         self.tail[rank].Lock(self.rank)
 
         # Read the head and tail pointers.
-        reqHead = self.head[rank].Rget_accumulate(self.plus, head, self.rank, op=MPI.SUM)
-        reqTail = self.tail[rank].Rget_accumulate(self.plus, tail, self.rank, op=MPI.NO_OP)
+        reqHead = self.head[rank].Rget_accumulate(self.plus, head, self.rank, op=self.MPI.SUM)
+        reqTail = self.tail[rank].Rget_accumulate(self.plus, tail, self.rank, op=self.MPI.NO_OP)
         reqHead.wait()
         reqTail.wait()
 
@@ -1099,11 +1121,11 @@ class ExaMPICentralizedStack(ExaData):
             if self.failPush:
                 write = False
                 self.head[rank].Accumulate(
-                    self.minus, self.rank, op=MPI.SUM
+                    self.minus, self.rank, op=self.MPI.SUM
                 )
             else:
                 self.tail[rank].Accumulate(
-                    self.plus, self.rank, op=MPI.SUM
+                    self.plus, self.rank, op=self.MPI.SUM
                 )
             lost = 1
             capacity = self.length
@@ -1116,7 +1138,7 @@ class ExaMPICentralizedStack(ExaData):
             index = head[0] % self.length
             self.win[rank].Lock(self.rank)
             self.win[rank].Accumulate(
-                toSend, self.rank, target=[index, self.dataSize], op=MPI.REPLACE
+                toSend, self.rank, target=[index, self.dataSize], op=self.MPI.REPLACE
             )
             self.win[rank].Unlock(self.rank)
 
@@ -1131,6 +1153,9 @@ class ExaMPICentralizedQueue(ExaData):
 
     Attributes
     ----------
+    MPI : mpi4py.MPI
+            mpi4py's MPI access point
+
     comm : mpi4py.MPI.Comm
         raw MPI communicator
 
@@ -1184,6 +1209,7 @@ class ExaMPICentralizedQueue(ExaData):
         name : string, optional
             name of constant for debbuging
         """
+        self.MPI = ExaComm.get_MPI()
         self.comm = comm
         if rank_mask:
             self.rank = self.comm.rank
@@ -1192,8 +1218,8 @@ class ExaMPICentralizedQueue(ExaData):
         # Otherwise will overwrite the oldest data
         self.failPush = failPush
 
-        dataBytes = MPI.pickle.dumps(data)
-        size = len(dataBytes)
+        dataBytes = self.MPI.pickle.dumps(data)
+        size = len(dataBytes) + 1
         super().__init__(bytes, size, comm_size=comm.size, max_model_lag=max_model_lag, name=name)
 
         self.buff = bytearray(self.dataSize)
@@ -1206,34 +1232,34 @@ class ExaMPICentralizedQueue(ExaData):
         # if comm.rank == rank:
         if rank_mask:
             totalSize = size * self.length
-            headSize = MPI.INT64_T.Get_size()
-            tailSize = MPI.INT64_T.Get_size()
+            headSize = self.MPI.INT64_T.Get_size()
+            tailSize = self.MPI.INT64_T.Get_size()
 
         self.head = []
         self.tail = []
         self.win = []
         for i in range(comm.size):
             # Setup head window
-            self.head.append(MPI.Win.Allocate(headSize, comm=self.comm.raw()))
+            self.head.append(self.MPI.Win.Allocate(headSize, comm=self.comm.raw()))
             self.head[i].Lock(self.rank)
             self.head[i].Accumulate(
-                np.zeros(1, dtype=np.int64), self.rank, op=MPI.REPLACE
+                np.zeros(1, dtype=np.int64), self.rank, op=self.MPI.REPLACE
             )
             self.head[i].Unlock(self.rank)
             self.head[i].Fence(self.rank)
 
             # Setup tail window
-            self.tail.append(MPI.Win.Allocate(tailSize, comm=self.comm.raw()))
+            self.tail.append(self.MPI.Win.Allocate(tailSize, comm=self.comm.raw()))
             self.tail[i].Lock(self.rank)
             self.tail[i].Accumulate(
-                np.zeros(1, dtype=np.int64), self.rank, op=MPI.REPLACE
+                np.zeros(1, dtype=np.int64), self.rank, op=self.MPI.REPLACE
             )
             self.tail[i].Unlock(self.rank)
             self.tail[i].Fence(self.rank)
 
             # Setup data window
             self.win.append(
-                MPI.Win.Allocate(totalSize, disp_unit=size, comm=self.comm.raw())
+                self.MPI.Win.Allocate(totalSize, disp_unit=size, comm=self.comm.raw())
             )
             self.win[i].Fence(self.rank)
 
@@ -1269,8 +1295,8 @@ class ExaMPICentralizedQueue(ExaData):
         self.tail[rank].Lock(self.rank)
 
         # Read the head and tail pointers.
-        reqHead = self.head[rank].Rget_accumulate(self.minus, head, self.rank, op=MPI.NO_OP)
-        reqTail = self.tail[rank].Rget_accumulate(self.plus, tail, self.rank, op=MPI.SUM)
+        reqHead = self.head[rank].Rget_accumulate(self.minus, head, self.rank, op=self.MPI.NO_OP)
+        reqTail = self.tail[rank].Rget_accumulate(self.plus, tail, self.rank, op=self.MPI.SUM)
         reqHead.wait()
         reqTail.wait()
 
@@ -1283,19 +1309,19 @@ class ExaMPICentralizedQueue(ExaData):
                 self.buff,
                 self.rank,
                 target=[index, self.dataSize],
-                op=MPI.NO_OP,
+                op=self.MPI.NO_OP,
             )
             self.win[rank].Unlock(self.rank)
         else:
             # Dec the tail pointer
-            self.tail[rank].Accumulate(self.minus, self.rank, op=MPI.SUM)
+            self.tail[rank].Accumulate(self.minus, self.rank, op=self.MPI.SUM)
             ret = False
 
         self.tail[rank].Unlock(self.rank)
         self.head[rank].Unlock(self.rank)
 
         if ret:
-            return MPI.pickle.loads(self.buff)
+            return self.MPI.pickle.loads(self.buff)
         return None
 
     @introspectTrace(name=True)
@@ -1318,7 +1344,7 @@ class ExaMPICentralizedQueue(ExaData):
         """
         if rank is None:
             rank = self.comm.rank
-        toSend = MPI.pickle.dumps(data)
+        toSend = self.MPI.pickle.dumps(data)
         assert len(toSend) <= self.dataSize
 
         head = np.zeros(1, dtype=np.int64)
@@ -1327,8 +1353,8 @@ class ExaMPICentralizedQueue(ExaData):
         self.head[rank].Lock(self.rank)
         self.tail[rank].Lock(self.rank)
 
-        reqHead = self.head[rank].Rget_accumulate(self.plus, head, self.rank, op=MPI.SUM)
-        reqTail = self.tail[rank].Rget_accumulate(self.plus, tail, self.rank, op=MPI.NO_OP)
+        reqHead = self.head[rank].Rget_accumulate(self.plus, head, self.rank, op=self.MPI.SUM)
+        reqTail = self.tail[rank].Rget_accumulate(self.plus, tail, self.rank, op=self.MPI.NO_OP)
         reqHead.wait()
         reqTail.wait()
 
@@ -1339,11 +1365,11 @@ class ExaMPICentralizedQueue(ExaData):
             if self.failPush:
                 write = False
                 self.head[rank].Accumulate(
-                    self.minus, self.rank, op=MPI.SUM
+                    self.minus, self.rank, op=self.MPI.SUM
                 )
             else:
                 self.tail[rank].Accumulate(
-                    self.plus, self.rank, op=MPI.SUM
+                    self.plus, self.rank, op=self.MPI.SUM
                 )
             lost = 1
             capacity = self.length
@@ -1354,7 +1380,7 @@ class ExaMPICentralizedQueue(ExaData):
         if write:
             self.win[rank].Lock(self.rank)
             self.win[rank].Accumulate(
-                toSend, self.rank, target=[headIndex, len(toSend)], op=MPI.REPLACE
+                toSend, self.rank, target=[headIndex, len(toSend)], op=self.MPI.REPLACE
             )
             self.win[rank].Unlock(self.rank)
 

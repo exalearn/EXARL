@@ -20,7 +20,7 @@
 #                    under Contract DE-AC05-76RL01830
 import time
 import exarl
-from exarl.utils import candleDriver as cd
+from exarl.utils.globals import ExaGlobals
 
 import numpy as np
 from tqdm import tqdm
@@ -55,9 +55,9 @@ excluded_envs = ['cartpole_swingup',
                  'mountain_car',
                  'mountain_car_noise',
                  'mountain_car_scale']
-start_id = cd.lookup_params("driver_start_id", default=0)
-max_seed_number = cd.lookup_params("driver_max_seeds", default=20)
-max_episodes = cd.lookup_params("driver_max_episodes", default=-1)
+start_id = ExaGlobals.lookup_params("driver_start_id")
+max_seed_number = ExaGlobals.lookup_params("driver_max_seeds")
+max_episodes = ExaGlobals.lookup_params("driver_max_episodes")
 # End of experiment parameters
 
 for env_id in tqdm(sweep.SWEEP[start_id:]):
@@ -67,12 +67,13 @@ for env_id in tqdm(sweep.SWEEP[start_id:]):
     if int(seed_number) > max_seed_number or bsuite_id in excluded_envs:
         continue
 
-    cd.run_params["bsuite_id"] = bsuite_id
-    cd.run_params['seed_number'] = seed_number
-    cd.run_params["n_episodes"] = sweep.EPISODES[env_id] if max_episodes == -1 else max_episodes
+    episodes = sweep.EPISODES[env_id] if max_episodes == -1 else max_episodes
+    ExaGlobals.set_param("n_episodes", episodes)
+    ExaGlobals.set_param("bsuite_id", bsuite_id)
+    ExaGlobals.set_param('seed_number', seed_number)
 
-    print("Current Env:", cd.run_params["bsuite_id"], "Seed:", cd.run_params['seed_number'],
-          "Episodes:", cd.run_params["n_episodes"], "Steps:", cd.run_params["n_steps"])
+    print("Current Env:", ExaGlobals.lookup_params("bsuite_id"), "Seed:", ExaGlobals.lookup_params('seed_number'),
+          "Episodes:", ExaGlobals.lookup_params("n_episodes"), "Steps:", ExaGlobals.lookup_params("n_steps"))
 
     # Create learner object and run
     exa_learner = exarl.ExaLearner()

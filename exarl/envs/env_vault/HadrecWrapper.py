@@ -18,20 +18,18 @@ import xmltodict
 import collections
 import xml.etree.ElementTree as ET
 
-
 from exarl.envs.env_vault.Hadrec_dir.exarl_env.Hadrec import Hadrec
-import exarl.utils.candleDriver as cd
-
+from exarl.utils.globals import ExaGlobals
 
 class HadrecWrapper(gym.Env):
 
     def __init__(self):
         super().__init__()
 
-        self.rl_config_file = cd.run_params['rl_config_file']
-        self.simu_input_file = cd.run_params['simu_input_file']
-        self.simu_input_Rawfile = cd.run_params['simu_input_Rawfile']
-        self.simu_input_Dyrfile = cd.run_params['simu_input_Dyrfile']
+        self.rl_config_file = ExaGlobals.lookup_params('rl_config_file')
+        self.simu_input_file = ExaGlobals.lookup_params('simu_input_file')
+        self.simu_input_Rawfile = ExaGlobals.lookup_params('simu_input_Rawfile')
+        self.simu_input_Dyrfile = ExaGlobals.lookup_params('simu_input_Dyrfile')
         # This updates the input xml file with the required file location.
         self.UpdateXMLFile()
 

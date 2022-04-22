@@ -1,9 +1,10 @@
-# import faulthandler; faulthandler.enable()
+
 from exarl.utils import candleDriver
 try:
     candleDriver.initialize_parameters()
-except:
-    print("Could not load candle parameters")
+except FileNotFoundError as e:
+    print(e, flush=True)
+    print("Could not load candle parameters.", flush=True)
 
 from exarl.base import ExaComm
 from exarl.base import ExaAgent

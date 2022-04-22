@@ -18,19 +18,13 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-from os import times
 from os import path
+import numpy as np
 import gym
 import gym.spaces as spaces
-import time
-import numpy as np
-import sys
-import json
-import exarl as erl
 from typing import Any, Dict, Optional, Tuple, Union, Sequence
-
 from exarl.base.comm_base import ExaComm
-import exarl.utils.candleDriver as cd
+from exarl.utils.globals import ExaGlobals
 
 import bsuite
 from bsuite.utils import gym_wrapper
@@ -46,8 +40,8 @@ class BsuiteWrapper(gym.Env):
         super().__init__()
         self.env_comm = ExaComm.env_comm
         rank = ExaComm.agent_comm.rank
-        bsuite_id = cd.run_params["bsuite_id"]
-        seed_number = cd.run_params["seed_number"]
+        bsuite_id = ExaGlobals.lookup_params("bsuite_id")
+        seed_number = ExaGlobals.lookup_params("seed_number")
         env_name = bsuite_id + "/" + seed_number
         print("Loading", env_name)
 
@@ -55,7 +49,7 @@ class BsuiteWrapper(gym.Env):
         # Then return gym-like outputs for step, reset methods.
         self.raw_env = bsuite.load_from_id(bsuite_id=env_name)
         post_path = 'bsuite_results/' + "_".join([bsuite_id, str(seed_number), str(rank)])
-        bsuite_res_path = path.join(cd.run_params["output_dir"], post_path)
+        bsuite_res_path = path.join(ExaGlobals.lookup_params("output_dir"), post_path)
         self._logger = CSVLogger(bsuite_id=env_name, results_dir=bsuite_res_path)
 
         self.env = gym_wrapper.GymFromDMEnv(self.raw_env)
@@ -75,7 +69,6 @@ class BsuiteWrapper(gym.Env):
         self._log_every = False
 
     def step(self, action) -> _GymTimestep:
-        time.sleep(0)
         timestep = self.raw_env.step(action)
         self._track(timestep)
         next_state = timestep.observation

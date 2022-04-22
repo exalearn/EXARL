@@ -18,15 +18,12 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-import os
 import time
 import numpy as np
-from tensorflow import keras
 
 import exarl
+from exarl.utils.profile import ProfileConstants
 import exarl.utils.analyze_reward as ar
-from exarl.utils import candleDriver as cd
-from exarl.utils.introspect import *
 
 # Create learner object and run
 exa_learner = exarl.ExaLearner()
@@ -36,21 +33,14 @@ comm = exarl.ExaComm.global_comm
 rank = comm.rank
 size = comm.size
 
-writeDir = cd.run_params["introspector_dir"]
-if writeDir != "none":
-    if not os.path.exists(writeDir):
-        os.makedirs(writeDir)
-    ibLoadReplacement(comm, writeDir)
-
 # Run the learner, measure time
-ib.start()
 start = time.time()
 exa_learner.run()
 elapse = time.time() - start
-ib.stop()
 
-if ibLoaded():
-    print("Rank", comm.rank, "Time = ", elapse)
+# Print duration
+if ProfileConstants.introspected():
+    print("Rank", rank, "Time = ", elapse)
 else:
     max_elapse = comm.reduce(np.float64(elapse), max, 0)
     elapse = comm.reduce(np.float64(elapse), sum, 0)
@@ -58,8 +48,6 @@ else:
         print("Average elapsed time = ", elapse / size)
         print("Maximum elapsed time = ", max_elapse)
 
+# Save rewards vs. episodes plot
 if rank == 0:
-    # Save rewards vs. episodes plot
     ar.save_reward_plot()
-
-ibWrite(writeDir)

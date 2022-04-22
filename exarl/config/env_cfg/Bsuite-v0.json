@@ -2,6 +2,6 @@
     "bsuite_id": "bandit_noise",
     "seed_number" : "0",
     "driver_start_id" : 0,
-    "driver_max_seeds" : 1,
-    "driver_max_episodes" : 10
+    "driver_max_seeds" : 20,
+    "driver_max_episodes" : -1
 }

@@ -22,23 +22,17 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
 from tensorflow.keras import layers
-import random
-import os
-import pickle
-from datetime import datetime
+
+import exarl
+from exarl.utils.globals import ExaGlobals
 from exarl.utils.OUActionNoise import OUActionNoise
 from exarl.utils.OUActionNoise import OUActionNoise2
 from exarl.utils.memory_type import MEMORY_TYPE
 from exarl.agents.agent_vault._replay_buffer import ReplayBuffer, HindsightExperienceReplayMemory, PrioritedReplayBuffer
-
-import exarl as erl
-
-import exarl.utils.log as log
-import exarl.utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.run_params['log_level'])
+logger = ExaGlobals.setup_logger(__name__)
 
 
-class TD3(erl.ExaAgent):
+class TD3(exarl.ExaAgent):
 
     def __init__(self, env, is_learner=False, update_actor_iter=2):
         # Distributed variables
@@ -51,29 +45,29 @@ class TD3(erl.ExaAgent):
         self.upper_bound = env.action_space.high
         self.lower_bound = env.action_space.low
 
-        logger.info("Size of State Space:  {}".format(self.num_states))
-        logger.info("Size of Action Space:  {}".format(self.num_actions))
-        logger.info('Env upper bounds: {}'.format(self.upper_bound))
-        logger.info('Env lower bounds: {}'.format(self.lower_bound))
+        logger().info("Size of State Space:  {}".format(self.num_states))
+        logger().info("Size of Action Space:  {}".format(self.num_actions))
+        logger().info('Env upper bounds: {}'.format(self.upper_bound))
+        logger().info('Env lower bounds: {}'.format(self.lower_bound))
 
-        self.gamma = cd.run_params['gamma']
-        self.tau = cd.run_params['tau']
+        self.gamma = ExaGlobals.lookup_params('gamma')
+        self.tau = ExaGlobals.lookup_params('tau')
 
         # model definitions
         # model definitions
-        self.actor_dense = cd.run_params['actor_dense']
-        self.actor_dense_act = cd.run_params['actor_dense_act']
-        self.actor_out_act = cd.run_params['actor_out_act']
-        self.actor_optimizer = cd.run_params['actor_optimizer']
-        self.critic_state_dense = cd.run_params['critic_state_dense']
-        self.critic_state_dense_act = cd.run_params['critic_state_dense_act']
-        self.critic_action_dense = cd.run_params['critic_action_dense']
-        self.critic_action_dense_act = cd.run_params['critic_action_dense_act']
-        self.critic_concat_dense = cd.run_params['critic_concat_dense']
-        self.critic_concat_dense_act = cd.run_params['critic_concat_dense_act']
-        self.critic_out_act = cd.run_params['critic_out_act']
-        self.critic_optimizer = cd.run_params['critic_optimizer']
-        self.replay_buffer_type = cd.run_params['replay_buffer_type']
+        self.actor_dense = ExaGlobals.lookup_params('actor_dense')
+        self.actor_dense_act = ExaGlobals.lookup_params('actor_dense_act')
+        self.actor_out_act = ExaGlobals.lookup_params('actor_out_act')
+        self.actor_optimizer = ExaGlobals.lookup_params('actor_optimizer')
+        self.critic_state_dense = ExaGlobals.lookup_params('critic_state_dense')
+        self.critic_state_dense_act = ExaGlobals.lookup_params('critic_state_dense_act')
+        self.critic_action_dense = ExaGlobals.lookup_params('critic_action_dense')
+        self.critic_action_dense_act = ExaGlobals.lookup_params('critic_action_dense_act')
+        self.critic_concat_dense = ExaGlobals.lookup_params('critic_concat_dense')
+        self.critic_concat_dense_act = ExaGlobals.lookup_params('critic_concat_dense_act')
+        self.critic_out_act = ExaGlobals.lookup_params('critic_out_act')
+        self.critic_optimizer = ExaGlobals.lookup_params('critic_optimizer')
+        self.replay_buffer_type = ExaGlobals.lookup_params('replay_buffer_type')
 
         std_dev = 0.2
         # ave_bound = (self.upper_bound + self.lower_bound) / 2
@@ -81,13 +75,13 @@ class TD3(erl.ExaAgent):
         print('ave_bound: {}'.format(ave_bound))
         self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(std_dev) * np.ones(1))
 
-        self.epsilon = cd.run_params['epsilon']
-        self.epsilon_min = cd.run_params['epsilon_min']
-        self.epsilon_decay = cd.run_params['epsilon_decay']
+        self.epsilon = ExaGlobals.lookup_params('epsilon')
+        self.epsilon_min = ExaGlobals.lookup_params('epsilon_min')
+        self.epsilon_decay = ExaGlobals.lookup_params('epsilon_decay')
 
         # Experience data
-        self.buffer_capacity = cd.run_params['buffer_capacity']
-        self.batch_size = cd.run_params['batch_size']
+        self.buffer_capacity = ExaGlobals.lookup_params('buffer_capacity')
+        self.batch_size = ExaGlobals.lookup_params('batch_size')
 
         if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
             self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions)
@@ -127,8 +121,8 @@ class TD3(erl.ExaAgent):
                 self.target_critic_2 = self.get_critic()
 
         # Learning rate for actor-critic models
-        self.critic_lr = cd.run_params['critic_lr']
-        self.actor_lr = cd.run_params['actor_lr']
+        self.critic_lr = ExaGlobals.lookup_params('critic_lr')
+        self.actor_lr = ExaGlobals.lookup_params('actor_lr')
         self.critic_optimizer = tf.keras.optimizers.Adam(self.critic_lr)
         self.actor_optimizer = tf.keras.optimizers.Adam(self.actor_lr)
 
@@ -173,7 +167,7 @@ class TD3(erl.ExaAgent):
                 critic_loss_2 *= weights
                 self.memory.batch_update(b_idx, error)
 
-        logger.warning("Critic loss 1: {}, Critic loss 2: {} ".format(critic_loss_1, critic_loss_2))
+        logger().warning("Critic loss 1: {}, Critic loss 2: {} ".format(critic_loss_1, critic_loss_2))
 
         critic_grad_1 = tape.gradient(critic_loss_1, self.critic_model_1.trainable_variables)
         self.critic_optimizer.apply_gradients(
@@ -194,7 +188,7 @@ class TD3(erl.ExaAgent):
             critic_value_1 = self.critic_model_1([state_batch, actions], training=True)
             actor_loss = -tf.math.reduce_mean(critic_value_1)
 
-        logger.warning("Actor loss: {}".format(actor_loss))
+        logger().warning("Actor loss: {}".format(actor_loss))
         actor_grad = tape.gradient(actor_loss, self.actor_model.trainable_variables)
         self.actor_optimizer.apply_gradients(
             zip(actor_grad, self.actor_model.trainable_variables)
@@ -302,7 +296,7 @@ class TD3(erl.ExaAgent):
     def train(self, batch):
         if self.is_learner:
             if batch and len(batch[0]) >= (self.batch_size):
-                logger.warning('Training...')
+                logger().warning('Training...')
                 if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
                     self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4])
                 elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
@@ -345,7 +339,7 @@ class TD3(erl.ExaAgent):
         legal_action = tf.clip_by_value(sampled_actions_wn, self.lower_bound, self.upper_bound)
 
         return_action = [np.squeeze(legal_action)]
-        logger.warning('Legal action:{}'.format(return_action))
+        logger().warning('Legal action:{}'.format(return_action))
         return return_action, policy_type
 
     # For distributed actors #
@@ -358,36 +352,6 @@ class TD3(erl.ExaAgent):
     # Extra methods
     def update(self):
         print("Implement update method in ddpg.py")
-
-    def load(self, file_name):
-        try:
-            print('... loading models ...')
-            layers = self.target_actor.layers
-            pickle_list = []
-            for layerId in range(len(layers)):
-                weigths = layers[layerId].get_weights()
-                pickle_list.append([layers[layerId].name, weigths])
-
-            with open(file_name, "wb") as f:
-                pickle.dump(pickle_list, f, -1)
-
-        except:
-            # TODO: Could be improve, but ok for now
-            print("One of the model not present")
-
-    def save(self, file_name):
-        try:
-            print('... saving models ...')
-            layers = self.target_actor.layers
-            with open(file_name, "rb") as f:
-                pickle_list = pickle.load(f)
-
-            for layerId in range(len(layers)):
-                assert layers[layerId].name == pickle_list[layerId][0]
-                layers[layerId].set_weights(pickle_list[layerId][1])
-        except:
-            # TODO: Could be improve, but ok for now
-            print("One of the model not present")
 
     def monitor(self):
         print("Implement monitor method in td3.py")

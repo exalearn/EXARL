@@ -19,19 +19,87 @@
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
 import atexit
-import exarl.utils.candleDriver as cd
 import os
 import functools
 import time
+from exarl.utils.globals import ExaGlobals
 
-prof = cd.run_params['profile']
-results_dir = cd.run_params['output_dir']
-if not os.path.exists(results_dir + '/Profile'):
-    os.makedirs(results_dir + '/Profile', exist_ok=True)
+class ProfileConstants:
+    """
+    Singleton class to deal with loading results directory from candle parameters.
+    The appropriate class is loaded the first time the initializer is called.
 
+    Attributes
+    ----------
+    initialized : bool
+        Indicates if the singleton has been initialized
+    started : bool
+        Flag indicating if profiler has already been started
+    profile_type : string
+        This comes from the config/candle driver. Choices are
+        line, mem, and intro.
+    results_dir : string
+        Dir where to write results
+    file : string
+        File where to write results
+    profile : function
+        Function pointer of profiler
+    ib : ib
+        Introspector class
+    """
+    initialized = False
+    started = False
+    profile_type = None
+    results_dir = None
+    file = None
+    profile = None
+
+    ib = None
+    ib_loaded = lambda: False
+
+    def __init__(self):
+        if not ProfileConstants.initialized:
+            ProfileConstants.profile_type = ExaGlobals.lookup_params('profile')
+            ProfileConstants.results_dir = os.path.join(ExaGlobals.lookup_params('output_dir'), 'Profile')
+            if not os.path.exists(ProfileConstants.results_dir):
+                os.makedirs(ProfileConstants.results_dir, exist_ok=True)
+
+            if ProfileConstants.profile_type == 'mem':
+                import memory_profiler
+                ProfileConstants.profile = memory_profiler.profile
+                ProfileConstants.file = os.path.join(ProfileConstants.results_dir, 'mem_profile.txt')
+
+            elif ProfileConstants.profile_type == 'line':
+                import line_profiler
+                ProfileConstants.profile = line_profiler.LineProfiler()
+                ProfileConstants.file = os.path.join(ProfileConstants.results_dir, 'line_profile.txt')
+
+                def write_profile_to_file():
+                    with open(ProfileConstants.file, 'w') as file:
+                        ProfileConstants.profile.print_stats(stream=file)
+                atexit.register(write_profile_to_file)
+
+            elif ProfileConstants.profile_type == 'intro':
+                import exarl.utils.introspect
+                from exarl.base.comm_base import ExaComm
+                ProfileConstants.ib = exarl.utils.introspect.ibLoadReplacement(ExaComm.global_comm)
+                ProfileConstants.ib_loaded = exarl.utils.introspect.ibLoaded
+                atexit.register(lambda: exarl.utils.introspect.ibWrite(ProfileConstants.results_dir))
+            ProfileConstants.initialized = True
+
+    @staticmethod
+    def introspected():
+        """
+        Returns if introspector is loaded and ran.
+        """
+        if ProfileConstants.started:
+            return ProfileConstants.ib_loaded()
+        return False
 
 def PROFILE(func):
-    """Invokes line_profiler and memory_profiler
+    """
+    Invokes line_profiler, memory_profiler, and introspector.
+    Based on https://realpython.com/primer-on-python-decorators/
 
     Parameters
     ----------
@@ -43,51 +111,39 @@ def PROFILE(func):
     function
         wrapper profile function
     """
-    # Line profiler
-    if prof == 'line':
-        import line_profiler
-        profile = line_profiler.LineProfiler()
+    @functools.wraps(func)
+    def wrapper_profile(*args, **kwargs):
+        ProfileConstants()
+        if ProfileConstants.profile_type is not None:
+            if not ProfileConstants.started:
+                ProfileConstants.started = True
+                if ProfileConstants.profile_type == 'line':
+                    new_func = ProfileConstants.profile(func)
+                    return new_func(*args, **kwargs)
 
-        @functools.wraps(func)
-        def wrapper_profile(*args, **kwargs):
-            new_func = profile(func)
-            return new_func(*args, **kwargs)
+                elif ProfileConstants.profile_type == 'mem':
+                    stream = open(ProfileConstants.file, 'w')
+                    new_func = ProfileConstants.profile(func, stream=stream)
+                    return new_func(*args, **kwargs)
 
-        # Write line profiler output to file
-        def write_profile_to_file():
-            if prof == 'line':
-                with open(results_dir + '/Profile/line_profile.txt', 'w') as file:
-                    profile.print_stats(stream=file)
-        atexit.register(write_profile_to_file)
+                elif ProfileConstants.profile_type == 'intro':
+                    ProfileConstants.ib.start()
+                    ret = func(*args, **kwargs)
+                    ProfileConstants.ib.stop()
+                    return ret
 
-    # Memory profiler
-    elif prof == 'mem':
-        from memory_profiler import profile
-        file = open(results_dir + '/Profile/mem_profile.txt', 'w')
-
-        @functools.wraps(func)
-        def wrapper_profile(*args, **kwargs):
-            new_func = profile(func, stream=file)
-            return new_func(*args, **kwargs)
-
-    # No profiler
-    else:
-        @functools.wraps(func)
-        def wrapper_profile(*args, **kwargs):
-            return func(*args, **kwargs)
+        return func(*args, **kwargs)
 
     return wrapper_profile
 
-# Based on https://realpython.com/primer-on-python-decorators/
-
-
 def DEBUG(func):
-    """Print the function signature and return value
+    """
+    Print the function signature and return value
 
     Parameters
     ----------
     func : function
-        function to be wrapped for debugggin
+        function to be wrapped for debuggin
 
     Returns
     -------
@@ -105,11 +161,9 @@ def DEBUG(func):
         return value
     return wrapper_debug
 
-# Based on https://realpython.com/primer-on-python-decorators/
-
-
 def TIMER(func):
-    """Print the runtime of the decorated function
+    """
+    Print the runtime of the decorated function
 
     Parameters
     ----------
@@ -132,7 +186,8 @@ def TIMER(func):
     return wrapper_timer
 
 def TIMERET(func):
-    """Print the runtime of the decorated function
+    """
+    Print the runtime of the decorated function
 
     Parameters
     ----------

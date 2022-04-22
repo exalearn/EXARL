@@ -10,8 +10,7 @@ import gym
 from gym import spaces
 
 from exarl.base.comm_base import ExaComm
-import exarl as erl
-import exarl.utils.candleDriver as cd
+from exarl.utils.globals import ExaGlobals
 
 sys.path.append('envs/env_vault/CahnHilliard2D/cpp/python')
 sys.path.append('envs/env_vault/ImageStructure')
@@ -60,19 +59,19 @@ class CahnHilliardEnv(gym.Env):
         # Declare hyper-parameters, initialized for determining datatype
         super().__init__()
 
-        self.debug = cd.run_params['debug']              # 0
-        self.change_T = cd.run_params['changeT']         # 0.1
-        self.initT = cd.run_params['initT']              # 0.5
-        self.targetT = cd.run_params['targetT']          # 0.5
-        self.notTrain = cd.run_params['notTrain']        # False
-        self.output_dir = cd.run_params['output_dir']
-        self.target_dir = cd.run_params['target_dir']    # './data/ch/'
-        self.target_file = cd.run_params['target_file']  # 'target.out'
-        self.notPlotRL = cd.run_params['notPlotRL']      # False
-        self.length = cd.run_params['length']            # 100
-        self.genTarget = cd.run_params['genTarget']      # True
-        self.randInitial = cd.run_params['randInitial']  # False
-        self.steps = cd.run_params['n_steps']
+        self.debug = ExaGlobals.lookup_params('debug')              # 0
+        self.change_T = ExaGlobals.lookup_params('changeT')         # 0.1
+        self.initT = ExaGlobals.lookup_params('initT')              # 0.5
+        self.targetT = ExaGlobals.lookup_params('targetT')          # 0.5
+        self.notTrain = ExaGlobals.lookup_params('notTrain')        # False
+        self.output_dir = ExaGlobals.lookup_params('output_dir')
+        self.target_dir = ExaGlobals.lookup_params('target_dir')    # './data/ch/'
+        self.target_file = ExaGlobals.lookup_params('target_file')  # 'target.out'
+        self.notPlotRL = ExaGlobals.lookup_params('notPlotRL')      # False
+        self.length = ExaGlobals.lookup_params('length')            # 100
+        self.genTarget = ExaGlobals.lookup_params('genTarget')      # True
+        self.randInitial = ExaGlobals.lookup_params('randInitial')  # False
+        self.steps = ExaGlobals.lookup_params('n_steps')
 
         # self.args = args
         self.comm = ExaComm.global_comm
