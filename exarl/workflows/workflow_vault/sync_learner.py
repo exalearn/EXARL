@@ -511,7 +511,8 @@ class SYNC(exarl.ExaWorkflow):
             episode, epsilon, weights, *train_ret = self.recv_model()
         episode = ExaComm.env_comm.bcast(episode, 0)
         # Set the episode for envs that want to keep track
-        exalearner.env.env.workflow_episode = episode
+        exalearner.env.workflow_episode = episode
+        print("episode = ", exalearner.env.workflow_episode)
         if episode >= nepisodes:
             return False
 
@@ -535,7 +536,8 @@ class SYNC(exarl.ExaWorkflow):
                     action, policy_type = 0, -11
 
             # Set the step for envs that want to keep track
-            exalearner.env.env.workflow_step = self.step_count
+            exalearner.env.workflow_step = self.step_count
+            print("step = ", exalearner.env.workflow_step)
 
             # Broadcast action and do step (5 and 6)
             action = ExaComm.env_comm.bcast(action, root=0)
@@ -597,12 +599,6 @@ class SYNC(exarl.ExaWorkflow):
             # Just make it so everyone does at least one
             if nepisodes < ExaComm.agent_comm.size - ExaComm.num_learners:
                 nepisodes = ExaComm.agent_comm.size - ExaComm.num_learners
-
-        # Add episode and step counters to env
-        if not hasattr(exalearner.env.env, "workflow_episode"):
-            setattr(exalearner.env.env, "workflow_episode", 0)
-        if not hasattr(exalearner.env.env, "workflow_step"):
-            setattr(exalearner.env.env, "workflow_step", 0)
 
         # This ensures everyone has the same nepisodes as well
         # as ensuring everyone is starting at the same time

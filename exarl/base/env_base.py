@@ -15,6 +15,9 @@ from exarl.base.comm_base import ExaComm
 class ExaEnv(Wrapper):
     def __init__(self, env, **kwargs):
         super(ExaEnv, self).__init__(env)
+        self.env = env
+        self.workflow_episode = 0
+        self.workflow_step = 0
 
         # Use relative path not absolute
         self.base_dir = os.path.dirname(__file__)
