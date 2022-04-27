@@ -22,7 +22,7 @@ class ExaEnv(Wrapper):
         # Use relative path not absolute
         self.base_dir = os.path.dirname(__file__)
         self.env_comm = ExaComm.env_comm
-    
+
     def set_episode_count(self, episode_count):
         '''
         Method to keep track of episode count in the env
