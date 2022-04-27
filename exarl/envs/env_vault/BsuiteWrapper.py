@@ -50,7 +50,7 @@ class BsuiteWrapper(gym.Env):
         self.raw_env = bsuite.load_from_id(bsuite_id=env_name)
         post_path = 'bsuite_results/' + "_".join([bsuite_id, str(seed_number), str(rank)])
         bsuite_res_path = path.join(ExaGlobals.lookup_params("output_dir"), post_path)
-        self._logger = CSVLogger(bsuite_id=env_name, results_dir=bsuite_res_path)
+        self._logger = CSVLogger(bsuite_id=env_name, results_dir=bsuite_res_path, overwrite=True)
 
         self.env = gym_wrapper.GymFromDMEnv(self.raw_env)
         self.action_space = self.env.action_space
