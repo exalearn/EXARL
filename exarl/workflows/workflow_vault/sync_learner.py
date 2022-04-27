@@ -511,8 +511,7 @@ class SYNC(exarl.ExaWorkflow):
             episode, epsilon, weights, *train_ret = self.recv_model()
         episode = ExaComm.env_comm.bcast(episode, 0)
         # Set the episode for envs that want to keep track
-        exalearner.env.workflow_episode = episode
-        print("episode = ", exalearner.env.workflow_episode)
+        exalearner.env.set_episode_count(episode)
         if episode >= nepisodes:
             return False
 
@@ -536,8 +535,7 @@ class SYNC(exarl.ExaWorkflow):
                     action, policy_type = 0, -11
 
             # Set the step for envs that want to keep track
-            exalearner.env.workflow_step = self.step_count
-            print("step = ", exalearner.env.workflow_step)
+            exalearner.env.set_step_count(self.step_count)
 
             # Broadcast action and do step (5 and 6)
             action = ExaComm.env_comm.bcast(action, root=0)
