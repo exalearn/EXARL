@@ -510,6 +510,8 @@ class SYNC(exarl.ExaWorkflow):
         if ExaComm.env_comm.rank == 0:
             episode, epsilon, weights, *train_ret = self.recv_model()
         episode = ExaComm.env_comm.bcast(episode, 0)
+        # Set the episode for envs that want to keep track
+        exalearner.env.set_episode_count(episode)
         if episode >= nepisodes:
             return False
 
@@ -531,6 +533,9 @@ class SYNC(exarl.ExaWorkflow):
                 action, policy_type = exalearner.agent.action(self.current_state)
                 if exalearner.action_type == "fixed":
                     action, policy_type = 0, -11
+
+            # Set the step for envs that want to keep track
+            exalearner.env.set_step_count(self.step_count)
 
             # Broadcast action and do step (5 and 6)
             action = ExaComm.env_comm.bcast(action, root=0)
@@ -554,6 +559,7 @@ class SYNC(exarl.ExaWorkflow):
 
             if self.done:
                 self.episode_count += 1
+                self.step_count = 0
                 # Lets us know how we are doing
                 self.episode_reward_list.append(self.total_reward)
                 average_reward = np.mean(self.episode_reward_list[-40:])
@@ -571,6 +577,10 @@ class SYNC(exarl.ExaWorkflow):
         Rounds to an even number of episodes for blocking purposes.
         We broadcast this result to everyone.  This is also a good
         sync point prior to running loops.
+
+        This function also adds the members workflow_episode and
+        workflow_step to the environment for environments who
+        want to keep track of the current episode/step.
 
         Parameters
         ----------

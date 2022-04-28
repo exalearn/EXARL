@@ -20,6 +20,7 @@ sub usage() {
     print "    -n: Number of ranks per srun job\n";
     print "    -a: Additional slurm options to pass\n";
     print "        (i.e. \"-x node15,node28\")\n";
+    print "    -S: Launch jobs using sbatch template\n";
     print "  Exarl options:\n";
     print "    -P: Path to exarl root\n";
     print "    -s: Number of seeds per experiment\n";
@@ -41,13 +42,14 @@ sub usage() {
     print "Example usage:\n";
     print "  ./bsuite/bsuite_batch.pl -N 2 -n 2 -a \"-x node15,node28,node22,node42,node33\" -b developer -o out -s 2 -e 100 -p 100 slurm\n";
     print "  ./bsuite/bsuite_batch.pl -N 2 -n 2 -a \"-A --agent async\" -o out slurm\n";
+    print "  ./bsuite/bsuite_batch.pl -N 1 -n 1 -S ./script/cori_V100_gpu.sh -b memory -s 1 -o out slurm\n";
     print "  ./bsuite/bsuite_batch.pl -D slurm\n";
     print "  ./bsuite/bsuite_batch.pl -B all slurm\n";
     exit()
 }
 
 # User defined options
-getopts("N:n:a:P:s:e:p:u:p:o:A:b:B:txhcD",\%options) or usage;
+getopts("N:n:a:P:s:e:p:u:p:o:A:b:B:S:txhcD",\%options) or usage;
 my $N = defined $options{N} ? $options{N} : 1;
 my $n = defined $options{n} ? $options{n} : 1;
 my $a = defined $options{a} ? $options{a} : "";
@@ -79,6 +81,21 @@ if(defined $options{D}) {
     print("Subsets:\n");
     print($bsuite_txt);
     exit();
+}
+my @template;
+if(defined $options{S}) {
+    my $file = $options{S};
+    open(my $fh, "<", $file) or die "could not open $file: $!";
+    chomp(@template = <$fh>);
+    close($fh);
+    
+    for(my $i=0; $i<=$#template; $i++) {
+        if($template[$i] =~ /#SBATCH/) {
+            if($template[$i] =~ /-n/) {
+                $template[$i] = "#SBATCH -n $n"
+            }
+        }
+    }
 }
 
 # ------------------ Function section ------------------ #
@@ -132,6 +149,48 @@ sub checkForResults {
 }
 
 # This function generates a slurm command if results do not already exist.
+sub getSbatchCommand {
+    my $bench = shift(@_);
+    my $seed = shift(@_);
+    my $episode = shift(@_);
+    my $partition = shift(@_);
+    my $driver_path = $path . "/exarl/driver";
+
+    my $bench_dir_name = $bench;
+    my $outfile = $bench_dir_name . "/" . $bench .  "_" . $seed . "_" . $episode . ".txt";
+    
+    if(defined $options{o}) {
+        $bench_dir_name = $output_dir . "/" . $bench_dir_name;
+        $outfile = $output_dir . "/" . $outfile;
+    }
+
+    makeDir($bench_dir_name);
+    my $exp_dir = checkForResults($bench, $seed, $episode, $bench_dir_name);
+    if($exp_dir) {
+        makeDir($exp_dir);
+        my $output = "--output_dir $bench_dir_name";
+
+        # Set the srun command in script
+        for(my $i=0; $i<=$#template; $i++) {
+            if($template[$i] =~ /srun/) {
+                $template[$i] = "srun python $driver_path --env Bsuite-v0 --bsuite_id $bench --seed_number $seed --n_episodes $episode $steps $output&> $outfile";
+            }
+        }
+
+        # Write script
+        my $filename = $bench_dir_name . "/" . $bench .  "_" . $seed . "_" . $episode . ".sh";
+        my $to_write = join("\n", @template);
+        print("$filename \n");
+        open(my $fh, '>', $filename) or die $!;
+        print $fh $to_write;
+        close($fh);
+
+        return "sbatch -N $N $filename"; 
+    }
+    return 0;
+}
+
+# This function generates a slurm command if results do not already exist.
 sub getSlurmCommand {
     my $bench = shift(@_);
     my $seed = shift(@_);
@@ -152,9 +211,17 @@ sub getSlurmCommand {
     if($exp_dir) {
         makeDir($exp_dir);
         my $output = "--output_dir $bench_dir_name";
+
         return "srun -p $partition -N $N -n $n $a python $driver_path --env Bsuite-v0 --bsuite_id $bench --seed_number $seed --n_episodes $episode $steps $output&> $outfile &";
     }
     return 0;
+}
+
+sub getCommand {
+    if(@template) {
+        return getSbatchCommand(@_);
+    }
+    return getSlurmCommand(@_);
 }
 
 # ------------------ Scripting section ------------------ #
@@ -179,7 +246,7 @@ foreach my $benchmark (keys %bsuite_bench) {
     my $min_seed = $bsuite_bench{$benchmark}[0] <= $seeds ? $bsuite_bench{$benchmark}[0] : $seeds;
     my $min_episode = $bsuite_bench{$benchmark}[1] <= $episodes ? $bsuite_bench{$benchmark}[1] : $episodes;
     for(my $i=0; $i<$min_seed; $i++) {
-        my $command = getSlurmCommand($benchmark, $i, $min_episode, $partition);
+        my $command = getCommand($benchmark, $i, $min_episode, $partition);
         if($command) {
             if($run) {
                 # If we don't use throttling, all jobs will be dumped into the system

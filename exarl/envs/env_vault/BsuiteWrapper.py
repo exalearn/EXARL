@@ -50,7 +50,7 @@ class BsuiteWrapper(gym.Env):
         self.raw_env = bsuite.load_from_id(bsuite_id=env_name)
         post_path = 'bsuite_results/' + "_".join([bsuite_id, str(seed_number), str(rank)])
         bsuite_res_path = path.join(ExaGlobals.lookup_params("output_dir"), post_path)
-        self._logger = CSVLogger(bsuite_id=env_name, results_dir=bsuite_res_path)
+        self._logger = CSVLogger(bsuite_id=env_name, results_dir=bsuite_res_path, overwrite=True)
 
         self.env = gym_wrapper.GymFromDMEnv(self.raw_env)
         self.action_space = self.env.action_space
@@ -58,7 +58,7 @@ class BsuiteWrapper(gym.Env):
 
         # Accumulating throughout experiment.
         self._steps = 0
-        self._episode = 0
+        self.workflow_episode = 0
         self._total_return = 0.0
 
         # Most-recent-episode.
@@ -75,9 +75,6 @@ class BsuiteWrapper(gym.Env):
         reward = timestep.reward
         done = timestep.step_type.last()
         return next_state, reward, done, {}
-
-    def update_episode(self, episode):
-        self._episode = episode
 
     def reset(self) -> np.ndarray:
         timestep = self.raw_env.reset()
@@ -106,7 +103,7 @@ class BsuiteWrapper(gym.Env):
             self._episode_len = 0
             self._episode_return = 0.0
 
-        if self._episode == self.raw_env.bsuite_num_episodes:
+        if self.workflow_episode == self.raw_env.bsuite_num_episodes:
             self.flush()
 
     def _log_bsuite_data(self):
@@ -114,7 +111,7 @@ class BsuiteWrapper(gym.Env):
         data = dict(
             # Accumulated data.
             steps=self._steps,
-            episode=self._episode,
+            episode=self.workflow_episode,
             total_return=self._total_return,
             # Most-recent-episode data.
             episode_len=self._episode_len,
