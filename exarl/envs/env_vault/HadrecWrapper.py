@@ -1,76 +1,51 @@
-from asyncio.log import logger
 import gym
-import time
+from gym import spaces
 import numpy as np
-import sys
-import json
-import exarl as erl
 from exarl.base.comm_base import ExaComm
 
-import os
-import gridpack
-import gridpack.hadrec
-import random
-from gym.utils import seeding
-from gym import spaces
-import math
-import xmltodict
-import collections
-import xml.etree.ElementTree as ET
-
-from exarl.envs.env_vault.Hadrec_dir.exarl_env.Hadrec import Hadrec
-from exarl.utils.globals import ExaGlobals
-
 class HadrecWrapper(gym.Env):
+    high = np.array([1, 1, 1], dtype=np.float64)
+    spaceDict = {
+        "Discrete": spaces.Discrete(5),
+        "Box_One": spaces.Box(low=-1, high=1, shape=(1,), dtype=np.float64),
+        "Box_Two": spaces.Box(low=-1, high=1, shape=(1, 2), dtype=np.float64),
+        "Box": spaces.Box(low=-high, high=high, dtype=np.float64),
+        "MultiBinary": spaces.MultiBinary([2, 3]),
+        "MultiDiscrete": spaces.MultiDiscrete([3, 2]),
+        "Dict": spaces.Dict({
+            "discrete": spaces.Discrete(100),
+            "box": spaces.Box(low=-1, high=1, shape=(3, 4), dtype=np.float64),
+            "multiBinary": spaces.MultiBinary([2, 3]),
+            "multiDiscrete": spaces.MultiDiscrete([3, 2])
+        })
+    }
 
     def __init__(self):
         super().__init__()
+        self.action_space = HadrecWrapper.spaceDict["Discrete"]
+        self.observation_space = HadrecWrapper.spaceDict["Discrete"]
+        self.num_seeds = 100
+        self.seed = 0
+        self.initial_state = []
+        for i in range(self.num_seeds):
+            self.initial_state.append(self.observation_space.sample())
 
-        self.rl_config_file = ExaGlobals.lookup_params('rl_config_file')
-        self.simu_input_file = ExaGlobals.lookup_params('simu_input_file')
-        self.simu_input_Rawfile = ExaGlobals.lookup_params('simu_input_Rawfile')
-        self.simu_input_Dyrfile = ExaGlobals.lookup_params('simu_input_Dyrfile')
-        # This updates the input xml file with the required file location.
-        self.UpdateXMLFile()
+        if ExaComm.is_actor():
+            self.initial_state = ExaComm.env_comm.bcast(self.initial_state, root=0)
 
-        self.env = Hadrec(simu_input_file=self.simu_input_file,
-                          rl_config_file=self.rl_config_file)
-        self.action_space = self.env.action_space
-        self.observation_space = self.env.observation_space
-
-    def UpdateXMLFile(self):
-        tree = ET.parse(self.simu_input_file)
-
-        logger.info("Updating the XML file with the candle passed input data path")
-
-        logger.info(tree.find("Powerflow/networkFiles/networkFile/networkConfiguration_v33").text)
-        logger.info(tree.find("Dynamic_simulation/generatorParameters").text)
-
-        (tree.find("Powerflow/networkFiles/networkFile/networkConfiguration_v33").text) = self.simu_input_Rawfile
-        (tree.find("Dynamic_simulation/generatorParameters").text) = self.simu_input_Dyrfile
-
-        tree.write(self.simu_input_file)
-
-        return
+        self.state = self.initial_state[self.seed]
+        self.seed = (self.seed + 1) % self.num_seeds
+        self.step_index = 0
+        self.max_steps = 100
 
     def step(self, action):
-        return self.env.step(action)
+        if self.step_index < self.max_steps:
+            self.state = self.observation_space.sample()
+            self.step_index += 1
+        done = self.step_index == self.max_steps
+        return self.state, 1, done, {}
 
     def reset(self):
-        return self.env.reset()
-
-    def set_env(self):
-        return self.env.set_env()
-
-    def seed(self, seed=None):
-        return self.env.seed(seed)
-
-        # ---------------initialize the system with a specific state and fault
-    def validate(self, case_Idx, fault_bus_idx, fault_start_time, fault_duration_time):
-        return self.env.validate(case_Idx, fault_bus_idx, fault_start_time, fault_duration_time)
-
-    def close_env(self):
-        return self.env.close_env()
-
-    def get_base_cases(self):
-        return self.env.get_bases_cases()
+        self.state = self.initial_state[self.seed]
+        self.seed = (self.seed + 1) % self.num_seeds
+        return self.state

@@ -15,4 +15,4 @@ elif agent == 'TD3-v0':
 elif agent == 'TD3-v1':
     from exarl.agents.agent_vault.keras_td3 import KerasTD3
 elif agent == 'PARS-v0':
-    from exarl.agents.agent_vault.PARS import PARS
+    from exarl.agents.agent_vault.pars import PARS
