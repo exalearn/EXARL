@@ -87,16 +87,21 @@ class BsuiteWrapper(gym.Env):
             self._steps += 1
             self._episode_len += 1
 
+        if timestep.last():
+            self.workflow_episode += 1
+
         self._episode_return += timestep.reward or 0.0
         self._total_return += timestep.reward or 0.0
 
         # Log statistics periodically, either by step or by episode.
         if ExaComm.env_comm.rank == 0:
             if self._log_by_step:
-                self._log_bsuite_data()
+                if _logarithmic_logging(self._steps) or self._log_every:
+                    self._log_bsuite_data()
 
             elif timestep.last():
-                self._log_bsuite_data()
+                if _logarithmic_logging(self.workflow_episode) or self._log_every:
+                    self._log_bsuite_data()
 
         # Perform bookkeeping at the end of episodes.
         if timestep.last():
