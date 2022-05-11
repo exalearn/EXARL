@@ -65,7 +65,7 @@ class ExaAgent(ABC):
         pass
 
     @abstractmethod
-    def target_train(self):
+    def update_target(self):
         pass
 
     @abstractmethod
