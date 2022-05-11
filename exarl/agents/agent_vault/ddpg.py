@@ -319,7 +319,7 @@ class DDPG(exarl.ExaAgent):
             logger().warning('Why is is_learner false...')
 
     @introspectTrace()
-    def target_train(self):
+    def update_target(self):
         """Update target model
         """
         # Update the target model

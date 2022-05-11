@@ -452,7 +452,7 @@ class DQN(erl.ExaAgent):
             self.target_model.set_weights(weights)
 
     @introspectTrace()
-    def target_train(self):
+    def update_target(self):
         """Update target model
         """
         if self.is_learner:

@@ -302,7 +302,7 @@ class TD3(exarl.ExaAgent):
                 elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
                     self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4], batch[5], batch[6])
 
-    def target_train(self):
+    def update_target(self):
         # Update the target model
         model_weights = self.actor_model.get_weights()
         target_weights = self.target_actor.get_weights()

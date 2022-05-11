@@ -395,7 +395,7 @@ class SYNC(exarl.ExaWorkflow):
         performs the following key steps:
 
         1. Receives batches of experiences
-        2. Trains/target_trains the models on the data received
+        2. Trains the models on the data received
         3. Checks if an episode has finished
         4. Sends data back to the appropriate actors
 
@@ -453,7 +453,7 @@ class SYNC(exarl.ExaWorkflow):
             self.train_return[src] = exalearner.agent.train(batch)
 
             if self.steps % self.update_target_every == 0:
-                exalearner.agent.target_train()
+                exalearner.agent.update_target()
                 
             self.model_count += 1
             to_send.append(src)
