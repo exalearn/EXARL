@@ -173,7 +173,7 @@ class RMA(exarl.ExaWorkflow):
                 agent_data = None
 
                 if ExaComm.is_learner() and learner_comm.rank == 0:
-                    exalearner.agent.target_train()
+                    exalearner.agent.update_target()
                     ib.update("RMA_Learner_Target_Train", 1)
                     # Share new model weights
                     target_weights = (exalearner.agent.get_weights(), learner_counter)
