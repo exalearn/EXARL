@@ -47,6 +47,7 @@ subsets = {"all": ["bandit", "bandit_noise", "bandit_scale",
            "memory": ["memory_len", "memory_size"],
            "quick_basic": ["bandit", "catch", "discounting_chain"],
            "dynamics_learning": ["cartpole_swingup", "deep_sea", "discounting_chain", "memory_len", "memory_size", "umbrella_length", "umbrella_distract"],
+           "short":["bandit", "bandit_noise", "bandit_scale", "cartpole_scale", "memory_len", "memory_size", "mnist", "mnist_noise", "mnist_scale", "umbrella_length"]
            "empty": []}
 
 
