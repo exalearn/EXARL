@@ -397,6 +397,7 @@ class PARS(erl.ExaAgent):
     def __init__(self, env, is_learner):
         
         self.is_learner = is_learner
+        self.env_comm = ExaComm.global_comm
 
         # Get the environnemt
         self.env = env
@@ -438,7 +439,7 @@ class PARS(erl.ExaAgent):
             self.policy = LinearPolicy(self.policy_params)
             self.w_policy = self.policy.get_weights()
         elif self.policy_params['type'] == 'nonlinear':
-            self.policy = FullyConnectedNeuralNetworkPolicy(self.policy_params, seed)
+            self.policy = FullyConnectedNeuralNetworkPolicy(self.policy_params, self.params['seed'])
             self.w_policy = self.policy.get_weights()
         elif self.policy_params['type'] == 'LSTM':
             self.policy = LSTMPolicy(self.policy_params)
@@ -451,29 +452,51 @@ class PARS(erl.ExaAgent):
         self.optimizer = SGD(self.w_policy, self.params["step_size"])
         print("Initialization of ARS complete.")
 
-        # Initialize the Running stats...
-        self.RS = RunningStat(shape=(self.ob_dim,))
+        self.RS_deltaPerturbAllFault = RunningStat(shape=(self.ob_dim,))
 
+        # Initialize the Running stats...
+        # This for inner number of steps loop
+        self.RS = RunningStat(shape=(self.ob_dim,))
+        self.ob_mean = self.RS.mean
+        self.ob_std = self.RS.std
+        
+        # These parameter are used for delta setting.
         self.deltas_used = self.params['delta_used']
         self.num_deltas = self.params['n_directions']
         self.step_size= self.params['step_size']
         self.delta_std = self.params['delta_std']
         self.decay = self.params['decay']
-
-        deltas_id = create_shared_noise()
-        self.deltas = SharedNoiseTable(deltas_id)
         
-        self.worker_seed_id = np.random.randint(0,high=100)
-        self.one_direction_workers = OneDirectionWorker(self.env,self.params["seed"] + 7 * self.worker_seed_id,
-                                      policy_params=self.policy_params,
-                                      deltas=deltas_id,
-                                      rollout_length=self.params["rollout_length"],
-                                      delta_std=self.delta_std,
-                                      PF_FAULT_CASES_ALL=self.PF_FAULT_CASES_ALL,
-                                      OB_DIM=self.ob_dim																						  
-                                      ) 
+        # Each worker/actor picks a delta from the random stream.
+        self.deltas_idx = []
+        self.delta = None
+        self.worker_seed_id = np.random.randint(0,high=10000)
+        self.set_delta(self.worker_seed_id)
+
+        # Collect all +ve/-ve reward means
+        self.pos_neg_meanreward = []
+        
+        
+        # The async_learner.py provide the parallelization 
+        # for 1- H iterations...in Alg.-1 of paper
+        # ACCELERATED DERIVATIVE-FREE DEEP REINFORCEMENT LEARNING
+
+        # Total Number of cases a actor needs to perform
+        # assumption: Num_actors ==  Num_delta (Number of deltas)
+        # self.Num_cases =  Num_actors x Num_perturb_direc x N_fault 
+        self.Num_actors = self.env_comm.size
+        self.Num_pertub = 2  #  This is +ve and -ve perturbations direction
+        self.Num_faults = len(self.PF_FAULT_CASES_ALL)        
+        self.Num_cases = self.params['num_iter']*self.Num_pertub * self.Num_faults
 
 
+        # We define the internal step counter
+        # This will be always rest to zero by the set-weight call
+        #
+        self.internal_step_count = 0
+
+        # Initializat positive and negative reward
+        self.pos_rew, self.neg_rew = [], []
 
     def CreateParams(self):
         param = []        
@@ -484,7 +507,7 @@ class PARS(erl.ExaAgent):
         param['save_per_iter'] = ExaGlobals.lookup_params('step_size')
         param['delta_std'] = ExaGlobals.lookup_params('delta_std')
         param['decay'] = ExaGlobals.lookup_params('decay')
-        param['rollout_length'] = ExaGlobals.lookup_params('rollout_length')
+        param['rollout_length'] = nsteps = ExaGlobals.lookup_params('n_steps')
         param['seed'] = ExaGlobals.lookup_params('seed')
         param['policy_type'] = ExaGlobals.lookup_params('policy_type')
         param['tol_p'] = ExaGlobals.lookup_params('tol_p')
@@ -499,7 +522,18 @@ class PARS(erl.ExaAgent):
         
         return param
 
-    def aggregate_tiles():
+
+    def set_delta(self,seed):
+        deltas_id = create_shared_noise()
+        self.deltas = SharedNoiseTable(deltas_id,self.params["seed"] + 7 * seed)
+        idx, delta = self.deltas.get_delta(self.w_policy.size)
+        self.delta = (self.delta_std * delta).reshape(self.w_policy.shape)
+        
+        self.deltas_idx.append(idx)
+
+
+
+    def aggregate_tiles(self):
         """
         This function should be called at first fault senario of a rollout
         """
@@ -511,22 +545,80 @@ class PARS(erl.ExaAgent):
             self.ob_std = self.RS.std
         else:
             self.RS.update((self.one_direction_workers.get_filter()))
+        
+
 
     def get_weights(self):
         print("PARS getting weights")
-        return self.w_policy
+        return self.policy.get_weights()
+    
+    def calc_mean_pos_neg_reward(self):
+        assert len(self.pos_rew) != 0 , "Positive Peturbation reward list empty"
+        assert len(self.neg_rew) != 0 , "Negative Peturbation reward list empty"
         
+        mean_pos_reward = np.mean(self.pos_rew)
+        mean_neg_reward = np.mean(self.neg_rew)
+
+        self.pos_neg_meanreward.append([mean_pos_reward,mean_neg_reward])
+        return 
+    
     def set_weights(self, weights):
-        print("PARS setting weights")
-        self.policy.update_weights(weights)
-        # JS: WE NEED TO DOUBLE CHECK THIS IS CORRECT.
-        self.aggregate_tiles()
+
+        if self.env.workflow_episode % self.Num_pertub*self.Num_faults == 0 and self.env.workflow_episode > 0:
             
+            # This assertion will ensure that the actor has run (2) perturb  and all faults with N-steps before
+            # following reset and other stuff.
+            # "rollout_length "
+            assert self.internal_step_count == self.Num_pertub * self.Num_faults * self.params['rollout_length']
+  
+            # Store the RS for all the perturb delta and faults.
+            self.RS_deltaPerturbAllFault.push(self.RS)
+
+            # Call the pos_neg_meanreward calc
+            self.calc_mean_pos_neg_reward()
+
+            # Reset the mean and standard deviation based on the 
+            # the run of all perturb and fault cases.
+            self.ob_mean = self.RS.mean
+            self.ob_std = self.RS.std
+
+            # Reset the 
+            self.RS = RunningStat(shape=(self.ob_dim,))
+
+            # HS: Each Episode start each actor will pick a delta ...
+            # This is just to make sure that each worker/actor get a 
+            # unique random stream for sampling.
+            # This resampling of delta for each actor is 
+            # similar to the outer loop of H iteration in Alg. 1 of paper
+            # ACCELERATED DERIVATIVE-FREE DEEP REINFORCEMENT LEARNING
+            self.worker_seed_id = np.random.randint(0,high=10000)
+            self.set_delta(self.worker_seed_id)
+
+            self.policy.update_weights(weights)
+
+            # Reset the internal 
+            self.internal_step_count = 0 
+        else:
+            
+            # Even count mean run with positive perturb
+            if self.env.workflow_episode % 2 == 0:
+                # update with the positive 
+                w_pos_id = self.w_policy + self.delta
+                self.policy.update_weights(w_pos_id)
+            # Odd count mean run with negative perburb 
+            else:
+                # update with the positive 
+                w_pos_id = self.w_policy - self.delta
+                self.policy.update_weights(w_pos_id)
+
+
+
+                   
     def action(self,state):
         ob = np.asarray(state, dtype=np.float64)
-        self.RS.push(ob)
+        # Calculate the 
         normal_ob = (ob - self.ob_mean) / (self.ob_std + 1e-8)
-        return self.policy.act(normal_ob)
+        return self.policy.act(normal_ob), self.policy_params['type']
 
 
     def train_step(self,g_hat):
@@ -536,44 +628,97 @@ class PARS(erl.ExaAgent):
         return
 
     def train(self,batch):
+
+        # Need ENV COMM to get the status of all the actors 
+        # if any of the actors is false then bypass the learner..
+
+        assert len(batch) != 0, "The learner failed due to no mean +ve and -ve reward obtained."
+        
+        # rollout_rewards should be the collection all the +ve and -ve rewards
+        # from all the actors.
+
+
+        # select top performing directions if deltas_used < num_deltas
+        max_rewards = np.max(rollout_rewards, axis=1)
+        
+        if self.deltas_used > self.num_deltas:
+            self.deltas_used = self.num_deltas
+
+        idx = np.arange(max_rewards.size)[max_rewards >= np.percentile(max_rewards, 100 * ( 
+                    1 - (self.deltas_used / self.num_deltas)))]
+        deltas_idx = deltas_idx[idx]
+        rollout_rewards = rollout_rewards[idx, :]
+
+        # normalize rewards by their standard deviation
+        if np.std(rollout_rewards) > 1:
+            rollout_rewards /= np.std(rollout_rewards)
+
+        # aggregate rollouts to form g_hat, the gradient used to compute SGD step
+        g_hat, count = batched_weighted_sum(rollout_rewards[:, 0] - rollout_rewards[:, 1],
+                                                  (self.deltas.get(idx, self.w_policy.size)
+                                                   for idx in deltas_idx),
+                                                  batch_size=500)
+        g_hat /= deltas_idx.size
+
+
+
+
+
+
+
+
         # JS: batch should be g_hat passed from generage_data
-        if batch[0] % self.PF_FAULT_CASES_ALL :
-            rewardlist = []
-            last_reward = 0.0 
+        # if batch[0] % self.PF_FAULT_CASES_ALL :
+        rewardlist = []
+        last_reward = 0.0 
 
-            self.step_size *= self.decay # This updated value is used at train_step 
-            self.delta_std *= self.decay # This is used to update delta_std in one-worker instance.
+        self.step_size *= self.decay # This updated value is used at train_step 
+        self.delta_std *= self.decay # This is used to update delta_std in one-worker instance.
 
-            # Each actor need to update seed and delta_std
-            self.one_direction_workers.update_delta_std(delta_std=self.delta_std)
+        # Each actor need to update seed and delta_std
+        self.one_direction_workers.update_delta_std(delta_std=self.delta_std)
 
 
-            # This batch comes from the generate function...
-            g_hat = batch[0]
-            self.train_step(g_hat)
+        # This batch comes from the generate function...
+        g_hat = batch[0]
+        self.train_step(g_hat)
 
         # If certain 
         return
     
-    
 
-    def EvaluateCall(self):
-
-        # This evaluation implementations assume that the
-        # The 
-
-        self.one_direction_workers.onedirction_rollout_multi_single_slavers(policy_id,ob_mean,ob_std,select_fault_cases_tuples=self.PF_FAULT_CASES_ALL)
-    
-
-
-        return reward_eval_avr, rewards_list
 
     def generate_data(self):
+        # 
+        # batch[0] = mean positive reward
+        # batch[1] = mean neagtive reward
+        # batch[2] = number of deltas explored (this should be same as number of iters)
+        n_store = 3
+        batch = np.zeros((n_store))
+
+        # This should return 
+        if self.env.workflow_episode % self.Num_pertub*self.Num_faults == 0 and self.env.workflow_episode > 0:
+                    
+            
+
+            batch[0] = self.pos_neg_meanreward[0][0]
+            batch[1] = self.pos_neg_meanreward[0][1]
+            batch[2] = self.deltas_idx
+
+
+            # Reset the positive and negative reward list for 
+            self.pos_rew, self.neg_rew = [], []
+
+            return batch
+
+        else:
+            # Pass empty batch by the worker
+            return batch
+            
+
         # JS: the second half (evaluate=false) of onedirction_rollout_multi_single_Cases should be done here
         # return G_hat
-
-        # i : here is based on actor rank 
-        # for now we chose it from a random generator
+        
         self.worker_seed_id = np.random.randint(0,high=100)
         
         select_faultbus_num = self.SELECT_FAULT_BUS_PER_DIRECTION
@@ -593,6 +738,10 @@ class PARS(erl.ExaAgent):
         policy_id = self.w_policy
         ob_mean = self.RS.mean
         ob_std = self.RS.std
+
+        # 1. This call uses the action inside which is now called outside in the action function.
+        # 2. The logic for this function should also be then come out.
+        # 
 
         rollout_id_list = self.one_direction_workers.onedirction_rollout_multi_single_Cases(policy_id, ob_mean, ob_std, select_fault_cases_tuples_id,evaluate=False)
 
@@ -621,27 +770,7 @@ class PARS(erl.ExaAgent):
         # for j in range(self.num_workers):
         self.RS.update((self.one_direction_workers.get_filter()))
 
-        # select top performing directions if deltas_used < num_deltas
-        max_rewards = np.max(rollout_rewards, axis=1)
         
-        if self.deltas_used > self.num_deltas:
-            self.deltas_used = self.num_deltas
-
-        idx = np.arange(max_rewards.size)[max_rewards >= np.percentile(max_rewards, 100 * ( 
-                    1 - (self.deltas_used / self.num_deltas)))]
-        deltas_idx = deltas_idx[idx]
-        rollout_rewards = rollout_rewards[idx, :]
-
-        # normalize rewards by their standard deviation
-        if np.std(rollout_rewards) > 1:
-            rollout_rewards /= np.std(rollout_rewards)
-
-        # aggregate rollouts to form g_hat, the gradient used to compute SGD step
-        g_hat, count = batched_weighted_sum(rollout_rewards[:, 0] - rollout_rewards[:, 1],
-                                                  (self.deltas.get(idx, self.w_policy.size)
-                                                   for idx in deltas_idx),
-                                                  batch_size=500)
-        g_hat /= deltas_idx.size
         # del the policy weights, ob_mean and ob_std in the object store
         del policy_id
         del ob_mean
@@ -657,7 +786,26 @@ class PARS(erl.ExaAgent):
         # you care about RS and reward...
         # Store it here!
         # Probable need self.step
-        self.step += 1
+        
+        self.RS.push(state)
+        # positive perturb policy returning
+        if self.env.workflow_episode % self.Num_pertub == 0:
+            self.pos_rew.append(reward)
+        # negative perturb policy returning
+        else:
+            self.neg_rew.append(reward)
+
+        # Create a common memory buffer among all the worker.
+
+
+
+        # This counter is increased here since
+        # the call to the remember function is the final 
+        # step in actor fucntion of sync_learner.py.
+        self.internal_step_count += 1
+    
+    def target_train(self):
+        return self.policy.get_weights
 
     def update(self):
         print("Implement update method in ARS.py")

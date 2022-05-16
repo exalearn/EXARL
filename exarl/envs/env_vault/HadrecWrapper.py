@@ -48,4 +48,6 @@ class HadrecWrapper(gym.Env):
     def reset(self):
         self.state = self.initial_state[self.seed]
         self.seed = (self.seed + 1) % self.num_seeds
+
+        # This require that the Hadrec code reset to a fault specific secenario.
         return self.state

@@ -527,6 +527,21 @@ class SYNC(exarl.ExaWorkflow):
         # Reset environment if required (3)
         self.reset_env(exalearner)
 
+        # We need to loop on all faults and  +Ve and -Ve perturbations to the policy
+        # TODO: For effective utilization of computing resources the full list of cases need to 
+        # divided amongs workers/actors.
+
+        # The aggregation and policy updates needs to perfomed before moving to the 
+        # next episode.  
+
+        # mutliplied by two since each fault case is evaluated for +ve and -ve perturbation
+        # to the policy.
+        # N_Caselist= len(exalearner.agent.PF_FAULT_CASES_ALL) * 2
+
+        # for fault_id in range( N_Caselist ):
+            
+        #     self.current_state = exalearner.agent.set_fault_case(fault_id)
+        
         for i in range(self.batch_frequency):
             # Do inference (4)
             if ExaComm.env_comm.rank == 0:
@@ -558,14 +573,16 @@ class SYNC(exarl.ExaWorkflow):
             self.steps += 1
 
             if self.done:
-                self.episode_count += 1
                 self.step_count = 0
+                self.episode_count += 1
                 # Lets us know how we are doing
                 self.episode_reward_list.append(self.total_reward)
                 average_reward = np.mean(self.episode_reward_list[-40:])
                 self.debug("Episode:", episode, "Average Reward:", average_reward)
                 break
 
+
+        
         # Send batches back to the learner (10)
         if ExaComm.env_comm.rank == 0:
             batch_data = next(exalearner.agent.generate_data())
