@@ -42,7 +42,7 @@ sub usage() {
     print "    -h: Print this message\n\n";
     print "Example usage:\n";
     print "  ./bsuite/bsuite_batch.pl -N 2 -n 2 -a \"-x node15,node28,node22,node42,node33\" -b developer -o out -s 2 -e 100 -p 100 slurm\n";
-    print "  ./bsuite/bsuite_batch.pl -N 2 -n 2 -a \"-A --agent async\" -o out slurm\n";
+    print "  ./bsuite/bsuite_batch.pl -N 2 -n 2 -A \"--agent async\" -o out slurm\n";
     print "  ./bsuite/bsuite_batch.pl -N 1 -n 1 -S ./script/cori_V100_gpu.sh -b memory -s 1 -o out slurm\n";
     print "  ./bsuite/bsuite_batch.pl -D slurm\n";
     print "  ./bsuite/bsuite_batch.pl -B all slurm\n";
@@ -177,7 +177,7 @@ sub getSbatchCommand {
         # Set the srun command in script
         for(my $i=0; $i<=$#template; $i++) {
             if($template[$i] =~ /srun/) {
-                $template[$i] = "srun python $driver_path --env Bsuite-v0 --bsuite_id $bench --seed_number $seed --n_episodes $episode --n_steps $step $output&> $outfile";
+                $template[$i] = "srun python $driver_path $A --env Bsuite-v0 --bsuite_id $bench --seed_number $seed --n_episodes $episode --n_steps $step $output&> $outfile";
             }
         }
 
@@ -217,7 +217,7 @@ sub getSlurmCommand {
         makeDir($exp_dir);
         my $output = "--output_dir $bench_dir_name";
 
-        return "srun -p $partition -N $N -n $n $a python $driver_path --env Bsuite-v0 --bsuite_id $bench --seed_number $seed --n_episodes $episode --n_steps $step $output&> $outfile &";
+        return "srun -p $partition -N $N -n $n $a python $driver_path $A --env Bsuite-v0 --bsuite_id $bench --seed_number $seed --n_episodes $episode --n_steps $step $output&> $outfile &";
     }
     return 0;
 }
