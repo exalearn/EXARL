@@ -9,7 +9,7 @@
     "nactions": 10,
     "priority_scale": 0.0,
     "buffer_capacity": 1000,
-    "update_target_every": 100,
+    "update_target_every": 1,
     "xla": "True",
     "model_type": "MLP"
 }
