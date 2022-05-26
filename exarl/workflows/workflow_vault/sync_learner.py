@@ -586,7 +586,8 @@ class SYNC(exarl.ExaWorkflow):
         # Send batches back to the learner (10)
         if ExaComm.env_comm.rank == 0:
             batch_data = next(exalearner.agent.generate_data())
-            self.send_batch(batch_data, policy_type, self.done, exalearner.agent.epsilon)
+            if batch_data is not None:
+                self.send_batch(batch_data, policy_type, self.done, exalearner.agent.epsilon)
         return True
 
     def episode_round(self, exalearner):
@@ -619,6 +620,12 @@ class SYNC(exarl.ExaWorkflow):
         # as ensuring everyone is starting at the same time
         nepisodes = ExaComm.global_comm.bcast(nepisodes, 0)
         return nepisodes
+
+    # TODO: (idea..!)
+    # Create a global memory for all the actors.
+    # Each actor need to submit the generate data records to the global 
+    # memory. In forthcoming episodes the actors could leverage the global 
+    # memory to sample new batchs for training...
 
     @PROFILE
     def run(self, exalearner):
