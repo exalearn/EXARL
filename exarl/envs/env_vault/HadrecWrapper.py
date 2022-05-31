@@ -19,6 +19,7 @@ class HadrecWrapper(gym.Env):
             "multiDiscrete": spaces.MultiDiscrete([3, 2])
         })
     }
+    
 
     def __init__(self):
         super().__init__()
@@ -50,4 +51,5 @@ class HadrecWrapper(gym.Env):
         self.seed = (self.seed + 1) % self.num_seeds
 
         # This require that the Hadrec code reset to a fault specific secenario.
+        
         return self.state
