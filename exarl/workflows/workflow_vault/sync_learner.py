@@ -454,7 +454,7 @@ class SYNC(exarl.ExaWorkflow):
 
             if self.steps % self.update_target_every == 0:
                 exalearner.agent.update_target()
-                
+ 
             self.model_count += 1
             to_send.append(src)
 
