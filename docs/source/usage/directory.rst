@@ -5,10 +5,12 @@ Directory Organization
 | ├── scripts                           : folder containing RL steering scripts
 | ├── exarl                	            : folder with EXARL code
 |     └── __init__.py                   : make base classes visible
-|     └── mpi_settings.py               : MPI settings
 |     ├── base         	                : folder containing EXARL base classes
 |         └── __init__.py               : make base classes visible
 |         └── agent_base.py             : agent base class
+|         └── comm_base.py              : communicator base class
+|         └── data_exchange.py          : data exchange class
+|         └── dataset_base.py           : Buffer dataset base class
 |         └── env_base.py               : environment base class
 |         └── workflow_base.py          : workflow base class
 |         └── learner_base.py           : learner base class
@@ -19,7 +21,7 @@ Directory Organization
 |         └── workflow_cfg              : workflow configuration folder
 |         └── learner_cfg.json          : learner configuration
 |     ├── driver                        : folder containing RL MPI steering scripts
-|         └── driver.py                 : Run scipt
+|         └── __main__.py                 : Run scipt
 |     ├── candlelib                     : folder containing library for CANDLE functionality
 |     ├── agents         	              : folder containing EXARL agents and registration scripts
 |         └── __init__.py               : agent registry
