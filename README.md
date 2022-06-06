@@ -28,12 +28,14 @@ A scalable software framework for reinforcement learning environments and agents
     └── env_cfg                       : env configuration folder
     └── workflow_cfg                  : workflow configuration folder
     └── learner_cfg.json              : learner configuration
-├── exarl                	            : folder with EXARL code
+├── exarl                	          : folder with EXARL code
     └── __init__.py                   : make base classes visible
-    └── mpi_settings.py               : MPI settings
-    ├── base         	                : folder containing EXARL base classes
+    ├── base         	              : folder containing EXARL base classes
         └── __init__.py               : make base classes visible
-        └── agent_base.py             : agent base class
+        └── agent_base.py             : buffer dataset base class
+        └── comm_base.py              : communicator base class
+        └── data_exchange.py          : data exchange base class
+        └── dataset_base.py           : agent base class
         └── env_base.py               : environment base class
         └── workflow_base.py          : workflow base class
         └── learner_base.py           : learner base class
@@ -46,7 +48,7 @@ A scalable software framework for reinforcement learning environments and agents
         ├── agent_vault               : folder containing agents
             └── __init__.py           : script to make agents visible
             └── <RLagent>.py          : RL agents (such as DQN, DDPG, etc.)
-    ├── envs         	                : folder containing EXARL environments
+    ├── envs         	              : folder containing EXARL environments
         └── __init__.py               : environment registry
         ├── env_vault                 : folder containing environments
         └── __init__.py               : script to make environments visible
