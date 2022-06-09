@@ -35,7 +35,6 @@ from exarl.base.comm_base import ExaComm
 from exarl.candlelib import candle
 from exarl.agents.agent_vault._prioritized_replay import PrioritizedReplayBuffer
 from exarl.utils.introspect import introspectTrace
-from exarl.utils.profile import PROFILE
 logger = ExaGlobals.setup_logger(__name__)
 
 # TODO: ExaComm is probably not set at import time
@@ -288,8 +287,7 @@ class DQN(erl.ExaAgent):
             action = [self.actions[action]]
         return action, policy
 
-    # @introspectTrace()
-    @PROFILE
+    @introspectTrace()
     def calc_target_f(self, exp):
         """Bellman equation calculations
 

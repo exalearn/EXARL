@@ -609,7 +609,7 @@ class SYNC(exarl.ExaWorkflow):
         nepisodes = ExaComm.global_comm.bcast(nepisodes, 0)
         return nepisodes
 
-    # @PROFILE
+    @PROFILE
     def run(self, exalearner):
         """
         This function is responsible for calling the appropriate initialization

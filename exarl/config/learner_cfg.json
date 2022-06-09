@@ -8,5 +8,5 @@
     "output_dir": "./results_dir/",
     "process_per_env": 1,
     "log_level": [3, 3],
-    "profile": "line"
+    "profile": "None"
 }
