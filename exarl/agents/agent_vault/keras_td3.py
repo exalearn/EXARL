@@ -227,7 +227,7 @@ class KerasTD3(exarl.ExaAgent):
         self.ntrain_calls += 1
         self.update(batch[0], batch[1], batch[2], batch[3])
 
-    def target_train(self):
+    def update_target(self):
         if self.ntrain_calls % self.actor_update_freq == 0:
             self.soft_update(self.target_actor.variables, self.actor_model.variables)
         if self.ntrain_calls % self.critic_update_freq == 0:

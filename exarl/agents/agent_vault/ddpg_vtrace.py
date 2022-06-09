@@ -283,7 +283,7 @@ class DDPG_Vtrace(exarl.ExaAgent):
             logger().warning('Training...')
             self.update_grad(batch[0], batch[1], batch[2], batch[3])
 
-    def target_train(self):
+    def update_target(self):
 
         # Update the target model
         # if self.buffer_counter >= self.batch_size:

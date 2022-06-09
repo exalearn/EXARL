@@ -184,7 +184,7 @@ def plot_histogram_error_per_sigma(sigma, yerror, method=None, figprefix=None):
     fig = plt.figure(figsize=(14, 16))
     legend = []
     for ii in range(6):  # (H.shape[0]):
-        if ii is not 1:
+        if ii != 1:
             plt.plot(yedges[0:H.shape[1]], H[ii, :] / np.sum(H[ii, :]), marker='o',
                      markersize=12, lw=6.)
         legend.append(str((xedges[ii] + xedges[ii + 1]) / 2))

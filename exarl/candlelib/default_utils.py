@@ -730,7 +730,7 @@ class Benchmark:
         # Parse has been split between arguments that are common with the default neon parser
         # and all the other options
         parser = self.parser
-        if self.framework is not 'neon':
+        if self.framework != 'neon':
             parser = get_default_neon_parser(parser)
         parser = get_common_parser(parser)
 

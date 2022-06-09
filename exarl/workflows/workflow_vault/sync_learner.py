@@ -145,6 +145,9 @@ class SYNC(exarl.ExaWorkflow):
         if self.batch_frequency == -1:
             self.batch_frequency = ExaGlobals.lookup_params('n_steps')
 
+        # How often to update target parameters
+        self.update_target_every = ExaGlobals.lookup_params('update_target_every')
+
         # Learner episode counters
         self.next_episode = 0
         self.done_episode = 0
@@ -392,7 +395,7 @@ class SYNC(exarl.ExaWorkflow):
         performs the following key steps:
 
         1. Receives batches of experiences
-        2. Trains/target_trains the models on the data received
+        2. Trains the models on the data received
         3. Checks if an episode has finished
         4. Sends data back to the appropriate actors
 
@@ -448,7 +451,10 @@ class SYNC(exarl.ExaWorkflow):
         for dst in range(start_rank, self.block_size):
             src, batch, policy_type, done, epsilon = self.recv_batch()
             self.train_return[src] = exalearner.agent.train(batch)
-            exalearner.agent.target_train()
+
+            if self.steps % self.update_target_every == 0:
+                exalearner.agent.update_target()
+
             self.model_count += 1
             to_send.append(src)
 

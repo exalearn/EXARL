@@ -841,7 +841,7 @@ class TestAgentMembers:
         else:
             assert agent is None
 
-    def test_target_train(self, agent):
+    def test_update_target(self, agent):
         """
         This tests the functionality of target train.
         Target train uses the agents tau to update the
@@ -854,14 +854,14 @@ class TestAgentMembers:
             Agent to test from fixture
         """
         if ExaComm.is_agent():
-            assert hasattr(agent, 'target_train')
-            assert callable(getattr(agent, 'target_train'))
+            assert hasattr(agent, 'update_target')
+            assert callable(getattr(agent, 'update_target'))
             assert hasattr(agent, 'tau')
             assert agent.tau > 0
 
             if ExaComm.is_learner():
                 old_weights = agent.get_weights()
-                agent.target_train()
+                agent.update_target()
                 weights = agent.get_weights()
                 assert not TestAgentHelper.compare_weights(weights, old_weights), "Weights should have changed"
         else:
@@ -901,7 +901,7 @@ class TestAgentMembers:
                     old_weights = agent.get_weights()
                     agent.train(data)
                     # This masks the test but we have to do it for now...
-                    agent.target_train()
+                    agent.update_target()
                     weights = agent.get_weights()
                     assert not TestAgentHelper.compare_weights(weights, old_weights), "Weights should have changed"
         else:
