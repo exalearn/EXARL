@@ -470,7 +470,7 @@ class SYNC(exarl.ExaWorkflow):
 
         self.save_weights(exalearner, self.done_episode, nepisodes)
 
-    @introspect
+    # @introspect
     def actor(self, exalearner, nepisodes):
         """
         This function is performed by actors.  It performs the follow:
