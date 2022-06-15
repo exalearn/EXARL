@@ -7,6 +7,6 @@
     "batch_size": 64,
     "priority_scale": 0.0,
     "buffer_capacity": 50000,
-    "update_target_every": 1,
+    "update_target_frequency": 1,
     "model_type": "AC"
 }

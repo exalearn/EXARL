@@ -146,7 +146,7 @@ class SYNC(exarl.ExaWorkflow):
             self.batch_frequency = ExaGlobals.lookup_params('n_steps')
 
         # How often to update target parameters
-        self.update_target_every = ExaGlobals.lookup_params('update_target_every')
+        self.update_target_frequency = ExaGlobals.lookup_params('update_target_frequency')
 
         # How often to write logs (in episodes)
         self.log_frequency = ExaGlobals.lookup_params('log_frequency')
@@ -463,7 +463,7 @@ class SYNC(exarl.ExaWorkflow):
             src, batch, policy_type, done, epsilon = self.recv_batch()
             self.train_return[src] = exalearner.agent.train(batch)
 
-            if self.steps % self.update_target_every == 0:
+            if self.steps % self.update_target_frequency == 0:
                 exalearner.agent.update_target()
 
             self.model_count += 1
