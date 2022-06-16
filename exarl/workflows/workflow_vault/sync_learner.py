@@ -146,7 +146,13 @@ class SYNC(exarl.ExaWorkflow):
             self.batch_frequency = ExaGlobals.lookup_params('n_steps')
 
         # How often to update target parameters
-        self.update_target_every = ExaGlobals.lookup_params('update_target_every')
+        self.update_target_frequency = ExaGlobals.lookup_params('update_target_frequency')
+
+        # How often to write logs (in episodes)
+        self.log_frequency = ExaGlobals.lookup_params('log_frequency')
+        # If it is set to -1 then we only log at the end of the run
+        if self.log_frequency == -1:
+            self.log_frequency = ExaGlobals.lookup_params('n_episodes')
 
         # Learner episode counters
         self.next_episode = 0
@@ -197,6 +203,7 @@ class SYNC(exarl.ExaWorkflow):
             self.filename_prefix = 'ExaLearner_Episodes%s_Steps%s_Rank%s_memory_v1' % (str(nepisodes), str(nsteps), str(ExaComm.agent_comm.rank))
             self.train_file = open(results_dir + '/' + self.filename_prefix + ".log", 'w')
             self.train_writer = csv.writer(self.train_file, delimiter=" ")
+            self.data_matrix = []
 
     def write_log(self, current_state, action, reward, next_state, total_reward, done, episode, steps, policy_type, epsilon):
         """
@@ -232,8 +239,12 @@ class SYNC(exarl.ExaWorkflow):
             TODO: Make this comment better
         """
         if ExaComm.is_agent():
-            self.train_writer.writerow([time.time(), current_state, action, reward, next_state, total_reward, done, episode, steps, policy_type, epsilon])
-            self.train_file.flush()
+            self.data_matrix.append([time.time(), current_state, action, reward, next_state, total_reward, done, episode, steps, policy_type, epsilon])
+            if done:
+                if (episode == (self.nepisodes - 1)) or (episode + 1 % self.log_frequency == 0):
+                    self.train_writer.writerows(self.data_matrix)
+                    self.train_file.flush()
+                    self.data_matrix = []
 
     def save_weights(self, exalearner, episode, nepisodes):
         """
@@ -452,7 +463,7 @@ class SYNC(exarl.ExaWorkflow):
             src, batch, policy_type, done, epsilon = self.recv_batch()
             self.train_return[src] = exalearner.agent.train(batch)
 
-            if self.steps % self.update_target_every == 0:
+            if self.steps % self.update_target_frequency == 0:
                 exalearner.agent.update_target()
 
             self.model_count += 1
@@ -625,17 +636,17 @@ class SYNC(exarl.ExaWorkflow):
         exalearner : ExaLearner
             This contains the agent and env
         """
-        nepisodes = self.episode_round(exalearner)
+        self.nepisodes = self.episode_round(exalearner)
         self.init_learner(exalearner)
         if ExaComm.is_agent():
-            while self.done_episode < nepisodes:
-                self.actor(exalearner, nepisodes)
-                self.learner(exalearner, nepisodes, 0)
-                self.debug("Learner:", self.done_episode, nepisodes)
+            while self.done_episode < self.nepisodes:
+                self.actor(exalearner, self.nepisodes)
+                self.learner(exalearner, self.nepisodes, 0)
+                self.debug("Learner:", self.done_episode, self.nepisodes)
             # Send the done signal to the rest
             ExaComm.env_comm.bcast(self.done_episode, 0)
         else:
             keep_running = True
             while keep_running:
-                keep_running = self.actor(exalearner, nepisodes)
+                keep_running = self.actor(exalearner, self.nepisodes)
                 self.debug("Actor:", keep_running)

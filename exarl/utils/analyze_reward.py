@@ -93,8 +93,11 @@ def save_reward_plot():
         figure.y_label = 'Rolling reward'
         figure.x_label = 'Episodes'
         figure.color_mode = 'byte'
-        figure.set_x_limits(min_=0, max_=len(df_merged['total_reward_roll']))
-        figure.set_y_limits(min_=min(df_merged['total_reward_roll'].replace(np.nan, 0)), max_=max(df_merged['total_reward_roll'].replace(np.nan, 0)))
+        try:
+            figure.set_x_limits(min_=0, max_=len(df_merged['total_reward_roll']))
+            figure.set_y_limits(min_=min(df_merged['total_reward_roll'].replace(np.nan, 0)), max_=max(df_merged['total_reward_roll'].replace(np.nan, 0)))
+        except:
+            print("Using default axis limits")
         figure.plot(range(len(df_merged['total_reward_roll'])), df_merged['total_reward_roll'].replace(np.nan, 0), lc=200, label='rolling reward')
         # range(len(df_merged['time']))
         print(figure.show(legend=True))
