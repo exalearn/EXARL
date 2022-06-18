@@ -30,15 +30,6 @@ subsets = {"all": ["bandit", "bandit_noise", "bandit_scale",
                    "mnist", "mnist_noise", "mnist_scale",
                    "mountain_car", "mountain_car_noise", "mountain_car_scale",
                    "umbrella_distract", "umbrella_length"],
-           "working": ["bandit", "bandit_noise", "bandit_scale",
-                       "cartpole", "cartpole_noise", "cartpole_scale",
-                       "catch", "catch_noise", "catch_scale",
-                       "deep_sea", "deep_sea_stochastic",
-                       "discounting_chain",
-                       "memory_len", "memory_size",
-                       "mnist", "mnist_noise", "mnist_scale",
-                       "umbrella_distract", "umbrella_length"],
-           "developer": ["cartpole", "cartpole_noise", "bandit"],
            "basic": ["bandit", "mnist", "catch", "mountain_car", "cartpole"],
            "noise": ["bandit_noise", "mnist_noise", "catch_noise", "mountain_car_noise", "cartpole_noise"],
            "scale": ["bandit_scale", "mnist_scale", "catch_scale", "mountain_car_scale", "cartpole_scale"],
@@ -47,8 +38,41 @@ subsets = {"all": ["bandit", "bandit_noise", "bandit_scale",
            "memory": ["memory_len", "memory_size"],
            "quick_basic": ["bandit", "catch", "discounting_chain"],
            "dynamics_learning": ["cartpole_swingup", "deep_sea", "discounting_chain", "memory_len", "memory_size", "umbrella_length", "umbrella_distract"],
+           "short": ["bandit", "bandit_noise", "bandit_scale",
+                     "memory_len", "memory_size",
+                     "mnist", "mnist_noise", "mnist_scale",
+                     "umbrella_length"],
+           "long": ["cartpole", "cartpole_noise", "cartpole_scale", "cartpole_swingup",
+                    "catch", "catch_noise", "catch_scale",
+                    "deep_sea", "deep_sea_stochastic",
+                    "discounting_chain",
+                    "mountain_car", "mountain_car_noise", "mountain_car_scale",
+                    "umbrella_distract"],
            "empty": []}
 
+steps = {"bandit": 1,
+         "bandit_noise": 1,
+         "bandit_scale": 1,
+         "cartpole": 1000,
+         "cartpole_noise": 1000,
+         "cartpole_scale": 1000,
+         "cartpole_swingup": 1000,
+         "catch": 10,
+         "catch_noise": 10,
+         "catch_scale": 10,
+         "deep_sea": 50,
+         "deep_sea_stochastic": 50,
+         "discounting_chain": 100,
+         "memory_len": 105,
+         "memory_size": 2,
+         "mnist": 1,
+         "mnist_noise": 1,
+         "mnist_scale": 1,
+         "mountain_car": 1000,
+         "mountain_car_noise": 1000,
+         "mountain_car_scale": 1000,
+         "umbrella_distract": 105,
+         "umbrella_length": 20}
 
 def parse_entry(entry):
     temp = entry.split("/")
@@ -59,11 +83,12 @@ def get_all(filter):
     for entry in sweep.SWEEP:
         name, seed = parse_entry(entry)
         reps = sweep.EPISODES[entry]
+        step = steps[name]
         if filter is None or name in subsets[filter]:
             if name in ret:
                 seed = max([ret[name][0], seed])
                 reps = max([ret[name][1], reps])
-            ret[name] = (seed, reps)
+            ret[name] = (seed, reps, step)
     return ret
 
 
@@ -81,4 +106,4 @@ if __name__ == "__main__":
             filter = "empty"
         envs = get_all(filter)
         for i in envs:
-            print(i, envs[i][0], envs[i][1])
+            print(i, envs[i][0], envs[i][1], envs[i][2])
