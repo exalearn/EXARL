@@ -23,6 +23,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from email import policy
+import re
 import time
 import os
 import math
@@ -40,7 +41,6 @@ from tensorflow import keras
 from collections import deque
 from datetime import datetime
 import numpy as np
-from exarl.utils import log
 from exarl.utils.introspect import introspectTrace
 from tensorflow.compat.v1.keras.backend import set_session
 
@@ -404,9 +404,15 @@ class PARS(erl.ExaAgent):
         self.env = env
 
         # get the dimension of the observations and action buses
+        # in case of actual environment uncomment below
+
+        # self.ob_dim = env.observation_space.shape[0]
+        # self.ac_dim = env.action_space.shape[0]
+        
         self.ob_dim = env.observation_space.shape[0]
         self.ac_dim = env.action_space.shape[0]
-        
+
+        print(self.ob_dim,self.ac_dim,"****")
         #grab a fault tuple from FAULT_CASES
         self.SELECT_PF_PER_DIRECTION = 1
         self.POWERFLOW_CANDIDATES = list(range(1)) 
@@ -419,12 +425,8 @@ class PARS(erl.ExaAgent):
                 for i in range(len(self.FAULT_BUS_CANDIDATES)) 
 				for j in range(len(self.FTD_CANDIDATES))]
 
-    
-        self.buffer_capacity = ExaGlobals.lookup_params('buffer_capacity')
-        self.batch_size = ExaGlobals.lookup_params('batch_size')
 
-        # JS: You don't really want this.  What you want is RS + onedirction_rollout_multi_single_Cases
-        self.memory = ReplayBuffer(self.buffer_capacity, self.ob_dim, self.ac_dim)
+
         
         
         self.params = self.CreateParams()
@@ -462,8 +464,6 @@ class PARS(erl.ExaAgent):
         self.ob_std = self.RS.std
         
         # These parameter are used for delta setting.
-        self.deltas_used = self.params['delta_used']
-        self.num_deltas = self.params['n_directions']
         self.step_size= self.params['step_size']
         self.delta_std = self.params['delta_std']
         self.decay = self.params['decay']
@@ -487,9 +487,10 @@ class PARS(erl.ExaAgent):
         # self.Num_cases =  Num_actors x Num_perturb_direc x N_fault 
         self.Num_actors = self.agent_comm.size - self.learner_comm.size
         self.Num_pertub = 2  #  This is +ve and -ve perturbations direction
-        self.Num_faults = len(self.PF_FAULT_CASES_ALL)        
-        self.Num_cases = self.params['num_iter']*self.Num_pertub * self.Num_faults
+        self.Num_faults = len(self.PF_FAULT_CASES_ALL)     
 
+        self.epsilon = ExaGlobals.lookup_params('epsilon')   
+    
 
         # We define the internal step counter
         # This will be always rest to zero by the set-weight call
@@ -503,26 +504,21 @@ class PARS(erl.ExaAgent):
         # by the learner.
         self.all_actorbatch = []
 
+        # 
+        self.N_cases_beforeUpdate = self.Num_pertub*self.Num_faults
+
+
     def CreateParams(self):
-        param = []        
-        param['n_iter'] = ExaGlobals.lookup_params('n_iter')
-        param['n_directions'] = ExaGlobals.lookup_params('n_directions')
-        param['deltas_used'] = ExaGlobals.lookup_params('deltas_used')
-        param['policy_network_size'] = ExaGlobals.lookup_params('policy_network_size')
-        param['save_per_iter'] = ExaGlobals.lookup_params('step_size')
+        param = {}       
+        size = ExaGlobals.lookup_params('policy_network_size')
+        param['policy_network_size'] = list([size,size])
         param['delta_std'] = ExaGlobals.lookup_params('delta_std')
         param['decay'] = ExaGlobals.lookup_params('decay')
-        param['rollout_length'] = nsteps = ExaGlobals.lookup_params('n_steps')
+        param['rollout_length'] =  ExaGlobals.lookup_params('n_steps')
         param['seed'] = ExaGlobals.lookup_params('seed')
-        param['policy_type'] = ExaGlobals.lookup_params('policy_type')
-        param['tol_p'] = ExaGlobals.lookup_params('tol_p')
-        param['tol_steps'] = ExaGlobals.lookup_params('tol_step')
-        param['dir_path'] = ExaGlobals.lookup_params('dir_path')
+        param['policy_type'] = ExaGlobals.lookup_params('model_type')
         param['step_size'] = ExaGlobals.lookup_params('step_size')
-        param['cores'] = ExaGlobals.lookup_params('cores')
-
         casestorunperdirct = self.SELECT_PF_PER_DIRECTION * len(self.FTD_CANDIDATES) * self.SELECT_FAULT_BUS_PER_DIRECTION
-       
         param['onedirection_numofcasestorun'] = casestorunperdirct
         
         return param
@@ -533,12 +529,11 @@ class PARS(erl.ExaAgent):
         self.deltas = SharedNoiseTable(deltas_id,self.params["seed"] + 7 * seed)
         idx, delta = self.deltas.get_delta(self.w_policy.size)
         self.delta = (self.delta_std * delta).reshape(self.w_policy.shape)
-        
         self.deltas_idx.append(idx)
 
 
     def get_weights(self):
-        print("PARS getting weights")
+        print("PARS:  getting weights episode:", self.env.workflow_episode)
         return self.policy.get_weights()
     
     def calc_mean_pos_neg_reward(self):
@@ -552,18 +547,17 @@ class PARS(erl.ExaAgent):
         return 
     
     def set_weights(self, weights):
-
-        if self.env.workflow_episode % self.Num_pertub*self.Num_faults == 0 and self.env.workflow_episode > 0:
+        # print("N_cases_beforeUpdate",self.Num_pertub*self.Num_faults,"Workflow_episode:",self.env.workflow_episode )
+        
+        if self.env.workflow_episode % self.N_cases_beforeUpdate == 0 and self.env.workflow_episode >= self.N_cases_beforeUpdate:
             
             # This assertion will ensure that the actor has run (2) perturb  and all faults with N-steps before
             # following reset and other stuff.
             # "rollout_length "
-            assert self.internal_step_count == self.Num_pertub * self.Num_faults * self.params['rollout_length']
+            assert self.internal_step_count == self.N_cases_beforeUpdate * self.params['rollout_length']
   
             # Store the RS for all the perturb delta and faults.
-            self.RS_deltaPerturbAllFault.push(self.RS)
-
-            
+            self.RS_deltaPerturbAllFault.update(self.RS)
 
             # Reset the mean and standard deviation based on the 
             # the run of all perturb and fault cases.
@@ -583,25 +577,38 @@ class PARS(erl.ExaAgent):
             self.set_delta(self.worker_seed_id)
 
             self.policy.update_weights(weights)
+            self.w_policy = self.policy.get_weights()
 
             # Reset the internal 
-            self.internal_step_count = 0 
+            self.internal_step_count = 0
+            
         else:
+           
             # Even count mean run with positive perturb
             if self.env.workflow_episode % 2 == 0:
                 # update with the positive 
                 w_pos_id = self.w_policy + self.delta
                 self.policy.update_weights(w_pos_id)
+                print("Running with positive weights..!",self.env.workflow_episode)
             # Odd count mean run with negative perburb 
             else:
-                # update with the positive 
+                # update with the negative perturb 
                 w_pos_id = self.w_policy - self.delta
                 self.policy.update_weights(w_pos_id)
+                print("Running with negative weights..!",self.env.workflow_episode)
                    
     def action(self,state):
         ob = np.asarray(state, dtype=np.float64)
         # Calculate the 
         normal_ob = (ob - self.ob_mean) / (self.ob_std + 1e-8)
+        
+        # This counter is increased here since
+        # the action is followed by the step of the environment  
+        # an actor fucntion of sync_learner.py.
+
+        self.internal_step_count += 1
+        print("step Count:", self.internal_step_count)
+
         return self.policy.act(normal_ob), self.policy_params['type']
 
 
@@ -612,24 +619,27 @@ class PARS(erl.ExaAgent):
         return
 
     def train(self,batch):
+
         # Check if train is called after finishing all the perturb and faults
-        if self.env.workflow_episode % self.Num_pertub*self.Num_faults == 0 and self.env.workflow_episode > 0:
+        if self.env.workflow_episode % self.N_cases_beforeUpdate == 0 and self.env.workflow_episode >= self.N_cases_beforeUpdate:
             
             # check if all actor batches are appended  
             if len(self.all_actorbatch) != self.Num_actors:
                 
                 self.all_actorbatch.append(batch)
 
+                return None
+
             else:
                 # use the self.all_actorbatch
-                # select top performing directions if deltas_used < num_deltas
-                self.all_actorbatch = np.asarray(self.all_actorbatch)
+                assert len(self.all_actorbatch) > 0 , "one or more actors have not finished N_cases_beforeUpdate"
+                # self.all_actorbatch = np.asarray(self.all_actorbatch)
 
                 rollout_rewards, deltas_idx, deltas_actor = [], [],[]
-                for actorbatch in self.all_actorbatch:
-                    rollout_rewards += actorbatch[0]
-                    deltas_idx += actorbatch[1]
-                    deltas_actor += actorbatch[2]
+                for i, actorbatch in enumerate(self.all_actorbatch):
+                    rollout_rewards += actorbatch['rollout_rewards']
+                    deltas_idx += actorbatch['deltas_idx']
+                    deltas_actor += actorbatch['deltas']
                     
                     
                 # This is the collection of all the rewards...
@@ -638,8 +648,8 @@ class PARS(erl.ExaAgent):
                 max_rewards = np.max(rollout_rewards, axis=1)
                 
 
-                if self.deltas_used > self.num_deltas:
-                    self.deltas_used = self.num_deltas
+                # if self.deltas_used > self.num_deltas:
+                #     self.deltas_used = self.num_deltas
                 
                 #  select top performing deltas;  95 percentile  data...
                 idx = np.arange(max_rewards.size)[max_rewards >= np.percentile(max_rewards, 0.95)]
@@ -664,6 +674,10 @@ class PARS(erl.ExaAgent):
                 # This batch comes from the generate function...
                 g_hat = batch[0]
                 self.train_step(g_hat)
+                
+                # Loss metric.
+                l2_norm = np.linalg.norm(g_hat)
+                return l2_norm
 
         else:
             
@@ -671,7 +685,7 @@ class PARS(erl.ExaAgent):
             # cases have not finished.
             return None 
 
-        return
+        
     
 
 
@@ -680,25 +694,25 @@ class PARS(erl.ExaAgent):
         # batch[0] = mean positive reward
         # batch[1] = mean neagtive reward
         # batch[2] = number of deltas explored (this should be same as number of iters)
-        n_store = 3
-        batch = np.zeros((n_store))
+        
+        batch = {}
 
         # This should return 
-        if self.env.workflow_episode % self.Num_pertub*self.Num_faults == 0 and self.env.workflow_episode > 0:
+        if self.env.workflow_episode % self.N_cases_beforeUpdate == 0 and self.env.workflow_episode >= self.N_cases_beforeUpdate:
             
             # Call the pos_neg_meanreward calc
             self.calc_mean_pos_neg_reward()
 
-            batch[0] = self.pos_neg_meanreward
-            batch[1] = self.deltas_idx
-            batch[2] = self.deltas
+            batch['rollout_rewards'] = self.pos_neg_meanreward
+            batch['deltas_idx'] = self.deltas_idx
+            batch['deltas'] = self.deltas
 
             # Reset the positive and negative reward list for 
             self.pos_rew, self.neg_rew = [], []
 
-            return batch
+            yield batch
         else:
-            pass
+            yield None
 
     
     def remember(self, state, action, reward, next_state, done):
@@ -707,7 +721,7 @@ class PARS(erl.ExaAgent):
         # you care about RS and reward...
         # Store it here!
         # Probable need self.step
-        
+
         self.RS.push(state)
         # positive perturb policy returning
         if self.env.workflow_episode % self.Num_pertub == 0:
@@ -716,10 +730,7 @@ class PARS(erl.ExaAgent):
         else:
             self.neg_rew.append(reward)
 
-        # This counter is increased here since
-        # the call to the remember function is the final 
-        # step in actor fucntion of sync_learner.py.
-        self.internal_step_count += 1
+        
     
     def target_train(self):
         return self.policy.get_weights
@@ -736,6 +747,8 @@ class PARS(erl.ExaAgent):
         print("Implement save method in ARS.py")
         return 
 
+    def set_priorities(self, indices, loss):
+        pass
 
     def monitor(self):
         print("Implement monitor method in ARS.py")

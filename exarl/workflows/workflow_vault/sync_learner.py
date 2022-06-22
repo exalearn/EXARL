@@ -586,8 +586,8 @@ class SYNC(exarl.ExaWorkflow):
         # Send batches back to the learner (10)
         if ExaComm.env_comm.rank == 0:
             batch_data = next(exalearner.agent.generate_data())
-            if batch_data is not None:
-                self.send_batch(batch_data, policy_type, self.done, exalearner.agent.epsilon)
+            # if batch_data is not None:
+            self.send_batch(batch_data, policy_type, self.done, exalearner.agent.epsilon)
         return True
 
     def episode_round(self, exalearner):
