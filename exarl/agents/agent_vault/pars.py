@@ -31,6 +31,7 @@ import json
 import csv
 import random
 from turtle import update
+from typing import Type
 import tensorflow as tf
 import sys
 import gym
@@ -55,6 +56,7 @@ from exarl.agents.agent_vault._replay_buffer import ReplayBuffer
 from exarl.utils.globals import ExaGlobals
 
 logger = ExaGlobals.setup_logger(__name__)
+import h5py
 
 def create_shared_noise():
     """
@@ -485,7 +487,7 @@ class PARS(erl.ExaAgent):
         # Total Number of cases a actor needs to perform
         # assumption: Num_actors ==  Num_delta (Number of deltas)
         # self.Num_cases =  Num_actors x Num_perturb_direc x N_fault 
-        self.Num_actors = self.agent_comm.size - self.learner_comm.size
+        self.Num_actors = 1 # TODO: self.agent_comm.size - self.learner_comm.size
         self.Num_pertub = 2  #  This is +ve and -ve perturbations direction
         self.Num_faults = len(self.PF_FAULT_CASES_ALL)     
 
@@ -504,9 +506,17 @@ class PARS(erl.ExaAgent):
         # by the learner.
         self.all_actorbatch = []
 
-        # 
-        self.N_cases_beforeUpdate = self.Num_pertub*self.Num_faults
+        # This count as one-episode considering the +ve/-ve pertub and Number of faults cases.
+        # self.N_cases_beforeUpdate = self.Num_pertub*self.Num_faults*self.params['rollout_length']
+        self.Num_CasesbeforeUpdate = self.Num_pertub*self.Num_faults
 
+        # This is the number of steps which happens before the update.
+        # This is example: 2perturb x 5 cases x 80 n_steps = 800  
+        self.Num_StepBeforeUpdate = self.Num_CasesbeforeUpdate * self.params['rollout_length'] 
+
+
+        # Flag to use by set weight update and 
+        self.set_flag = 1
 
     def CreateParams(self):
         param = {}       
@@ -534,7 +544,8 @@ class PARS(erl.ExaAgent):
 
     def get_weights(self):
         print("PARS:  getting weights episode:", self.env.workflow_episode)
-        return self.policy.get_weights()
+        self.w_policy = self.policy.get_weights()
+        return self.w_policy
     
     def calc_mean_pos_neg_reward(self):
         assert len(self.pos_rew) != 0 , "Positive Peturbation reward list empty"
@@ -547,41 +558,50 @@ class PARS(erl.ExaAgent):
         return 
     
     def set_weights(self, weights):
-        # print("N_cases_beforeUpdate",self.Num_pertub*self.Num_faults,"Workflow_episode:",self.env.workflow_episode )
+      
         
-        if self.env.workflow_episode % self.N_cases_beforeUpdate == 0 and self.env.workflow_episode >= self.N_cases_beforeUpdate:
+        if (self.env.workflow_episode+1) % self.Num_CasesbeforeUpdate == 0 and (self.internal_step_count+1) >= self.Num_StepBeforeUpdate:
             
-            # This assertion will ensure that the actor has run (2) perturb  and all faults with N-steps before
-            # following reset and other stuff.
-            # "rollout_length "
-            assert self.internal_step_count == self.N_cases_beforeUpdate * self.params['rollout_length']
-  
-            # Store the RS for all the perturb delta and faults.
-            self.RS_deltaPerturbAllFault.update(self.RS)
+            # This flag is used to ensure that once the above if condition is met the weights are updated only 
+            # for the first time on the increase of the episode counter and else use the same weights throughout
+            # the episode.
+            print("set flag status = ",self.set_flag)
+            if self.set_flag == 1:
+                # This assertion will ensure that the update of weights are called only after finishing 
+                # the required number of steps ...
+                print("Inside set weights...",self.internal_step_count,self.env.workflow_episode)
+                assert (self.internal_step_count+1) == self.Num_CasesbeforeUpdate * self.params['rollout_length']
+    
+                # Store the RS for all the perturb delta and faults.
+                self.RS_deltaPerturbAllFault.update(self.RS)
 
-            # Reset the mean and standard deviation based on the 
-            # the run of all perturb and fault cases.
-            self.ob_mean = self.RS.mean
-            self.ob_std = self.RS.std
+                # Reset the mean and standard deviation based on the 
+                # the run of all perturb and fault cases.
+                self.ob_mean = self.RS.mean
+                self.ob_std = self.RS.std
 
-            # Reset the 
-            self.RS = RunningStat(shape=(self.ob_dim,))
+                # Reset the 
+                self.RS = RunningStat(shape=(self.ob_dim,))
 
-            # HS: Each Episode start each actor will pick a delta ...
-            # This is just to make sure that each worker/actor get a 
-            # unique random stream for sampling.
-            # This resampling of delta for each actor is 
-            # similar to the outer loop of H iteration in Alg. 1 of paper
-            # ACCELERATED DERIVATIVE-FREE DEEP REINFORCEMENT LEARNING
-            self.worker_seed_id = np.random.randint(0,high=10000)
-            self.set_delta(self.worker_seed_id)
+                # HS: Each Episode start each actor will pick a delta ...
+                # This is just to make sure that each worker/actor get a 
+                # unique random stream for sampling.
+                # This resampling of delta for each actor is 
+                # similar to the outer loop of H iteration in Alg. 1 of paper
+                # ACCELERATED DERIVATIVE-FREE DEEP REINFORCEMENT LEARNING
+                self.worker_seed_id = np.random.randint(0,high=10000)
+                self.set_delta(self.worker_seed_id)
 
-            self.policy.update_weights(weights)
-            self.w_policy = self.policy.get_weights()
-
-            # Reset the internal 
-            self.internal_step_count = 0
-            
+                self.policy.update_weights(weights)
+                self.w_policy = self.policy.get_weights()
+                
+                # reset the internal_step_count
+                self.internal_step_count  = 0
+                # reset the flag
+                self.set_flag = 0
+                print("From inside set_weight: setting set flag status == ",self.set_flag)
+            else:
+                pass
         else:
            
             # Even count mean run with positive perturb
@@ -589,25 +609,24 @@ class PARS(erl.ExaAgent):
                 # update with the positive 
                 w_pos_id = self.w_policy + self.delta
                 self.policy.update_weights(w_pos_id)
-                print("Running with positive weights..!",self.env.workflow_episode)
+                print("Setting positive weights.. Episode:: ",self.env.workflow_episode)
             # Odd count mean run with negative perburb 
             else:
                 # update with the negative perturb 
                 w_pos_id = self.w_policy - self.delta
                 self.policy.update_weights(w_pos_id)
-                print("Running with negative weights..!",self.env.workflow_episode)
+                print("Setting negative weights..!  Episode:: ",self.env.workflow_episode)
                    
     def action(self,state):
         ob = np.asarray(state, dtype=np.float64)
-        # Calculate the 
+
+        # Calculate the normalized observation.
         normal_ob = (ob - self.ob_mean) / (self.ob_std + 1e-8)
-        
+
         # This counter is increased here since
         # the action is followed by the step of the environment  
         # an actor fucntion of sync_learner.py.
-
         self.internal_step_count += 1
-        print("step Count:", self.internal_step_count)
 
         return self.policy.act(normal_ob), self.policy_params['type']
 
@@ -616,30 +635,36 @@ class PARS(erl.ExaAgent):
         print("Euclidean norm of update step:", np.linalg.norm(g_hat))
         self.w_policy -= self.optimizer._compute_step(g_hat, self.step_size).reshape(self.w_policy.shape)
         print('g_hat shape, w_policy shape:',np.asarray(g_hat).shape,self.w_policy.shape)
+
+        # update the policy with new weights...
+        self.policy.update_weights(self.w_policy)
         return
 
     def train(self,batch):
 
-        # Check if train is called after finishing all the perturb and faults
-        if self.env.workflow_episode % self.N_cases_beforeUpdate == 0 and self.env.workflow_episode >= self.N_cases_beforeUpdate:
-            
+        print("Check if batch is None::",batch == None)
+        # print("Condition Train ::" , (self.env.workflow_episode+1) % self.Num_CasesbeforeUpdate == 0, (self.internal_step_count+1) >= self.Num_StepBeforeUpdate)
+        
+        if (self.env.workflow_episode+1) % self.Num_CasesbeforeUpdate == 0 and (self.internal_step_count+1) >= self.Num_StepBeforeUpdate:
+    
             # check if all actor batches are appended  
             if len(self.all_actorbatch) != self.Num_actors:
                 
+                print("appending the batch and returning NONE")
                 self.all_actorbatch.append(batch)
 
                 return None
 
             else:
-                # use the self.all_actorbatch
+                # use the self.all_actorbatch once all the actors have update 
+                # the actorbatch list.
                 assert len(self.all_actorbatch) > 0 , "one or more actors have not finished N_cases_beforeUpdate"
-                # self.all_actorbatch = np.asarray(self.all_actorbatch)
-
+                
                 rollout_rewards, deltas_idx, deltas_actor = [], [],[]
                 for i, actorbatch in enumerate(self.all_actorbatch):
                     rollout_rewards += actorbatch['rollout_rewards']
                     deltas_idx += actorbatch['deltas_idx']
-                    deltas_actor += actorbatch['deltas']
+                    deltas_actor.append(actorbatch['deltas'])
                     
                     
                 # This is the collection of all the rewards...
@@ -647,24 +672,23 @@ class PARS(erl.ExaAgent):
 
                 max_rewards = np.max(rollout_rewards, axis=1)
                 
-
                 # if self.deltas_used > self.num_deltas:
                 #     self.deltas_used = self.num_deltas
                 
                 #  select top performing deltas;  95 percentile  data...
                 idx = np.arange(max_rewards.size)[max_rewards >= np.percentile(max_rewards, 0.95)]
-                
-                deltas_idx = deltas_idx[idx]
-                rollout_rewards = rollout_rewards[idx, :]
-                deltas_actor = deltas_actor[idx]
 
+                deltas_idx = np.array(deltas_idx)[idx]
+                rollout_rewards = np.array(rollout_rewards)[idx, :]
+                deltas_actor = np.array(deltas_actor)[idx[0]]
+               
                 # normalize rewards by their standard deviation
                 if np.std(rollout_rewards) > 1:
                     rollout_rewards /= np.std(rollout_rewards)
 
                 # aggregate rollouts to form g_hat, the gradient used to compute SGD step
                 g_hat, count = batched_weighted_sum(rollout_rewards[:, 0] - rollout_rewards[:, 1],
-                                                        (deltas_actor[idx].get(idx, self.w_policy.size)
+                                                        (deltas_actor.get(idx, self.w_policy.size)
                                                         for idx in deltas_idx),
                                                         batch_size=500)
                 g_hat /= deltas_idx.size
@@ -672,7 +696,7 @@ class PARS(erl.ExaAgent):
                 self.step_size *= self.decay # This updated value is used at train_step 
                 self.delta_std *= self.decay # This is used to update delta_std in one-worker instance.
                 # This batch comes from the generate function...
-                g_hat = batch[0]
+                # g_hat = batch[0]
                 self.train_step(g_hat)
                 
                 # Loss metric.
@@ -680,7 +704,6 @@ class PARS(erl.ExaAgent):
                 return l2_norm
 
         else:
-            
             # Don't train since the number of perturb and number of all faults
             # cases have not finished.
             return None 
@@ -691,14 +714,12 @@ class PARS(erl.ExaAgent):
 
     def generate_data(self):
         # 
-        # batch[0] = mean positive reward
-        # batch[1] = mean neagtive reward
-        # batch[2] = number of deltas explored (this should be same as number of iters)
-        
         batch = {}
 
+        # print( "In Generate Data:",(self.env.workflow_episode+1) % self.Num_CasesbeforeUpdate == 0 , (self.internal_step_count+1) >= self.Num_StepBeforeUpdate)
+        # print("From Generate Data", self.internal_step_count+1,self.Num_StepBeforeUpdate)
         # This should return 
-        if self.env.workflow_episode % self.N_cases_beforeUpdate == 0 and self.env.workflow_episode >= self.N_cases_beforeUpdate:
+        if  (self.env.workflow_episode+1) % self.Num_CasesbeforeUpdate == 0 and (self.internal_step_count+1) >= self.Num_StepBeforeUpdate:
             
             # Call the pos_neg_meanreward calc
             self.calc_mean_pos_neg_reward()
@@ -709,9 +730,12 @@ class PARS(erl.ExaAgent):
 
             # Reset the positive and negative reward list for 
             self.pos_rew, self.neg_rew = [], []
-
+            print("*PARS step Count:", self.internal_step_count)
             yield batch
         else:
+            self.set_flag = 1 # reset the set_weight flag
+            print("*PARS step Count:", self.internal_step_count)
+        
             yield None
 
     
@@ -743,8 +767,12 @@ class PARS(erl.ExaAgent):
         print("Implement load method in ARS.py")
         return 
 
-    def save(self):
+    def save(self,fname):
         print("Implement save method in ARS.py")
+        hf = h5py.File(fname, 'w')
+        # Save the policy weights...
+        hf.create_dataset('dataset_1', data=self.w_policy)
+        hf.close()
         return 
 
     def set_priorities(self, indices, loss):

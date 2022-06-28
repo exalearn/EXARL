@@ -59,7 +59,7 @@ class HadrecWrapper(gym.Env):
             # Reset the environment with the new fault case
             self.state = self.initial_state[self.seed]
             self.seed = (self.seed + 1) % self.num_seeds
-            print(f"Wrapper: Episode count: {self.workflow_episode} Seed :{self.seed}")
+            print(f"Wrapper Scenario Change: Episode count: {self.workflow_episode} Seed :{self.seed}")
             self.step_index = 0
         else:
             # Continue with the same fault scenario..
