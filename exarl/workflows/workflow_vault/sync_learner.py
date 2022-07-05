@@ -194,14 +194,14 @@ class SYNC(exarl.ExaWorkflow):
         Initialize the logging on rank 0.
         """
         # Get parameters
-        results_dir = ExaGlobals.lookup_params('output_dir')
-        nepisodes = ExaGlobals.lookup_params('n_episodes')
-        nsteps = ExaGlobals.lookup_params('n_steps')
+        self.results_dir = ExaGlobals.lookup_params('output_dir')
+        self.nepisodes = ExaGlobals.lookup_params('n_episodes')
+        self.nsteps = ExaGlobals.lookup_params('n_steps')
 
         # Do the initialization
         if ExaComm.is_agent():
-            self.filename_prefix = 'ExaLearner_Episodes%s_Steps%s_Rank%s_memory_v1' % (str(nepisodes), str(nsteps), str(ExaComm.agent_comm.rank))
-            self.train_file = open(results_dir + '/' + self.filename_prefix + ".log", 'w')
+            self.filename_prefix = 'ExaLearner_Episodes%s_Steps%s_Rank%s_memory_v1' % (str(self.nepisodes), str(self.nsteps), str(ExaComm.agent_comm.rank))
+            self.train_file = open(self.results_dir + '/' + self.filename_prefix + ".log", 'w')
             self.train_writer = csv.writer(self.train_file, delimiter=" ")
             self.data_matrix = []
 
