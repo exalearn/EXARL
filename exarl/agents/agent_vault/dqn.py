@@ -298,14 +298,17 @@ class DQN(erl.ExaAgent):
             target Q value (array): [description]
         """
         state, action, reward, next_state, done = exp
-
         np_state = self.flatten_observation(state)
         np_next_state = self.flatten_observation(next_state)
+        reward = tf.cast(reward, tf.float32)
+        np_state = tf.convert_to_tensor(np_state)
+        np_next_state = tf.convert_to_tensor(np_next_state)
 
         expectedQ = 0
         with tf.device(self.device):
             if not done:
                 expectedQ = tf.multiply(self.gamma, tf.reduce_max(self.target_model.predict_on_batch(np_next_state)))
+                expectedQ = tf.cast(expectedQ, tf.float32)
             target = tf.add(reward, expectedQ)
             target_f = self.target_model.predict_on_batch(np_state)
         # For handling continuous to discrete actions
