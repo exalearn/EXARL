@@ -642,7 +642,7 @@ class PARS(erl.ExaAgent):
 
     def train(self,batch):
 
-        print("Check if batch is None::",batch == None)
+        # print("Check if batch is None::",batch == None)
         # print("Condition Train ::" , (self.env.workflow_episode+1) % self.Num_CasesbeforeUpdate == 0, (self.internal_step_count+1) >= self.Num_StepBeforeUpdate)
         
         if (self.env.workflow_episode+1) % self.Num_CasesbeforeUpdate == 0 and (self.internal_step_count+1) >= self.Num_StepBeforeUpdate:
