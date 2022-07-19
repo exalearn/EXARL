@@ -182,14 +182,12 @@ class PARS(erl.ExaAgent):
 
         # self.ob_dim = env.observation_space.shape[0]
         # self.ac_dim = env.action_space.shape[0]
-        print(env.observation_space.shape,env.action_space.shape)
         self.ob_dim = env.observation_space.shape[0]
         self.ac_dim = env.action_space.shape[0]
 
         self.params = self.CreateParams()
 
         if self.params['PowerGridEnv_Flag'] == 1:
-            print("Runni")
             #grab a fault tuple from FAULT_CASES
             self.SELECT_PF_PER_DIRECTION = 1
             self.POWERFLOW_CANDIDATES = list(range(1)) 
