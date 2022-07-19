@@ -180,40 +180,38 @@ class PARS(erl.ExaAgent):
         # Get the environnemt
         self.env = env
 
-        # get the dimension of the observations and action buses
-        # in case of actual environment uncomment below
-
         # self.ob_dim = env.observation_space.shape[0]
         # self.ac_dim = env.action_space.shape[0]
-        
+        print(env.observation_space.shape,env.action_space.shape)
         self.ob_dim = env.observation_space.shape[0]
         self.ac_dim = env.action_space.shape[0]
 
-        #grab a fault tuple from FAULT_CASES
-        self.SELECT_PF_PER_DIRECTION = 1
-        self.POWERFLOW_CANDIDATES = list(range(1)) 
-        self.SELECT_FAULT_BUS_PER_DIRECTION = 5
-        self.FAULT_BUS_CANDIDATES = list(range(5))
-        self.FAULT_START_TIME = 1.0
-        self.FTD_CANDIDATES = [0.08]
-        self.PF_FAULT_CASES_ALL = [(self.POWERFLOW_CANDIDATES[k], self.FAULT_BUS_CANDIDATES[i], self.FAULT_START_TIME, self.FTD_CANDIDATES[j]) 
-                for k in range(len(self.POWERFLOW_CANDIDATES))
-                for i in range(len(self.FAULT_BUS_CANDIDATES)) 
-				for j in range(len(self.FTD_CANDIDATES))]
-
-
-
-        
-        
         self.params = self.CreateParams()
+
+        if self.params['PowerGridEnv_Flag'] == 1:
+            print("Runni")
+            #grab a fault tuple from FAULT_CASES
+            self.SELECT_PF_PER_DIRECTION = 1
+            self.POWERFLOW_CANDIDATES = list(range(1)) 
+            self.SELECT_FAULT_BUS_PER_DIRECTION = 5
+            self.FAULT_BUS_CANDIDATES = list(range(5))
+            self.FAULT_START_TIME = 1.0
+            self.FTD_CANDIDATES = [0.08]
+            self.PF_FAULT_CASES_ALL = [(self.POWERFLOW_CANDIDATES[k], self.FAULT_BUS_CANDIDATES[i], self.FAULT_START_TIME, self.FTD_CANDIDATES[j]) 
+                    for k in range(len(self.POWERFLOW_CANDIDATES))
+                    for i in range(len(self.FAULT_BUS_CANDIDATES)) 
+                    for j in range(len(self.FTD_CANDIDATES))]
+        else:
+            self.PF_FAULT_CASES_ALL = [1]
+
 
         # Define the Policy parameters
         self.policy_params = {'type': self.params['policy_type'],
                             'policy_network_size': self.params['policy_network_size'],
                             'ob_dim': self.ob_dim,
                             'ac_dim': self.ac_dim}
-         # initialize policy
-        print('Initializing policy.', flush=True)
+        
+        # initialize policy
         if self.policy_params['type'] == 'linear':
             self.policy = LinearPolicy(self.policy_params)
             self.w_policy = self.policy.get_weights()
@@ -227,9 +225,9 @@ class PARS(erl.ExaAgent):
             raise NotImplementedError
 
         # initialize optimization algorithm
-        print('Initializing optimizer.')
+        # print('Initializing optimizer.')
         self.optimizer = SGD(self.w_policy, self.params["step_size"])
-        print("Initialization of ARS complete.")
+        # print("Initialization of ARS complete.")
 
         self.RS_deltaPerturbAllFault = RunningStat(shape=(self.ob_dim,))
 
@@ -302,8 +300,11 @@ class PARS(erl.ExaAgent):
         param['seed'] = ExaGlobals.lookup_params('seed')
         param['policy_type'] = ExaGlobals.lookup_params('model_type')
         param['step_size'] = ExaGlobals.lookup_params('step_size')
-        casestorunperdirct = self.SELECT_PF_PER_DIRECTION * len(self.FTD_CANDIDATES) * self.SELECT_FAULT_BUS_PER_DIRECTION
-        param['onedirection_numofcasestorun'] = casestorunperdirct
+        # This flag helps to decide which env the PARS is called for..
+        param['PowerGridEnv_Flag'] = ExaGlobals.lookup_params('PowerGridEnv_Flag')
+        
+        # casestorunperdirct = self.SELECT_PF_PER_DIRECTION * len(self.FTD_CANDIDATES) * self.SELECT_FAULT_BUS_PER_DIRECTION
+        # param['onedirection_numofcasestorun'] = casestorunperdirct
         
         return param
 
