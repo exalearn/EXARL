@@ -10,6 +10,5 @@
     "priority_scale": 0.0,
     "buffer_capacity": 1000,
     "update_target_frequency": 1,
-    "xla": "True",
-    "model_type": "MLP"
+    "xla": "True"
 }
