@@ -453,8 +453,10 @@ class PARS(erl.ExaAgent):
 
                 deltas_idx = np.array(deltas_idx)[idx]
                 rollout_rewards = np.array(rollout_rewards)[idx, :]
-                deltas_actor = np.array(deltas_actor)[idx[0]]
-               
+                # deltas_actor = np.array(deltas_actor)[idx[0]]
+
+                deltas_actor = np.array(deltas_actor)[0]
+                
                 # normalize rewards by their standard deviation
                 if np.std(rollout_rewards) > 1:
                     rollout_rewards /= np.std(rollout_rewards)
