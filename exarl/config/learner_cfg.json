@@ -12,5 +12,5 @@
     ],
     "log_frequency": 1,
     "profile": "None",
-    "model_type": "AC"
+    "model_type": "MLP"
 }
