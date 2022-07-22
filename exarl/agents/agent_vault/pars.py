@@ -476,7 +476,7 @@ class PARS(erl.ExaAgent):
                 
                 # Loss metric.
                 l2_norm = np.linalg.norm(g_hat)
-                return l2_norm
+                return None
 
         else:
             # Don't train since the number of perturb and number of all faults
