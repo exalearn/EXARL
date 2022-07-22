@@ -160,13 +160,16 @@ def check_keyword_and_config(params, keyword):
         corresponding configuration file.
     """
     if keyword in params.keys():
-        cfg = keyword + "_cfg"
+        if keyword == 'model_type':
+            cfg = 'model_cfg'
+        else:
+            cfg = keyword + "_cfg"
         try:
             cfg_file = resolve_path(cfg, params[keyword] + '.json')
             print('Agent parameters from ', cfg)
         except FileNotFoundError:
             cfg_file = resolve_path(cfg, 'default_' + cfg + '.json')
-            print(keyword + 'configuration does not exist, using default configuration')
+            print(keyword + ' configuration does not exist, using default configuration')
         return parser_from_json(cfg_file)
     else:
         sys.exit("CANDLELIB::ERROR The learner config file is malformed. There is no " + keyword + " selected.")
@@ -187,10 +190,10 @@ def get_driver_params():
     agent_defs = check_keyword_and_config(params, "agent")
     env_defs = check_keyword_and_config(params, "env")
     workflow_defs = check_keyword_and_config(params, "workflow")
-    model_defs = check_keyword_and_config(params, "model")
+    model_defs = check_keyword_and_config(params, "model_type")
 
     print('_________________________________________________________________')
-    print("Running - {}, {} and {}".format(params['agent'], params['env'], params['workflow']))
+    print("Running - {}, {}, {}, and {}".format(params['agent'], params['env'], params['workflow'], params['model_type']))
     # print("Running - {}, {}, {} and {}".format(params['agent'], params['model_type'], params['env'], params['workflow']))
     print('_________________________________________________________________', flush=True)
 

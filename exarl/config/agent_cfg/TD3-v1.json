@@ -3,6 +3,5 @@
     "batch_size": 64,
     "tau": 0.005,
     "gamma": 0.99,
-    "update_target_frequency": 1,
-    "model_type": "AC"
+    "update_target_frequency": 1
 }
