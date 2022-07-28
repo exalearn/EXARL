@@ -8,16 +8,6 @@ import matplotlib.pyplot as plt
 
 from numpy import array
 
-def str_to_bool(v):
-    if isinstance(v, bool):
-        return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
-
 names_short = ['time', 'current_state', 'action', 'reward', 'next_state', 'total_reward', 'done','episode', 'step', 'policy_type', 'epsilon']
 names_long  = ['time', 'current_state', 'action', 'reward', 'next_state', 'total_reward', 'done','episode', 'step', 'policy_type', 'epsilon', "critic_loss", "actor_loss"]
 
@@ -124,11 +114,11 @@ def main(argv):
     # required_args = parser.add_argument_group("required named arguments")
 
     parser.add_argument("--filename", "-f", help="Filename for log to parse and plot")
-    parser.add_argument("--rewards", "-r", help="Make plot comparing reward curves across files", nargs="?", default=False, const=True, type=str_to_bool)
-    parser.add_argument("--reward-by-episode", "-e", help="Make plot of rewards by episode for each file", nargs="?", default=False, const=True, type=str_to_bool)
-    parser.add_argument("--critic-loss", "-c", help="Make plot comparing critic loss curves across files", nargs="?", default=False, const=True, type=str_to_bool)
-    parser.add_argument("--actor-loss",  "-a", help="Make plot comparing actor loss curves across files", nargs="?", default=False, const=True, type=str_to_bool)
-    parser.add_argument("--actions", help="Make plot comparing action curves by episode for each file", nargs="?", default=False, const=True, type=str_to_bool)
+    parser.add_argument("--rewards", "-r", help="Make plot comparing reward curves across files", action='store_true')
+    parser.add_argument("--reward-by-episode", "-e", help="Make plot of rewards by episode for each file", action='store_true')
+    parser.add_argument("--critic-loss", "-c", help="Make plot comparing critic loss curves across files", action='store_true')
+    parser.add_argument("--actor-loss",  "-a", help="Make plot comparing actor loss curves across files", action='store_true')
+    parser.add_argument("--actions", help="Make plot comparing action curves by episode for each file", action='store_true')
 
     args              = parser.parse_args()
     filename          = args.filename
