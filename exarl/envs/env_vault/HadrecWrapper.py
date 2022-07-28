@@ -48,6 +48,7 @@ class HadrecWrapper(gym.Env):
             self.state = self.observation_space.sample()
             self.step_index += 1
         done = self.step_index == self.max_steps
+        done = False
         return self.state, 1, done, {}
 
 

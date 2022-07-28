@@ -279,7 +279,7 @@ class PARS(erl.ExaAgent):
         # This count as one-episode considering the +ve/-ve pertub and Number of faults cases.
         # self.N_cases_beforeUpdate = self.Num_pertub*self.Num_faults*self.params['rollout_length']
         self.Num_CasesbeforeUpdate = self.Num_pertub*self.Num_faults
-
+        # 2*1*100 = 200
         # This is the number of steps which happens before the update.
         # This is example: 2perturb x 5 cases x 80 n_steps = 800  
         self.Num_StepBeforeUpdate = self.Num_CasesbeforeUpdate * self.params['rollout_length'] 
@@ -331,9 +331,10 @@ class PARS(erl.ExaAgent):
         return 
     
     def set_weights(self, weights):
-      
-        
-        if (self.env.workflow_episode+1) % self.Num_CasesbeforeUpdate == 0 and (self.internal_step_count+1) >= self.Num_StepBeforeUpdate:
+
+        print( "Set Weight Condition Check-1 >>> ", (self.env.workflow_episode),  self.Num_CasesbeforeUpdate , (self.internal_step_count+1), self.Num_StepBeforeUpdate )
+        print( "Set Weight Condition Check-2 >>> ", (self.env.workflow_episode) % self.Num_CasesbeforeUpdate == 0 and (self.internal_step_count+1) >= self.Num_StepBeforeUpdate )
+        if (self.env.workflow_episode) % self.Num_CasesbeforeUpdate == 0 and self.env.workflow_episode > 0 and  (self.internal_step_count+1) >= self.Num_StepBeforeUpdate:
             
             # This flag is used to ensure that once the above if condition is met the weights are updated only 
             # for the first time on the increase of the episode counter and else use the same weights throughout
@@ -343,8 +344,9 @@ class PARS(erl.ExaAgent):
                 # This assertion will ensure that the update of weights are called only after finishing 
                 # the required number of steps ...
                 print("Inside set weights...",self.internal_step_count,self.env.workflow_episode)
-                assert (self.internal_step_count+1) == self.Num_CasesbeforeUpdate * self.params['rollout_length']
-    
+ 
+                assert (self.internal_step_count+1) == self.Num_CasesbeforeUpdate * self.params['rollout_length'] , f" {self.internal_step_count}, {self.Num_CasesbeforeUpdate},{self.params['rollout_length']} , rank: {self.agent_comm.rank}  "
+
                 # Store the RS for all the perturb delta and faults.
                 self.RS_deltaPerturbAllFault.update(self.RS)
 
@@ -418,7 +420,8 @@ class PARS(erl.ExaAgent):
         # print("Check if batch is None::",batch == None)
         # print("Condition Train ::" , (self.env.workflow_episode+1) % self.Num_CasesbeforeUpdate == 0, (self.internal_step_count+1) >= self.Num_StepBeforeUpdate)
         
-        if (self.env.workflow_episode+1) % self.Num_CasesbeforeUpdate == 0 and (self.internal_step_count+1) >= self.Num_StepBeforeUpdate:
+        if (self.env.workflow_episode) % self.Num_CasesbeforeUpdate == 0 and self.env.workflow_episode > 0 and  (self.internal_step_count+1) >= self.Num_StepBeforeUpdate: 
+        # (self.env.workflow_episode) % self.Num_CasesbeforeUpdate == 0 and (self.internal_step_count+1) >= self.Num_StepBeforeUpdate:
     
             # check if all actor batches are appended  
             if len(self.all_actorbatch) != self.Num_actors:
@@ -494,7 +497,8 @@ class PARS(erl.ExaAgent):
         # print( "In Generate Data:",(self.env.workflow_episode+1) % self.Num_CasesbeforeUpdate == 0 , (self.internal_step_count+1) >= self.Num_StepBeforeUpdate)
         # print("From Generate Data", self.internal_step_count+1,self.Num_StepBeforeUpdate)
         # This should return 
-        if  (self.env.workflow_episode+1) % self.Num_CasesbeforeUpdate == 0 and (self.internal_step_count+1) >= self.Num_StepBeforeUpdate:
+        if (self.env.workflow_episode) % self.Num_CasesbeforeUpdate == 0 and self.env.workflow_episode > 0 and  (self.internal_step_count+1) >= self.Num_StepBeforeUpdate:   
+        # (self.env.workflow_episode+1) % self.Num_CasesbeforeUpdate == 0 and (self.internal_step_count+1) >= self.Num_StepBeforeUpdate:
             
             # Call the pos_neg_meanreward calc
             self.calc_mean_pos_neg_reward()
