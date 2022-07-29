@@ -158,6 +158,9 @@ class SharedNoiseTable(object):
         return idx, self.get(idx, dim)
 
 class PARS(erl.ExaAgent):
+    def rankPrint(self, *args):
+        print("AGENT_RANK:", self.agent_comm.rank, "IS_LEARNER:", self.is_learner, *args, flush=True)  
+    
     """Parallel Agumented Random Search agent.
     Inherits from ExaAgent base class.
     """
@@ -247,8 +250,9 @@ class PARS(erl.ExaAgent):
 
         # Total Number of cases a actor needs to perform
         # assumption: Num_actors ==  Num_delta (Number of deltas)
-        # self.Num_cases =  Num_actors x Num_perturb_direc x N_fault 
-        self.Num_actors = 1 # TODO: self.agent_comm.size - self.learner_comm.size
+        # self.Num_cases =  Num_actors x Num_perturb_direc x N_fault
+        assert self.agent_comm.num_learners == 1, "Number of learners must be 1 for PARS!"
+        self.Num_actors = self.agent_comm.size - self.agent_comm.num_learners
         self.Num_pertub = 2  #  This is +ve and -ve perturbations direction
         self.Num_faults = len(self.PF_FAULT_CASES_ALL)     
 
@@ -306,7 +310,7 @@ class PARS(erl.ExaAgent):
 
     def get_weights(self):
         if self.new_weights:
-            print("PARS: getting weights episode:", self.env.workflow_episode)
+            self.rankPrint("PARS: getting weights episode:", self.env.workflow_episode)
             self.new_weights = False
             self.w_policy = self.policy.get_weights()
             return self.w_policy
@@ -329,7 +333,7 @@ class PARS(erl.ExaAgent):
             self.first = False
         else:
             if weights is not None:
-                print("Inside set weights...",self.internal_step_count,self.env.workflow_episode)
+                self.rankPrint("Inside set weights...",self.internal_step_count,self.env.workflow_episode)
                 assert self.internal_step_count == self.Num_CasesbeforeUpdate * self.params['rollout_length'] , f" {self.internal_step_count}, {self.Num_CasesbeforeUpdate},{self.params['rollout_length']} , rank: {self.agent_comm.rank}  "
 
                 # Store the RS for all the perturb delta and faults.
@@ -388,9 +392,9 @@ class PARS(erl.ExaAgent):
 
 
     def train_step(self,g_hat):
-        print("Euclidean norm of update step:", np.linalg.norm(g_hat))
+        self.rankPrint("Euclidean norm of update step:", np.linalg.norm(g_hat))
         self.w_policy -= self.optimizer._compute_step(g_hat, self.step_size).reshape(self.w_policy.shape)
-        print('g_hat shape, w_policy shape:',np.asarray(g_hat).shape,self.w_policy.shape)
+        self.rankPrint('g_hat shape, w_policy shape:',np.asarray(g_hat).shape,self.w_policy.shape)
 
         # update the policy with new weights...
         self.policy.update_weights(self.w_policy)
@@ -401,20 +405,22 @@ class PARS(erl.ExaAgent):
             self.all_actorbatch.append(batch)
 
             # check if all actor batches are appended  
+            self.rankPrint(len(self.all_actorbatch),  self.Num_actors)
             if len(self.all_actorbatch) != self.Num_actors:
-                print("appending the batch and returning NONE")
+                self.rankPrint("appending the batch and returning NONE")
                 return None
 
             else:
                 # use the self.all_actorbatch once all the actors have update 
                 # the actorbatch list.
-                assert len(self.all_actorbatch) > 0 , "one or more actors have not finished N_cases_beforeUpdate"
+                assert len(self.all_actorbatch) == self.Num_actors , "one or more actors have not finished N_cases_beforeUpdate"
                 
                 rollout_rewards, deltas_idx, deltas_actor = [], [],[]
                 for i, actorbatch in enumerate(self.all_actorbatch):
                     rollout_rewards += actorbatch['rollout_rewards']
                     deltas_idx += actorbatch['deltas_idx']
                     deltas_actor.append(actorbatch['deltas'])
+                    self.rankPrint("LOOP i", i)
                     
                     
                 # This is the collection of all the rewards...
@@ -427,6 +433,8 @@ class PARS(erl.ExaAgent):
                 
                 #  select top performing deltas;  95 percentile  data...
                 idx = np.arange(max_rewards.size)[max_rewards >= np.percentile(max_rewards, 0.95)]
+                # JS: THIS A HACK FOR NOW
+                idx = 0
 
                 deltas_idx = np.array(deltas_idx)[idx]
                 rollout_rewards = np.array(rollout_rewards)[idx, :]
@@ -453,14 +461,14 @@ class PARS(erl.ExaAgent):
                 
                 # Loss metric.
                 l2_norm = np.linalg.norm(g_hat)
-                
+
                 self.all_actorbatch = []
                 self.new_weights = True
         return None 
 
     def generate_data(self):
         batch = {}
-        print(self.internal_episode_count, self.internal_episode_count, self.Num_CasesbeforeUpdate)
+        self.rankPrint(self.internal_episode_count, self.internal_episode_count, self.Num_CasesbeforeUpdate)
         # if self.internal_episode_count > 0 and self.internal_episode_count % self.Num_CasesbeforeUpdate == 0:
         if self.internal_episode_count >= self.Num_CasesbeforeUpdate and self.internal_episode_count % self.Num_CasesbeforeUpdate == 0:
             # Call the pos_neg_meanreward calc
@@ -472,16 +480,16 @@ class PARS(erl.ExaAgent):
 
             # Reset the positive and negative reward list for 
             self.pos_rew, self.neg_rew = [], []
-            print("Generate Data self.internal_episode_count:", self.internal_episode_count, self.env.workflow_episode, " BATCH")
+            self.rankPrint("Generate Data self.internal_episode_count:", self.internal_episode_count, self.env.workflow_episode, " BATCH")
             yield batch
         else:
-            print("Generate Data self.internal_episode_count:", self.internal_episode_count, self.env.workflow_episode, " NONE")
+            self.rankPrint("Generate Data self.internal_episode_count:", self.internal_episode_count, self.env.workflow_episode, " NONE")
             yield None
 
     def remember(self, state, action, reward, next_state, done):
         self.RS.push(state)
         # positive perturb policy returning
-        if self.env.workflow_episode % self.Num_pertub == 0:
+        if self.internal_episode_count % self.Num_pertub == 0:
             self.pos_rew.append(reward)
         # negative perturb policy returning
         else:
