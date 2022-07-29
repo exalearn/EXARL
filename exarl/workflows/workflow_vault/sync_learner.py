@@ -563,7 +563,8 @@ class SYNC(exarl.ExaWorkflow):
                 self.total_reward += reward
 
             # Check number of steps and broadcast (8)
-            if self.steps == exalearner.nsteps:
+            # print("Check here", self.steps, exalearner.nsteps)
+            if self.steps == exalearner.nsteps - 1:
                 self.done = True
             self.done = ExaComm.env_comm.bcast(self.done, 0)
             self.write_log(self.current_state, action, reward, next_state, self.total_reward, self.done, episode, self.steps, policy_type, epsilon)
@@ -573,7 +574,7 @@ class SYNC(exarl.ExaWorkflow):
             self.steps += 1
 
             if self.done:
-                self.step_count = 0
+                self.steps = 0
                 self.episode_count += 1
                 # Lets us know how we are doing
                 self.episode_reward_list.append(self.total_reward)
@@ -581,8 +582,7 @@ class SYNC(exarl.ExaWorkflow):
                 self.debug("Episode:", episode, "Average Reward:", average_reward)
                 break
 
-
-        
+        print("WORKFLOW EP DONE:", self.episode_count, self.steps)
         # Send batches back to the learner (10)
         if ExaComm.env_comm.rank == 0:
             batch_data = next(exalearner.agent.generate_data())

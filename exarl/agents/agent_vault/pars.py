@@ -140,8 +140,6 @@ class RunningStat(object):
     def shape(self):
         return self._M.shape
 
-
-
 class SharedNoiseTable(object):
     def __init__(self, noise, seed = 11):
 
@@ -158,13 +156,6 @@ class SharedNoiseTable(object):
     def get_delta(self, dim):
         idx = self.sample_index(dim)
         return idx, self.get(idx, dim)
-
-
-
-
-
-
-
 
 class PARS(erl.ExaAgent):
     """Parallel Agumented Random Search agent.
@@ -264,10 +255,10 @@ class PARS(erl.ExaAgent):
         self.epsilon = ExaGlobals.lookup_params('epsilon')   
     
 
-        # We define the internal step counter
-        # This will be always rest to zero by the set-weight call
-        #
+        # We define the internal step and episode counter
+        # Step will be always rest to zero by the set-weight call
         self.internal_step_count = 0
+        self.internal_episode_count = 0
 
         # Initializat positive and negative reward
         self.pos_rew, self.neg_rew = [], []
@@ -278,15 +269,15 @@ class PARS(erl.ExaAgent):
 
         # This count as one-episode considering the +ve/-ve pertub and Number of faults cases.
         # self.N_cases_beforeUpdate = self.Num_pertub*self.Num_faults*self.params['rollout_length']
-        self.Num_CasesbeforeUpdate = self.Num_pertub*self.Num_faults
+        self.Num_CasesbeforeUpdate = self.Num_pertub * self.Num_faults
         # 2*1*100 = 200
         # This is the number of steps which happens before the update.
         # This is example: 2perturb x 5 cases x 80 n_steps = 800  
         self.Num_StepBeforeUpdate = self.Num_CasesbeforeUpdate * self.params['rollout_length'] 
 
-
         # Flag to use by set weight update and 
-        self.set_flag = 1
+        self.first = True
+        self.new_weights = True
 
     def CreateParams(self):
         param = {}       
@@ -306,7 +297,6 @@ class PARS(erl.ExaAgent):
         
         return param
 
-
     def set_delta(self,seed):
         deltas_id = create_shared_noise()
         self.deltas = SharedNoiseTable(deltas_id,self.params["seed"] + 7 * seed)
@@ -314,11 +304,14 @@ class PARS(erl.ExaAgent):
         self.delta = (self.delta_std * delta).reshape(self.w_policy.shape)
         self.deltas_idx.append(idx)
 
-
     def get_weights(self):
-        print("PARS:  getting weights episode:", self.env.workflow_episode)
-        self.w_policy = self.policy.get_weights()
-        return self.w_policy
+        if self.new_weights:
+            print("PARS: getting weights episode:", self.env.workflow_episode)
+            self.new_weights = False
+            self.w_policy = self.policy.get_weights()
+            return self.w_policy
+        else:
+            return None
     
     def calc_mean_pos_neg_reward(self):
         assert len(self.pos_rew) != 0 , "Positive Peturbation reward list empty"
@@ -331,21 +324,13 @@ class PARS(erl.ExaAgent):
         return 
     
     def set_weights(self, weights):
-
-        print( "Set Weight Condition Check-1 >>> ", (self.env.workflow_episode),  self.Num_CasesbeforeUpdate , (self.internal_step_count+1), self.Num_StepBeforeUpdate )
-        print( "Set Weight Condition Check-2 >>> ", (self.env.workflow_episode) % self.Num_CasesbeforeUpdate == 0 and (self.internal_step_count+1) >= self.Num_StepBeforeUpdate )
-        if (self.env.workflow_episode) % self.Num_CasesbeforeUpdate == 0 and self.env.workflow_episode > 0 and  (self.internal_step_count+1) >= self.Num_StepBeforeUpdate:
-            
-            # This flag is used to ensure that once the above if condition is met the weights are updated only 
-            # for the first time on the increase of the episode counter and else use the same weights throughout
-            # the episode.
-            print("set flag status = ",self.set_flag)
-            if self.set_flag == 1:
-                # This assertion will ensure that the update of weights are called only after finishing 
-                # the required number of steps ...
+        # JS: This is for an off policy start.  Afterwards everything will be only policy.  This matches the ray implementation
+        if self.first:
+            self.first = False
+        else:
+            if weights is not None:
                 print("Inside set weights...",self.internal_step_count,self.env.workflow_episode)
- 
-                assert (self.internal_step_count+1) == self.Num_CasesbeforeUpdate * self.params['rollout_length'] , f" {self.internal_step_count}, {self.Num_CasesbeforeUpdate},{self.params['rollout_length']} , rank: {self.agent_comm.rank}  "
+                assert self.internal_step_count == self.Num_CasesbeforeUpdate * self.params['rollout_length'] , f" {self.internal_step_count}, {self.Num_CasesbeforeUpdate},{self.params['rollout_length']} , rank: {self.agent_comm.rank}  "
 
                 # Store the RS for all the perturb delta and faults.
                 self.RS_deltaPerturbAllFault.update(self.RS)
@@ -372,25 +357,21 @@ class PARS(erl.ExaAgent):
                 
                 # reset the internal_step_count
                 self.internal_step_count  = 0
-                # reset the flag
-                self.set_flag = 0
-                print("From inside set_weight: setting set flag status == ",self.set_flag)
-            else:
-                pass
+        
+        # Even count mean run with positive perturb
+        if self.internal_episode_count % 2 == 0:
+            # update with the positive 
+            w_pos_id = self.w_policy + self.delta
+            self.policy.update_weights(w_pos_id)
+            # print("Setting positive weights.. Episode:: ",self.env.workflow_episode)
+        # Odd count mean run with negative perburb 
         else:
-           
-            # Even count mean run with positive perturb
-            if self.env.workflow_episode % 2 == 0:
-                # update with the positive 
-                w_pos_id = self.w_policy + self.delta
-                self.policy.update_weights(w_pos_id)
-                print("Setting positive weights.. Episode:: ",self.env.workflow_episode)
-            # Odd count mean run with negative perburb 
-            else:
-                # update with the negative perturb 
-                w_pos_id = self.w_policy - self.delta
-                self.policy.update_weights(w_pos_id)
-                print("Setting negative weights..!  Episode:: ",self.env.workflow_episode)
+            # update with the negative perturb 
+            w_pos_id = self.w_policy - self.delta
+            self.policy.update_weights(w_pos_id)
+            # print("Setting negative weights..!  Episode:: ",self.env.workflow_episode)
+
+        self.internal_episode_count+=1
                    
     def action(self,state):
         ob = np.asarray(state, dtype=np.float64)
@@ -416,19 +397,12 @@ class PARS(erl.ExaAgent):
         return
 
     def train(self,batch):
+        if batch is not None:
+            self.all_actorbatch.append(batch)
 
-        # print("Check if batch is None::",batch == None)
-        # print("Condition Train ::" , (self.env.workflow_episode+1) % self.Num_CasesbeforeUpdate == 0, (self.internal_step_count+1) >= self.Num_StepBeforeUpdate)
-        
-        if (self.env.workflow_episode) % self.Num_CasesbeforeUpdate == 0 and self.env.workflow_episode > 0 and  (self.internal_step_count+1) >= self.Num_StepBeforeUpdate: 
-        # (self.env.workflow_episode) % self.Num_CasesbeforeUpdate == 0 and (self.internal_step_count+1) >= self.Num_StepBeforeUpdate:
-    
             # check if all actor batches are appended  
             if len(self.all_actorbatch) != self.Num_actors:
-                
                 print("appending the batch and returning NONE")
-                self.all_actorbatch.append(batch)
-
                 return None
 
             else:
@@ -479,27 +453,16 @@ class PARS(erl.ExaAgent):
                 
                 # Loss metric.
                 l2_norm = np.linalg.norm(g_hat)
-                return None
-
-        else:
-            # Don't train since the number of perturb and number of all faults
-            # cases have not finished.
-            return None 
-
-        
-    
-
+                
+                self.all_actorbatch = []
+                self.new_weights = True
+        return None 
 
     def generate_data(self):
-        # 
         batch = {}
-
-        # print( "In Generate Data:",(self.env.workflow_episode+1) % self.Num_CasesbeforeUpdate == 0 , (self.internal_step_count+1) >= self.Num_StepBeforeUpdate)
-        # print("From Generate Data", self.internal_step_count+1,self.Num_StepBeforeUpdate)
-        # This should return 
-        if (self.env.workflow_episode) % self.Num_CasesbeforeUpdate == 0 and self.env.workflow_episode > 0 and  (self.internal_step_count+1) >= self.Num_StepBeforeUpdate:   
-        # (self.env.workflow_episode+1) % self.Num_CasesbeforeUpdate == 0 and (self.internal_step_count+1) >= self.Num_StepBeforeUpdate:
-            
+        print(self.internal_episode_count, self.internal_episode_count, self.Num_CasesbeforeUpdate)
+        # if self.internal_episode_count > 0 and self.internal_episode_count % self.Num_CasesbeforeUpdate == 0:
+        if self.internal_episode_count >= self.Num_CasesbeforeUpdate and self.internal_episode_count % self.Num_CasesbeforeUpdate == 0:
             # Call the pos_neg_meanreward calc
             self.calc_mean_pos_neg_reward()
 
@@ -509,22 +472,13 @@ class PARS(erl.ExaAgent):
 
             # Reset the positive and negative reward list for 
             self.pos_rew, self.neg_rew = [], []
-            print("*PARS step Count:", self.internal_step_count)
+            print("Generate Data self.internal_episode_count:", self.internal_episode_count, self.env.workflow_episode, " BATCH")
             yield batch
         else:
-            self.set_flag = 1 # reset the set_weight flag
-            print("*PARS step Count:", self.internal_step_count)
-        
+            print("Generate Data self.internal_episode_count:", self.internal_episode_count, self.env.workflow_episode, " NONE")
             yield None
 
-    
     def remember(self, state, action, reward, next_state, done):
-        # self.memory.store(state, action, reward, next_state, done)
-        # JS: What does onedirction_rollout_multi_single_Cases care about
-        # you care about RS and reward...
-        # Store it here!
-        # Probable need self.step
-
         self.RS.push(state)
         # positive perturb policy returning
         if self.env.workflow_episode % self.Num_pertub == 0:
@@ -533,8 +487,6 @@ class PARS(erl.ExaAgent):
         else:
             self.neg_rew.append(reward)
 
-        
-    
     def target_train(self):
         return self.policy.get_weights
 
