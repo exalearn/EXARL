@@ -541,7 +541,7 @@ class SYNC(exarl.ExaWorkflow):
         # for fault_id in range( N_Caselist ):
             
         #     self.current_state = exalearner.agent.set_fault_case(fault_id)
-        
+        print(self.batch_frequency,">>>>")
         for i in range(self.batch_frequency):
             # Do inference (4)
             if ExaComm.env_comm.rank == 0:

@@ -253,6 +253,8 @@ class PARS(erl.ExaAgent):
         # self.Num_cases =  Num_actors x Num_perturb_direc x N_fault
         assert self.agent_comm.num_learners == 1, "Number of learners must be 1 for PARS!"
         self.Num_actors = self.agent_comm.size - self.agent_comm.num_learners
+        if self.Num_actors  == 0:
+            self.Num_actors  = 1
         self.Num_pertub = 2  #  This is +ve and -ve perturbations direction
         self.Num_faults = len(self.PF_FAULT_CASES_ALL)     
 
@@ -281,7 +283,7 @@ class PARS(erl.ExaAgent):
 
         # Flag to use by set weight update and 
         self.first = True
-        self.new_weights = True
+        self.new_weights = self.Num_actors 
 
     def CreateParams(self):
         param = {}       
@@ -309,9 +311,8 @@ class PARS(erl.ExaAgent):
         self.deltas_idx.append(idx)
 
     def get_weights(self):
-        if self.new_weights:
-            self.rankPrint("PARS: getting weights episode:", self.env.workflow_episode)
-            self.new_weights = False
+        if self.new_weights > 0:
+            self.new_weights -= 1
             self.w_policy = self.policy.get_weights()
             return self.w_policy
         else:
@@ -329,6 +330,8 @@ class PARS(erl.ExaAgent):
     
     def set_weights(self, weights):
         # JS: This is for an off policy start.  Afterwards everything will be only policy.  This matches the ray implementation
+        # self.rankPrint("Set Weight::",weights)
+        # self.rankPrint("Set Weight :: ",self.internal_step_count)
         if self.first:
             self.first = False
         else:
@@ -404,8 +407,12 @@ class PARS(erl.ExaAgent):
         if batch is not None:
             self.all_actorbatch.append(batch)
 
+            # self.rankPrint(len(self.all_actorbatch), "lenght of the batch- before")
+            # self.all_actorbatch = list(batch)
+            # self.rankPrint(len(self.all_actorbatch), "lenght of the batch-after")
             # check if all actor batches are appended  
-            self.rankPrint(len(self.all_actorbatch),  self.Num_actors)
+            # self.rankPrint(len(self.all_actorbatch),  self.Num_actors)
+            
             if len(self.all_actorbatch) != self.Num_actors:
                 self.rankPrint("appending the batch and returning NONE")
                 return None
@@ -420,24 +427,38 @@ class PARS(erl.ExaAgent):
                     rollout_rewards += actorbatch['rollout_rewards']
                     deltas_idx += actorbatch['deltas_idx']
                     deltas_actor.append(actorbatch['deltas'])
-                    self.rankPrint("LOOP i", i)
+                    # self.rankPrint("LOOP i", i)
                     
-                    
+                # print (len(rollout_rewards), len(deltas_idx), len(deltas_actor))
+                
                 # This is the collection of all the rewards...
                 rollout_rewards = np.asarray(rollout_rewards)
+                
+                # self.rankPrint("roll out reward shape",rollout_rewards.shape)
+                # self.rankPrint("roll out reward ",rollout_rewards)
 
                 max_rewards = np.max(rollout_rewards, axis=1)
                 
                 # if self.deltas_used > self.num_deltas:
                 #     self.deltas_used = self.num_deltas
+                # self.rankPrint("max reward ",max_rewards)
+                # self.rankPrint("max reward ",max_rewards.size)
                 
+                # self.rankPrint("idx calc",max_rewards >= np.percentile(max_rewards, 0.95))
+
                 #  select top performing deltas;  95 percentile  data...
                 idx = np.arange(max_rewards.size)[max_rewards >= np.percentile(max_rewards, 0.95)]
-                # JS: THIS A HACK FOR NOW
-                idx = 0
+                
+
+                # self.rankPrint(idx)
+                # self.rankPrint("delta_idx:: ", deltas_idx)
 
                 deltas_idx = np.array(deltas_idx)[idx]
                 rollout_rewards = np.array(rollout_rewards)[idx, :]
+
+                # self.rankPrint("roll out reward shape",rollout_rewards.shape)
+                # self.rankPrint("roll out reward ",rollout_rewards)
+
                 # deltas_actor = np.array(deltas_actor)[idx[0]]
 
                 deltas_actor = np.array(deltas_actor)[0]
@@ -463,12 +484,12 @@ class PARS(erl.ExaAgent):
                 l2_norm = np.linalg.norm(g_hat)
 
                 self.all_actorbatch = []
-                self.new_weights = True
+                self.new_weights = self.Num_actors 
         return None 
 
     def generate_data(self):
         batch = {}
-        self.rankPrint(self.internal_episode_count, self.internal_episode_count, self.Num_CasesbeforeUpdate)
+        # self.rankPrint(self.internal_episode_count, self.internal_episode_count, self.Num_CasesbeforeUpdate)
         # if self.internal_episode_count > 0 and self.internal_episode_count % self.Num_CasesbeforeUpdate == 0:
         if self.internal_episode_count >= self.Num_CasesbeforeUpdate and self.internal_episode_count % self.Num_CasesbeforeUpdate == 0:
             # Call the pos_neg_meanreward calc
@@ -476,14 +497,20 @@ class PARS(erl.ExaAgent):
 
             batch['rollout_rewards'] = self.pos_neg_meanreward
             batch['deltas_idx'] = self.deltas_idx
-            batch['deltas'] = self.deltas
+            batch['deltas'] = self.deltas 
 
             # Reset the positive and negative reward list for 
             self.pos_rew, self.neg_rew = [], []
-            self.rankPrint("Generate Data self.internal_episode_count:", self.internal_episode_count, self.env.workflow_episode, " BATCH")
+            self.pos_neg_meanreward = []
+            self.deltas_idx = []
+
+            self.rankPrint("GenData:: >> ", batch['deltas_idx'] )
+
+            self.rankPrint("Generate Data:: self.internal_episode_count:", self.internal_episode_count, self.env.workflow_episode, " BATCH")
+
             yield batch
         else:
-            self.rankPrint("Generate Data self.internal_episode_count:", self.internal_episode_count, self.env.workflow_episode, " NONE")
+            self.rankPrint("Generate Data:: self.internal_episode_count:", self.internal_episode_count, self.env.workflow_episode, " NONE")
             yield None
 
     def remember(self, state, action, reward, next_state, done):
