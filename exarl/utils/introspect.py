@@ -3,6 +3,7 @@ from time import time_ns as globalTimeStamp
 
 # Try to import introbind and replace if fail
 try:
+    raise
     import introbind as ib
 
     def ibLoaded():

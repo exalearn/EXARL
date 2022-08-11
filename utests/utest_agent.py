@@ -106,7 +106,12 @@ class TestAgentHelper:
         "loss": "mse"
     }
 
-    model_types = {"LSTM": lstm_args, "MLP": mlp_args}
+    bsuite_args = {
+        "bsuite_default" : "True",
+        "n_steps" : 10
+    }
+
+    model_types = {"empty":{}} # {"LSTM": lstm_args, "MLP": mlp_args}
     priority_scale = [0.0, 1.0]
     max_attempts = 100
 
@@ -344,7 +349,7 @@ def run_params(request):
         Model types are passed in as request.param.
     """
     ExaGlobals.set_param('output_dir', "./test")
-    ExaGlobals.set_params(TestAgentHelper.dqn_args)
+    ExaGlobals.set_params(TestAgentHelper.bsuite_args)
     ExaGlobals.set_param("model_type", request.param)
     ExaGlobals.set_params(TestAgentHelper.model_types[request.param])
     return request.param

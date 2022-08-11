@@ -63,6 +63,7 @@ subsets = {"all": ["bandit", "bandit_noise", "bandit_scale",
            "umbrella": ["umbrella_length"],
            "umb_dist": ["umbrella_distract"],
            "discount": ["discounting_chain"],
+           "mnist" : ["mnist"],
            "empty": []}
 
 

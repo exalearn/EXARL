@@ -179,8 +179,12 @@ class SYNC(exarl.ExaWorkflow):
         # Save weights after each episode
         self.save_weights_per_episode = TypeUtils.get_bool(ExaGlobals.lookup_params('save_weights_per_episode'))
 
-        # This is for print/debug
+        # Check this for convergence
         self.episode_reward_list = []
+        self.cutoff = ExaGlobals.lookup_params('cutoff')
+        self.rolling_reward_length = ExaGlobals.lookup_params('rolling_reward_length')
+        self.converged = False
+        self.alive = 0
 
     def debug(self, *args):
         """
@@ -240,8 +244,8 @@ class SYNC(exarl.ExaWorkflow):
         """
         if ExaComm.is_agent():
             self.data_matrix.append([time.time(), current_state, action, reward, next_state, total_reward, done, episode, steps, policy_type, epsilon])
-            if done:
-                if (episode == (self.nepisodes - 1)) or (episode + 1 % self.log_frequency == 0):
+            if done or self.converged:
+                if (episode == (self.nepisodes - 1)) or (episode + 1 % self.log_frequency == 0) or self.converged:
                     self.train_writer.writerows(self.data_matrix)
                     self.train_file.flush()
                     self.data_matrix = []
@@ -265,7 +269,7 @@ class SYNC(exarl.ExaWorkflow):
         """
         if self.save_weights_per_episode and episode != nepisodes:
             exalearner.agent.save(exalearner.results_dir + '/' + self.filename_prefix + '_' + str(episode) + '.h5')
-        elif episode == nepisodes:
+        elif episode == nepisodes or self.converged:
             exalearner.agent.save(exalearner.results_dir + '/' + self.filename_prefix + '.h5')
 
     @introspect
@@ -318,7 +322,7 @@ class SYNC(exarl.ExaWorkflow):
         return self.weights
 
     @introspect
-    def send_batch(self, batch_data, policy_type, done, epsilon):
+    def send_batch(self, batch_data, policy_type, done, epsilon, episode_reward):
         """
         This function is used to send batches of data from the actor to the
         learner.  For the sync learner data is being stored locally.  This
@@ -334,7 +338,7 @@ class SYNC(exarl.ExaWorkflow):
             This is the policy given by the actor performing inference to get an action
             TODO: Make this description better
         """
-        self.batch = [ExaComm.agent_comm.rank, batch_data, policy_type, done, epsilon]
+        self.batch = [ExaComm.agent_comm.rank, batch_data, policy_type, done, epsilon, episode_reward]
 
     @introspect
     def recv_batch(self):
@@ -398,6 +402,19 @@ class SYNC(exarl.ExaWorkflow):
             self.episode_per_rank[0] = self.next_episode
             self.send_model(exalearner, self.next_episode, None, 0)
             self.next_episode += 1
+            self.alive += 1
+
+    def check_convergence(self, nepisodes):
+        # Lets us know how we are doing
+        if self.cutoff > 0 and self.rolling_reward_length > 1 and not self.converged:
+            if len(self.episode_reward_list) >= self.rolling_reward_length:
+                ave = np.mean(np.abs(np.diff(np.array(self.episode_reward_list[-self.rolling_reward_length:]))))
+                # print("Check:", ave, len(self.episode_reward_list), self.episode_reward_list[-5:]) #self.episode_reward_list[-self.rolling_reward_length:])
+                if ave < self.cutoff:
+                    self.converged = True
+                    print("Converged:", len(self.episode_reward_list), "Alive:", self.alive, "Ave:", ave, "Last:", self.episode_reward_list[-1])
+                return ave
+        return -1
 
     @introspect
     def learner(self, exalearner, nepisodes, start_rank):
@@ -458,9 +475,10 @@ class SYNC(exarl.ExaWorkflow):
         start_rank : int
             The rank of the first actor
         """
+        ret = False
         to_send = []
         for dst in range(start_rank, self.block_size):
-            src, batch, policy_type, done, epsilon = self.recv_batch()
+            src, batch, policy_type, done, epsilon, total_reward = self.recv_batch()
             self.train_return[src] = exalearner.agent.train(batch)
 
             if self.steps % self.update_target_frequency == 0:
@@ -472,16 +490,24 @@ class SYNC(exarl.ExaWorkflow):
             exalearner.agent.epsilon = min(exalearner.agent.epsilon, epsilon)
 
             if done:
+                self.episode_reward_list.append(total_reward)
                 self.done_episode += 1
                 self.episode_per_rank[src] = self.next_episode
                 self.next_episode += 1
+                ret = True
+            
+            if self.converged:
+                self.episode_per_rank[src] = nepisodes
 
         for dst in to_send:
             self.send_model(exalearner, self.episode_per_rank[dst], self.train_return[dst], dst)
+            if self.episode_per_rank[dst] >= nepisodes:
+                self.alive -= 1
 
         self.save_weights(exalearner, self.done_episode, nepisodes)
+        return ret
 
-    # @introspect
+    @introspect
     def actor(self, exalearner, nepisodes):
         """
         This function is performed by actors.  It performs the follow:
@@ -577,16 +603,12 @@ class SYNC(exarl.ExaWorkflow):
             if self.done:
                 self.episode_count += 1
                 self.step_count = 0
-                # Lets us know how we are doing
-                self.episode_reward_list.append(self.total_reward)
-                average_reward = np.mean(self.episode_reward_list[-40:])
-                self.debug("Episode:", episode, "Average Reward:", average_reward)
                 break
 
         # Send batches back to the learner (10)
         if ExaComm.env_comm.rank == 0:
             batch_data = next(exalearner.agent.generate_data())
-            self.send_batch(batch_data, policy_type, self.done, exalearner.agent.epsilon)
+            self.send_batch(batch_data, policy_type, self.done, exalearner.agent.epsilon, self.total_reward)
         return True
 
     def episode_round(self, exalearner):
@@ -636,17 +658,20 @@ class SYNC(exarl.ExaWorkflow):
         exalearner : ExaLearner
             This contains the agent and env
         """
-        self.nepisodes = self.episode_round(exalearner)
+        convergence = -1
+        nepisodes = self.episode_round(exalearner)
         self.init_learner(exalearner)
         if ExaComm.is_agent():
-            while self.done_episode < self.nepisodes:
-                self.actor(exalearner, self.nepisodes)
-                self.learner(exalearner, self.nepisodes, 0)
-                self.debug("Learner:", self.done_episode, self.nepisodes)
+            while self.alive and self.done_episode < nepisodes:
+                self.actor(exalearner, nepisodes)
+                do_convergence_check = self.learner(exalearner, nepisodes, 0)
+                if do_convergence_check:
+                    convergence = self.check_convergence(nepisodes)
+                self.debug("Learner:", self.done_episode, nepisodes, do_convergence_check, convergence)
             # Send the done signal to the rest
             ExaComm.env_comm.bcast(self.done_episode, 0)
         else:
             keep_running = True
             while keep_running:
-                keep_running = self.actor(exalearner, self.nepisodes)
+                keep_running = self.actor(exalearner, nepisodes)
                 self.debug("Actor:", keep_running)

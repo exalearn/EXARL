@@ -35,3 +35,13 @@ elif agent == 'PARS-v0':
         id=agent,
         entry_point='exarl.agents.agent_vault:PARS'
     )
+elif agent == 'BSUITE-BASE-v0':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:serial_bsuite_agent'
+    )
+elif agent == 'BSUITE-BASE-v1':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:parallel_bsuite_agent'
+    )

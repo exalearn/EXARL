@@ -26,6 +26,7 @@ import json
 import exarl as erl
 # from envs.env_vault.computePI import computePI as cp
 from exarl.base.comm_base import ExaComm
+from exarl.utils.introspect import introspectTrace
 
 
 def computePI(N, new_comm):
@@ -49,6 +50,7 @@ class ExaCartpoleStatic(gym.Env):
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
 
+    @introspectTrace()
     def step(self, action):
         next_state, reward, done, info = self.env.step(action)
         time.sleep(0)  # Delay in seconds

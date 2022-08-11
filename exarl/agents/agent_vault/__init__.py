@@ -16,3 +16,7 @@ elif agent == 'TD3-v1':
     from exarl.agents.agent_vault.keras_td3 import KerasTD3
 elif agent == 'PARS-v0':
     from exarl.agents.agent_vault.PARS import PARS
+elif agent == 'BSUITE-BASE-v0':
+    from exarl.agents.agent_vault.bsuite_base import serial_bsuite_agent
+elif agent == 'BSUITE-BASE-v1':
+    from exarl.agents.agent_vault.bsuite_base import parallel_bsuite_agent
