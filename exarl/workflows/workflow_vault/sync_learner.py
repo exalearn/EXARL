@@ -481,7 +481,7 @@ class SYNC(exarl.ExaWorkflow):
             src, batch, policy_type, done, epsilon, total_reward = self.recv_batch()
             self.train_return[src] = exalearner.agent.train(batch)
 
-            if self.steps % self.update_target_frequency == 0:
+            if self.model_count % self.update_target_frequency == 0:
                 exalearner.agent.update_target()
 
             self.model_count += 1

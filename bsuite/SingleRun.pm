@@ -6,8 +6,8 @@ use Time::HiRes qw(usleep);
 my $user = "userName";
 my $partition = "partitionName";
 my $overSubFactor = 2;
-my $defaultThreashold = 1;
-my $threashold = $defaultThreashold;
+my $defaultthreshold = 1;
+my $threshold = $defaultthreshold;
 
 sub setPartition
 {
@@ -62,20 +62,20 @@ sub throttleCommand
     my $total = getCurrentTotalNodes();
     my $avail = getCurrentAvailableNodes();
     my $load = getCurrentLoad();
-    if($threashold < $avail)
+    if($threshold < $avail)
     {
-        $threashold = int($avail*$overSubFactor);
+        $threshold = int($avail*$overSubFactor);
     }
     else
     {
         my $max = $total * $overSubFactor;
-        if($max < $threashold)
+        if($max < $threshold)
         {
-            $threashold = $max;
+            $threshold = $max;
         }
     }
     my $secs = 100;
-    while($load >= $threashold)
+    while($load >= $threshold)
     {
         usleep($secs);
         if($secs < 1000000)
@@ -91,7 +91,7 @@ sub throttleCommand
     $load = getCurrentLoad();
     my $running = getCurrentRunning();
     my $percentage = 100 * $running / $total;
-    print("Nodes: $total Avail: $avail Load: $load Percent: $percentage\n");
+    print("Nodes: $total Avail: $avail Load: $load Percent: $percentage Threshold: $threshold\n");
 }
 
 sub waitUntilFileExists
