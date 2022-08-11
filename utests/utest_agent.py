@@ -106,7 +106,8 @@ class TestAgentHelper:
         "loss": "mse"
     }
 
-    model_types = {"LSTM": lstm_args, "MLP": mlp_args}
+    # model_types = {"LSTM": lstm_args, "MLP": mlp_args}
+    model_types = {"LSTM":{}, "linear":{}, "nonlinear":{}}
     priority_scale = [0.0, 1.0]
     max_attempts = 100
 

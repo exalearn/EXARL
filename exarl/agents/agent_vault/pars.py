@@ -180,6 +180,7 @@ class PARS(erl.ExaAgent):
         self.ac_dim = env.action_space.shape[0]
 
         self.params = self.CreateParams()
+        self.batch_size = 500
 
         if self.params['PowerGridEnv_Flag'] == 1:
             #grab a fault tuple from FAULT_CASES
@@ -471,7 +472,7 @@ class PARS(erl.ExaAgent):
                 g_hat, count = batched_weighted_sum(rollout_rewards[:, 0] - rollout_rewards[:, 1],
                                                         (deltas_actor.get(idx, self.w_policy.size)
                                                         for idx in deltas_idx),
-                                                        batch_size=500)
+                                                        batch_size=self.batch_size)
                 g_hat /= deltas_idx.size
 
                 self.step_size *= self.decay # This updated value is used at train_step 
