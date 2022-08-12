@@ -9,9 +9,16 @@ require SingleRun;
 # These are used to submit and throttle commands sent to slurm
 my $username = $ENV{LOGNAME} || $ENV{USER} || getpwuid($<);
 my $partition  = shift(@ARGV);
-print("Username: $username Slurm Partition: $partition\n");
+my $command  = shift(@ARGV);
+my $count = shift(@ARGV);
+print("Username: $username Slurm Partition: $partition Command: $command Count: $count\n");
 SingleRun::setPartition("$partition");
 SingleRun::setUser("$username");
 
-my $command  = shift(@ARGV);
-SingleRun::throttleCommand($command);
+# if($#ARGV == 1){
+#     SingleRun::greedyThrottleCommand($command, shift(@ARGV));
+# }
+# else {
+#     SingleRun::throttleCommand($command);
+# }
+

@@ -94,6 +94,35 @@ sub throttleCommand
     print("Nodes: $total Avail: $avail Load: $load Percent: $percentage Threshold: $threshold\n");
 }
 
+sub greedyThrottleCommand
+{   
+    $threshold = shift(@_);
+    my $command = shift(@_);
+    my $total = getCurrentTotalNodes();
+    my $avail = getCurrentAvailableNodes();
+    my $load = getCurrentLoad();
+     
+    
+    my $secs = 100;
+    while($load >= $threshold)
+    {
+        usleep($secs);
+        if($secs < 1000000)
+        {
+            $secs+=100;
+        }
+        $load = getCurrentLoad();
+    }
+    my $load = getCurrentLoad();
+    runCommand($command);
+    $total = getCurrentTotalNodes();
+    $avail = getCurrentAvailableNodes();
+    $load = getCurrentLoad();
+    my $running = getCurrentRunning();
+    my $percentage = 100 * $running / $total;
+    print("Nodes: $total Avail: $avail Load: $load Percent: $percentage Threshold: $threshold\n");
+}
+
 sub waitUntilFileExists
 {
     my $fileName = shift(@_);

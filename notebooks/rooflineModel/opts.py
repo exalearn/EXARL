@@ -116,6 +116,14 @@ def readCartFile(filename):
     episode_block = parts[1]
     batch_frequency = int(parts[2])
     ranks = int(parts[3])
+    if len(parts) >= 5:
+        train_frequency = int(parts[4])
+    else:
+        train_frequency = 1
+    if len(parts) >= 6:
+        batch_size = int(parts[5])
+    else:
+        batch_size = 32
 
     time = None
     altTime = 0
@@ -138,7 +146,7 @@ def readCartFile(filename):
     
     if time is None:
         time = altTime
-    return (which, episode_block, batch_frequency, ranks, time, converged, alive, average, last)
+    return (which, episode_block, batch_frequency, ranks, train_frequency, batch_size, time, converged, alive, average, last)
 
 @csvWriter()
 def getCartDataframe(dir):
@@ -163,7 +171,7 @@ def getCartDataframe(dir):
             temp.append(readCartFile(f))
         except:
             print("Failed:", f)
-    ret = pd.DataFrame(temp, columns=("which", "episode_block", "batch_frequency", "ranks", "time", "converged", "alive", "average", "last"))
+    ret = pd.DataFrame(temp, columns=("which", "episode_block", "batch_frequency", "ranks", "train_frequency", "batch_size", "time", "converged", "alive", "average", "last"))
     
     truthy = {"1":True, "true":True, "True":True, "0":False, "false":False, "False":False}
     ret["episode_block"] = ret["episode_block"].map(truthy)
@@ -203,6 +211,12 @@ def readTraceFile(filename):
     episode_block = parts[1]
     batch_frequency = int(parts[2])
     ranks = int(parts[3])
+    if len(parts) >= 5:
+        train_frequency = int(parts[4])
+    else:
+        train_frequency = 1
+    if len(parts) >= 6:
+        batch_size = int(parts[5])
     
     lastPart = dirs[-1]
     base = lastPart[:-3]
@@ -216,7 +230,7 @@ def readTraceFile(filename):
             temp = re.split(',', line.rstrip())
             time = int(temp[-2]) - int(temp[-3])
             count = int(temp[-4])
-            ret.append((which, episode_block, batch_frequency, ranks, metric, rank, time, count))
+            ret.append((which, episode_block, batch_frequency, ranks, train_frequency, batch_size, metric, rank, time, count))
     return ret
 
 @csvWriter()
@@ -242,7 +256,7 @@ def getTraceDataframe(dir, filter):
             temp.extend(readTraceFile(f))
         except Exception as e:
             print("Failed:", f, e)
-    ret = pd.DataFrame(temp, columns=("which", "episode_block", "batch_frequency", "ranks", "metric", "rank", "time", "count"))
+    ret = pd.DataFrame(temp, columns=("which", "episode_block", "batch_frequency", "ranks", "train_frequency", "batch_size", "metric", "rank", "time", "count"))
     
     truthy = {"1":True, "true":True, "True":True, "0":False, "false":False, "False":False}
     ret["episode_block"] = ret["episode_block"].map(truthy)
