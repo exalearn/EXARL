@@ -154,6 +154,12 @@ class SYNC(exarl.ExaWorkflow):
         if self.log_frequency == -1:
             self.log_frequency = ExaGlobals.lookup_params('n_episodes')
 
+        self.clip_rewards = ExaGlobals.lookup_params('clip_rewards')
+        if not self.clip_rewards:
+            self.clip_rewards = None
+        elif self.clip_rewards == True:
+            self.clip_rewards = [-1, 1]
+
         # Learner episode counters
         self.next_episode = 0
         self.done_episode = 0
@@ -169,9 +175,8 @@ class SYNC(exarl.ExaWorkflow):
         self.done = True
         self.current_state = None
 
+        # Learner counters
         self.model_count = 0
-        self.step_count = 0
-        self.episode_count = 0
 
         # Initialize logging
         self.init_logging()
@@ -578,12 +583,16 @@ class SYNC(exarl.ExaWorkflow):
                     action, policy_type = 0, -11
 
             # Set the step for envs that want to keep track
-            exalearner.env.set_step_count(self.step_count)
+            exalearner.env.set_step_count(self.steps)
 
             # Broadcast action and do step (5 and 6)
             action = ExaComm.env_comm.bcast(action, root=0)
             next_state, reward, self.done, _ = exalearner.env.step(action)
-            self.step_count += 1
+            self.steps += 1
+
+            # Clip rewards if specified
+            if self.clip_rewards is not None:
+                reward = max(min(reward, self.clip_rewards[1]), self.clip_rewards[0])
 
             # Record experience (7)
             if ExaComm.env_comm.rank == 0:
@@ -598,11 +607,8 @@ class SYNC(exarl.ExaWorkflow):
 
             # Update state (9)
             self.current_state = next_state
-            self.steps += 1
 
             if self.done:
-                self.episode_count += 1
-                self.step_count = 0
                 break
 
         # Send batches back to the learner (10)

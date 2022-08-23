@@ -167,7 +167,7 @@ class bsuite_agent(exarl.ExaAgent):
         if self.last_timestep is None:
             self.last_timestep = dm_env.restart(state.astype("float32"))
         
-        if self.env.workflow_step == self.nsteps:
+        if self.env.workflow_step + 1 == self.nsteps:
             new_timestep = dm_env.truncation(reward, next_state.astype("float32"))
             local_done = True
         elif done:
@@ -297,3 +297,4 @@ class parallel_bsuite_agent(bsuite_agent):
                 self.inner_train(exps)
         elif "actor-critic" in self.which_agent:
             self.inner_train(exps)
+        self.train_count += 1

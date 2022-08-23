@@ -23,7 +23,6 @@ import sys
 import site
 import json
 import argparse
-from tensorflow import keras
 from exarl.utils.globals import ExaGlobals
 import exarl.candlelib.candle as candle
 

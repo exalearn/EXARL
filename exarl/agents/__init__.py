@@ -45,3 +45,8 @@ elif agent == 'BSUITE-BASE-v1':
         id=agent,
         entry_point='exarl.agents.agent_vault:parallel_bsuite_agent'
     )
+elif agent == 'TORCH-AGENT-DQN-v0':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault.torch_agents.dqn_wrapper:torch_dqn'
+    )

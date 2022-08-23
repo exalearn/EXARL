@@ -1,16 +1,17 @@
 {
-    "agent": "BSUITE-BASE-v1",
+    "agent": "TORCH-AGENT-DQN-v0",
     "env": "ExaCartPoleStatic-v0",
-    "workflow": "async",
-    "n_episodes": 1000,
+    "workflow": "sync",
+    "n_episodes": 100,
     "n_steps": 100,
-    "output_dir": "./bsuite_agent_test/",
+    "output_dir": "./results/",
     "process_per_env": 1,
     "log_level": [
         3,
         3
     ],
     "log_frequency": 1,
-    "profile": "intro",
-    "model_type": "MLP"
+    "profile": "none",
+    "model_type": "MLP",
+    "clip_rewards":"False"
 }
