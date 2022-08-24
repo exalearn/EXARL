@@ -129,6 +129,7 @@ class torch_dqn(exarl.ExaAgent):
         # We use the flags to keep track of total reward within the algorithm
         if self.env.workflow_step == self.nsteps or self.local[-1][-1]:
             flags = (self.local[-1][-1], self.local_reward)
+            self.local_reward = 0
         else:
             flags = (False, 0)
         # Be sure to clear it out...
@@ -161,3 +162,26 @@ class torch_dqn(exarl.ExaAgent):
     # This is for if you need to get some return from training back to an actor... Ignore for now
     def set_priorities(self, indices, loss):
         pass
+
+
+# class torch_dqn_loss(torch_dqn):
+#     def __init__(self, env, is_learner):
+#         super(torch_dqn_loss, self).__init__(env, is_learner)
+#         self.local_agent = copy.deepcopy(self.agent)
+#         self.exp_loss = []
+#         self.local_exp_loss = []
+#         self.local_train_loss = []
+
+#     def remember(self, state, action, reward, next_state, done):
+#         self.local.append((state, action, reward, next_state, done))
+#         self.local_reward += reward
+
+#         self.local_agent.save_experience(experience=(state, action, reward, next_state, done))
+#         if self.local_agent.enough_experiences_to_learn_from():
+#             self.local_agent.learn()
+        
+#         if self.env.workflow_step == self.nsteps or done:
+#             self.local_agent.total_episode_score_so_far = self.local_reward
+#             self.local_agent.save_result()
+
+#         # compute_loss(self, states, next_states, rewards, actions, dones)
