@@ -6,6 +6,6 @@
     "save_weights_per_episode": "false",
     "action_type": "variable",
     "cutoff" : 0.00001,
-    "rolling_reward_length" : 50,
+    "rolling_reward_length" : -1,
     "mpi4py_rc": "false"
 }

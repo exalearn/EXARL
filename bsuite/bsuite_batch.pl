@@ -173,7 +173,7 @@ sub getSbatchCommand {
         # Set the srun command in script
         for(my $i=0; $i<=$#template; $i++) {
             if($template[$i] =~ /srun/) {
-                $template[$i] = "srun python $driver_path --env Bsuite-v0 --bsuite_id $bench --seed_number $seed --n_episodes $episode $steps $output&> $outfile";
+                $template[$i] = "srun python $driver_path --env Bsuite-v0 --bsuite_id $bench --seed_number $seed --n_episodes $episode $steps $A $output&> $outfile";
             }
         }
 
@@ -212,7 +212,7 @@ sub getSlurmCommand {
         makeDir($exp_dir);
         my $output = "--output_dir $bench_dir_name";
 
-        return "srun -p $partition -N $N -n $n $a python $driver_path --env Bsuite-v0 --bsuite_id $bench --seed_number $seed --n_episodes $episode $steps $output&> $outfile &";
+        return "srun -p $partition -N $N -n $n $a python $driver_path --env Bsuite-v0 --bsuite_id $bench --seed_number $seed --n_episodes $episode $steps $A $output&> $outfile &";
     }
     return 0;
 }

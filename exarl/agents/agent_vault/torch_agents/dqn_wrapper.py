@@ -55,6 +55,8 @@ class torch_dqn(exarl.ExaAgent):
         self.nsteps = ExaGlobals.lookup_params('n_steps')
 
         # How often to train
+        batch_episode_frequency = ExaGlobals.lookup_params('batch_episode_frequency')
+        assert batch_episode_frequency <= 1, "Batch episode frequency is not support by this agent"
         self.train_frequency = ExaGlobals.lookup_params('train_frequency')
         self.train_count = 0
         

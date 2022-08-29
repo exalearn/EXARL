@@ -22,3 +22,5 @@ elif agent == 'BSUITE-BASE-v1':
     from exarl.agents.agent_vault.bsuite_base import parallel_bsuite_agent
 elif agent == 'TORCH-AGENT-DQN-v0':
     from exarl.agents.agent_vault.torch_agents.dqn_wrapper import torch_dqn
+elif agent == 'TORCH-AGENT-PPO-v0':
+    from exarl.agents.agent_vault.torch_agents.ppo_wrapper import torch_ppo
