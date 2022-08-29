@@ -140,10 +140,19 @@ class SYNC(exarl.ExaWorkflow):
             self.block_size = ExaComm.global_comm.bcast(self.block_size, 0)
 
         # How often do we send batches
-        self.batch_frequency = ExaGlobals.lookup_params('batch_frequency')
+        self.batch_episode_frequency = ExaGlobals.lookup_params('batch_episode_frequency')
+        if self.batch_episode_frequency <= 1:
+            self.batch_step_frequency = ExaGlobals.lookup_params('batch_step_frequency')
+            # Handles if < 1 was passed.  Must be at least 1
+            self.batch_episode_frequency = 1
+        else:
+            # This is for multi-episode agents.  We will set the batch_step_frequency
+            # to -1 since we only want to send full episodes.
+            self.batch_step_frequency = -1
+        
         # If it is set to -1 then we only send an update when the episode is over
-        if self.batch_frequency == -1:
-            self.batch_frequency = ExaGlobals.lookup_params('n_steps')
+        if self.batch_step_frequency == -1:
+            self.batch_step_frequency = ExaGlobals.lookup_params('n_steps')
 
         # How often to update target parameters
         self.update_target_frequency = ExaGlobals.lookup_params('update_target_frequency')
@@ -330,7 +339,7 @@ class SYNC(exarl.ExaWorkflow):
     def send_batch(self, batch_data, policy_type, done, epsilon, episode_reward):
         """
         This function is used to send batches of data from the actor to the
-        learner.  For the sync learner data is being stored locally.  This
+        learner.  For the sync learner, data is being stored locally.  This
         function is intended to be overwritten by future workflows.
 
         Parameters
@@ -406,7 +415,7 @@ class SYNC(exarl.ExaWorkflow):
             # We are assuming there is only one right here
             self.episode_per_rank[0] = self.next_episode
             self.send_model(exalearner, self.next_episode, None, 0)
-            self.next_episode += 1
+            self.next_episode += self.batch_episode_frequency
             self.alive += 1
 
     def check_convergence(self, nepisodes):
@@ -496,9 +505,9 @@ class SYNC(exarl.ExaWorkflow):
 
             if done:
                 self.episode_reward_list.append(total_reward)
-                self.done_episode += 1
+                self.done_episode += self.batch_episode_frequency
                 self.episode_per_rank[src] = self.next_episode
-                self.next_episode += 1
+                self.next_episode += self.batch_episode_frequency
                 ret = True
             
             if self.converged:
@@ -558,8 +567,6 @@ class SYNC(exarl.ExaWorkflow):
         if ExaComm.env_comm.rank == 0:
             episode, epsilon, weights, *train_ret = self.recv_model()
         episode = ExaComm.env_comm.bcast(episode, 0)
-        # Set the episode for envs that want to keep track
-        exalearner.env.set_episode_count(episode)
         if episode >= nepisodes:
             return False
 
@@ -571,45 +578,51 @@ class SYNC(exarl.ExaWorkflow):
                 # JS: This call flattens the list from *train_ret above
                 train_ret = [item for sublist in train_ret for item in sublist]
                 exalearner.agent.set_priorities(*train_ret)
+        
+        # Repeat steps 3-9 for a number of episodes
+        for eps in range(self.batch_episode_frequency):
+            # Set the episode for envs that want to keep track
+            exalearner.env.set_episode_count(episode + eps)
 
-        # Reset environment if required (3)
-        self.reset_env(exalearner)
+            # Reset environment if required (3)
+            self.reset_env(exalearner)
+            
+            # Do the steps.  If batch_episode_frequency > 1 batch_steps_frequency == nsteps
+            for i in range(self.batch_step_frequency):
+                # Do inference (4)
+                if ExaComm.env_comm.rank == 0:
+                    action, policy_type = exalearner.agent.action(self.current_state)
+                    if exalearner.action_type == "fixed":
+                        action, policy_type = 0, -11
 
-        for i in range(self.batch_frequency):
-            # Do inference (4)
-            if ExaComm.env_comm.rank == 0:
-                action, policy_type = exalearner.agent.action(self.current_state)
-                if exalearner.action_type == "fixed":
-                    action, policy_type = 0, -11
+                # Set the step for envs that want to keep track
+                exalearner.env.set_step_count(self.steps)
 
-            # Set the step for envs that want to keep track
-            exalearner.env.set_step_count(self.steps)
+                # Broadcast action and do step (5 and 6)
+                action = ExaComm.env_comm.bcast(action, root=0)
+                next_state, reward, self.done, _ = exalearner.env.step(action)
+                self.steps += 1
 
-            # Broadcast action and do step (5 and 6)
-            action = ExaComm.env_comm.bcast(action, root=0)
-            next_state, reward, self.done, _ = exalearner.env.step(action)
-            self.steps += 1
+                # Clip rewards if specified
+                if self.clip_rewards is not None:
+                    reward = max(min(reward, self.clip_rewards[1]), self.clip_rewards[0])
 
-            # Clip rewards if specified
-            if self.clip_rewards is not None:
-                reward = max(min(reward, self.clip_rewards[1]), self.clip_rewards[0])
+                # Record experience (7)
+                if ExaComm.env_comm.rank == 0:
+                    exalearner.agent.remember(self.current_state, action, reward, next_state, self.done)
+                    self.total_reward += reward
 
-            # Record experience (7)
-            if ExaComm.env_comm.rank == 0:
-                exalearner.agent.remember(self.current_state, action, reward, next_state, self.done)
-                self.total_reward += reward
+                # Check number of steps and broadcast (8)
+                if self.steps == exalearner.nsteps:
+                    self.done = True
+                self.done = ExaComm.env_comm.bcast(self.done, 0)
+                self.write_log(self.current_state, action, reward, next_state, self.total_reward, self.done, episode, self.steps, policy_type, epsilon)
 
-            # Check number of steps and broadcast (8)
-            if self.steps == exalearner.nsteps:
-                self.done = True
-            self.done = ExaComm.env_comm.bcast(self.done, 0)
-            self.write_log(self.current_state, action, reward, next_state, self.total_reward, self.done, episode, self.steps, policy_type, epsilon)
+                # Update state (9)
+                self.current_state = next_state
 
-            # Update state (9)
-            self.current_state = next_state
-
-            if self.done:
-                break
+                if self.done:
+                    break
 
         # Send batches back to the learner (10)
         if ExaComm.env_comm.rank == 0:
@@ -636,13 +649,19 @@ class SYNC(exarl.ExaWorkflow):
         if ExaComm.global_comm.rank == 0:
             if self.block_size == ExaComm.agent_comm.size and ExaComm.agent_comm.size > 1:
                 nactors = ExaComm.agent_comm.size - ExaComm.num_learners
-                if exalearner.nepisodes % nactors:
-                    nepisodes = (int(exalearner.nepisodes / nactors) + 1) * nactors
-
-            # Just make it so everyone does at least one
-            if nepisodes < ExaComm.agent_comm.size - ExaComm.num_learners:
-                nepisodes = ExaComm.agent_comm.size - ExaComm.num_learners
-
+                nactorBatch = nactors * self.batch_episode_frequency
+                if nepisodes % nactorBatch:
+                    nepisodes = (int(nepisodes / nactorBatch) + 1) * nactorBatch
+            else:
+                # This else should make sure nepisodes is factor of self.batch_episode_frequency
+                # previous if makes sure of that.
+                if nepisodes % self.batch_episode_frequency:
+                    nepisodes = (int(nepisodes / self.batch_episode_frequency) + 1) * self.batch_episode_frequency
+            
+            # Just make it so everyone does at least one batch
+            if nepisodes < (ExaComm.agent_comm.size - ExaComm.num_learners) * self.batch_episode_frequency:
+                nepisodes = (ExaComm.agent_comm.size - ExaComm.num_learners) * self.batch_episode_frequency
+        print("Num eps:", nepisodes, self.batch_episode_frequency, self.batch_step_frequency)
         # This ensures everyone has the same nepisodes as well
         # as ensuring everyone is starting at the same time
         nepisodes = ExaComm.global_comm.bcast(nepisodes, 0)

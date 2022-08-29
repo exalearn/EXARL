@@ -122,7 +122,7 @@ class ASYNC(SYNC):
         for dst in range(1, ExaComm.agent_comm.size):
             self.send_model(workflow, self.next_episode, None, dst)
             self.episode_per_rank[dst] = self.next_episode
-            self.next_episode += 1
+            self.next_episode += self.batch_episode_frequency
             self.alive += 1
 
     @PROFILE
