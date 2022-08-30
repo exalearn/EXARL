@@ -1,3 +1,4 @@
+import random
 from deeprlalgo.utilities.data_structures.Config import Config
 from deeprlalgo.agents.policy_gradient_agents.PPO import PPO
 
@@ -14,24 +15,19 @@ class torch_ppo(exarl.ExaAgent):
         self.priority_scale = 0
         self.epsilon = 0
         self.step_number = 0
+        self.episode_number = 0
 
         self.nsteps = ExaGlobals.lookup_params('n_steps')
         batch_step_frequency = ExaGlobals.lookup_params('batch_step_frequency')
-        assert batch_step_frequency == -1 or batch_step_frequency == self.nsteps, "Batch step frequency is not support by this agent" 
-        if ExaGlobals.lookup_params('workflow') != "sync":
-            assert ExaGlobals.lookup_params('episode_block') == True, "Episode block must be set to true"
-
         self.episodes_per_learning_round = ExaGlobals.lookup_params("episodes_per_learning_round")
         batch_episode_frequency = ExaGlobals.lookup_params("batch_episode_frequency")
         num_actors = ExaComm.agent_comm.size - ExaComm.num_learners
-        assert num_actors * batch_episode_frequency == self.episodes_per_learning_round
-
-        # self.train_count = 0
-        # self.train_frequency = ExaGlobals.lookup_params('train_frequency')
-        # if self.train_frequency == -1:
-        #     self.train_frequency = ExaComm.agent_comm.size - ExaComm.num_learners
-        # if self.train_frequency < 1:
-        #     self.train_frequency = 1
+        assert batch_step_frequency == -1 or batch_step_frequency == self.nsteps, "Batch step frequency is not support by this agent" 
+        if ExaGlobals.lookup_params('workflow') != "sync":
+            assert ExaGlobals.lookup_params('episode_block') == True, "Episode block must be set to true"
+            assert num_actors * batch_episode_frequency == self.episodes_per_learning_round
+        else:
+            assert batch_episode_frequency == self.episodes_per_learning_round   
         
         self.config = Config()
         self.config.environment = self.env
@@ -68,23 +64,23 @@ class torch_ppo(exarl.ExaAgent):
         self.local_rewards = [[]]
 
         self.exploration_epsilon = None
+        self.exploration = None
     
     def get_weights(self):
-        return self.agent.policy_old.state_dict(), self.agent.policy_new.state_dict()
+        exploration_epsilon = self.agent.exploration_strategy.get_updated_epsilon_exploration({"episode_number": self.episode_number})
+        return self.agent.policy_old.state_dict(), self.agent.policy_new.state_dict(), exploration_epsilon
     
     def set_weights(self, weights):
         self.agent.policy_old.load_state_dict(weights[0])
         self.agent.policy_new.load_state_dict(weights[1])
+        self.exploration_epsilon = weights[2]
         # Set this when we start a new batch of episodes
-        self.exploration_epsilon = None
+        self.exploration = None
     
     def action(self, state):
-        # Use our current episode to get epsilon for the batch of episodes
-        # The workflow_episode isn't set in before set_weights
-        # It only gets set once for the rollout
-        if self.exploration_epsilon is None:
-            self.exploration_epsilon =  self.agent.exploration_strategy.get_updated_epsilon_exploration({"episode_number": self.env.workflow_episode})
-        return self.agent.experience_generator.pick_action(self.agent.policy_new, state, self.exploration_epsilon), 1
+        if self.exploration is None:
+            self.exploration = max(0.0, random.uniform(self.exploration_epsilon / 3.0, self.exploration_epsilon * 3.0))
+        return self.agent.experience_generator.pick_action(self.agent.policy_new, state, self.exploration), 1
 
     def remember(self, state, action, reward, next_state, done):
         self.local_states[-1].append(state)
@@ -97,6 +93,7 @@ class torch_ppo(exarl.ExaAgent):
             self.local_actions.append([])
             self.local_rewards.append([])
             self.step_number = 0
+            self.exploration = None
 
     def has_data(self):
         return len(self.local_rewards[-1]) > 0
@@ -115,10 +112,9 @@ class torch_ppo(exarl.ExaAgent):
         self.agent.many_episode_states.extend(batch[0])
         self.agent.many_episode_actions.extend(batch[1])
         self.agent.many_episode_rewards.extend(batch[2])
-        # self.train_count += 1
+        self.episode_number += len(batch[0])
 
         if len(self.agent.many_episode_states) == self.episodes_per_learning_round:
-            print("TRAINING!", flush=True)
             self.agent.policy_learn()
             self.agent.update_learning_rate(self.agent.hyperparameters["learning_rate"], self.agent.policy_new_optimizer)
             self.agent.equalise_policies()
