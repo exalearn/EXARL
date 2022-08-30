@@ -1,5 +1,5 @@
 {
-    "agent": "TORCH-AGENT-DQN-v0",
+    "agent": "TORCH-AGENT-PPO-v0",
     "env": "ExaCartPoleStatic-v0",
     "workflow": "sync",
     "n_episodes": 100,

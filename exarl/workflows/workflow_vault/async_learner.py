@@ -146,9 +146,9 @@ class ASYNC(SYNC):
                 do_convergence_check = self.learner(workflow, nepisodes, 1)
                 if do_convergence_check:
                     convergence = self.check_convergence(nepisodes)
-                self.debug("Learner:", self.done_episode, nepisodes, do_convergence_check, convergence)
+                # self.debug("Learner:", self.done_episode, nepisodes, do_convergence_check, convergence)
         else:
             keep_running = True
             while keep_running:
                 keep_running = self.actor(workflow, nepisodes)
-                self.debug("Actor:", keep_running)
+                # self.debug("Actor:", keep_running)

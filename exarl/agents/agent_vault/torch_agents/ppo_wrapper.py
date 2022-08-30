@@ -15,19 +15,24 @@ class torch_ppo(exarl.ExaAgent):
         self.epsilon = 0
         self.step_number = 0
 
-        batch_step_frequency = ExaGlobals.lookup_params('batch_step_frequency')
-        assert batch_step_frequency <= 1, "Batch step frequency is not support by this agent" 
-
-        self.train_count = 0
-        self.train_frequency = ExaGlobals.lookup_params('train_frequency')
-        if self.train_frequency == -1:
-            self.train_frequency = ExaComm.agent_comm.size - ExaComm.num_learners
-        if self.train_frequency < 1:
-            self.train_frequency = 1
-        
-
         self.nsteps = ExaGlobals.lookup_params('n_steps')
-        self.episodes_per_round = ExaGlobals.lookup_params("batch_episode_frequency")
+        batch_step_frequency = ExaGlobals.lookup_params('batch_step_frequency')
+        assert batch_step_frequency == -1 or batch_step_frequency == self.nsteps, "Batch step frequency is not support by this agent" 
+        if ExaGlobals.lookup_params('workflow') != "sync":
+            assert ExaGlobals.lookup_params('episode_block') == True, "Episode block must be set to true"
+
+        self.episodes_per_learning_round = ExaGlobals.lookup_params("episodes_per_learning_round")
+        batch_episode_frequency = ExaGlobals.lookup_params("batch_episode_frequency")
+        num_actors = ExaComm.agent_comm.size - ExaComm.num_learners
+        assert num_actors * batch_episode_frequency == self.episodes_per_learning_round
+
+        # self.train_count = 0
+        # self.train_frequency = ExaGlobals.lookup_params('train_frequency')
+        # if self.train_frequency == -1:
+        #     self.train_frequency = ExaComm.agent_comm.size - ExaComm.num_learners
+        # if self.train_frequency < 1:
+        #     self.train_frequency = 1
+        
         self.config = Config()
         self.config.environment = self.env
         self.config.environment.spec.trials = 100
@@ -38,11 +43,11 @@ class torch_ppo(exarl.ExaAgent):
             "learning_rate": ExaGlobals.lookup_params("learning_rate"),
             "linear_hidden_units": ExaGlobals.lookup_params("linear_hidden_units"),
             "final_layer_activation": ExaGlobals.lookup_params("final_layer_activation"),
-            "learning_iterations_per_round": self.train_frequency,
+            "learning_iterations_per_round": ExaGlobals.lookup_params("learning_iterations_per_round"),
             "discount_rate": ExaGlobals.lookup_params("discount_rate"),
             "batch_norm": ExaGlobals.lookup_params("batch_norm"),
             "clip_epsilon": ExaGlobals.lookup_params("clip_epsilon"),
-            "episodes_per_learning_round": ExaGlobals.lookup_params("batch_episode_frequency"),
+            "episodes_per_learning_round": self.episodes_per_learning_round,
             "normalise_rewards": ExaGlobals.lookup_params("normalise_rewards"),
             "gradient_clipping_norm": ExaGlobals.lookup_params("gradient_clipping_norm"),
             "mu": ExaGlobals.lookup_params("mu"),
@@ -57,10 +62,6 @@ class torch_ppo(exarl.ExaAgent):
         average_score_required_to_win = ExaGlobals.lookup_params("average_score_required_to_win")
         if average_score_required_to_win != "None":
             self.agent.average_score_required_to_win = average_score_required_to_win
-
-        self.many_episode_states = []
-        self.many_episode_actions = []
-        self.many_episode_rewards = []
 
         self.local_states = [[]]
         self.local_actions = [[]]
@@ -101,6 +102,9 @@ class torch_ppo(exarl.ExaAgent):
         return len(self.local_rewards[-1]) > 0
     
     def generate_data(self):
+        self.local_states.pop()
+        self.local_actions.pop()
+        self.local_rewards.pop()
         ret = (self.local_states, self.local_actions, self.local_rewards)
         self.local_states = [[]]
         self.local_actions = [[]]
@@ -111,9 +115,10 @@ class torch_ppo(exarl.ExaAgent):
         self.agent.many_episode_states.extend(batch[0])
         self.agent.many_episode_actions.extend(batch[1])
         self.agent.many_episode_rewards.extend(batch[2])
-        self.train_count += 1
+        # self.train_count += 1
 
-        if self.train_count % self.train_frequency == 0:
+        if len(self.agent.many_episode_states) == self.episodes_per_learning_round:
+            print("TRAINING!", flush=True)
             self.agent.policy_learn()
             self.agent.update_learning_rate(self.agent.hyperparameters["learning_rate"], self.agent.policy_new_optimizer)
             self.agent.equalise_policies()
