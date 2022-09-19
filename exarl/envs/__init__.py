@@ -53,3 +53,8 @@ elif env == 'Bsuite-v0':
         id=env,
         entry_point='exarl.envs.env_vault:BsuiteWrapper'
     )
+elif env == 'ExaDMControl-v0':
+    register(
+        id=env,
+        entry_point='exarl.envs.env_vault:ExaDMControl'
+    )

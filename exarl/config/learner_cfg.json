@@ -1,5 +1,5 @@
 {
-    "agent": "TORCH-AGENT-PPO-v0",
+    "agent": "TORCH-AGENT-A3C-v0",
     "env": "ExaCartPoleStatic-v0",
     "workflow": "sync",
     "n_episodes": 100,
@@ -13,5 +13,6 @@
     "log_frequency": 1,
     "profile": "none",
     "model_type": "MLP",
-    "clip_rewards":"False"
+    "clip_rewards":"False",
+    "plot_rolling_range": 25
 }

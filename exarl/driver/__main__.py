@@ -24,7 +24,16 @@ import numpy as np
 import torch
 import exarl
 from exarl.utils.profile import ProfileConstants
+import os
 import exarl.utils.analyze_reward as ar
+from exarl.utils.renderDMC import render_tmp
+
+# For rendering purposes
+if os.path.exists("tmp"):
+    for f in os.listdir("tmp/"):
+        os.remove('tmp/{}'.format(f))
+else:
+    os.mkdir("tmp")
 
 # Create learner object and run
 exa_learner = exarl.ExaLearner()
@@ -52,3 +61,7 @@ else:
 # Save rewards vs. episodes plot
 if rank == 0:
     ar.save_reward_plot()
+
+if len(os.listdir("tmp")) > 0:
+    render_tmp("learn.gif")
+os.rmdir('tmp')

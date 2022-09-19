@@ -72,7 +72,7 @@ def save_reward_plot():
     df_merged['rel_time'] = [idx - time_min for idx in df_merged.time]
     df_merged.sort_values(by=['rel_time'], inplace=True)
 
-    rolling_setting = 25
+    rolling_setting = ExaGlobals.lookup_params('plot_rolling_range')
     fig, ax = plt.subplots(1, 1, figsize=(10, 8))
     episodes_per_nodes = []
     df_merged['total_reward_roll'] = df_merged['total_reward'].rolling(rolling_setting).mean()

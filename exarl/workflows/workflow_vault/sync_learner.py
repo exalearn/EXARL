@@ -259,10 +259,11 @@ class SYNC(exarl.ExaWorkflow):
         if ExaComm.is_agent():
             self.data_matrix.append([time.time(), current_state, action, reward, next_state, total_reward, done, episode, steps, policy_type, epsilon])
             if done or self.converged:
-                if (episode == (self.nepisodes - 1)) or (episode + 1 % self.log_frequency == 0) or self.converged:
+                if (episode == (self.nepisodes - 1)) or ((episode + 1) % self.log_frequency == 0) or self.converged:
                     self.train_writer.writerows(self.data_matrix)
                     self.train_file.flush()
                     self.data_matrix = []
+            
 
     def save_weights(self, exalearner, episode, nepisodes):
         """
@@ -611,7 +612,7 @@ class SYNC(exarl.ExaWorkflow):
                 if ExaComm.env_comm.rank == 0:
                     exalearner.agent.remember(self.current_state, action, reward, next_state, self.done)
                     self.total_reward += reward
-
+                
                 # Check number of steps and broadcast (8)
                 if self.steps == exalearner.nsteps:
                     self.done = True

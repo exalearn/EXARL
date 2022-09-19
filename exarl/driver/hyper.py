@@ -29,21 +29,38 @@ def get_nodes():
 def srun_prefix(cmd, nodeId, nodes=1, procs=1):
     return " ".join(["srun -N", str(nodes), "-n", str(procs), "-w", nodeId, cmd])
 
-def test_cmd(trial_number, node_id):
-    return srun_prefix("printenv | grep SLURM >> out_" + str(node_id) + "_" + str(trial_number) + ".txt", all_nodes[node_id]) 
+def test_cmd(trial_number, node_id, epsilon):
+    return srun_prefix("python exarl/driver --epsilon_decay_rate_denominator " + str(epsilon), all_nodes[node_id]) 
+
+def parse(output):
+    lines = output.split("\n")
+    print(lines)
+    for line in lines:
+        if "Maximum elapsed time" in line:
+            temp = line.split(" ")
+            return temp[-1]
+
+def inner(trial_number, epsilon):
+    my_node = trial_number % len(all_nodes)
+    cmd = command(test_cmd(trial_number, my_node, epsilon=epsilon), wait=True)
+    time = parse(cmd.out)
+    print(time)
 
 def objective(trial):
     my_node = trial.number % len(all_nodes)
-    command(test_cmd(trial.number, my_node), wait=True)
-    x = trial.suggest_float("x", -10, 10)
-    return (x - 2) ** 2
+    epsilon = trial.suggest_float("epsilon_decay_rate_denominator", 1, 10)
+    cmd = command(test_cmd(trial.number, my_node, epsilon=epsilon), wait=True)
+    time = parse(cmd.out)
+    return time
 
 all_nodes = get_nodes()
 print("Python", sys.version, "All Nodes", all_nodes, flush=True)
 
-study = optuna.create_study()
-study.optimize(objective, n_trials=5, n_jobs=len(all_nodes))
+inner(0, 0.1)
 
-best_params = study.best_params
-found_x = best_params["x"]
-print("Found x: {}, (x - 2)^2: {}".format(found_x, (found_x - 2) ** 2))
+study = optuna.create_study()
+study.optimize(objective, n_trials=100, n_jobs=len(all_nodes))
+
+# best_params = study.best_params
+# found_ep = best_params["epsilon"]
+# print("Found ep: {}".format(found_ep))

@@ -20,3 +20,5 @@ elif env == 'Hadrec-v0':
     from exarl.envs.env_vault.HadrecWrapper import HadrecWrapper
 elif env == 'Bsuite-v0':
     from exarl.envs.env_vault.BsuiteWrapper import BsuiteWrapper
+elif env == 'ExaDMControl-v0':
+    from exarl.envs.env_vault.ExaDMControl import ExaDMControl

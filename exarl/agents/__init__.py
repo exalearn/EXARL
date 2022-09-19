@@ -55,3 +55,8 @@ elif agent == 'TORCH-AGENT-PPO-v0':
         id=agent,
         entry_point='exarl.agents.agent_vault.torch_agents.ppo_wrapper:torch_ppo'
     )
+elif agent == 'TORCH-AGENT-A3C-v0':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault.torch_agents.a3c_wrapper:torch_a3c'
+    )
