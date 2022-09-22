@@ -59,3 +59,8 @@ elif env == 'Bsuite-v0':
         id=env,
         entry_point='exarl.envs.env_vault:BsuiteWrapper'
     )
+elif env == 'MyPendulum-v0':
+    register(
+        id=env,
+        entry_point='exarl.envs.env_vault:MyPendulum'
+    )

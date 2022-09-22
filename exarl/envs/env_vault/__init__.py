@@ -22,3 +22,5 @@ elif env == 'Hadrec-v1':
     from exarl.envs.env_vault.HadrecWrapper_V1 import HadrecWrapper_V1
 elif env == 'Bsuite-v0':
     from exarl.envs.env_vault.BsuiteWrapper import BsuiteWrapper
+elif env == 'MyPendulum-v0':
+    from exarl.envs.env_vault.MyPendulum import MyPendulum
