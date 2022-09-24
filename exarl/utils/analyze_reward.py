@@ -72,7 +72,7 @@ def save_reward_plot():
     df_merged['rel_time'] = [idx - time_min for idx in df_merged.time]
     df_merged.sort_values(by=['rel_time'], inplace=True)
 
-    rolling_setting = 25
+    rolling_setting = ExaGlobals.lookup_params('plot_rolling_range')
     fig, ax = plt.subplots(1, 1, figsize=(10, 8))
     episodes_per_nodes = []
     df_merged['total_reward_roll'] = df_merged['total_reward'].rolling(rolling_setting).mean()
@@ -101,5 +101,6 @@ def save_reward_plot():
         figure.plot(range(len(df_merged['total_reward_roll'])), df_merged['total_reward_roll'].replace(np.nan, 0), lc=200, label='rolling reward')
         # range(len(df_merged['time']))
         print(figure.show(legend=True))
+        print("Total Reward: ", df_merged.iloc[-1, -1])
     except:
         print("Terminal plot error: Check if you have plotille installed or for other errors.")

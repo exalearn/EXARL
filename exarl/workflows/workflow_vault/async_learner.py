@@ -20,6 +20,7 @@
 #                    under Contract DE-AC05-76RL01830
 from exarl.base.comm_base import ExaComm
 from exarl.workflows.workflow_vault.sync_learner import SYNC
+from exarl.utils.profile import PROFILE
 
 class ASYNC(SYNC):
     """
@@ -79,7 +80,7 @@ class ASYNC(SYNC):
         ret = ExaComm.agent_comm.recv(None, source=0)
         return ret
 
-    def send_batch(self, batch_data, policy_type, done, epsilon):
+    def send_batch(self, batch_data, policy_type, done, epsilon, episode_reward):
         """
         This function is used to send batches of data from the actor to the
         learner using MPI_Send.
@@ -93,7 +94,7 @@ class ASYNC(SYNC):
         policy_type : int
             This is the policy given by the actor performing inference to get an action
         """
-        ExaComm.agent_comm.send([ExaComm.agent_comm.rank, batch_data, policy_type, done, epsilon], 0)
+        ExaComm.agent_comm.send([ExaComm.agent_comm.rank, batch_data, policy_type, done, epsilon, episode_reward], 0)
 
     def recv_batch(self):
         """
@@ -121,8 +122,10 @@ class ASYNC(SYNC):
         for dst in range(1, ExaComm.agent_comm.size):
             self.send_model(workflow, self.next_episode, None, dst)
             self.episode_per_rank[dst] = self.next_episode
-            self.next_episode += 1
+            self.next_episode += self.batch_episode_frequency
+            self.alive += 1
 
+    @PROFILE
     def run(self, workflow):
         """
         This function is responsible for calling the appropriate initialization
@@ -133,16 +136,19 @@ class ASYNC(SYNC):
         workflow : ExaWorkflow
             This contains the agent and env
         """
+        convergence = -1
         nepisodes = self.episode_round(workflow)
-
+        
         # These are the loops used to keep everyone running
         if ExaComm.is_learner():
             self.init_learner(workflow)
-            while self.done_episode < nepisodes:
-                self.learner(workflow, nepisodes, 1)
-                self.debug("Learner:", self.done_episode, nepisodes)
+            while self.alive > 0 and self.done_episode < nepisodes:
+                do_convergence_check = self.learner(workflow, nepisodes, 1)
+                if do_convergence_check:
+                    convergence = self.check_convergence(nepisodes)
+                # self.debug("Learner:", self.done_episode, nepisodes, do_convergence_check, convergence)
         else:
             keep_running = True
             while keep_running:
                 keep_running = self.actor(workflow, nepisodes)
-                self.debug("Actor:", keep_running)
+                # self.debug("Actor:", keep_running)

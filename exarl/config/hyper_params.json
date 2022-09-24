@@ -1,0 +1,11 @@
+{
+"parameters": {
+    "learning_rate": [0.001, 0.1],
+    "learning_iterations_per_round" : [1, 8],
+    "discount_rate": [0.9, 0.99],
+    "clip_epsilon": [0.0, 0.5],
+    "epsilon_decay_rate_denominator": [1, 500]
+},
+"objective": "last_rolling_reward",
+"sampler": "tpe"
+}

@@ -10,6 +10,7 @@ import logging
 
 import os
 import sys
+import shutil
 import gzip
 import argparse
 try:
@@ -474,7 +475,7 @@ def get_common_parser(parser):
 
     parser.add_argument("--experiment_id", default="EXP000", type=str, help="set the experiment unique identifier")
 
-    parser.add_argument("--run_id", default="RUN000", type=str, help="set the run unique identifier")
+    parser.add_argument("--run_id", default=argparse.SUPPRESS, type=str, help="set the run unique identifier")
 
     # Model definition
     # Model Architecture
@@ -589,7 +590,6 @@ def get_common_parser(parser):
 
     return parser
 
-
 def args_overwrite_config(args, config):
     """Overwrite configuration parameters with
         parameters specified via command-line.
@@ -645,6 +645,19 @@ def get_choice(name):
 
     return mapped
 
+def get_next_run(output_dir):
+    num = 0
+    next_run = "RUN000" 
+    files = list(os.listdir(output_dir))
+    while next_run in files:
+        next_run = "RUN"+"{0:03d}".format(num)
+        num+=1
+    return next_run
+
+def reset_dir(directory):
+    for f in os.listdir(directory):
+        os.remove("{}/{}".format(directory, f))
+    os.removedirs(directory)
 
 def directory_from_parameters(params, commonroot='Output'):
     """ Construct output directory path with unique IDs from parameters
@@ -669,8 +682,14 @@ def directory_from_parameters(params, commonroot='Output'):
         if not os.path.exists(outdir):
             os.makedirs(outdir, exist_ok=True)
 
+        #Save to the next available run
+        if 'run_id' not in params:
+            params['run_id'] = get_next_run(outdir)
         outdir = os.path.abspath(os.path.join(outdir, params['run_id']))
         if not os.path.exists(outdir):
+            os.makedirs(outdir, exist_ok=True)
+        else:
+            shutil.rmtree(outdir)
             os.makedirs(outdir, exist_ok=True)
 
     return outdir

@@ -12,5 +12,7 @@
     ],
     "log_frequency": 1,
     "profile": "None",
-    "model_type": "MLP"
+    "model_type": "MLP",
+    "clip_rewards":"False",
+    "plot_rolling_range": 25
 }
