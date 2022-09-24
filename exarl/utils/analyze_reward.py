@@ -101,5 +101,6 @@ def save_reward_plot():
         figure.plot(range(len(df_merged['total_reward_roll'])), df_merged['total_reward_roll'].replace(np.nan, 0), lc=200, label='rolling reward')
         # range(len(df_merged['time']))
         print(figure.show(legend=True))
+        print("Total Reward: ", df_merged.iloc[-1, -1])
     except:
         print("Terminal plot error: Check if you have plotille installed or for other errors.")

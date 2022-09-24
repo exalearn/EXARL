@@ -1,8 +1,9 @@
 {
-    "discrete": "True",
+    "discrete": "False",
     "discrete_step": 0.01,
     "domain": "cartpole",
     "task": "balance",
-    "render": "True",
-    "camera_id": 0
+    "render": "False",
+    "camera_id": 0,
+    "framrate": 30
 }

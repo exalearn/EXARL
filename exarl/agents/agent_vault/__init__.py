@@ -26,3 +26,5 @@ elif agent == 'TORCH-AGENT-PPO-v0':
     from exarl.agents.agent_vault.torch_agents.ppo_wrapper import torch_ppo
 elif agent == 'TORCH-AGENT-A3C-v0':
     from exarl.agents.agent_vault.torch_agents.a3c_wrapper import torch_a3c
+elif agent == 'EXA-A2C-v0':
+    from exarl.agents.agent_vault.exa_a2c import A2C

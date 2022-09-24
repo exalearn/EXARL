@@ -60,3 +60,8 @@ elif agent == 'TORCH-AGENT-A3C-v0':
         id=agent,
         entry_point='exarl.agents.agent_vault.torch_agents.a3c_wrapper:torch_a3c'
     )
+elif agent == 'EXA-A2C-v0':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:A2C'
+    )

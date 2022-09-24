@@ -1,8 +1,8 @@
 {
-    "agent": "TORCH-AGENT-A3C-v0",
+    "agent": "EXA-A2C-v0",
     "env": "ExaCartPoleStatic-v0",
     "workflow": "sync",
-    "n_episodes": 100,
+    "n_episodes": 50,
     "n_steps": 100,
     "output_dir": "./results/",
     "process_per_env": 1,

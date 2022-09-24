@@ -52,7 +52,7 @@ class ExaDMControl(gym.Env):
         else:
             timestep = self.raw_env.step(action)
         if self.render:
-            if self.step_count % 30 == 0:
+            if self.step_count % ExaGlobals.lookup_params("framerate")  == 0:
                 self.render_step()
         self.step_count+=1
         next_state = timestep.observation["observations"]
