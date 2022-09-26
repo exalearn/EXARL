@@ -14,10 +14,18 @@ def update_target(target_weights, weights, tau):
 
 
 class DDPG_Vtrace(exarl.ExaAgent):
+    """Deep deterministic policy gradient agent.
+    Inherits from ExaAgent base class.
+    """
     is_learner: bool
 
     def __init__(self, env, is_learner):
+        """DDPG_Vtrace constructor
 
+        Args:
+            env (OpenAI Gym environment object): env object indicates the RL environment
+            is_learner (bool): Used to indicate if the agent is a learner or an actor
+        """
         # Distributed variables
         self.is_learner = is_learner
 
@@ -25,6 +33,7 @@ class DDPG_Vtrace(exarl.ExaAgent):
         self.env = env
         self.num_states = env.observation_space.shape[0]
         self.num_disc_actions = env.action_space.n
+
         # TODO: fix this later!! env.action_space.shape[0]
         self.num_actions = 1
 
@@ -45,14 +54,12 @@ class DDPG_Vtrace(exarl.ExaAgent):
         self.critic_out_act = ExaGlobals.lookup_params('critic_out_act')
         self.critic_optimizer = ExaGlobals.lookup_params('critic_optimizer')
         self.tau = ExaGlobals.lookup_params('tau')
+        self.gamma = ExaGlobals.lookup_params('gamma')
 
         # Not used by agent but required by the learner class
         self.epsilon = ExaGlobals.lookup_params('epsilon')
         self.epsilon_min = ExaGlobals.lookup_params('epsilon_min')
         self.epsilon_decay = ExaGlobals.lookup_params('epsilon_decay')
-
-        self.gamma = ExaGlobals.lookup_params('gamma')
-        self.tau = ExaGlobals.lookup_params('tau')
 
         # Experience data
         self.buffer_capacity = ExaGlobals.lookup_params('buffer_capacity')
@@ -282,6 +289,14 @@ class DDPG_Vtrace(exarl.ExaAgent):
 
         return model
 
+    def has_data(self):
+        """Indicates if the buffer has data
+
+        Returns:
+            bool: True if buffer has data
+        """
+        return (self.buffer_counter > 0)
+
     def generate_data(self):
         """Generate data for training
 
@@ -468,47 +483,11 @@ class DDPG_Vtrace(exarl.ExaAgent):
     def update(self):
         print("Implement update method in ddpg.py")
 
-    def load(self, filename):
-        layers = self.target_actor.layers
-        with open(filename, "rb") as f:
-            pickle_list = pickle.load(f)
-
-        for layerId in range(len(layers)):
-            assert layers[layerId].name == pickle_list[layerId][0]
-            layers[layerId].set_weights(pickle_list[layerId][1])
-
-    def save(self, filename):
-        layers = self.target_actor.layers
-        pickle_list = []
-        for layerId in range(len(layers)):
-            weigths = layers[layerId].get_weights()
-            pickle_list.append([layers[layerId].name, weigths])
-
-        with open(filename, "wb") as f:
-            pickle.dump(pickle_list, f, -1)
-
-    def monitor(self):
-        print("Implement monitor method in ddpg.py")
-
-    def set_agent(self):
-        print("Implement set_agent method in ddpg.py")
-
-    # def print_timers(self):
-    #     print("Implement print_timers method in ddpg.py")
-
     def epsilon_adj(self):
         """Update epsilon value
         """
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
-
-    def has_data(self):
-        """Indicates if the buffer has data
-
-        Returns:
-            bool: True if buffer has data
-        """
-        return (self.buffer_counter > 0)
 
     def set_priorities(self, indices, loss):
         # TODO implement this
