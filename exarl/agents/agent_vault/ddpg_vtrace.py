@@ -1,12 +1,10 @@
+import random
+import pickle
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
-import random
-import pickle
 import exarl
 from exarl.utils.globals import ExaGlobals
-from exarl.utils.OUActionNoise import OUActionNoise
-from exarl.utils.OUActionNoise import OUActionNoise2
 logger = ExaGlobals.setup_logger(__name__)
 
 @tf.function
@@ -19,13 +17,9 @@ class DDPG_Vtrace(exarl.ExaAgent):
     is_learner: bool
 
     def __init__(self, env, is_learner):
+
         # Distributed variables
         self.is_learner = is_learner
-
-        # Not used by agent but required by the learner class
-        self.epsilon = 1.0
-        self.epsilon_min = 0.01
-        self.epsilon_decay = 0.999
 
         # Environment space and action parameters
         self.env = env
@@ -33,32 +27,27 @@ class DDPG_Vtrace(exarl.ExaAgent):
         self.num_disc_actions = env.action_space.n
         # TODO: fix this later!! env.action_space.shape[0]
         self.num_actions = 1
-        # self.upper_bound = env.action_space.high
-        # self.lower_bound = env.action_space.low
 
         logger().info("Size of State Space:  {}".format(self.num_states))
         logger().info("Size of Action Space:  {}".format(self.num_actions))
-        # logger().info('Env upper bounds: {}'.format(self.upper_bound))
-        # logger().info('Env lower bounds: {}'.format(self.lower_bound))
 
-        self.gamma = 0.99
-        self.tau = 0.005
+        # Not used by agent but required by the learner class
+        self.epsilon = ExaGlobals.lookup_params('epsilon')
+        self.epsilon_min = ExaGlobals.lookup_params('epsilon_min')
+        self.epsilon_decay = ExaGlobals.lookup_params('epsilon_decay')
 
-        std_dev = 0.2
-        # ave_bound = (self.upper_bound + self.lower_bound) / 2
-        # print('ave_bound: {}'.format(ave_bound))
-        # self.ou_noise = OUActionNoise(mean=ave_bound, std_deviation=float(std_dev) * np.ones(1))
+        self.gamma = ExaGlobals.lookup_params('gamma')
+        self.tau = ExaGlobals.lookup_params('tau')
 
         # Experience data
-        self.buffer_capacity = 5000
-        self.batch_size = 64
+        self.buffer_capacity = ExaGlobals.lookup_params('buffer_capacity')
+        self.batch_size = ExaGlobals.lookup_params('batch_size')
         self.buffer_counter = 0
 
         self.state_buffer = np.zeros((self.buffer_capacity, self.num_states))
         self.action_buffer = np.zeros((self.buffer_capacity, self.num_actions))
         self.reward_buffer = np.zeros((self.buffer_capacity, 1))
-        self.next_state_buffer = np.zeros(
-            (self.buffer_capacity, self.num_states))
+        self.next_state_buffer = np.zeros((self.buffer_capacity, self.num_states))
         self.done_buffer = np.zeros((self.buffer_capacity, 1))
         self.memory = self.state_buffer  # BAD from the original code whoever wrote DDPG
 
@@ -68,6 +57,7 @@ class DDPG_Vtrace(exarl.ExaAgent):
         config.gpu_options.allow_growth = True
         sess = tf.compat.v1.Session(config=config)
         tf.compat.v1.keras.backend.set_session(sess)
+        # TODO: The name tf.keras.backend.set_session is deprecated. Please use tf.compat.v1.keras.backend.set_session instead.
 
         # Training model only required by the learners
         self.actor_model = None
@@ -92,25 +82,34 @@ class DDPG_Vtrace(exarl.ExaAgent):
                 self.target_critic = self.get_critic()
 
         # Learning rate for actor-critic models
-        critic_lr = 0.002
-        actor_lr = 0.001
-        self.critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
-        self.actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
+        self.critic_lr = ExaGlobals.lookup_params('critic_lr')
+        self.actor_lr = ExaGlobals.lookup_params('actor_lr')
+
+        self.critic_optimizer = tf.keras.optimizers.Adam(self.critic_lr)
+        self.actor_optimizer = tf.keras.optimizers.Adam(self.actor_lr)
 
         # Vtrace
         self.time_step = -1
-        self.n_steps = cd.run_params["n_steps"]
+        self.n_steps = ExaGlobals.lookup_params('n_steps')
         # print("steps: ", self.n_steps)
         self.truncImpSampC = np.zeros(self.n_steps)
         self.truncImpSampR = np.zeros(self.n_steps)
         self.truncLevelC = 1
         self.truncLevelR = 1
 
-        # should this be called somewhere?
+        # TODO: should this be called somewhere?
         self.set_learner()
 
     def remember(self, state, action, reward, next_state, done):
-        # If the counter exceeds the capacity then
+        """Add experience to replay buffer
+
+        Args:
+            state (list or array): Current state of the system
+            action (list or array): Action to take
+            reward (list or array): Environment reward
+            next_state (list or array): Next state of the system
+            done (bool): Indicates episode completion
+        """
         index = self.buffer_counter % self.buffer_capacity
         self.state_buffer[index] = state
         self.action_buffer[index] = action
@@ -120,15 +119,18 @@ class DDPG_Vtrace(exarl.ExaAgent):
         self.buffer_counter += 1
 
     # @tf.function
-    def update_grad(
-            self,
-            state_batch,
-            action_batch,
-            reward_batch,
-            next_state_batch):
+    def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch):
+        """Update gradients - training step
 
-        # print("curr_state_batch: ", state_batch)
-        # print("next_state_batch: ", next_state_batch)
+        Args:
+            state_batch (list): list of states
+            action_batch (list): list of actions
+            reward_batch (list): list of rewards
+            next_state_batch (list): list of next states
+        """
+
+        logger().info("curr_state_batch: {}".format(state_batch))
+        logger().info("next_state_batch: {}".format(next_state_batch))
 
         # Training and updating Actor & Critic networks.
         with tf.GradientTape() as tape:
@@ -136,14 +138,14 @@ class DDPG_Vtrace(exarl.ExaAgent):
             curr_state_val = self.critic_model([state_batch], training=True)
             next_state_val = self.critic_model([next_state_batch])
 
-            # print("curr_state_val: ", curr_state_val )
-            # print("next_state_val: ", next_state_val )
+            logger().info("curr_state_val: {}".format(curr_state_val))
+            logger().info("next_state_val: {}".format(next_state_val))
 
             # TODO: compute the product of C, but here 1-step
             self.prodC = self.truncImpSampC[self.time_step]
 
-            # print("prodC",          self.prodC)
-            # print("truncImpSampR",  self.truncImpSampR[self.time_step])
+            logger().info("prodC: {}".format(self.prodC))
+            logger().info("truncImpSampR: {}".format(self.truncImpSampR[self.time_step]))
 
             # Vtace target
             # TODO: need to sum for n-step backup
@@ -153,7 +155,7 @@ class DDPG_Vtrace(exarl.ExaAgent):
                 + self.prodC * self.truncImpSampR[self.time_step] \
                 * (reward_batch + self.gamma * next_state_val - curr_state_val)
 
-            # print("y: ", y)
+            logger().info("y: {}".format(y))
 
             critic_loss = tf.math.reduce_mean(
                 tf.math.square(y - curr_state_val))
@@ -215,6 +217,7 @@ class DDPG_Vtrace(exarl.ExaAgent):
         )
 
     def get_actor(self):
+
         # State as input
         inputs = layers.Input(shape=(self.num_states, ))
         out = layers.Dense(256, activation="relu")(inputs)
@@ -398,9 +401,6 @@ class DDPG_Vtrace(exarl.ExaAgent):
         self.target_actor.set_weights(weights)
 
     def set_learner(self):
-        # print("##############")
-        # print("set_learner")
-        # print("##############")
         self.is_learner = True
         self.actor_model = self.get_actor()
         self.critic_model = self.get_critic()
@@ -444,3 +444,15 @@ class DDPG_Vtrace(exarl.ExaAgent):
     def epsilon_adj(self):
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
+
+    def has_data(self):
+        """Indicates if the buffer has data
+
+        Returns:
+            bool: True if buffer has data
+        """
+        return (self.buffer_counter > 0)
+
+    def set_priorities(self, indices, loss):
+        # TODO implement this
+        pass
