@@ -31,6 +31,21 @@ class DDPG_Vtrace(exarl.ExaAgent):
         logger().info("Size of State Space:  {}".format(self.num_states))
         logger().info("Size of Action Space:  {}".format(self.num_actions))
 
+        # model definitions
+        self.actor_dense = ExaGlobals.lookup_params('actor_dense')
+        self.actor_dense_act = ExaGlobals.lookup_params('actor_dense_act')
+        self.actor_out_act = ExaGlobals.lookup_params('actor_out_act')
+        self.actor_optimizer = ExaGlobals.lookup_params('actor_optimizer')
+        self.critic_state_dense = ExaGlobals.lookup_params('critic_state_dense')
+        self.critic_state_dense_act = ExaGlobals.lookup_params('critic_state_dense_act')
+        self.critic_action_dense = ExaGlobals.lookup_params('critic_action_dense')
+        self.critic_action_dense_act = ExaGlobals.lookup_params('critic_action_dense_act')
+        self.critic_concat_dense = ExaGlobals.lookup_params('critic_concat_dense')
+        self.critic_concat_dense_act = ExaGlobals.lookup_params('critic_concat_dense_act')
+        self.critic_out_act = ExaGlobals.lookup_params('critic_out_act')
+        self.critic_optimizer = ExaGlobals.lookup_params('critic_optimizer')
+        self.tau = ExaGlobals.lookup_params('tau')
+
         # Not used by agent but required by the learner class
         self.epsilon = ExaGlobals.lookup_params('epsilon')
         self.epsilon_min = ExaGlobals.lookup_params('epsilon_min')
@@ -217,16 +232,21 @@ class DDPG_Vtrace(exarl.ExaAgent):
         )
 
     def get_actor(self):
+        """Define actor network
 
+        Returns:
+            model: actor model
+        """
         # State as input
-        inputs = layers.Input(shape=(self.num_states, ))
-        out = layers.Dense(256, activation="relu")(inputs)
-        out = layers.Dense(256, activation="relu")(out)
-
-        # out = layers.Dense(self.num_actions, activation="tanh", kernel_initializer=tf.random_uniform_initializer())(out)
-        out = layers.Dense(self.num_disc_actions, activation="softmax")(out)
-
-        # out = layers.Dense(self.num_actions, activation="sigmoid", kernel_initializer=tf.random_uniform_initializer())(out)
+        inputs = layers.Input(shape=(self.num_states,))
+        # first layer takes inputs
+        out = layers.Dense(self.actor_dense[0], activation=self.actor_dense_act)(inputs)
+        # loop over remaining layers
+        for i in range(1, len(self.actor_dense)):
+            out = layers.Dense(self.actor_dense[i], activation=self.actor_dense_act)(out)
+        # output layer has dimension actions, separate activation setting
+        out = layers.Dense(self.num_disc_actions, activation=self.actor_out_act,
+                           kernel_initializer=tf.random_uniform_initializer())(out)
 
         # outputs = layers.Lambda(lambda i: i * self.upper_bound)(out)
 
@@ -236,25 +256,24 @@ class DDPG_Vtrace(exarl.ExaAgent):
         return model
 
     def get_critic(self):
+        """Define critic network
 
+        Returns:
+            model: critic network
+        """
+        # """
         # State as input
         state_input = layers.Input(shape=self.num_states)
-        state_out = layers.Dense(16, activation="relu")(state_input)
-        state_out = layers.Dense(32, activation="relu")(state_out)
+        # first layer takes inputs
+        state_out = layers.Dense(self.critic_state_dense[0],
+                                 activation=self.critic_state_dense_act)(state_input)
+        # loop over remaining layers
+        for i in range(1, len(self.critic_state_dense)):
+            state_out = layers.Dense(self.critic_state_dense[i],
+                                     activation=self.critic_state_dense_act)(state_out)
 
-        # Action as input
-        # action_input = layers.Input(shape=self.num_actions)
-        # action_out = layers.Dense(32, activation="relu")(action_input)
-
-        # Both are passed through seperate layer before concatenating
-        # concat = layers.Concatenate()([state_out, action_out])
-
-        # out = layers.Dense(256, activation="relu")(concat)
-
-        out = layers.Dense(256, activation="relu")(state_out)
-        out = layers.Dense(
-            256,
-            activation="linear",
+        out = layers.Dense(self.critic_concat_dense[0], activation=self.critic_state_dense_act)(state_out)
+        out = layers.Dense(self.critic_concat_dense[0], activation=self.critic_out_act,
             kernel_initializer=tf.random_uniform_initializer())(out)
         outputs = layers.Dense(1)(out)
 
@@ -264,29 +283,46 @@ class DDPG_Vtrace(exarl.ExaAgent):
         return model
 
     def generate_data(self):
-        record_range = min(self.buffer_counter, self.buffer_capacity)
-        logger().info('record_range:{}'.format(record_range))
-        # Randomly sample indices
-        batch_indices = np.random.choice(record_range, self.batch_size)
+        """Generate data for training
+
+        Yields:
+            state_batch (list): list of states
+            action_batch (list): list of actions
+            reward_batch (list): list of rewards
+            next_state_batch (list): list of next states
+        """
+        if self.has_data():
+            record_range = min(self.buffer_counter, self.buffer_capacity)
+            logger().info('record_range:{}'.format(record_range))
+            # Randomly sample indices
+            batch_indices = np.random.choice(record_range, self.batch_size)
+        else:
+            batch_indices = [0] * self.batch_size
+
         logger().info('batch_indices:{}'.format(batch_indices))
         state_batch = tf.convert_to_tensor(self.state_buffer[batch_indices])
         action_batch = tf.convert_to_tensor(self.action_buffer[batch_indices])
         reward_batch = tf.convert_to_tensor(self.reward_buffer[batch_indices])
         reward_batch = tf.cast(reward_batch, dtype=tf.float32)
-        next_state_batch = tf.convert_to_tensor(
-            self.next_state_buffer[batch_indices])
+        next_state_batch = tf.convert_to_tensor(self.next_state_buffer[batch_indices])
 
         yield state_batch, action_batch, reward_batch, next_state_batch
 
     def train(self, batch):
-        # self.epsilon_adj()
-        # if len(batch[0]) >= self.batch_size:
-        #     logger().info('Training...')
+        """Train the NN
+
+        Args:
+            batch (list): sampled batch of experiences
+        """
         if self.is_learner:
             logger().warning('Training...')
             self.update_grad(batch[0], batch[1], batch[2], batch[3])
+        else:
+            logger().warning('Why is is_learner false...')
 
     def update_target(self):
+        """Update target model
+        """
 
         # Update the target model
         # if self.buffer_counter >= self.batch_size:
@@ -312,8 +348,17 @@ class DDPG_Vtrace(exarl.ExaAgent):
         self.target_critic.set_weights(target_weights)
 
     def action(self, state):
+        """Returns sampled action with added noise
 
-        policy_type = 1
+        Args:
+            state (list or array): Current state of the system
+
+        Returns:
+            action (list or array): Action to take
+            policy (int): random (0) or inference (1)
+        """
+
+        policy_type = 1  # TODO: what is this?
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
 
         # Ai: changed behavior policy to choose the next action
@@ -395,9 +440,19 @@ class DDPG_Vtrace(exarl.ExaAgent):
 
     # For distributed actors #
     def get_weights(self):
+        """Get weights from target model
+
+        Returns:
+            weights (list): target model weights
+        """
         return self.target_actor.get_weights()
 
     def set_weights(self, weights):
+        """Set model weights
+
+        Args:
+            weights (list): model weights
+        """
         self.target_actor.set_weights(weights)
 
     def set_learner(self):
@@ -442,6 +497,8 @@ class DDPG_Vtrace(exarl.ExaAgent):
     #     print("Implement print_timers method in ddpg.py")
 
     def epsilon_adj(self):
+        """Update epsilon value
+        """
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
