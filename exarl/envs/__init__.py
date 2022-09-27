@@ -64,3 +64,8 @@ elif env == 'MyPendulum-v0':
         id=env,
         entry_point='exarl.envs.env_vault:MyPendulum'
     )
+elif env == 'Simple-v0':
+    register(
+        id=env,
+        entry_point='exarl.envs.env_vault:Simple'
+    )

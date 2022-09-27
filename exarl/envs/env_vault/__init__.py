@@ -24,3 +24,5 @@ elif env == 'Bsuite-v0':
     from exarl.envs.env_vault.BsuiteWrapper import BsuiteWrapper
 elif env == 'MyPendulum-v0':
     from exarl.envs.env_vault.MyPendulum import MyPendulum
+elif env == 'Simple-v0':
+    from exarl.envs.env_vault.Simple import Simple
