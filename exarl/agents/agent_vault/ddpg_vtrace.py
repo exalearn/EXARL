@@ -169,7 +169,7 @@ class DDPG_Vtrace(exarl.ExaAgent):
 
             """ n-step back-up v-trace
             for t in range(self.time_step, self.time_step+self.n_step_backup+1):
-                self.prodC = self.truncImpSampC[self.time_step]
+                self.prodC = self.truncImpSampC[t]
 
             for t in range(self.time_step, self.time_step+self.n_step_backup+1):
                 temp_diff[t] = self.truncImpSampR[self.time_step] *
