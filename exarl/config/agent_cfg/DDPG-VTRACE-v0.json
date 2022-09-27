@@ -7,7 +7,7 @@
     "batch_size": 64,
     "priority_scale": 0.0,
     "buffer_capacity": 50000,
-    "update_target_frequency": 1,
+    "update_target_frequency": 5,
     "epsilon": 0.9,
     "epsilon_min": 0.01,
     "epsilon_decay": 0.999,
@@ -25,5 +25,8 @@
     "critic_concat_dense_act" : "relu",
     "critic_out_act" : "linear",
     "critic_optimizer" : "adam",
-    "loss" : "mse"
+    "loss" : "mse",
+    "truncLevelC": 1,
+    "truncLevelR": 1,
+    "n_step_backup": 1
 }
