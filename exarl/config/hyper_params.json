@@ -1,11 +1,17 @@
 {
 "parameters": {
     "learning_rate": [0.001, 0.1],
-    "learning_iterations_per_round" : [1, 8],
-    "discount_rate": [0.9, 0.99],
-    "clip_epsilon": [0.0, 0.5],
-    "epsilon_decay_rate_denominator": [1, 500]
+    "batch_size": [32, 1024],
+    "epsilon" : [0.1, 1.0],
+    "epsilon_decay_rate_denominator" : [1, 500],
+    "discount_rate" : [0.01, 0.99],
+    "tau" : [0.01, 0.99],
+    "alpha_prioritised_replay" : [0.1, 0.9],
+    "beta_prioritised_replay" : [0.1, 0.9],
+    "batch_step_frequency" : [1, 100],
+    "train_frequency" : [1, 100]
 },
 "objective": "last_rolling_reward",
-"sampler": "tpe"
+"sampler": "tpe",
+"trials": 100
 }

@@ -131,7 +131,8 @@ class SYNC(exarl.ExaWorkflow):
 
     def __init__(self):
         self.debug('Creating SYNC', ExaComm.global_comm.rank, ExaComm.is_learner(), ExaComm.is_agent(), ExaComm.is_actor())
-
+        print("Block:", ExaGlobals.lookup_params('episode_block'), "Batch Step Frequency:", ExaGlobals.lookup_params('batch_step_frequency'), "Train Frequency:", ExaGlobals.lookup_params('train_frequency'), "Batch Size:", ExaGlobals.lookup_params('batch_size'), flush=True)
+        
         self.block_size = 1
         block = TypeUtils.get_bool(ExaGlobals.lookup_params('episode_block'))
         if block:
@@ -492,7 +493,8 @@ class SYNC(exarl.ExaWorkflow):
         """
         ret = False
         to_send = []
-        for dst in range(start_rank, self.block_size):
+        # JS: The zip makes sure we have ranks alive
+        for dst, _ in zip(range(start_rank, self.block_size), range(self.alive)):
             src, batch, policy_type, done, epsilon, total_reward = self.recv_batch()
             self.train_return[src] = exalearner.agent.train(batch)
 
@@ -513,7 +515,6 @@ class SYNC(exarl.ExaWorkflow):
             
             if self.converged:
                 self.episode_per_rank[src] = nepisodes
-
         for dst in to_send:
             self.send_model(exalearner, self.episode_per_rank[dst], self.train_return[dst], dst)
             if self.episode_per_rank[dst] >= nepisodes:

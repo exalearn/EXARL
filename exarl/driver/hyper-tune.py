@@ -24,13 +24,16 @@ samplers = {
 }
 
 class Optimizer:
-    def __init__(self, params, objective_func, sampler, n_trials=100, eps=30):
+    def __init__(self, params, objective_func, sampler, n_trials=100, exp="EXP000"):
         self.params = params
         self.objective_func = objective_func
         self.sampler = sampler
         self.n_trials = n_trials
-        self.n_episodes = eps
+        self.exp = exp
         self.all_nodes = self.get_nodes()
+        # JS: Leave the first node for optuna
+        if len(self.all_nodes) > 1:
+            self.all_nodes = self.all_nodes[1:]
         self.log = [[0, 0]] 
 
     def optimize(self):
@@ -47,22 +50,20 @@ class Optimizer:
         cmd = command("scontrol show hostnames", wait=True)
         return [x for x in cmd.out.split('\n') if len(x) > 0]
 
-    def srun_prefix(self, cmd, nodeId=None, nodes=1, procs=1):
-        if nodeId:
-            return " ".join(["srun -N", str(nodes), "-n", str(procs), "-w", nodeId, cmd])
-        else:
-            return " ".join(["srun -N", str(nodes), "-n", str(procs), cmd])
+    def srun_prefix(self, cmd, nodeId, nodes=1, procs=1):
+        return " ".join(["srun -N", str(nodes), "-n", str(procs), "-w", str(nodeId), cmd])
 
-    def run_cmd(self, params, node_id=None):
-        text = "python exarl/driver --n_episodes {}".format(self.n_episodes)
+    def run_cmd(self, params, nodeId, trial=0):
+        text = f'python exarl/driver --run_id RUN{trial:04d} --experiment_id ' + self.exp
         dash = [("--" + x[0], str(x[1])) for x in params]
         flat_list = [item for sublist in dash for item in sublist]
         text = ' '.join([text, *flat_list])
-        return self.srun_prefix(text, nodeId=node_id) 
+        return self.srun_prefix(text, nodeId) 
 
     def parse(self, output):
         lines = output.split("\n")
         #print("BEGIN_LINES: \n", lines, "\nEND_LINES", flush=True)
+        num_conv_eps = None
         for line in lines:
             if "Total Reward:" in line:
                 rolling_reward = line.split(" ")[-1]
@@ -70,8 +71,12 @@ class Optimizer:
                 time = line.split(" ")[-1]
             elif "Num eps" in line:
                 #print("LINE: ", line)
-                num_eps = line.split(" ")[2] 
+                num_eps = line.split(" ")[2]
+            elif "Converged:" in line:
+                num_conv_eps = line.split(" ")[1]
         try:
+            if num_conv_eps is not None:
+                num_eps = num_conv_eps
             return (rolling_reward, time, num_eps)
         except UnboundLocalError:
             return False
@@ -92,9 +97,8 @@ class Optimizer:
                 
             else:
                 suggestions.append((p, trial.suggest_categorical(p, minimum, maximum)))
-        #print("TRIAL_NUMBER: {} NODE: {} VALUES: {}".format(trial.number, my_node, suggestions))
         #print(suggestions)
-        cmd = command(self.run_cmd(suggestions, node_id=self.all_nodes[my_node]), wait=True)
+        cmd = command(self.run_cmd(suggestions, self.all_nodes[my_node], trial=trial.number), wait=True)
         res = self.parse(cmd.out)
         try: 
             res = [float(x) for x in res]
@@ -102,6 +106,7 @@ class Optimizer:
             self.log.append([trial.number, max(res, max([x[1] for x in self.log]))])
             return res
         except:
+            print("Failed:", cmd.cmd)
             print("PARSING ERROR:\n", cmd.out)
             print("Error: \n", cmd.err, flush=True)
             self.log.append([trial.number, self.log[-1][1]])
@@ -122,31 +127,39 @@ class command:
         #self.ret = self.sp.wait()
         self.out, self.err = self.sp.communicate()
 
-
-
-with open("exarl/config/hyper_params.json") as file:
+with open("/people/suet688/exaLearn/ExaRL/exarl/config/hyper_params.json") as file:
     js = json.load(file)
     parameters_from_json = js["parameters"]
-    my_sampler_ = js["sampler"]
-    my_objective_ = js["objective"]
-my_objective = objectives[my_objective_]
-my_sampler = samplers[my_sampler_]
+    my_sampler = js["sampler"]
+    my_objective = js["objective"]
+    n_trials = js["trials"]
 
+# op = Optimizer(parameters_from_json, objectives[my_objective], samplers[my_sampler], n_trials=n_trials, exp=my_sampler + "_" + my_objective)
+# res, _ = op.optimize()
+# for param in res:
+#     print(param, res[param])
 
 for sampler in samplers:
-    xpoints = []
-    ypoints = []
-    for _ in range(2):
-        op = Optimizer(parameters_from_json, my_objective, samplers[sampler], n_trials=100)
-        res, log = op.optimize()
-        xpoints.append(np.array([x[0] for x in log]))
-        ypoints.append(np.array([x[1] for x in log]))
-    xpoints = np.array(xpoints)
-    ypoints = np.array(ypoints)
-    xpoints = np.mean(xpoints, axis=0)
-    ypoints = np.mean(ypoints, axis=0)
+    for objective in objectives:
+        op = Optimizer(parameters_from_json, objectives[objective], samplers[sampler], n_trials=n_trials, exp="_".join([sampler, objective]))
+        res, _ = op.optimize()
+        for param in res:
+            print(sampler, objective, param[0], param[1])
 
-    plt.plot(xpoints, ypoints, label=sampler)
-plt.legend()
-plt.savefig("Rolling_rewards.jpeg")
+# for sampler in samplers:
+#     xpoints = []
+#     ypoints = []
+#     for _ in range(2):
+#         op = Optimizer(parameters_from_json, my_objective, samplers[sampler], n_trials=100)
+#         res, log = op.optimize()
+#         xpoints.append(np.array([x[0] for x in log]))
+#         ypoints.append(np.array([x[1] for x in log]))
+#     xpoints = np.array(xpoints)
+#     ypoints = np.array(ypoints)
+#     xpoints = np.mean(xpoints, axis=0)
+#     ypoints = np.mean(ypoints, axis=0)
+
+#     plt.plot(xpoints, ypoints, label=sampler)
+# plt.legend()
+# plt.savefig("Rolling_rewards.jpeg")
 

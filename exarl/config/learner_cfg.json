@@ -1,10 +1,10 @@
 {
-    "agent": "EXA-A2C-v0",
-    "env": "ExaCartPoleStatic-v0",
+    "agent": "TORCH-AGENT-DQN-v0",
+    "env": "CartPole-v0",
     "workflow": "sync",
-    "n_episodes": 50,
+    "n_episodes": 100000,
     "n_steps": 100,
-    "output_dir": "./results/",
+    "output_dir": "./results/big_3",
     "process_per_env": 1,
     "log_level": [
         3,

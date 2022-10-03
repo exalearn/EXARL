@@ -20,8 +20,8 @@
 #                    under Contract DE-AC05-76RL01830
 import time
 import numpy as np
-# import tensorflow
-import torch
+import tensorflow
+# import torch
 import exarl
 from exarl.utils.profile import ProfileConstants
 import os

@@ -15,10 +15,10 @@ print("Username: $username Slurm Partition: $partition Command: $command Count: 
 SingleRun::setPartition("$partition");
 SingleRun::setUser("$username");
 
-# if($#ARGV == 1){
-#     SingleRun::greedyThrottleCommand($command, shift(@ARGV));
-# }
-# else {
-#     SingleRun::throttleCommand($command);
-# }
+if($#ARGV == 1){
+    SingleRun::greedyThrottleCommand($command, shift(@ARGV));
+}
+else {
+    SingleRun::throttleCommand($command);
+}
 

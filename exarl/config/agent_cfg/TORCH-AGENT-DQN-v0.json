@@ -1,5 +1,5 @@
 {
-    "which" : "Dueling_DDQN",
+    "which" : "DDQN",
     "seed" : 1,
     "use_GPU" : "False",
     "standard_deviation_results" : 1.0,

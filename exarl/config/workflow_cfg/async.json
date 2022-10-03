@@ -1,11 +1,11 @@
 {
     "learner_procs": 1,
-    "episode_block": "True",
-    "batch_episode_frequency": 4,
+    "episode_block": "false",
+    "batch_episode_frequency": 1,
     "batch_step_frequency": -1,
     "save_weights_per_episode": "false",
     "action_type": "variable",
     "cutoff" : 0.00001,
-    "rolling_reward_length" : -1,
+    "rolling_reward_length" : 25,
     "mpi4py_rc": "false"
 }

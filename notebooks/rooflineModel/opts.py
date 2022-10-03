@@ -129,6 +129,10 @@ def readCartFile(filename):
     altTime = 0
 
     with open(filename) as f:
+        converged=-1
+        alive=-1
+        last=-1
+        average=None
         lines = f.readlines()
         for line in lines:
             if "Maximum elapsed time" in line:
@@ -143,7 +147,13 @@ def readCartFile(filename):
             elif "Time = " in line:
                 temp = re.split(' ', line.rstrip())
                 altTime = max(altTime, float(temp[-1]))
-    
+            elif "Total Reward:" in line:
+                if average is None:
+                    temp = re.split(' ', line.rstrip())
+                    average = float(temp[-1])
+        if average is None:
+            average = -1
+
     if time is None:
         time = altTime
     return (which, episode_block, batch_frequency, ranks, train_frequency, batch_size, time, converged, alive, average, last)
@@ -171,7 +181,7 @@ def getCartDataframe(dir):
             temp.append(readCartFile(f))
         except:
             print("Failed:", f)
-    ret = pd.DataFrame(temp, columns=("which", "episode_block", "batch_frequency", "ranks", "train_frequency", "batch_size", "time", "converged", "alive", "average", "last"))
+    ret = pd.DataFrame(temp, columns=("which", "episode_block", "batch_step_frequency", "ranks", "train_frequency", "batch_size", "time", "converged", "alive", "average", "last"))
     
     truthy = {"1":True, "true":True, "True":True, "0":False, "false":False, "False":False}
     ret["episode_block"] = ret["episode_block"].map(truthy)
