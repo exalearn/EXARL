@@ -505,8 +505,7 @@ class PARS(erl.ExaAgent):
             self.pos_neg_meanreward = []
             self.deltas_idx = []
 
-            self.rankPrint("GenData:: >> ", batch['deltas_idx'] )
-
+            # self.rankPrint("GenData:: >> ", batch['deltas_idx'] )
             self.rankPrint("Generate Data:: self.internal_episode_count:", self.internal_episode_count, self.env.workflow_episode, " BATCH")
 
             yield batch

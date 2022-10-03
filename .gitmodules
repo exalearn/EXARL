@@ -1,3 +1,4 @@
 [submodule "exarl/envs/env_vault/Hadrec_dir"]
 	path = exarl/envs/env_vault/Hadrec_dir
 	url = git@github.com:exalearn/powerGridEnv.git
+	branch=main
