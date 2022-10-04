@@ -23,7 +23,7 @@ class Simple(gym.Env):
         print('self.action_space', type(self.action_space), self.action_space)
 
         print('self.observation_space', type(self.observation_space), self.observation_space)
-        self.state = 0
+        self.state = 0.1
         self.reward = 0
         
     def step(self, action):
@@ -42,9 +42,9 @@ class Simple(gym.Env):
         # self.env._max_episode_steps=self._max_episode_steps
         # print('Max steps: %s' % str(self._max_episode_steps))
         print("Total reward was {}".format(self.reward))
-        self.state = 0
+        self.state = 0.1
         self.reward = 0
-        return np.array([0])
+        return np.array([self.state])
         #return self.env.reset()
 
 #    def render(self, mode='human', close=False):

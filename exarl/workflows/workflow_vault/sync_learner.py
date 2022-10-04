@@ -446,7 +446,10 @@ class SYNC(exarl.ExaWorkflow):
         """
         to_send = []
         for dst in range(start_rank, self.block_size):
+            print("Recieving batch")
             src, batch, policy_type, done, epsilon = self.recv_batch()
+            print("batch recieved. it is {}".format(batch))
+            
             self.train_return[src] = exalearner.agent.train(batch)
             exalearner.agent.target_train()
             self.model_count += 1
@@ -585,7 +588,9 @@ class SYNC(exarl.ExaWorkflow):
         print("WORKFLOW EP DONE:", self.episode_count, self.steps)
         # Send batches back to the learner (10)
         if ExaComm.env_comm.rank == 0:
+            print("COMM RANK 0 making batch data")
             batch_data = next(exalearner.agent.generate_data())
+            print("Got batch data possibly? it is {}".format(batch_data))
             # if batch_data is not None:
             self.send_batch(batch_data, policy_type, self.done, exalearner.agent.epsilon)
         return True
@@ -646,6 +651,7 @@ class SYNC(exarl.ExaWorkflow):
         nepisodes = self.episode_round(exalearner)
         self.init_learner(exalearner)
         if ExaComm.is_agent():
+            print("IS AGENT")
             while self.done_episode < nepisodes:
                 self.actor(exalearner, nepisodes)
                 self.learner(exalearner, nepisodes, 0)
@@ -653,6 +659,7 @@ class SYNC(exarl.ExaWorkflow):
             # Send the done signal to the rest
             ExaComm.env_comm.bcast(self.done_episode, 0)
         else:
+            print("IS NOT AGENT")
             keep_running = True
             while keep_running:
                 keep_running = self.actor(exalearner, nepisodes)

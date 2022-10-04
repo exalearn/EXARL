@@ -212,10 +212,11 @@ class PARS(erl.ExaAgent):
             self.w_policy = self.policy.get_weights()
         elif self.policy_params['type'] == 'LSTM':
             self.policy = LSTMPolicy(self.policy_params)
-            self.w_policy = self.policy.get_weights()													 																		
+            self.w_policy = self.policy.get_weights()													 																	       
         else:
             raise NotImplementedError
 
+        self.base_policy = self.w_policy
         # initialize optimization algorithm
         # print('Initializing optimizer.')
         self.optimizer = SGD(self.w_policy, self.params["step_size"])
@@ -256,7 +257,7 @@ class PARS(erl.ExaAgent):
         if self.Num_actors  == 0:
             self.Num_actors  = 1
         self.Num_pertub = 2  #  This is +ve and -ve perturbations direction
-        self.Num_faults = len(self.PF_FAULT_CASES_ALL)     
+        self.Num_faults = 1 #len(self.PF_FAULT_CASES_ALL)     
 
         self.epsilon = ExaGlobals.lookup_params('epsilon')   
     
@@ -307,12 +308,14 @@ class PARS(erl.ExaAgent):
         deltas_id = create_shared_noise()
         self.deltas = SharedNoiseTable(deltas_id,self.params["seed"] + 7 * seed)
         idx, delta = self.deltas.get_delta(self.w_policy.size)
+        print("Delta std is {}".format(self.delta_std))
         self.delta = (self.delta_std * delta).reshape(self.w_policy.shape)
         self.deltas_idx.append(idx)
 
     def get_weights(self):
         if self.new_weights > 0:
             self.new_weights -= 1
+            print("UPDATING self.policy in get_weights")
             self.w_policy = self.policy.get_weights()
             return self.w_policy
         else:
@@ -360,19 +363,27 @@ class PARS(erl.ExaAgent):
                 self.set_delta(self.worker_seed_id)
 
                 self.policy.update_weights(weights)
+                print("UPDATING self.w_policy")
                 self.w_policy = self.policy.get_weights()
                 
                 # reset the internal_step_count
                 self.internal_step_count  = 0
         
         # Even count mean run with positive perturb
+        print("Before doing +/i: Internal episoed count is {}".format(self.internal_episode_count))
         if self.internal_episode_count % 2 == 0:
+            print("positive!")
+            print("the w_policy is {} and the delta is {}".format(self.w_policy,self.delta))
             # update with the positive 
             w_pos_id = self.w_policy + self.delta
             self.policy.update_weights(w_pos_id)
+            print("w_policy is now",self.w_policy)
+#            exit()
             # print("Setting positive weights.. Episode:: ",self.env.workflow_episode)
         # Odd count mean run with negative perburb 
         else:
+            print("negative!")
+            print("the w_policy is {} and the delta is {}".format(self.w_policy,self.delta))
             # update with the negative perturb 
             w_pos_id = self.w_policy - self.delta
             self.policy.update_weights(w_pos_id)
@@ -382,10 +393,10 @@ class PARS(erl.ExaAgent):
                    
     def action(self,state):
         ob = np.asarray(state, dtype=np.float64)
-
+        
         # Calculate the normalized observation.
         normal_ob = (ob - self.ob_mean) / (self.ob_std + 1e-8)
-
+        print("Raw ob {} normal ob {}".format(ob,normal_ob))
         # This counter is increased here since
         # the action is followed by the step of the environment  
         # an actor fucntion of sync_learner.py.
@@ -396,14 +407,17 @@ class PARS(erl.ExaAgent):
 
     def train_step(self,g_hat):
         self.rankPrint("Euclidean norm of update step:", np.linalg.norm(g_hat))
+        print("Current w_policy {}".format(self.w_policy))
+        print("step size: {}".format(self.step_size))
         self.w_policy -= self.optimizer._compute_step(g_hat, self.step_size).reshape(self.w_policy.shape)
         self.rankPrint('g_hat shape, w_policy shape:',np.asarray(g_hat).shape,self.w_policy.shape)
-
+        print("After step w_policy {}".format(self.w_policy))
         # update the policy with new weights...
         self.policy.update_weights(self.w_policy)
         return
 
     def train(self,batch):
+        print("in train!!!. batch is not None?{}".format(batch is not None))
         if batch is not None:
             self.all_actorbatch.append(batch)
 
@@ -424,6 +438,7 @@ class PARS(erl.ExaAgent):
                 
                 rollout_rewards, deltas_idx, deltas_actor = [], [],[]
                 for i, actorbatch in enumerate(self.all_actorbatch):
+                    print("actor batch is {}".format(actorbatch['rollout_rewards']))
                     rollout_rewards += actorbatch['rollout_rewards']
                     deltas_idx += actorbatch['deltas_idx']
                     deltas_actor.append(actorbatch['deltas'])
@@ -467,17 +482,20 @@ class PARS(erl.ExaAgent):
                 if np.std(rollout_rewards) > 1:
                     rollout_rewards /= np.std(rollout_rewards)
 
+                print("Rollout rewards is",rollout_rewards)
                 # aggregate rollouts to form g_hat, the gradient used to compute SGD step
+                print("bws inpuit {}".format(rollout_rewards[:, 0] - rollout_rewards[:, 1]))
                 g_hat, count = batched_weighted_sum(rollout_rewards[:, 0] - rollout_rewards[:, 1],
                                                         (deltas_actor.get(idx, self.w_policy.size)
                                                         for idx in deltas_idx),
                                                         batch_size=500)
                 g_hat /= deltas_idx.size
-
+                
                 self.step_size *= self.decay # This updated value is used at train_step 
                 self.delta_std *= self.decay # This is used to update delta_std in one-worker instance.
                 # This batch comes from the generate function...
                 # g_hat = batch[0]
+                print("G hat is {}".format(g_hat))
                 self.train_step(g_hat)
                 
                 # Loss metric.
@@ -515,10 +533,13 @@ class PARS(erl.ExaAgent):
     def remember(self, state, action, reward, next_state, done):
         self.RS.push(state)
         # positive perturb policy returning
-        if self.internal_episode_count % self.Num_pertub == 0:
+        print("Internal episoed count is {}".format(self.internal_episode_count))
+        if (self.internal_episode_count - 1)% self.Num_pertub == 0:
+            print("Recording {} into the pos_rew".format(reward))
             self.pos_rew.append(reward)
         # negative perturb policy returning
         else:
+            print("Recording {} into the neg_rew".format(reward))
             self.neg_rew.append(reward)
 
     def target_train(self):
