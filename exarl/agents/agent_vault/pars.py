@@ -295,7 +295,7 @@ class PARS(erl.ExaAgent):
         param['rollout_length'] =  ExaGlobals.lookup_params('n_steps')
         param['seed'] = ExaGlobals.lookup_params('seed')
         param['policy_type'] = ExaGlobals.lookup_params('model_type')
-        param['step_size'] = ExaGlobals.lookup_params('step_size')
+        param['step_size'] = ExaGlobals.lookup_params('sgd_step_size')
         # This flag helps to decide which env the PARS is called for..
         param['PowerGridEnv_Flag'] = ExaGlobals.lookup_params('PowerGridEnv_Flag')
         
@@ -516,7 +516,7 @@ class PARS(erl.ExaAgent):
     def remember(self, state, action, reward, next_state, done):
         self.RS.push(state)
         # positive perturb policy returning
-        if self.internal_episode_count % self.Num_pertub == 0:
+        if (self.internal_episode_count-1) % self.Num_pertub == 0:
             self.pos_rew.append(reward)
         # negative perturb policy returning
         else:
@@ -525,7 +525,7 @@ class PARS(erl.ExaAgent):
     def target_train(self):
         return self.policy.get_weights
 
-    def update(self):
+    def update_target(self):
         print("Implement update method in ARS.py")
         return 
 

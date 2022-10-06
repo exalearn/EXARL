@@ -1,8 +1,13 @@
 {
     "learner_procs": 1,
     "episode_block": "True",
-    "batch_frequency": -1,
+    "batch_step_frequency": -1,
+    "batch_episode_frequency":1,
+    "update_target_frequency":1,
+    "train_frequency":1,
     "save_weights_per_episode": "false",
     "action_type": "variable",
-    "mpi4py_rc": "false"
+    "mpi4py_rc": "false",
+    "cutoff" : 0.00001,
+    "rolling_reward_length" : -1
 }

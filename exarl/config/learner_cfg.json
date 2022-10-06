@@ -1,12 +1,14 @@
 {
     "agent": "PARS-v0",
-    "env": "Hadrec-v0",
+    "env": "RsPendulum-v0",
     "workflow": "sync",
-    "n_episodes": 10,
-    "n_steps": 10,
+    "n_episodes": 100,
+    "n_steps": 200,
     "model": "AC",
-    "output_dir": "./results_dir/",
+    "clip_rewards":"False",
+    "output_dir": "./results_pendulum/",
     "process_per_env": 1,
+    "log_frequency": 1,
     "log_level": [3, 3],
     "profile": "None"
 }

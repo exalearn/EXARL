@@ -1,0 +1,10 @@
+{
+"parameters": {
+    "delta_std": [1, 4],
+    "decay": [0.1, 1.0],
+    "sgd_step_size": [0.0001, 1.0]
+},
+"objective": "last_rolling_reward",
+"sampler": "tpe",
+"trials": 500
+}
