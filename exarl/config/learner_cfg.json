@@ -1,18 +1,19 @@
 {
     "agent": "DQN-v0",
-    "env": "ExaCartPoleStatic-v0",
+    "env": "CartPole-v0",
     "workflow": "sync",
     "n_episodes": 10,
     "n_steps": 10,
-    "output_dir": "./results_dir/",
+    "output_dir": "./results/",
     "process_per_env": 1,
     "log_level": [
         3,
         3
     ],
-    "log_frequency": 1,
-    "profile": "None",
     "model_type": "MLP",
     "clip_rewards":"False",
-    "plot_rolling_range": 25
+    "rolling_reward_length": 4,
+    "cutoff" : 0.00000,
+    "log_frequency": 1,
+    "profile": "None"
 }

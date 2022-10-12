@@ -149,7 +149,7 @@ class SYNC(exarl.ExaWorkflow):
             # This is for multi-episode agents.  We will set the batch_step_frequency
             # to -1 since we only want to send full episodes.
             self.batch_step_frequency = -1
-        
+
         # If it is set to -1 then we only send an update when the episode is over
         if self.batch_step_frequency == -1:
             self.batch_step_frequency = ExaGlobals.lookup_params('n_steps')
@@ -263,7 +263,7 @@ class SYNC(exarl.ExaWorkflow):
                     self.train_writer.writerows(self.data_matrix)
                     self.train_file.flush()
                     self.data_matrix = []
-            
+
 
     def save_weights(self, exalearner, episode, nepisodes):
         """
@@ -419,12 +419,14 @@ class SYNC(exarl.ExaWorkflow):
             self.next_episode += self.batch_episode_frequency
             self.alive += 1
 
-    def check_convergence(self, nepisodes):
+    def get_rolling_reward(self):
+        return np.mean(np.abs(np.diff(np.array(self.episode_reward_list[-self.rolling_reward_length:])))), self.rolling_reward_length
+    
+    def check_convergence(self):
         # Lets us know how we are doing
         if self.cutoff > 0 and self.rolling_reward_length > 1 and not self.converged:
             if len(self.episode_reward_list) >= self.rolling_reward_length:
-                ave = np.mean(np.abs(np.diff(np.array(self.episode_reward_list[-self.rolling_reward_length:]))))
-                # print("Check:", ave, len(self.episode_reward_list), self.episode_reward_list[-5:]) #self.episode_reward_list[-self.rolling_reward_length:])
+                ave, _ = self.get_rolling_reward()
                 if ave < self.cutoff:
                     self.converged = True
                     print("Converged:", len(self.episode_reward_list), "Alive:", self.alive, "Ave:", ave, "Last:", self.episode_reward_list[-1])
@@ -492,7 +494,8 @@ class SYNC(exarl.ExaWorkflow):
         """
         ret = False
         to_send = []
-        for dst in range(start_rank, self.block_size):
+        # JS: The zip makes sure we have ranks alive
+        for dst, _ in zip(range(start_rank, self.block_size), range(self.alive)):
             src, batch, policy_type, done, epsilon, total_reward = self.recv_batch()
             self.train_return[src] = exalearner.agent.train(batch)
 
@@ -510,7 +513,7 @@ class SYNC(exarl.ExaWorkflow):
                 self.episode_per_rank[src] = self.next_episode
                 self.next_episode += self.batch_episode_frequency
                 ret = True
-            
+
             if self.converged:
                 self.episode_per_rank[src] = nepisodes
 
@@ -579,7 +582,7 @@ class SYNC(exarl.ExaWorkflow):
                 # JS: This call flattens the list from *train_ret above
                 train_ret = [item for sublist in train_ret for item in sublist]
                 exalearner.agent.set_priorities(*train_ret)
-        
+
         # Repeat steps 3-9 for a number of episodes
         for eps in range(self.batch_episode_frequency):
             # Set the episode for envs that want to keep track
@@ -587,7 +590,7 @@ class SYNC(exarl.ExaWorkflow):
 
             # Reset environment if required (3)
             self.reset_env(exalearner)
-            
+
             # Do the steps.  If batch_episode_frequency > 1 batch_steps_frequency == nsteps
             for i in range(self.batch_step_frequency):
                 # Do inference (4)
@@ -612,7 +615,7 @@ class SYNC(exarl.ExaWorkflow):
                 if ExaComm.env_comm.rank == 0:
                     exalearner.agent.remember(self.current_state, action, reward, next_state, self.done)
                     self.total_reward += reward
-                
+
                 # Check number of steps and broadcast (8)
                 if self.steps == exalearner.nsteps:
                     self.done = True
@@ -658,11 +661,10 @@ class SYNC(exarl.ExaWorkflow):
                 # previous if makes sure of that.
                 if nepisodes % self.batch_episode_frequency:
                     nepisodes = (int(nepisodes / self.batch_episode_frequency) + 1) * self.batch_episode_frequency
-            
+
             # Just make it so everyone does at least one batch
             if nepisodes < (ExaComm.agent_comm.size - ExaComm.num_learners) * self.batch_episode_frequency:
                 nepisodes = (ExaComm.agent_comm.size - ExaComm.num_learners) * self.batch_episode_frequency
-        print("Num eps:", nepisodes, self.batch_episode_frequency, self.batch_step_frequency)
         # This ensures everyone has the same nepisodes as well
         # as ensuring everyone is starting at the same time
         nepisodes = ExaComm.global_comm.bcast(nepisodes, 0)
@@ -692,7 +694,7 @@ class SYNC(exarl.ExaWorkflow):
                 self.actor(exalearner, nepisodes)
                 do_convergence_check = self.learner(exalearner, nepisodes, 0)
                 if do_convergence_check:
-                    convergence = self.check_convergence(nepisodes)
+                    convergence = self.check_convergence()
                 self.debug("Learner:", self.done_episode, nepisodes, do_convergence_check, convergence)
             # Send the done signal to the rest
             ExaComm.env_comm.bcast(self.done_episode, 0)
@@ -701,3 +703,9 @@ class SYNC(exarl.ExaWorkflow):
             while keep_running:
                 keep_running = self.actor(exalearner, nepisodes)
                 self.debug("Actor:", keep_running)
+
+    def get_total_episodes_run(self):
+        return self.done_episode
+
+    def get_total_reward(self):
+        return sum(self.episode_reward_list)

@@ -24,9 +24,10 @@ import tensorflow
 # import torch
 import exarl
 from exarl.utils.profile import ProfileConstants
+import os
 import exarl.utils.analyze_reward as ar
+from exarl.utils.renderDMC import render_tmp
 
-# Create learner object and run
 exa_learner = exarl.ExaLearner()
 
 # MPI communicator
@@ -48,6 +49,10 @@ else:
     if rank == 0:
         print("Average elapsed time = ", elapse / size)
         print("Maximum elapsed time = ", max_elapse)
+
+print("Final number of episodes =", exa_learner.final_number_of_episodes())
+print("Total reward =", exa_learner.final_total_reward())
+print("Final rolling reward =", exa_learner.final_rolling_reward()[0])
 
 # Save rewards vs. episodes plot
 if rank == 0:

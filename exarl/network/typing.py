@@ -347,16 +347,17 @@ class TypeUtils:
             return MPI.BOOL
         print("Failed to convert type", the_type, "to mpi type")
         return the_type
-    
+
     def tf_type_converter(the_type, promote=True):
         return the_type
+
 
 for module in sys.modules:
     if 'tensorflow' in module:
         import tensorflow as tf
-        
+
         def real_tf_to_np(the_type):
-            converter = {tf.float64 : np.float64, tf.int32 : np.float32, tf.bool : np.bool}
+            converter = {tf.float64: np.float64, tf.int32: np.float32, tf.bool: np.bool}
             if the_type in converter:
                 return converter[the_type]
 

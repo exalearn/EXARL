@@ -1,11 +1,14 @@
 {
+"agent": "DQN-v0",
 "parameters": {
-    "learning_rate": [0.001, 0.1],
-    "learning_iterations_per_round" : [1, 8],
-    "discount_rate": [0.9, 0.99],
-    "clip_epsilon": [0.0, 0.5],
-    "epsilon_decay_rate_denominator": [1, 500]
+    "gamma": [0.001, 0.1],
+    "batch_size": [5, 128],
+    "epsilon" : [0.01, 1.0],
+    "epsilon_decay" : [0.1, 1.0],
+    "learning_rate" : [0.001, 1.0],
+    "tau" : [0.01, 1.0]
 },
-"objective": "last_rolling_reward",
-"sampler": "tpe"
+"objective": "all",
+"sampler": "tpe",
+"trials": 1
 }

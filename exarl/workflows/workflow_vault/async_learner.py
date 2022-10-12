@@ -138,7 +138,7 @@ class ASYNC(SYNC):
         """
         convergence = -1
         nepisodes = self.episode_round(workflow)
-        
+
         # These are the loops used to keep everyone running
         if ExaComm.is_learner():
             self.init_learner(workflow)

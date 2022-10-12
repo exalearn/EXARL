@@ -5,7 +5,5 @@
     "batch_step_frequency": 1,
     "save_weights_per_episode": "false",
     "action_type": "variable",
-    "mpi4py_rc": "true",
-    "cutoff" : 0.00001,
-    "rolling_reward_length" : -1
+    "mpi4py_rc": "true"
 }
