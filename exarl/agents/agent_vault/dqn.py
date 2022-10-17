@@ -83,6 +83,7 @@ class DQN(erl.ExaAgent):
         self.size = self.agent_comm.size
 
         # Timers
+        # TODO: self.training_time not used in code?
         self.training_time = 0
         self.ntraining_time = 0
         self.dataprep_time = 0
@@ -109,6 +110,7 @@ class DQN(erl.ExaAgent):
         self.batch_size = ExaGlobals.lookup_params('batch_size')
         self.tau = ExaGlobals.lookup_params('tau')
         self.model_type = ExaGlobals.lookup_params('model_type')
+        self.update_target_frequency = ExaGlobals.lookup_params('update_target_frequency')
 
         if self.model_type == 'MLP':
             # for mlp
@@ -394,6 +396,10 @@ class DQN(erl.ExaAgent):
                 else:
                     self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
         self.ntraining_time += 1
+
+        if self.ntraining_time % self.update_target_frequency == 0:
+            self.update_target()
+
         return ret
 
     @tf.function

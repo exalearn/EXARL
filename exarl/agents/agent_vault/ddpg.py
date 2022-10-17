@@ -315,6 +315,7 @@ class DDPG(exarl.ExaAgent):
         if self.is_learner:
             logger().warning('Training...')
             self.update_grad(batch[0], batch[1], batch[2], batch[3])
+            self.update_target()
         else:
             logger().warning('Why is is_learner false...')
 

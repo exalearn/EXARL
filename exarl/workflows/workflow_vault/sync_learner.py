@@ -154,9 +154,6 @@ class SYNC(exarl.ExaWorkflow):
         if self.batch_step_frequency == -1:
             self.batch_step_frequency = ExaGlobals.lookup_params('n_steps')
 
-        # How often to update target parameters
-        self.update_target_frequency = ExaGlobals.lookup_params('update_target_frequency')
-
         # How often to write logs (in episodes)
         self.log_frequency = ExaGlobals.lookup_params('log_frequency')
         # If it is set to -1 then we only log at the end of the run
@@ -287,6 +284,7 @@ class SYNC(exarl.ExaWorkflow):
         elif episode == nepisodes or self.converged:
             exalearner.agent.save(exalearner.results_dir + '/' + self.filename_prefix + '.h5')
 
+    # TODO: What to do about dst?
     @introspect
     def send_model(self, exalearner, episode, train_return, dst):
         """
@@ -498,9 +496,6 @@ class SYNC(exarl.ExaWorkflow):
         for dst, _ in zip(range(start_rank, self.block_size), range(self.alive)):
             src, batch, policy_type, done, epsilon, total_reward = self.recv_batch()
             self.train_return[src] = exalearner.agent.train(batch)
-
-            if self.model_count % self.update_target_frequency == 0:
-                exalearner.agent.update_target()
 
             self.model_count += 1
             to_send.append(src)
