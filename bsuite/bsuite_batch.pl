@@ -41,7 +41,7 @@ sub usage() {
     print "    -h: Print this message\n\n";
     print "Example usage:\n";
     print "  ./bsuite/bsuite_batch.pl -N 2 -n 2 -a \"-x node15,node28,node22,node42,node33\" -b developer -o out -s 2 -e 100 -p 100 slurm\n";
-    print "  ./bsuite/bsuite_batch.pl -N 2 -n 2 -a \"-A --agent async\" -o out slurm\n";
+    print "  ./bsuite/bsuite_batch.pl -N 2 -n 2 -A \"--agent async\" -o out slurm\n";
     print "  ./bsuite/bsuite_batch.pl -N 1 -n 1 -S ./script/cori_V100_gpu.sh -b memory -s 1 -o out slurm\n";
     print "  ./bsuite/bsuite_batch.pl -D slurm\n";
     print "  ./bsuite/bsuite_batch.pl -B all slurm\n";
