@@ -25,7 +25,7 @@ from exarl.utils.profile import PROFILE
 class ASYNC(SYNC):
     """
     This class builds ontop of the simple learner to support processing
-    environments in parallel.  This is achieved by having separate leaners
+    environments in parallel.  This is achieved by having separate learners
     and actors.  The communication is performed by MPI sends/recvs.
 
     We are currently supporting single learner thus we set block_size = 2
@@ -93,6 +93,16 @@ class ASYNC(SYNC):
 
         policy_type : int
             This is the policy given by the actor performing inference to get an action
+        
+        done : bool
+            Indicates if the episode is competed
+
+        epsilon : float
+            Current epsilon value to send to learner
+
+        episode_reward : float
+            The total reward from the last episode.  If the episode in not done, it
+            will be the current total reward.
         """
         ExaComm.agent_comm.send([ExaComm.agent_comm.rank, batch_data, policy_type, done, epsilon, episode_reward], 0)
 
