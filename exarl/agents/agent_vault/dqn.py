@@ -33,7 +33,7 @@ import exarl as erl
 from exarl.utils.globals import ExaGlobals
 from exarl.base.comm_base import ExaComm
 from exarl.candlelib import candle
-from exarl.agents.agent_vault._prioritized_replay import PrioritizedReplayBuffer
+from exarl.agents.replay_buffers._prioritized_replay import PrioritizedReplayBuffer
 from exarl.utils.introspect import introspectTrace
 logger = ExaGlobals.setup_logger(__name__)
 
@@ -219,10 +219,10 @@ class DQN(erl.ExaAgent):
             [type]: [description]
         """
         if self.model_type == 'MLP':
-            from exarl.agents.agent_vault._build_mlp import build_model
+            from exarl.agents.models._build_mlp import build_model
             return build_model(self)
         elif self.model_type == 'LSTM':
-            from exarl.agents.agent_vault._build_lstm import build_model
+            from exarl.agents.models._build_lstm import build_model
             return build_model(self)
         else:
             sys.exit("Oops! That was not a valid model type. Try again...")
