@@ -29,18 +29,33 @@ import exarl.candlelib.candle as candle
 file_path = os.path.dirname(os.path.realpath(__file__))
 required = ['agent', 'env', 'workflow', 'model_type']
 
-def resolve_path(*path_components) -> str:
-    """ Resolve path to configuration files.
+def resolve_path(*path_components, config_path=None, alternate_path=None) -> str:
+    """
+    Resolve path to configuration files.  The alternate path is a second choice
+    based on the externally loaded modules.  We look to see if any config files
+    exist in these dirs.  For env and agent files they must still follow the
+    dir structure (i.e. agent_cfg/DQN-v0.json or env_cfg/ExaCartPoleStatic-v0).
     Priority is as follows:
-      1. <current working directory>/exarl/config
-      2. ~/.exarl/config
-      3. <site-packages dir>/exarl/config
+      1. Path passed in at command line using --config_file
+      2. Alternate path given by --load_agent/env_path
+      3. <current working directory>/exarl/config
+      4. ~/.exarl/config
+      5. <site-packages dir>/exarl/config
     """
     if len(path_components) == 1:
         path = path_components[0]
     else:
         path = os.path.join(*path_components)
-
+    if config_path is not None:
+        config_path = os.path.abspath(config_path)
+        config_path = os.path.join(config_path, path)
+        if os.path.exists(config_path):
+            return config_path
+    if alternate_path is not None:
+        alternate_path = os.path.abspath(alternate_path)
+        alternate_path = os.path.join(alternate_path, path)
+        if os.path.exists(alternate_path):
+            return alternate_path
     cwd_path = os.path.join(os.getcwd(), 'exarl', 'config', path)
     if os.path.exists(cwd_path):
         return cwd_path
@@ -76,6 +91,70 @@ def initialize_parameters(params=None):
                                  desc='CANDLE example driver script')
         params = candle.finalize_parameters(driver)
     ExaGlobals(params, candle.keras_default_config())
+
+def config_parser():
+    """
+    This parsers runs first to get a config_path if present.
+    It removes the argument by resetting the sys.argv with the remaining args.
+
+    Returns
+    -------
+    String :
+        The path to search for config file
+    """
+    parser = argparse.ArgumentParser(description="Config parser")
+    parser.add_argument("--config_path")
+    args, leftovers = parser.parse_known_args()
+    if args.config_path is not None and not os.path.exists(args.config_path):
+        raise FileNotFoundError("Path {0} does not exists!".format(args.config_path))
+    sys.argv = sys.argv[:1] + leftovers
+    return args.config_path
+
+def external_env_and_agents_parser():
+    """
+    This checks command line for external agents and envs.  If the load_*_path is
+    set for either, they will by added to the system path.  The load_agent and
+    load_env will be added to the candle params.
+
+    Returns
+    -------
+    List :
+        List of load agent/env params
+    String :
+        agent load path
+    String :
+        env load path
+    """
+    parser = argparse.ArgumentParser(description="External source parser")
+    parser.add_argument("--load_agent_module")
+    parser.add_argument("--load_agent_path")
+    parser.add_argument("--load_env_module")
+    parser.add_argument("--load_env_path")
+    args, leftovers = parser.parse_known_args()
+
+    if args.load_agent_path is not None:
+        args.load_agent_path = os.path.abspath(args.load_agent_path)
+        if not os.path.exists(args.load_agent_path):
+            raise FileNotFoundError("Path {0} does not exists!".format(args.load_agent_path))
+        if args.load_agent_path not in sys.path:
+            sys.path.append(args.load_agent_path)
+
+    if args.load_env_path is not None:
+        args.load_env_path = os.path.abspath(args.load_env_path)
+        if not os.path.exists(args.load_env_path):
+            raise FileNotFoundError("Path {0} does not exists!".format(args.load_env_path))
+        if args.load_env_path not in sys.path:
+            sys.path.append(args.load_env_path)
+
+    ret = []
+    if args.load_agent_module is not None:
+        ret.append({'name': 'load_agent_module', 'type': str, 'default': args.load_agent_module})
+
+    if args.load_env_module is not None:
+        ret.append({'name': 'load_env_module', 'type': str, 'default': args.load_agent_module})
+
+    sys.argv = sys.argv[:1] + leftovers
+    return ret, args.load_agent_module, args.load_env_module
 
 def base_parser(params):
     """
@@ -152,7 +231,7 @@ def parser_from_json(json_file):
 
     return new_defs
 
-def check_keyword_and_config(params, keyword):
+def check_keyword_and_config(params, keyword, config_path, alternate_path=None):
     """
         This function performs a check for specific keywords to see if
         they are set in the config file and also checks if there is a
@@ -164,10 +243,10 @@ def check_keyword_and_config(params, keyword):
         else:
             cfg = keyword + "_cfg"
         try:
-            cfg_file = resolve_path(cfg, params[keyword] + '.json')
+            cfg_file = resolve_path(cfg, params[keyword] + '.json', config_path=config_path, alternate_path=alternate_path)
             print('Agent parameters from ', cfg)
         except FileNotFoundError:
-            cfg_file = resolve_path(cfg, 'default_' + cfg + '.json')
+            cfg_file = resolve_path(cfg, 'default_' + cfg + '.json', config_path=config_path)
             print(keyword + ' configuration does not exist, using default configuration')
         return parser_from_json(cfg_file)
     else:
@@ -180,20 +259,23 @@ def get_driver_params():
         Unless overwritten from the command line (via base_parser), the names for
         these config files are defined in the learner_cfg.json file.
     """
-    learner_cfg = resolve_path('learner_cfg.json')
+    config_path = config_parser()
+    external_defs, load_agent_path, load_env_path = external_env_and_agents_parser()
+
+    learner_cfg = resolve_path('learner_cfg.json', config_path=config_path)
     learner_defs = parser_from_json(learner_cfg)
     print('Learner parameters from ', learner_cfg)
     params = json.load(open(learner_cfg))
     params = base_parser(params)
 
-    agent_defs = check_keyword_and_config(params, "agent")
-    env_defs = check_keyword_and_config(params, "env")
-    workflow_defs = check_keyword_and_config(params, "workflow")
-    model_defs = check_keyword_and_config(params, "model_type")
+    agent_defs = check_keyword_and_config(params, "agent", config_path, alternate_path=load_agent_path)
+    env_defs = check_keyword_and_config(params, "env", config_path, alternate_path=load_env_path)
+    workflow_defs = check_keyword_and_config(params, "workflow", config_path)
+    model_defs = check_keyword_and_config(params, "model_type", config_path)
 
     print('_________________________________________________________________')
     print("Running - {}, {}, {}, and {}".format(params['agent'], params['env'], params['workflow'], params['model_type']))
     # print("Running - {}, {}, {} and {}".format(params['agent'], params['model_type'], params['env'], params['workflow']))
     print('_________________________________________________________________', flush=True)
 
-    return learner_defs + agent_defs + env_defs + workflow_defs + model_defs
+    return learner_defs + agent_defs + env_defs + workflow_defs + model_defs + external_defs
