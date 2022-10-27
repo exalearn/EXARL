@@ -50,10 +50,9 @@ else:
         print("Average elapsed time = ", elapse / size)
         print("Maximum elapsed time = ", max_elapse)
 
-print("Final number of episodes =", exa_learner.final_number_of_episodes())
-print("Total reward =", exa_learner.final_total_reward())
-print("Final rolling reward =", exa_learner.final_rolling_reward()[0])
-
 # Save rewards vs. episodes plot
 if rank == 0:
+    print("Final number of episodes =", exa_learner.final_number_of_episodes())
+    print("Total reward =", exa_learner.final_total_reward())
+    print("Final rolling reward =", exa_learner.final_rolling_reward()[0])
     ar.save_reward_plot()

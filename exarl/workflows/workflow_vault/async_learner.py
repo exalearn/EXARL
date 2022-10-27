@@ -93,7 +93,7 @@ class ASYNC(SYNC):
 
         policy_type : int
             This is the policy given by the actor performing inference to get an action
-        
+
         done : bool
             Indicates if the episode is competed
 
@@ -155,7 +155,7 @@ class ASYNC(SYNC):
             while self.alive > 0 and self.done_episode < nepisodes:
                 do_convergence_check = self.learner(workflow, nepisodes, 1)
                 if do_convergence_check:
-                    convergence = self.check_convergence(nepisodes)
+                    convergence = self.check_convergence()
                 # self.debug("Learner:", self.done_episode, nepisodes, do_convergence_check, convergence)
         else:
             keep_running = True

@@ -63,7 +63,7 @@ class SYNC(exarl.ExaWorkflow):
     differences across the last N number of episodes.  If this value is <= the config
     cutoff value, we terminate execution.  To turn the cutoff off
     set the cutoff configuration to -1.
-    
+
     We have two sets of internal variables one set used by the learners and another
     used by the actors. Batches and weights are passed via the leaner and actor calls
     by setting self.batch and self.weights.
@@ -90,7 +90,7 @@ class SYNC(exarl.ExaWorkflow):
     batch_step_frequency : int
         This value is used to determine how often we should
         send a batch of data within an episode.  The value
-        represents performing batch_step_frequency steps 
+        represents performing batch_step_frequency steps
         per 1 batch send.
 
     batch_episode_frequency : int
@@ -130,7 +130,7 @@ class SYNC(exarl.ExaWorkflow):
         This flag indicates if the episode is done.
         This is used by the actor.
 
-    current_state : 
+    current_state :
         This is the current state of an environment for
         a given actor.
 
@@ -160,21 +160,21 @@ class SYNC(exarl.ExaWorkflow):
         last rolling_reward_length episodes required to consider
         learning to have converged.  Set to -1 to turn off the
         convergence cutoff.
-    
+
     rolling_reward_length :
-        The last number of episodes to consider to a 
-        rolling average reward 
+        The last number of episodes to consider to a
+        rolling average reward
 
     converged : bool
         Indicates if learning convergence has been reached
 
-    alive : 
+    alive :
         Counter of the number of actors that have not finished.
 
     verbose : bool
         Debug print flag
 
-    
+
     """
     verbose = False
 
@@ -296,7 +296,7 @@ class SYNC(exarl.ExaWorkflow):
 
         done : bool
             Flag indicated the episode ended
-        
+
         episode : int
             Current episode to log
 
@@ -316,7 +316,6 @@ class SYNC(exarl.ExaWorkflow):
                     self.train_writer.writerows(self.data_matrix)
                     self.train_file.flush()
                     self.data_matrix = []
-
 
     def save_weights(self, exalearner, episode, nepisodes):
         """
@@ -483,11 +482,11 @@ class SYNC(exarl.ExaWorkflow):
             self.send_model(exalearner, self.next_episode, None, 0)
             self.next_episode += self.batch_episode_frequency
             self.alive += 1
-    
+
     def check_convergence(self):
         """
         This function checks if our learning performance has converged.
-        We consider this to converge if the past N episodes and an average 
+        We consider this to converge if the past N episodes and an average
         absolute difference less than some configurable cutoff.  To use the
         convergence check, set the rolling_reward_length > 1 (config variable)
         and set the desired minimum via cutoff configuration variable.  To
@@ -779,7 +778,7 @@ class SYNC(exarl.ExaWorkflow):
     def get_total_episodes_run(self):
         """
         The number of episodes finished.  This is important especially when using convergence cutoff.
-        
+
         Returns
         -------
         int :
@@ -790,7 +789,7 @@ class SYNC(exarl.ExaWorkflow):
     def get_total_reward(self):
         """
         Gives the sum of the rewards across episodes
-        
+
         Returns
         -------
         int :
@@ -801,7 +800,7 @@ class SYNC(exarl.ExaWorkflow):
     def get_rolling_reward(self):
         """
         Gives the rolling reward based on the configuration variable rolling_reward_length
-        
+
         Returns
         -------
         int :
