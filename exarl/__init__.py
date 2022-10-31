@@ -1,4 +1,3 @@
-
 from exarl.utils import candleDriver
 try:
     candleDriver.initialize_parameters()
@@ -20,13 +19,13 @@ try:
     load_agent_module = ExaGlobals.lookup_params('load_agent_module')
     print(sys.path)
     importlib.import_module(load_agent_module)
-    print("Loaded:", load_agent_module)
+    print("Loaded agents:", load_agent_module)
 except ExaGlobals.GlobalDoesNotExist:
     pass
 
 try:
     load_env_module = ExaGlobals.lookup_params('load_env_module')
     importlib.import_module(load_env_module)
-    print("Loaded:", load_env_module)
+    print("Loaded envs:", load_env_module)
 except ExaGlobals.GlobalDoesNotExist:
     pass

@@ -26,7 +26,6 @@ import exarl
 from exarl.utils.profile import ProfileConstants
 import os
 import exarl.utils.analyze_reward as ar
-from exarl.utils.renderDMC import render_tmp
 
 exa_learner = exarl.ExaLearner()
 

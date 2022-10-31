@@ -135,14 +135,14 @@ def external_env_and_agents_parser():
     if args.load_agent_path is not None:
         args.load_agent_path = os.path.abspath(args.load_agent_path)
         if not os.path.exists(args.load_agent_path):
-            raise FileNotFoundError("Path {0} does not exists!".format(args.load_agent_path))
+            raise FileNotFoundError("Load Agent Path {0} does not exists!".format(args.load_agent_path))
         if args.load_agent_path not in sys.path:
             sys.path.append(args.load_agent_path)
 
     if args.load_env_path is not None:
         args.load_env_path = os.path.abspath(args.load_env_path)
         if not os.path.exists(args.load_env_path):
-            raise FileNotFoundError("Path {0} does not exists!".format(args.load_env_path))
+            raise FileNotFoundError("Load Env Path {0} does not exists!".format(args.load_env_path))
         if args.load_env_path not in sys.path:
             sys.path.append(args.load_env_path)
 
@@ -151,7 +151,7 @@ def external_env_and_agents_parser():
         ret.append({'name': 'load_agent_module', 'type': str, 'default': args.load_agent_module})
 
     if args.load_env_module is not None:
-        ret.append({'name': 'load_env_module', 'type': str, 'default': args.load_agent_module})
+        ret.append({'name': 'load_env_module', 'type': str, 'default': args.load_env_module})
 
     sys.argv = sys.argv[:1] + leftovers
     return ret, args.load_agent_module, args.load_env_module

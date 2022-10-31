@@ -1,6 +1,6 @@
 {
     "agent": "DQN-v0",
-    "env": "CartPole-v0",
+    "env": "Cartpole-v0",
     "workflow": "sync",
     "n_episodes": 10,
     "n_steps": 10,
