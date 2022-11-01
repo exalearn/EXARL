@@ -1,3 +1,5 @@
+from ast import excepthandler
+from lib2to3.pytree import type_repr
 import gym
 import numpy as np
 import exarl as erl
@@ -7,7 +9,12 @@ class RsPendulum(gym.Env):
     def __init__(self):
         super().__init__()
         self.env_comm = ExaComm.env_comm
-        self.env = gym.make("Pendulum-v1")
+        try:
+            self.env = gym.make("Pendulum-v1")
+        except:
+            print("Pendulum-v1 version is not present setting Pendulum-v0")
+            self.env = gym.make("Pendulum-v0")
+            
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
         

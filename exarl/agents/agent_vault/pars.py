@@ -238,7 +238,7 @@ class PARS(erl.ExaAgent):
         # Each worker/actor picks a delta from the random stream.
         self.deltas_idx = []
         self.delta = None
-        self.worker_seed_id = np.random.randint(0,high=10000)
+        self.worker_seed_id = np.random.randint(0,high=10000) + self.agent_comm.rank
         self.set_delta(self.worker_seed_id)
 
         # Collect all +ve/-ve reward means
@@ -357,7 +357,7 @@ class PARS(erl.ExaAgent):
                 # This resampling of delta for each actor is 
                 # similar to the outer loop of H iteration in Alg. 1 of paper
                 # ACCELERATED DERIVATIVE-FREE DEEP REINFORCEMENT LEARNING
-                self.worker_seed_id = np.random.randint(0,high=10000)
+                self.worker_seed_id = np.random.randint(0,high=10000) + self.agent_comm.rank
                 self.set_delta(self.worker_seed_id)
 
                 self.policy.update_weights(weights)
@@ -448,7 +448,10 @@ class PARS(erl.ExaAgent):
                 # self.rankPrint("idx calc",max_rewards >= np.percentile(max_rewards, 0.95))
 
                 #  select top performing deltas;  95 percentile  data...
-                idx = np.arange(max_rewards.size)[max_rewards >= np.percentile(max_rewards, 0.95)]
+
+                idx = np.arange(max_rewards.size)
+                
+                # [max_rewards >= np.percentile(max_rewards, 0.95)]
                 
 
                 # self.rankPrint(idx)
