@@ -111,3 +111,12 @@ class ExaLearner:
 
     def run(self):
         self.workflow.run(self)
+
+    def final_number_of_episodes(self):
+        return self.workflow.get_total_episodes_run()
+
+    def final_total_reward(self):
+        return self.workflow.get_total_reward()
+
+    def final_rolling_reward(self):
+        return self.workflow.get_rolling_reward()

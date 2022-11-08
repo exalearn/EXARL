@@ -10,6 +10,7 @@ import logging
 
 import os
 import sys
+import shutil
 import gzip
 import argparse
 try:
@@ -474,7 +475,7 @@ def get_common_parser(parser):
 
     parser.add_argument("--experiment_id", default="EXP000", type=str, help="set the experiment unique identifier")
 
-    parser.add_argument("--run_id", default="RUN000", type=str, help="set the run unique identifier")
+    parser.add_argument("--run_id", default=argparse.SUPPRESS, type=str, help="set the run unique identifier")
 
     # Model definition
     # Model Architecture
@@ -589,7 +590,6 @@ def get_common_parser(parser):
 
     return parser
 
-
 def args_overwrite_config(args, config):
     """Overwrite configuration parameters with
         parameters specified via command-line.
@@ -645,6 +645,57 @@ def get_choice(name):
 
     return mapped
 
+def get_files(dir, filter=None, singleLevel=False):
+    """
+    This grabs all the files in a directory.  The filter is used
+    to select files that match a sub-string.  If no filters is
+    supplied, all files in the directory will be return.
+
+    Parameters
+    ----------
+    dir : str
+        Directory to get files from
+    filter : str, optional
+        Sub-strings to look for in filename
+
+    Returns
+    -------
+    list
+        list of filenames
+    """
+    ret = []
+    for root, dirs, files in os.walk(dir):
+        for f in files:
+            if filter is None or filter in f:
+                file = os.path.join(root, f)
+                ret.append(file)
+        if singleLevel:
+            break
+    return ret
+
+def get_next_run(output_dir):
+    """
+    This will look for the next available RUN directory without any logs.
+    There is a race condition if the exp is started but no logs are written.
+    The purpose of this function is to overwrite logs leading to
+    incorrect plotting of results.
+
+    Parameters
+    ----------
+    output_dir : string
+        The dir to run the lowest level exp in.
+    """
+    num = 0
+    next_run = "RUN000"
+    dirs = list(os.listdir(output_dir))
+    while next_run in dirs:
+        files = get_files(os.path.join(output_dir, next_run), filter=".log", singleLevel=True)
+        if len(files):
+            next_run = "RUN" + "{0:03d}".format(num)
+            num += 1
+        else:
+            break
+    return next_run
 
 def directory_from_parameters(params, commonroot='Output'):
     """ Construct output directory path with unique IDs from parameters
@@ -657,7 +708,6 @@ def directory_from_parameters(params, commonroot='Output'):
             String to specify the common folder to store results.
 
     """
-
     if commonroot in set(['.', './']):  # Same directory --> convert to absolute path
         outdir = os.path.abspath('.')
     else:  # Create path specified
@@ -669,8 +719,15 @@ def directory_from_parameters(params, commonroot='Output'):
         if not os.path.exists(outdir):
             os.makedirs(outdir, exist_ok=True)
 
+        # Save to the next available run
+        if 'run_id' not in params:
+            params['run_id'] = get_next_run(outdir)
+
         outdir = os.path.abspath(os.path.join(outdir, params['run_id']))
         if not os.path.exists(outdir):
+            os.makedirs(outdir, exist_ok=True)
+        else:
+            shutil.rmtree(outdir)
             os.makedirs(outdir, exist_ok=True)
 
     return outdir
