@@ -269,7 +269,7 @@ class SYNC(exarl.ExaWorkflow):
             self.train_writer = csv.writer(self.train_file, delimiter=" ")
             self.data_matrix = []
 
-    def write_log(self, current_state, action, reward, next_state, total_reward, done, episode, steps, policy_type, epsilon):
+    def write_log(self, current_state, action, reward, next_state, total_reward, done, episode, steps, policy_type):
         """
         Rank zero writes the input data to the log file.
 
@@ -302,12 +302,9 @@ class SYNC(exarl.ExaWorkflow):
 
         policy_type : int
             This value is given by the action.
-
-        epsilon : float
-            The current value of epsilon
         """
         if ExaComm.is_agent():
-            self.data_matrix.append([time.time(), current_state, action, reward, next_state, total_reward, done, episode, steps, policy_type, epsilon])
+            self.data_matrix.append([time.time(), current_state, action, reward, next_state, total_reward, done, episode, steps, policy_type])
             if done or self.converged:
                 if (episode == (self.nepisodes - 1)) or ((episode + 1) % self.log_frequency == 0) or self.converged:
                     self.train_writer.writerows(self.data_matrix)
@@ -345,7 +342,7 @@ class SYNC(exarl.ExaWorkflow):
         For more interesting workflows, this should include an MPI send or RMA operation.
         We intend for this function is to be overloaded in subsequent workflows.
 
-        The workflow expects a message containing the episode, epsilon, and the model weights.
+        The workflow expects a message containing the episode, and the model weights.
         To use the learner and actor functions, this must be respected.  Otherwise, it
         one will need to rewrite those functions in a derived class.
 
@@ -365,7 +362,7 @@ class SYNC(exarl.ExaWorkflow):
             This is the destination rank given by the agent communicator
         """
         weights = exalearner.agent.get_weights()
-        self.weights = [episode, exalearner.agent.epsilon, weights]
+        self.weights = [episode, weights]
         if train_return:
             self.weights.append(train_return)
 
@@ -381,13 +378,13 @@ class SYNC(exarl.ExaWorkflow):
         Returns
         ----------
         list :
-            This list should contain the episode, epsilon, model weights,
+            This list should contain the episode, model weights,
             and the train return (indices and losses if turned on)
         """
         return self.weights
 
     @introspect
-    def send_batch(self, batch_data, policy_type, done, epsilon, episode_reward):
+    def send_batch(self, batch_data, policy_type, done, episode_reward):
         """
         This function is used to send batches of data from the actor to the
         learner.  For the sync learner, data is being stored locally.  This
@@ -405,14 +402,11 @@ class SYNC(exarl.ExaWorkflow):
         done : bool
             Indicates if the episode is competed
 
-        epsilon : float
-            Current epsilon value to send to learner
-
         episode_reward : float
             The total reward from the last episode.  If the episode in not done, it
             will be the current total reward.
         """
-        self.batch = [ExaComm.agent_comm.rank, batch_data, policy_type, done, epsilon, episode_reward]
+        self.batch = [ExaComm.agent_comm.rank, batch_data, policy_type, done, episode_reward]
 
     @introspect
     def recv_batch(self):
@@ -569,13 +563,11 @@ class SYNC(exarl.ExaWorkflow):
         to_send = []
         # JS: The zip makes sure we have ranks alive
         for dst, _ in zip(range(start_rank, self.block_size), range(self.alive)):
-            src, batch, policy_type, done, epsilon, total_reward = self.recv_batch()
+            src, batch, policy_type, done, total_reward = self.recv_batch()
             self.train_return[src] = exalearner.agent.train(batch)
 
             self.model_count += 1
             to_send.append(src)
-
-            exalearner.agent.epsilon = min(exalearner.agent.epsilon, epsilon)
 
             if done:
                 self.episode_reward_list.append(total_reward)
@@ -633,25 +625,23 @@ class SYNC(exarl.ExaWorkflow):
         """
         # These are for ranks > 0
         episode = 0
-        epsilon = 0
         action = 0
         policy_type = 0
 
         # Get model and update the other env ranks (1)
         if ExaComm.env_comm.rank == 0:
-            episode, epsilon, weights, *train_ret = self.recv_model()
+            episode, weights, *train_ret = self.recv_model()
         episode = ExaComm.env_comm.bcast(episode, 0)
         if episode >= nepisodes:
             return False
 
         # Set agent for rank 0 (2)
         if ExaComm.env_comm.rank == 0:
-            exalearner.agent.epsilon = epsilon
             exalearner.agent.set_weights(weights)
             if train_ret:
                 # JS: This call flattens the list from *train_ret above
                 train_ret = [item for sublist in train_ret for item in sublist]
-                exalearner.agent.set_priorities(*train_ret)
+                exalearner.agent.train_return(*train_ret)
 
         # Repeat steps 3-9 for a number of episodes
         for eps in range(self.batch_episode_frequency):
@@ -690,7 +680,7 @@ class SYNC(exarl.ExaWorkflow):
                 if self.steps == exalearner.nsteps:
                     self.done = True
                 self.done = ExaComm.env_comm.bcast(self.done, 0)
-                self.write_log(self.current_state, action, reward, next_state, self.total_reward, self.done, episode, self.steps, policy_type, epsilon)
+                self.write_log(self.current_state, action, reward, next_state, self.total_reward, self.done, episode, self.steps, policy_type)
 
                 # Update state (9)
                 self.current_state = next_state
@@ -701,7 +691,7 @@ class SYNC(exarl.ExaWorkflow):
         # Send batches back to the learner (10)
         if ExaComm.env_comm.rank == 0:
             batch_data = next(exalearner.agent.generate_data())
-            self.send_batch(batch_data, policy_type, self.done, exalearner.agent.epsilon, self.total_reward)
+            self.send_batch(batch_data, policy_type, self.done, self.total_reward)
         return True
 
     def episode_round(self, exalearner):

@@ -262,6 +262,7 @@ class DQN(erl.ExaAgent):
         np.random.seed(int.from_bytes(random_data, byteorder="big"))
         rdm = np.random.rand()
         if rdm <= self.epsilon:
+            # TODO: Should self.epsilon_adj() be here? What about 
             self.epsilon_adj()
             action = self.env.action_space.sample()
             return action, 0
@@ -361,9 +362,9 @@ class DQN(erl.ExaAgent):
             batch_states = np.reshape(batch_states, [size, self.dim_observation])
 
         if self.priority_scale > 0:
-            yield batch_states, batch_target, indices, importance
+            yield batch_states, batch_target, self.epsilon, indices, importance
         else:
-            yield batch_states, batch_target
+            yield batch_states, batch_target, self.epsilon
 
     @introspectTrace()
     def train(self, batch):
@@ -379,17 +380,19 @@ class DQN(erl.ExaAgent):
             else:
                 None
         """
-        ret = None
+        self.epsilon = min(batch[2], self.epsilon)
+        ret = self.epsilon
         with tf.device(self.device):
             if self.priority_scale > 0:
                 if multiLearner:
                     loss = self.training_step(batch)
                 else:
                     loss = LossHistory()
-                    sample_weight = batch[3] ** (1 - self.epsilon)
+                    # TODO: Why is epsilon used in sample weights?
+                    sample_weight = batch[4] ** (1 - self.epsilon)
                     self.model.fit(batch[0], batch[1], epochs=1, batch_size=1, verbose=0, callbacks=loss, sample_weight=sample_weight)
                     loss = loss.loss
-                ret = batch[2], loss
+                ret = self.epsilon, batch[3], loss
             else:
                 if multiLearner:
                     loss = self.training_step(batch)
@@ -431,14 +434,19 @@ class DQN(erl.ExaAgent):
             self.first_batch = 0
         return loss_value
 
-    def set_priorities(self, indices, loss):
+    def train_return(self, *args):
         """ Set priorities for training data
 
         Args:
             indices (array): data indices
             loss (array): Losses
         """
-        self.replay_buffer.set_priorities(indices, loss)
+        if len(args) == 3:
+            epsilon, indices, loss = args
+            self.replay_buffer.set_priorities(indices, loss)
+        else:
+            epsilon = args
+        self.epsilon = epsilon
 
     def get_weights(self):
         """Get weights from target model
