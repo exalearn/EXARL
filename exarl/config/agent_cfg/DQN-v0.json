@@ -8,6 +8,7 @@
     "tau": 0.5,
     "nactions": 10,
     "priority_scale": 0.0,
+    "beta": 0.4,
     "buffer_capacity": 1000,
     "update_target_frequency": 1,
     "xla": "True"

@@ -111,6 +111,12 @@ class DQN(erl.ExaAgent):
         self.tau = ExaGlobals.lookup_params('tau')
         self.model_type = ExaGlobals.lookup_params('model_type')
         self.update_target_frequency = ExaGlobals.lookup_params('update_target_frequency')
+        self.max_episodes = ExaGlobals.lookup_params('n_episodes')
+
+        # Priority Experience Replay variables
+        # TODO: Where's alpha?
+        # self.alpha = ExaGlobals.lookup_params('alpha')
+        self.beta = ExaGlobals.lookup_params('beta')
 
         if self.model_type == 'MLP':
             # for mlp
@@ -202,6 +208,7 @@ class DQN(erl.ExaAgent):
         Returns:
             string: device type
         """
+        # TODO: cpus is not used
         cpus = tf.config.experimental.list_physical_devices('CPU')
         gpus = tf.config.experimental.list_physical_devices('GPU')
         ngpus = len(gpus)
@@ -263,7 +270,7 @@ class DQN(erl.ExaAgent):
         rdm = np.random.rand()
         if rdm <= self.epsilon:
             # TODO: Should self.epsilon_adj() be here? What about 
-            self.epsilon_adj()
+            # self.epsilon_adj()
             action = self.env.action_space.sample()
             return action, 0
         else:
@@ -300,6 +307,7 @@ class DQN(erl.ExaAgent):
         Returns:
             target Q value (array): [description]
         """
+        # TODO: np_state and np_next_state don't make sense anymore because they are tf tensors
         state, action, reward, next_state, done = exp
         np_state = self.flatten_observation(state)
         np_next_state = self.flatten_observation(next_state)
@@ -350,6 +358,7 @@ class DQN(erl.ExaAgent):
             importance = np.ones(self.batch_size)
         else:
             minibatch, importance, indices = self.replay_buffer.sample(self.batch_size, priority_scale=self.priority_scale)
+            # TODO: There must be a better way to do this. Maybe tf.map_fn?
             batch_target = list(map(self.calc_target_f, minibatch))
             batch_states = [self.flatten_observation(exp[0]) for exp in minibatch]
             size = len(minibatch)
@@ -388,8 +397,9 @@ class DQN(erl.ExaAgent):
                     loss = self.training_step(batch)
                 else:
                     loss = LossHistory()
-                    # TODO: Why is epsilon used in sample weights?
-                    sample_weight = batch[4] ** (1 - self.epsilon)
+                    # TODO: Why is epsilon used as an exponent in sample weights? It looks like a design choice that is somewhat consistent with beta in the original Schual et al. PER paper.
+                    sample_weight = batch[4] ** self.beta
+                    self.update_beta()
                     self.model.fit(batch[0], batch[1], epochs=1, batch_size=1, verbose=0, callbacks=loss, sample_weight=sample_weight)
                     loss = loss.loss
                 ret = self.epsilon, batch[3], loss
@@ -399,6 +409,7 @@ class DQN(erl.ExaAgent):
                 else:
                     self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
         self.ntraining_time += 1
+        self.epsilon_adj()
 
         if self.ntraining_time % self.update_target_frequency == 0:
             self.update_target()
@@ -418,7 +429,8 @@ class DQN(erl.ExaAgent):
         with tf.GradientTape() as tape:
             probs = self.model(batch[0], training=True)
             if len(batch) > 2:
-                sample_weight = batch[3] * (1 - self.epsilon)
+                sample_weight = batch[3] ** self.beta
+                self.update_beta()
             else:
                 sample_weight = np.ones(len(batch[0]))
             loss_value = self.loss_fn(batch[1], probs, sample_weight=sample_weight)
@@ -486,6 +498,14 @@ class DQN(erl.ExaAgent):
             logger().warning(
                 "Weights will not be updated because this instance is not set to learn."
             )
+
+    def update_beta(self):
+        """
+        Update PER's beta parameterusing linear interpolation.
+        """
+        frac = min(float(self.ntraining_time) / self.max_episodes, 1.)
+        self.beta = self.beta + frac * (1. - self.beta)
+
 
     def epsilon_adj(self):
         """Update epsilon value
