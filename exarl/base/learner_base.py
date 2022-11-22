@@ -76,7 +76,7 @@ class ExaLearner:
             print('_________________________________________________________________', flush=True)
             workflow_id = 'rma'
 
-        if (global_size < 2 or ExaComm.procs_per_env == global_size) and workflow_id != 'sync':
+        if (global_size < 2 or ExaComm.procs_per_env == global_size) and workflow_id == 'async':
             print('')
             print('_________________________________________________________________')
             print('Not enough processes, running synchronous single learner ...')

@@ -16,3 +16,5 @@ elif agent == 'TD3-v1':
     from exarl.agents.agent_vault.keras_td3 import KerasTD3
 elif agent == 'PARS-v0':
     from exarl.agents.agent_vault.pars import PARS
+elif agent == 'PARS-v1':
+    from exarl.agents.agent_vault.pars_V1 import PARS_V1

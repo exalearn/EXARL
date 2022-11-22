@@ -1,12 +1,11 @@
 {
 "agent": "PARS-v0",
 "parameters": {
-    "delta_std": [1, 4],
+    "delta_std": [0.1, 0.6],
     "decay": [0.1, 1.0],
-    "sgd_step_size": [0.0001, 1.0],
-    "model_type": "nonlinear"
+    "sgd_step_size": [0.0001, 1.0]
 },
 "objective": "rolling_reward_per_episode",
 "sampler": "tpe",
-"trials": 5
+"trials": 20
 }

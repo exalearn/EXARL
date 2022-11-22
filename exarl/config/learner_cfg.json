@@ -2,7 +2,7 @@
     "agent": "PARS-v0",
     "env": "RsPendulum-v0",
     "workflow": "sync",
-    "n_episodes": 100,
+    "n_episodes": 500,
     "n_steps": 200,
     "model": "AC",
     "clip_rewards":"False",

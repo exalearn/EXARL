@@ -1,10 +1,10 @@
 {
     "policy_network_size": 32,
-    "delta_std": 2,
+    "delta_std": 0.6,
     "decay": 0.9985,
     "seed": 32, 
-    "model_type": "linear",
-    "sgd_step_size": 1.0,
+    "model_type": "nonlinear",
+    "sgd_step_size": 0.98877,
     "epsilon": 0.9,
     "PowerGridEnv_Flag": 0
 }

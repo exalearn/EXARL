@@ -35,3 +35,8 @@ elif agent == 'PARS-v0':
         id=agent,
         entry_point='exarl.agents.agent_vault:PARS'
     )
+elif agent == 'PARS-v1':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:PARS_V1'
+    )

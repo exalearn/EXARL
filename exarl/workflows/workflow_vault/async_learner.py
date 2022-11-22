@@ -125,7 +125,7 @@ class ASYNC(SYNC):
             self.next_episode += self.batch_episode_frequency
             self.alive += 1
 
-    @PROFILE
+    # @PROFILE
     def run(self, workflow):
         """
         This function is responsible for calling the appropriate initialization

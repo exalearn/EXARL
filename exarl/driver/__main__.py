@@ -49,5 +49,5 @@ else:
         print("Maximum elapsed time = ", max_elapse)
 
 # Save rewards vs. episodes plot
-if rank == 0:
-    ar.save_reward_plot()
+# if rank == 0:
+#     ar.save_reward_plot()
