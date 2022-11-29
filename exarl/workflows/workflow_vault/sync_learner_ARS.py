@@ -640,6 +640,12 @@ class SYNC_ARS(exarl.ExaWorkflow):
                 if self.steps == exalearner.nsteps:
                     self.done = True
                 self.done = ExaComm.env_comm.bcast(self.done, 0)
+                reward = reward[0]
+                action = action[0]
+                self.total_reward = self.total_reward[0]
+                # print(type(self.current_state), type(next_state), ".....")
+
+                # print(self.current_state, action, reward, next_state, self.total_reward, self.done, episode, self.steps, policy_type, epsilon)
                 self.write_log(self.current_state, action, reward, next_state, self.total_reward, self.done, episode, self.steps, policy_type, epsilon)
 
                 # Update state (9)
@@ -656,8 +662,8 @@ class SYNC_ARS(exarl.ExaWorkflow):
          # Send batches back to the learner (10)
         if ExaComm.env_comm.rank == 0:
             batch_data = next(exalearner.agent.generate_data())
-            episode_reward = batch_data['rollout/ep_rew_mean']
-            self.send_batch(batch_data, policy_type, self.done, exalearner.agent.epsilon, episode_reward)
+            episode_reward_rollout = batch_data['rollout/ep_rew_mean']
+            self.send_batch(batch_data, policy_type, self.done, exalearner.agent.epsilon, episode_reward_rollout)
         return
 
     def episode_round(self, exalearner):

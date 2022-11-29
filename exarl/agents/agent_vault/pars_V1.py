@@ -35,6 +35,7 @@ import math
 import json
 import csv
 import random
+from turtle import forward
 import tensorflow as tf
 import sys
 import gym
@@ -94,6 +95,47 @@ class MLPModel(nn.Module):
             out = nn.Tanh()(out)
         return out
 
+class LSTMPolicyModel(nn.Module):
+
+    def __init__(self,in_size, out_size, num_l , l_size, 
+                 activ=nn.ReLU,
+                 out_activ=nn.Identity,
+                 squash_out = True):
+        super(LSTMPolicyModel, self).__init__()
+
+        self.activation = activ()
+        self.out_activation = out_activ()
+        self.squash_out = squash_out
+
+        self.l_size = l_size
+
+        self.state_means = torch.zeros(in_size, requires_grad=False)
+        self.state_std = torch.ones(in_size, requires_grad=False)
+
+        self.lstm = nn.LSTM(input_size=in_size, hidden_size=l_size,
+                          num_layers=num_l)
+        self.FC = nn.Linear(l_size, l_size,bias=True)
+        self.out_layer = nn.Linear(l_size, out_size,bias=True)
+    
+    def forward(self,data):
+        # Normalize the input data with mean and std
+        data = (torch.as_tensor(data, dtype=self.state_means.dtype) - self.state_means) / self.state_std
+
+        out_ , (hn,cn) = self.lstm(data.float())
+
+        hn = hn.view(-1, self.l_size) #reshaping the data for Dense layer next
+        
+        out = self.activation(hn)
+        out = self.activation(self.FC(out)) #first Dense
+        out = self.out_activation(self.out_layer(out)) #Final Output
+
+        # Pass the output via tanh activation function
+        if self.squash_out:
+            out = nn.Tanh()(out)
+        return out
+
+        
+
 
 class PARS_V1(erl.ExaAgent):
     def rankPrint(self, *args):
@@ -109,21 +151,26 @@ class PARS_V1(erl.ExaAgent):
         self.agent_comm = ExaComm.agent_comm
         self.learner_comm = ExaComm.learner_comm
 
+        self.params = self.CreateParams()
+
         # Get the environnemt
         self.env = env
+        if self.env is not None:
+            self.env.seed(self.params['seed'])
 
         # self.ob_dim = env.observation_space.shape[0]
         # self.ac_dim = env.action_space.shape[0]
         self.ob_dim = env.observation_space.shape[0]
         self.ac_dim = env.action_space.shape[0]
 
-        self.params = self.CreateParams()
+        
 
         # These parameter are used for delta setting.
         self.step_size= self.params['step_size']
         self.n_delta = self.params['n_delta']
         self.delta_std = self.params['delta_std']
         self.n_top = self.params['n_top']
+        
 
         # This dummy, it is here just for the sake of workflow purpose.
         self.epsilon = ExaGlobals.lookup_params('epsilon')   
@@ -174,7 +221,6 @@ class PARS_V1(erl.ExaAgent):
         param['policy_type'] = ExaGlobals.lookup_params('model_type')
         param['step_size'] = ExaGlobals.lookup_params('sgd_step_size')
         param['num_l'] =  ExaGlobals.lookup_params('num_layers')
-      
         param['l_size'] = size
 
         return param
@@ -195,7 +241,11 @@ class PARS_V1(erl.ExaAgent):
                             activ=nn.ReLU,
                             out_activ=nn.Identity)
         elif self.params['policy_type'] == 'LSTM':
-            raise NotImplementedError										 																		
+            model = LSTMPolicyModel(self.ob_dim, self.ac_dim, 
+                            self.params['num_l'],
+                            self.params['l_size'], 
+                            activ=nn.ReLU,
+                            out_activ=nn.Identity)							 																		
         else:
             raise NotImplementedError
 
@@ -290,19 +340,20 @@ class PARS_V1(erl.ExaAgent):
         m_returns = np.stack(m_returns)[top_idx]
         # l_returns = np.stack(l_returns)[top_idx]
 
+        return_std = np.concatenate((p_returns, m_returns)).std() + 1e-6
+        step_size = self.step_size / (self.n_top * return_std + 1e-6)
+
         if self.total_episode % 10 == 0:
-            self.rankPrint(f"Episode {self.total_episode} rollout/ep_rew_mean :: {rollout_ep_rew_mean}")
-            # self.rankPrint(f"Top Returns Mean : {np.stack(top_returns)[top_idx].mean()} ")
+            # self.rankPrint(f"Episode {self.total_episode} rollout/ep_rew_mean :: {rollout_ep_rew_mean}")
+            self.rankPrint(f"Episode={self.total_episode} Top Returns Mean :: {np.stack(top_returns)[top_idx].mean()} ")
+            # self.rankPrint(f"Step Size :: {step_size}, original :: {self.step_size}")
             # self.rankPrint(f"+/- reward Mean : {(p_returns.mean() + m_returns.mean())/2}")
             # print(f"{self.total_episode} : mean return: {top_returns.mean()}, top_return: {top_returns.max()}")
         
-        
+        # self.rankPrint(f"Top return mean :: {np.stack(top_returns)[top_idx].mean()}")
         self.raw_rew_hist.append(np.stack(top_returns)[top_idx].mean())
         self.rolling_ep_rew_mean.append(rollout_ep_rew_mean)
 
-
-        return_std = np.concatenate((p_returns, m_returns)).std() + 1e-6
-        step_size = self.step_size / (self.n_top * return_std + 1e-6)
 
         p_2 = np.sum((p_returns - m_returns)*self.deltas[top_idx].T, axis=1)
         
@@ -320,6 +371,7 @@ class PARS_V1(erl.ExaAgent):
 
         self.total_steps += ep_steps
         self.total_episode += 1
+        self.delta_std *= self.params["decay"]
          
         return None 
 
@@ -338,10 +390,14 @@ class PARS_V1(erl.ExaAgent):
     def generate_data(self):
         batch_data = {}
 
+        # self.rankPrint(f"{np.array(self.reward_list)[0:200]}")
+        # self.rankPrint(f"{np.sum(np.array(self.reward_list)[0:200])}")
+        
         self.reward_list = np.array(self.reward_list).reshape(self.n_delta*2, self.n_steps)
 
         # sum over all the n_steps in a single episode run
         rewardSum_perEpisode = np.sum(self.reward_list,axis=1)
+        # self.rankPrint(f"{rewardSum_perEpisode}")
 
         top_returns = []
         for pr, mr in zip(rewardSum_perEpisode[:self.n_delta], rewardSum_perEpisode[self.n_delta:]):
@@ -398,10 +454,9 @@ class PARS_V1(erl.ExaAgent):
         n_ = os.path.basename(fname).split('.')[0] + f"_reward_Epi_{self.total_episode}.h5"
         b_name = os.path.join(os.path.dirname(fname),n_)
 
-        # self.rankPrint(f"{b_name}")
-
         hf = h5py.File(b_name, 'w')
         hf.create_dataset('Reward',data=self.rolling_ep_rew_mean)
+        hf.create_dataset('TopReward_mean',data=self.raw_rew_hist)
         hf.close()
         return 
 

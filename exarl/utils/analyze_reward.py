@@ -51,6 +51,33 @@ def read_data(filename, rank):
     frame['rank'] = int(rank)
     return frame
 
+def plotting_reward(df_merged,rolling_setting,results_dir):
+    N_episode = ExaGlobals.lookup_params('n_episodes')
+    N_delta_pop = 2 * ExaGlobals.lookup_params('n_delta')
+
+    print(N_episode, N_delta_pop)
+    y =  df_merged['total_reward'].to_numpy()
+    
+    y = y.reshape(N_episode,N_delta_pop)
+
+    x = np.arange(y.shape[0])
+    
+    # print(x.shape, x)
+    # print(y.shape, y)
+    
+    data_new = {'x':x, 'y': np.mean(y,axis=1)}
+
+    df_new = pd.DataFrame(data=data_new)
+    print(df_new)
+    rolling_setting = 300
+    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+    ax.plot(df_new['x'], df_new['y'].rolling(rolling_setting).mean())
+    plt.xlabel('Episode')
+    plt.ylabel('Rolling Total Reward ({})'.format(rolling_setting))
+    if not os.path.exists( os.path.join(results_dir,'Plots')):
+        os.makedirs(os.path.join(results_dir,'Plots'))
+    fig.savefig(os.path.join(results_dir,'Plots/Reward_plot_ars.png'))
+    
 def save_reward_plot():
     """Creates and saves a Rolling Total Reward (y-axis) by Relative Time (x-axis) plot based on .log files written by EXARL for each rank.
         It saves the plot in the results directory named by the output_dir run parameter in a subdirectory /Plots/reward_plot.png.
@@ -71,8 +98,14 @@ def save_reward_plot():
     time_min = df_merged.time.min()
     df_merged['rel_time'] = [idx - time_min for idx in df_merged.time]
     df_merged.sort_values(by=['rel_time'], inplace=True)
-
+    
     rolling_setting = 25
+
+    if ExaGlobals.lookup_params('workflow') == 'sync_ars':
+        plotting_reward(df_merged,rolling_setting,results_dir)
+        print(df_merged['total_reward'], "..<<<")
+
+        
     fig, ax = plt.subplots(1, 1, figsize=(10, 8))
     episodes_per_nodes = []
     df_merged['total_reward_roll'] = df_merged['total_reward'].rolling(rolling_setting).mean()
