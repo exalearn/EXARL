@@ -67,12 +67,12 @@ class HadrecWrapper_V1(gym.Env):
 
 
     def reset(self):
-        if self.workflow_episode % self.Num_perturb == 0 and self.workflow_episode >= self.Num_perturb:
-            # Reset the environment with the new fault case
-            print(f"Wrapper Scenario Change resetting the gridpack environment Episode count: {self.workflow_episode} ")
-            return self.env.reset(flag=1)
-        else:
-            return self.env.reset()
+        # if self.workflow_episode % self.Num_perturb == 0 and self.workflow_episode >= self.Num_perturb:
+        #     # Reset the environment with the new fault case
+        #     print(f"Wrapper Scenario Change resetting the gridpack environment Episode count: {self.workflow_episode} ")
+        #     return self.env.reset(flag=1)
+        # else:
+        return self.env.reset()
 
     # def reset(self):
     #     return self.env.reset()
