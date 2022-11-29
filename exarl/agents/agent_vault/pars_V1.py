@@ -112,8 +112,7 @@ class LSTMPolicyModel(nn.Module):
         self.state_means = torch.zeros(in_size, requires_grad=False)
         self.state_std = torch.ones(in_size, requires_grad=False)
 
-        self.lstm = nn.LSTM(input_size=in_size, hidden_size=l_size,
-                          num_layers=num_l)
+        self.lstm = nn.LSTM(input_size=in_size, hidden_size=l_size,num_layers=num_l)
         self.FC = nn.Linear(l_size, l_size,bias=True)
         self.out_layer = nn.Linear(l_size, out_size,bias=True)
     
