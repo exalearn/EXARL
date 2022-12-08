@@ -638,9 +638,7 @@ class SYNC(exarl.ExaWorkflow):
         # Set agent for rank 0 (2)
         if ExaComm.env_comm.rank == 0:
             exalearner.agent.set_weights(weights)
-            if train_ret:
-                # JS: This call flattens the list from *train_ret above
-                train_ret = [item for sublist in train_ret for item in sublist]
+            if len(train_ret):
                 exalearner.agent.train_return(*train_ret)
 
         # Repeat steps 3-9 for a number of episodes

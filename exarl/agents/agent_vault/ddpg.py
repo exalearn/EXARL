@@ -381,16 +381,5 @@ class DDPG(exarl.ExaAgent):
         """
         self.target_actor.set_weights(weights)
 
-    # Extra methods
-    def update(self):
-        print("Implement update method in ddpg.py")
-
-    def epsilon_adj(self):
-        """Update epsilon value
-        """
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
-
-    def set_priorities(self, indices, loss):
-        # TODO implement this
+    def train_return(self, args):
         pass

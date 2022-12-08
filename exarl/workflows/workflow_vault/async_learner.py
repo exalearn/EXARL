@@ -52,7 +52,7 @@ class ASYNC(SYNC):
             This contains the agent and env
 
         episode : int
-            The current episode curresponding to the model generation
+            The current episode corresponding to the model generation
 
         train_return : list
             This is what comes out of the learner calling train to be sent back
@@ -61,7 +61,7 @@ class ASYNC(SYNC):
         dst : int
             This is the destination rank given by the agent communicator
         """
-        data = [episode, workflow.agent.epsilon, workflow.agent.get_weights()]
+        data = [episode, workflow.agent.get_weights()]
         if train_ret is not None:
             data.append(train_ret)
         ExaComm.agent_comm.send(data, dst)
@@ -80,7 +80,7 @@ class ASYNC(SYNC):
         ret = ExaComm.agent_comm.recv(None, source=0)
         return ret
 
-    def send_batch(self, batch_data, policy_type, done, epsilon, episode_reward):
+    def send_batch(self, batch_data, policy_type, done, episode_reward):
         """
         This function is used to send batches of data from the actor to the
         learner using MPI_Send.
@@ -104,7 +104,7 @@ class ASYNC(SYNC):
             The total reward from the last episode.  If the episode in not done, it
             will be the current total reward.
         """
-        ExaComm.agent_comm.send([ExaComm.agent_comm.rank, batch_data, policy_type, done, epsilon, episode_reward], 0)
+        ExaComm.agent_comm.send([ExaComm.agent_comm.rank, batch_data, policy_type, done, episode_reward], 0)
 
     def recv_batch(self):
         """

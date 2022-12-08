@@ -270,7 +270,7 @@ class DQN(erl.ExaAgent):
         rdm = np.random.rand()
         if rdm <= self.epsilon:
             # TODO: Should self.epsilon_adj() be here? What about 
-            # self.epsilon_adj()
+            self.epsilon_adj()
             action = self.env.action_space.sample()
             return action, 0
         else:
@@ -389,7 +389,6 @@ class DQN(erl.ExaAgent):
             else:
                 None
         """
-        self.epsilon = min(batch[2], self.epsilon)
         ret = self.epsilon
         with tf.device(self.device):
             if self.priority_scale > 0:
@@ -446,19 +445,19 @@ class DQN(erl.ExaAgent):
             self.first_batch = 0
         return loss_value
 
-    def train_return(self, *args):
+    def train_return(self, args):
         """ Set priorities for training data
 
         Args:
             indices (array): data indices
             loss (array): Losses
         """
+        print("Len ARGS:", len(args), args, flush=True)
         if len(args) == 3:
-            epsilon, indices, loss = args
+            self.epsilon, indices, loss = args
             self.replay_buffer.set_priorities(indices, loss)
-        else:
-            epsilon = args
-        self.epsilon = epsilon
+        elif len(args) == 1:
+            self.epsilon = args[0]
 
     def get_weights(self):
         """Get weights from target model
@@ -501,7 +500,7 @@ class DQN(erl.ExaAgent):
 
     def update_beta(self):
         """
-        Update PER's beta parameterusing linear interpolation.
+        Update PER's beta parameter using linear interpolation.
         """
         frac = min(float(self.ntraining_time) / self.max_episodes, 1.)
         self.beta = self.beta + frac * (1. - self.beta)
@@ -512,3 +511,4 @@ class DQN(erl.ExaAgent):
         """
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
+            self.epsilon = max(self.epsilon, self.epsilon_min)
