@@ -74,6 +74,7 @@ class DQN(erl.ExaAgent):
         self.target_weights = None
         self.device = None
         self.mirrored_strategy = None
+        self.model_count = 0
 
         self.env = env
         self.agent_comm = ExaComm.agent_comm
@@ -269,8 +270,6 @@ class DQN(erl.ExaAgent):
         np.random.seed(int.from_bytes(random_data, byteorder="big"))
         rdm = np.random.rand()
         if rdm <= self.epsilon:
-            # TODO: Should self.epsilon_adj() be here? What about 
-            self.epsilon_adj()
             action = self.env.action_space.sample()
             return action, 0
         else:
@@ -389,7 +388,8 @@ class DQN(erl.ExaAgent):
             else:
                 None
         """
-        ret = self.epsilon
+        self.model_count+=1
+        ret = self.model_count
         with tf.device(self.device):
             if self.priority_scale > 0:
                 if multiLearner:
@@ -401,14 +401,13 @@ class DQN(erl.ExaAgent):
                     self.update_beta()
                     self.model.fit(batch[0], batch[1], epochs=1, batch_size=1, verbose=0, callbacks=loss, sample_weight=sample_weight)
                     loss = loss.loss
-                ret = self.epsilon, batch[3], loss
+                ret = self.model_count, batch[3], loss
             else:
                 if multiLearner:
                     loss = self.training_step(batch)
                 else:
                     self.model.fit(batch[0], batch[1], epochs=1, verbose=0)
         self.ntraining_time += 1
-        self.epsilon_adj()
 
         if self.ntraining_time % self.update_target_frequency == 0:
             self.update_target()
@@ -452,12 +451,10 @@ class DQN(erl.ExaAgent):
             indices (array): data indices
             loss (array): Losses
         """
-        print("Len ARGS:", len(args), args, flush=True)
-        if len(args) == 3:
-            self.epsilon, indices, loss = args
+        if isinstance(args, list) and len(args) == 3:
+            self.model_count, indices, loss = args
             self.replay_buffer.set_priorities(indices, loss)
-        elif len(args) == 1:
-            self.epsilon = args[0]
+        self.epsilon_adj()
 
     def get_weights(self):
         """Get weights from target model
