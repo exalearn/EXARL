@@ -20,6 +20,7 @@
 #                    under Contract DE-AC05-76RL01830
 import time
 import csv
+from tkinter import E
 import numpy as np
 import exarl
 from exarl.utils.globals import ExaGlobals
@@ -41,7 +42,7 @@ class SYNC_ARS(exarl.ExaWorkflow):
     The example assumes 14 ranks (2 Learners, 5 Agents, 4 Environment)
     We present both the comms and the ranks.
     There is no actor comm so we add * to depict actors.
-    Rank  0  1  2  3  4  5  6  7  8  9  10 11 12 13
+    Rank      0  1  2  3  4  5  6  7  8  9  10 11 12 13
     Learn     0  1  -  -  -  -  -  -  -  -  -  -  -  -
     Agent     0  1  2  -  -  -  3  -  -  -  4  -  -  -
     Actor     -  -  *  *  *  *  *  *  *  *  *  *  *  *
@@ -157,6 +158,10 @@ class SYNC_ARS(exarl.ExaWorkflow):
 
         # How often to update target parameters
         self.update_target_frequency = ExaGlobals.lookup_params('update_target_frequency')
+
+        # How often to call the train function by learner
+        self.train_call_frequency = ExaGlobals.lookup_params('train_call_frequency')
+
 
         # How often to write logs (in episodes)
         self.log_frequency = ExaGlobals.lookup_params('log_frequency')
@@ -500,16 +505,28 @@ class SYNC_ARS(exarl.ExaWorkflow):
         """
         ret = False
         to_send = []
+        batch_local= []
         # JS: The zip makes sure we have ranks alive
         for dst, _ in zip(range(start_rank, self.block_size), range(self.alive)):
             src, batch, policy_type, done, epsilon, total_reward = self.recv_batch()
-            self.train_return[src] = exalearner.agent.train(batch)
-
-            if self.model_count % self.update_target_frequency == 0:
-                exalearner.agent.update_target()
-
-            self.model_count += 1
+            batch_local.append(batch)
             to_send.append(src)
+
+            if  self.train_call_frequency == 1:
+                self.train_return[src] = exalearner.agent.train(batch)
+            elif len(batch_local) == self.train_call_frequency :
+                    
+                
+                # print(f"Checking the batch_local ;; {len(batch_local)}",flush=True)
+                # assert self.train_call_frequency == ExaComm.agent_comm.size, f"Incorrect train call frequency, it should be {ExaComm.env_comm.size}"
+                ret_train = exalearner.agent.train(batch_local)
+                
+                print(f"Rank:: {ExaComm.agent_comm.rank}, Episode:: {self.done_episode}, Top Returns Mean Reward:: {ret_train} ",flush=True)
+                
+                ret_train = None
+                for i_src in to_send:
+                    self.train_return[i_src] = ret_train
+
 
             exalearner.agent.epsilon = min(exalearner.agent.epsilon, epsilon)
 
@@ -534,8 +551,18 @@ class SYNC_ARS(exarl.ExaWorkflow):
         # Get model and update the other env ranks (1)
         if ExaComm.env_comm.rank == 0:
             episode, epsilon, weights, *train_ret = self.recv_model()
-        episode = ExaComm.env_comm.bcast(episode, 0)
         
+        episode = ExaComm.env_comm.bcast(episode, 0)
+
+        # Set agent for rank 0 (2)
+        if ExaComm.env_comm.rank == 0:
+            exalearner.agent.epsilon = epsilon
+            exalearner.agent.set_weights(weights)
+            if train_ret:
+                # JS: This call flattens the list from *train_ret above
+                train_ret = [item for sublist in train_ret for item in sublist]
+                exalearner.agent.set_priorities(*train_ret)
+
         return episode,epsilon,weights,train_ret
 
 
@@ -585,23 +612,12 @@ class SYNC_ARS(exarl.ExaWorkflow):
         
         if comm_flag:
             episode,epsilon,weights,train_ret = self.actor_recv(exalearner,nepisodes)
-        else:
-            weights = exalearner.agent.get_weights()
-            epsilon = exalearner.agent.epsilon
-            train_ret=[]
+        
 
         # Check if you are already crossed the required number of episodes...
         if episode >= nepisodes:
             return False
 
-        # Set agent for rank 0 (2)
-        if ExaComm.env_comm.rank == 0:
-            exalearner.agent.epsilon = epsilon
-            exalearner.agent.set_weights(weights)
-            if train_ret:
-                # JS: This call flattens the list from *train_ret above
-                train_ret = [item for sublist in train_ret for item in sublist]
-                exalearner.agent.set_priorities(*train_ret)
         
         # Repeat steps 3-9 for a number of episodes
         for eps in range(self.batch_episode_frequency):
@@ -697,16 +713,23 @@ class SYNC_ARS(exarl.ExaWorkflow):
             # Just make it so everyone does at least one batch
             if nepisodes < (ExaComm.agent_comm.size - ExaComm.num_learners) * self.batch_episode_frequency:
                 nepisodes = (ExaComm.agent_comm.size - ExaComm.num_learners) * self.batch_episode_frequency
-        print("Num eps:", nepisodes, self.batch_episode_frequency, self.batch_step_frequency)
+        # print("Num eps:", nepisodes, self.batch_episode_frequency, self.batch_step_frequency)
         # This ensures everyone has the same nepisodes as well
         # as ensuring everyone is starting at the same time
         nepisodes = ExaComm.global_comm.bcast(nepisodes, 0)
         return nepisodes
 
-    def ARS_actorWrappper(self,exalearner,nepisodes):
+    def ARS_actorWrapper(self,exalearner,nepisodes):
+        
+        # This is to recieve weights from learner...
+        episode,epsilon,weights,*train_ret = self.actor_recv(exalearner,nepisodes)
+        # print (f" Actor Wrapper >> RANK::{ ExaComm.agent_comm.rank } , Episode :{episode}",flush=True)
+        
+        if episode >= nepisodes:
+            return False
 
-        # Populate the +ve and -ve weights.. 
-        pm_W = exalearner.agent.Generate_pmW()
+        # Populate the +ve and -ve weights based on the recieved weights..
+        pm_W = exalearner.agent.Generate_pmW(weights)
         
         # Loop over all the weights and 
         for i,Ws in enumerate(pm_W):
@@ -716,15 +739,18 @@ class SYNC_ARS(exarl.ExaWorkflow):
             
                 
             # Run the actor until we finish the n-steps of the environment.
-            self.actor(exalearner, nepisodes,comm_flag=False)
+            return_bool = self.actor(exalearner, nepisodes,comm_flag=False)
             # print("Actor Call Finish..")
         
         # print("Calling Wrapper Actor Send....")
         # Send the data collected for all +/- weights 
         # environment rollout to the learner for policy update
-        self.actor_send(exalearner)
+        # print(f"Actor wrapper Before..>> {return_bool}")
         
-        return True
+        if return_bool:
+            self.actor_send(exalearner)
+        # print(f"Actor wrapper After >> {return_bool}")
+        return return_bool
 
     @PROFILE
     def run(self, exalearner):
@@ -747,7 +773,7 @@ class SYNC_ARS(exarl.ExaWorkflow):
         self.init_learner(exalearner)
         if ExaComm.is_agent():
             while self.alive and self.done_episode < nepisodes:
-                self.ARS_actorWrappper(exalearner,nepisodes)
+                self.ARS_actorWrapper(exalearner,nepisodes)
                 do_convergence_check = self.learner(exalearner, nepisodes, 0)
                 if do_convergence_check:
                     convergence = self.check_convergence(nepisodes)

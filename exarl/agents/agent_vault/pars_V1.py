@@ -166,9 +166,14 @@ class PARS_V1(erl.ExaAgent):
 
         # These parameter are used for delta setting.
         self.step_size= self.params['step_size']
-        self.n_delta = self.params['n_delta']
         self.delta_std = self.params['delta_std']
         self.n_top = self.params['n_top']
+        
+        # if ExaComm.env_comm.size >1 :
+        #     # divide the number if deltas amongs workers
+
+        self.n_delta_in = self.params['n_delta']
+        self.n_delta = None
         
 
         # This dummy, it is here just for the sake of workflow purpose.
@@ -206,6 +211,10 @@ class PARS_V1(erl.ExaAgent):
         # Total_steps 
         self.total_steps = 0
         self.total_episode =0
+
+        # Number of actors...
+        self.Num_actors = self.agent_comm.size - self.agent_comm.num_learners
+
 
     def CreateParams(self):
         param = {}       
@@ -250,15 +259,25 @@ class PARS_V1(erl.ExaAgent):
 
         return model
 
-    def Generate_pmW(self):
+    def Generate_pmW(self,W_flat_init):
         # Note:
         # The self.W_flat_init is coming from the agent instantiations.
         # The self.W_flat_init will be updated by the train on the call of learner
         # after the actor finishes the loop over all +/- weight.
         # self.rankPrint(f" Generate_pmW \n {self.W_flat_init} ")
-        n_param = self.W_flat_init.shape[0]
+        n_param = W_flat_init.shape[0]
+
+        if self.Num_actors > 1 :
+            if self.n_delta_in % self.Num_actors == 0:
+                self.n_delta = int(self.n_delta_in / self.Num_actors)
+            else:
+                self.n_delta = int (np.ceil(self.n_delta_in / self.Num_actors))
+                self.rankPrint(f"Setting the number of directions == {self.n_delta} on each worker.")
+        else:
+            self.n_delta = self.n_delta_in
+
         self.deltas = self.rng.standard_normal((self.n_delta, n_param))
-        pm_W = np.concatenate((self.W_flat_init+(self.deltas*self.delta_std), self.W_flat_init-(self.deltas*self.delta_std)))
+        pm_W = np.concatenate((W_flat_init+(self.deltas*self.delta_std), W_flat_init-(self.deltas*self.delta_std)))
         return pm_W
 
     def Mean_update(self,data,cur_mean, cur_step):
@@ -309,6 +328,32 @@ class PARS_V1(erl.ExaAgent):
         # self.rankPrint(f"{act}, {type(act)}, {type(act.detach().numpy())}")
         return act , self.params['policy_type']
 
+    def BatchCheck_PreProcessing(self, batch):
+        if isinstance(batch, list):
+            batch_new = {}
+            Rollout_ep_rew_mean = []
+            Top_returns = [] 
+            P_returns = np.array([])
+            M_returns = np.array([])
+
+            for b in batch:
+                Rollout_ep_rew_mean.append(b['rollout/ep_rew_mean']) # np 
+                Top_returns += b['top_returns'] # list
+                P_returns = np.append ( P_returns, b['p_returns'] ) # np array
+                M_returns = np.append ( M_returns, b['p_returns'] )
+                
+            # Collect all the information in new dict.
+            batch_new['deltas'] = np.concatenate([ b['deltas'] for b in batch])
+            batch_new['states'] = np.concatenate([ b['states'] for b in batch])
+            batch_new['p_returns'] = P_returns
+            batch_new['m_returns'] = M_returns
+            batch_new['top_returns'] = Top_returns
+            batch_new['rollout/ep_rew_mean'] = Rollout_ep_rew_mean
+
+            return batch_new
+        else:
+            return batch
+
     def train(self,batch):
         
         # self.rankPrint("In Train Step....")
@@ -326,25 +371,36 @@ class PARS_V1(erl.ExaAgent):
         #     p_returns.append(pr)
         #     m_returns.append(mr)
         #     top_returns.append(max(pr,mr))
-        rollout_ep_rew_mean = batch['rollout/ep_rew_mean']
-        top_returns = batch['top_returns']
-        p_returns = batch['p_returns']
-        m_returns = batch['m_returns']
-        states = batch['states']
 
+        # if isinstance(batch,list):
+        #     for b in batch:
+
+
+        # else:
+
+        batch = self.BatchCheck_PreProcessing(batch)
+
+        rollout_ep_rew_mean = batch['rollout/ep_rew_mean'] # np 
+        top_returns = batch['top_returns'] # list
+        p_returns = batch['p_returns'] # np array
+        m_returns = batch['m_returns'] # np array
+        states = batch['states'] # np array
+        deltas = batch['deltas'] # 
+
+        # self.rankPrint(f"{deltas.shape}.... >>")
+        # self.rankPrint(f"{p_returns.shape}.... >>")
         # self.rankPrint(f"Epi-count - {self.total_episode} top_returns; \n {top_returns}")
         
         top_idx = sorted(range(len(top_returns)), key=lambda k: top_returns[k], reverse=True)[:self.n_top]
         p_returns = np.stack(p_returns)[top_idx]
         m_returns = np.stack(m_returns)[top_idx]
-        # l_returns = np.stack(l_returns)[top_idx]
 
         return_std = np.concatenate((p_returns, m_returns)).std() + 1e-6
         step_size = self.step_size / (self.n_top * return_std + 1e-6)
 
-        if self.total_episode % 10 == 0:
+        # if self.total_episode % 10 == 0:
             # self.rankPrint(f"Episode {self.total_episode} rollout/ep_rew_mean :: {rollout_ep_rew_mean}")
-            self.rankPrint(f"Episode={self.total_episode} Top Returns Mean :: {np.stack(top_returns)[top_idx].mean()} ")
+            # self.rankPrint(f"Episode={self.total_episode} Top Returns Mean :: {np.stack(top_returns)[top_idx].mean()} ")
             # self.rankPrint(f"Step Size :: {step_size}, original :: {self.step_size}")
             # self.rankPrint(f"+/- reward Mean : {(p_returns.mean() + m_returns.mean())/2}")
             # print(f"{self.total_episode} : mean return: {top_returns.mean()}, top_return: {top_returns.max()}")
@@ -354,7 +410,7 @@ class PARS_V1(erl.ExaAgent):
         self.rolling_ep_rew_mean.append(rollout_ep_rew_mean)
 
 
-        p_2 = np.sum((p_returns - m_returns)*self.deltas[top_idx].T, axis=1)
+        p_2 = np.sum((p_returns - m_returns)*deltas[top_idx].T, axis=1)
         
         
         # self.rankPrint(f" Train....W_flat_init before update \n {self.W_flat_init} ")
@@ -365,14 +421,15 @@ class PARS_V1(erl.ExaAgent):
         # self.rankPrint(f" Train....W_flat_init after update \n {self.W_flat_init} ")
 
         ep_steps = states.shape[0]
+        # self.rankPrint(f"{ep_steps}, {states.shape},,, >>>")
         self.state_mean = self.Mean_update(states, self.state_mean, self.total_steps)
         self.state_std = self.Std_update(states, self.state_std, self.total_steps)
 
         self.total_steps += ep_steps
         self.total_episode += 1
         self.delta_std *= self.params["decay"]
-         
-        return None 
+
+        return np.stack(top_returns)[top_idx].mean()
 
     def remember(self, state, action, reward, next_state, done):
         # self.rankPrint(f">>>><<< {len(reward)}, {reward}")
@@ -414,14 +471,17 @@ class PARS_V1(erl.ExaAgent):
         # self.rankPrint(f'Shape...: {np.mean(self.reward_list)}')
         # self.rankPrint(f'Shape...: { np.mean(rewardSum_perEpisode)}')
 
+        top_idx = sorted(range(len(top_returns)), key=lambda k: top_returns[k], reverse=True)[:self.n_top]
+        
+
         batch_data['rollout/ep_rew_mean'] = np.mean(rewardSum_perEpisode)
         batch_data['top_returns'] = top_returns
         batch_data['p_returns'] = rewardSum_perEpisode[:self.n_delta]
         batch_data['m_returns'] = rewardSum_perEpisode[self.n_delta:]
         batch_data['states'] = np.stack(self.state_list).squeeze()
         batch_data['act_arr'] = np.stack(self.act_list)
-        
-
+        batch_data['deltas'] = self.deltas
+        batch_data['top_idx'] = top_idx
         
         # Reset the storing list
         self.state_list = []

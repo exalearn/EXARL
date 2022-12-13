@@ -11,6 +11,11 @@ register(
 )
 
 register(
+    id='async_ars',
+    entry_point='exarl.workflows.workflow_vault:ASYNC_ARS'
+)
+
+register(
     id='async',
     entry_point='exarl.workflows.workflow_vault:ASYNC'
 )
