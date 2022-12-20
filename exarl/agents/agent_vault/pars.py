@@ -238,7 +238,7 @@ class PARS(erl.ExaAgent):
         # Each worker/actor picks a delta from the random stream.
         self.deltas_idx = []
         self.delta = None
-        self.worker_seed_id = np.random.randint(0,high=10000)
+        self.worker_seed_id = np.random.randint(0,high=10000) + self.agent_comm.rank
         self.set_delta(self.worker_seed_id)
 
         # Collect all +ve/-ve reward means
@@ -359,7 +359,8 @@ class PARS(erl.ExaAgent):
                 # This resampling of delta for each actor is 
                 # similar to the outer loop of H iteration in Alg. 1 of paper
                 # ACCELERATED DERIVATIVE-FREE DEEP REINFORCEMENT LEARNING
-                self.worker_seed_id = np.random.randint(0,high=10000)
+                self.worker_seed_id = np.random.randint(0,high=10000) + self.agent_comm.rank
+                print("Rank {} Seed id {}".format(self.agent_comm.rank, self.worker_seed_id))
                 self.set_delta(self.worker_seed_id)
 
                 self.policy.update_weights(weights)
@@ -373,17 +374,17 @@ class PARS(erl.ExaAgent):
         print("Before doing +/i: Internal episoed count is {}".format(self.internal_episode_count))
         if self.internal_episode_count % 2 == 0:
             print("positive!")
-            print("the w_policy is {} and the delta is {}".format(self.w_policy,self.delta))
+            print("Rank {} the w_policy is {} and the delta is {}".format(self.agent_comm.rank,self.w_policy,self.delta))
             # update with the positive 
             w_pos_id = self.w_policy + self.delta
             self.policy.update_weights(w_pos_id)
-            print("w_policy is now",self.w_policy)
+            #print("w_policy is now",self.w_policy)
 #            exit()
             # print("Setting positive weights.. Episode:: ",self.env.workflow_episode)
         # Odd count mean run with negative perburb 
         else:
             print("negative!")
-            print("the w_policy is {} and the delta is {}".format(self.w_policy,self.delta))
+            #print("the w_policy is {} and the delta is {}".format(self.w_policy,self.delta))
             # update with the negative perturb 
             w_pos_id = self.w_policy - self.delta
             self.policy.update_weights(w_pos_id)
@@ -407,11 +408,11 @@ class PARS(erl.ExaAgent):
 
     def train_step(self,g_hat):
         self.rankPrint("Euclidean norm of update step:", np.linalg.norm(g_hat))
-        print("Current w_policy {}".format(self.w_policy))
+        #print("Current w_policy {}".format(self.w_policy))
         print("step size: {}".format(self.step_size))
         self.w_policy -= self.optimizer._compute_step(g_hat, self.step_size).reshape(self.w_policy.shape)
         self.rankPrint('g_hat shape, w_policy shape:',np.asarray(g_hat).shape,self.w_policy.shape)
-        print("After step w_policy {}".format(self.w_policy))
+        #print("After step w_policy {}".format(self.w_policy))
         # update the policy with new weights...
         self.policy.update_weights(self.w_policy)
         return
