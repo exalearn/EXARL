@@ -514,8 +514,8 @@ class SYNC_ARS(exarl.ExaWorkflow):
 
             if  self.train_call_frequency == 1:
                 self.train_return[src] = exalearner.agent.train(batch)
+
             elif len(batch_local) == self.train_call_frequency :
-                    
                 
                 # print(f"Checking the batch_local ;; {len(batch_local)}",flush=True)
                 # assert self.train_call_frequency == ExaComm.agent_comm.size, f"Incorrect train call frequency, it should be {ExaComm.env_comm.size}"
@@ -561,7 +561,7 @@ class SYNC_ARS(exarl.ExaWorkflow):
             if train_ret:
                 # JS: This call flattens the list from *train_ret above
                 train_ret = [item for sublist in train_ret for item in sublist]
-                exalearner.agent.set_priorities(*train_ret)
+                # exalearner.agent.set_priorities(*train_ret)
 
         return episode,epsilon,weights,train_ret
 
@@ -656,6 +656,7 @@ class SYNC_ARS(exarl.ExaWorkflow):
                 if self.steps == exalearner.nsteps:
                     self.done = True
                 self.done = ExaComm.env_comm.bcast(self.done, 0)
+                # TODO: re
                 reward = reward[0]
                 action = action[0]
                 self.total_reward = self.total_reward[0]

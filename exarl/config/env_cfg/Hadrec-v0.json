@@ -1,7 +1,8 @@
 {
+    "default_env_cfg": "You can specify your env config here!",
     "rl_config_file":"/qfs/projects/ecp_exalearn/hsharma/Exrl_pars/EXARL/exarl/envs/env_vault/Hadrec_dir/testData/IEEE39/json/IEEE39_RL_loadShedding_3motor_5ft_gp_lstm.json",
     "simu_input_file":"/qfs/projects/ecp_exalearn/hsharma/Exrl_pars/EXARL/exarl/envs/env_vault/Hadrec_dir/testData/IEEE39/input_39bus_step005_training_v33_newacloadperc43_multipf.xml",
-    "simu_input_Rawfile":"/qfs/projects/ecp_exalearn/hsharma/Exrl_pars/EXARL/exarl/envs/env_vault/Hadrec_dir/testData/IEEE39/IEEE39bus_multiloads_xfmr4_smallX_slackmvachange_v33_single.raw",
+    "simu_input_Rawfile":"/qfs/projects/ecp_exalearn/hsharma/Exrl_pars/EXARL/exarl/envs/env_vault/Hadrec_dir/testData/IEEE39/IEEE39bus_3AC_exdc1_gridpack.dyr",
     "simu_input_Dyrfile":"/qfs/projects/ecp_exalearn/hsharma/Exrl_pars/EXARL/exarl/envs/env_vault/Hadrec_dir/testData/IEEE39/IEEE39bus_3AC_exdc1_gridpack.dyr"
 
 }

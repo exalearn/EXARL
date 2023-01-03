@@ -1,5 +1,5 @@
 {
-    "learner_procs": 1,
+"learner_procs": 1,
     "episode_block": "true",
     "batch_step_frequency": -1,
     "batch_episode_frequency":1,
@@ -9,5 +9,6 @@
     "action_type": "variable",
     "mpi4py_rc": "true",
     "cutoff" : 0.00001,
-    "rolling_reward_length" : -1
+    "rolling_reward_length" : -1 
+
 }

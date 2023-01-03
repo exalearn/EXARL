@@ -429,7 +429,7 @@ class PARS_V1(erl.ExaAgent):
         self.total_episode += 1
         self.delta_std *= self.params["decay"]
 
-        return np.stack(top_returns)[top_idx].mean()
+        return np.stack(top_returns)[top_idx].mean(), None, None
 
     def remember(self, state, action, reward, next_state, done):
         # self.rankPrint(f">>>><<< {len(reward)}, {reward}")
@@ -510,7 +510,8 @@ class PARS_V1(erl.ExaAgent):
         self.model.state_std = torch.from_numpy(self.state_std)
         torch.save(self.model.state_dict(), fname)
         
-        n_ = os.path.basename(fname).split('.')[0] + f"_reward_Epi_{self.total_episode}.h5"
+        
+        n_ = os.path.basename(fname).split('.')[0] + f"_rewards.h5"
         b_name = os.path.join(os.path.dirname(fname),n_)
 
         hf = h5py.File(b_name, 'w')

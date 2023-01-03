@@ -72,7 +72,7 @@ class HadrecWrapper_V1(gym.Env):
         #     print(f"Wrapper Scenario Change resetting the gridpack environment Episode count: {self.workflow_episode} ")
         #     return self.env.reset(flag=1)
         # else:
-        return self.env.reset()
+        return self.env.reset(flag=1)
 
     # def reset(self):
     #     return self.env.reset()

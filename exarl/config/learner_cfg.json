@@ -2,13 +2,14 @@
     "agent": "PARS-v0",
     "env": "RsPendulum-v0",
     "workflow": "sync",
-    "n_episodes": 500,
+    "n_episodes": 1000,
     "n_steps": 200,
     "model": "AC",
     "clip_rewards":"False",
     "output_dir": "./results_pendulum/",
     "process_per_env": 1,
     "log_frequency": 1,
+    "train_call_frequency":1,
     "log_level": [3, 3],
     "profile": "None"
 }
