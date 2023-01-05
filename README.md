@@ -503,6 +503,20 @@ def my_func(*args, **kwargs):
 
 - Profiling results are written to: `results_dir + '/Profile/<line/memory>_profile.txt`.
 
+### Logging level
+
+In the `exarl/config/learner_cfg.json` file, one can change the log-level. The available log levels are 0 (more log info) to 3 (less log info)
+
+```
+   "log_level": [
+        3,
+        3
+    ],
+```
+
+* The first level controls the Tensorflow logger level, and the second level indicates the Python logging level.
+* The both log levels indicate 0 (Debug), 1 (Info), 2 (Warn), and 3 (Error).
+
 ## Cite this software
 
 ```
