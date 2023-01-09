@@ -33,7 +33,7 @@ from tensorflow.keras.optimizers import Adam
 import exarl
 from exarl.utils.globals import ExaGlobals
 from exarl.agents.agent_vault._replay_buffer import ReplayBuffer
-logger = ExaGlobal.setup_logger(__name__)
+logger = ExaGlobals.setup_logger(__name__)
 
 class KerasTD3(exarl.ExaAgent):
 
