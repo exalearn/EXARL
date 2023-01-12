@@ -124,8 +124,12 @@ venv.bak/
 # VSCode
 ._*
 
+# VSCode
+._*
+.vscode
+
 # Directories
 results_dir
 bsuite_results*
-.vscode
+results
 

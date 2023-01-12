@@ -266,7 +266,7 @@ class DQN(erl.ExaAgent):
         else:
             np_state = self.flatten_observation(state)
             with tf.device(self.device):
-                act_values = self.target_model.predict_on_batch(np_state)
+                act_values = self.model.predict_on_batch(np_state)
             action = np.argmax(act_values[0])
             return action, 1
 
