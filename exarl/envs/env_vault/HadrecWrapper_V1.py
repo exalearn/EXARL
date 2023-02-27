@@ -30,6 +30,11 @@ class HadrecWrapper_V1(gym.Env):
         # rl_config_file,rl_config_file,simu_input_Rawfile,simu_input_Dyrfile
         self.agent_comm = ExaComm.agent_comm
         self.learner_comm = ExaComm.learner_comm
+        # MPI_comm = ExaComm.get_MPI().COMM_WORLD
+        # MPI_comm = ExaComm.env_comm.raw()
+        # MPI_comm = (ExaComm.get_MPI().COMM_WORLD)
+        MPI_comm = (ExaComm.get_MPI().COMM_SELF)
+        # print(MPI_comm)
 
         self.rl_config_file = ExaGlobals.lookup_params('rl_config_file')
         self.simu_input_file = ExaGlobals.lookup_params('simu_input_file')
@@ -38,9 +43,11 @@ class HadrecWrapper_V1(gym.Env):
         # This updates the input xml file with the required file location.
         # self.UpdateXMLFile()
 
-        print(self.simu_input_file,self.rl_config_file )
+        # print(self.simu_input_file,self.rl_config_file )
         self.env = Hadrec(simu_input_file=self.simu_input_file,
-                          rl_config_file=self.rl_config_file)
+                          rl_config_file=self.rl_config_file,
+                          Comm=MPI_comm)
+        
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
 

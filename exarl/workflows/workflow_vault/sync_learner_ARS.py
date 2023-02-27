@@ -514,7 +514,8 @@ class SYNC_ARS(exarl.ExaWorkflow):
 
             if  self.train_call_frequency == 1:
                 self.train_return[src] = exalearner.agent.train(batch)
-
+                print(f"Rank:: {ExaComm.agent_comm.rank}, Episode:: {self.done_episode}, Top Returns Mean Reward:: {self.train_return[src]} ",flush=True)
+                
             elif len(batch_local) == self.train_call_frequency :
                 
                 # print(f"Checking the batch_local ;; {len(batch_local)}",flush=True)
@@ -657,6 +658,7 @@ class SYNC_ARS(exarl.ExaWorkflow):
                     self.done = True
                 self.done = ExaComm.env_comm.bcast(self.done, 0)
                 # TODO: re
+                # print(reward, reward.shape,">>>>")
                 reward = reward[0]
                 action = action[0]
                 self.total_reward = self.total_reward[0]

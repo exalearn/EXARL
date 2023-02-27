@@ -196,7 +196,7 @@ class PARS_V1(erl.ExaAgent):
         self.state_std = np.ones(self.ob_dim)
 
         # Range function call from numpy random.
-        self.rng = default_rng()  
+        self.rng = default_rng(self.params['seed'])  
         self.deltas = None # This will be set when generate_PM_W is invoked.self
 
         # Storing list per step...reset will happen at the end of an episode.
@@ -321,6 +321,7 @@ class PARS_V1(erl.ExaAgent):
         return
                            
     def action(self,state):
+        # self.rankPrint(f"{state}")
         obs = np.asarray(state, dtype=np.float32)
         # self.rankPrint(f"{obs}, {type(obs)} {obs.reshape(1,-1)}......")
         obs = torch.from_numpy(obs.reshape(1,-1)).float()
