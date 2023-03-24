@@ -3,5 +3,6 @@
     "process_per_env": 1,
     "weight_file": "None",
     "action_type": "variable",
+    "random_results_file": "Inference_results.csv",
     "mpi4py_rc": "true"
 }

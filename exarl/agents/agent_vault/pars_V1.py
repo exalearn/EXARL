@@ -500,8 +500,18 @@ class PARS_V1(erl.ExaAgent):
         # print("Implement update method in ARS.py")
         return 
 
-    def load(self):
-        print("Implement load method in ARS.py")
+    def load(self,weight_file):
+        self.rankPrint("Load method called to Load the weights in ARS.py")
+        
+        # Load the state_dict ....
+        self.model.load_state_dict(torch.load(weight_file))
+
+        # Extract the weights....
+        W_torch = torch.nn.utils.parameters_to_vector(self.model.parameters())
+        
+        # Loaded trained initial weights for the Model...
+        self.W_flat_init =  W_torch.detach().numpy()
+      
         return 
 
     def save(self,fname):
@@ -509,7 +519,11 @@ class PARS_V1(erl.ExaAgent):
         torch.nn.utils.vector_to_parameters(torch.tensor(self.W_flat_init), self.model.parameters())
         self.model.state_means = torch.from_numpy(self.state_mean)
         self.model.state_std = torch.from_numpy(self.state_std)
-        torch.save(self.model.state_dict(), fname)
+        f_ =  os.path.basename(fname).split('.')[0] + ".pth"
+        f_name = os.path.join(os.path.dirname(fname), f_)
+
+        self.rankPrint("Torch saving... The state Dict...")
+        torch.save(self.model.state_dict(), f_name)
         
         
         n_ = os.path.basename(fname).split('.')[0] + f"_rewards.h5"
