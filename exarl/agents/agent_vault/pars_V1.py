@@ -57,23 +57,24 @@ logger = ExaGlobals.setup_logger(__name__)
 import h5py
 
 
+
 class MLPModel(nn.Module):
 
     def __init__(self, in_size, out_size, num_l , l_size, 
                  activ=nn.ReLU,
                  out_activ=nn.Identity,
-                 squash_out = True):
+                 squash_out = False):
         super(MLPModel,self).__init__()
 
         self.activation = activ()
         self.out_activation = out_activ()
         self.squash_out = squash_out
-        self.state_means = torch.zeros(in_size, requires_grad=False)
-        self.state_std = torch.ones(in_size, requires_grad=False)
+        self.state_means = self.register_buffer(name="state_means",tensor=torch.zeros(in_size, requires_grad=False))
+        self.state_std = self.register_buffer(name="state_std",tensor=torch.ones(in_size, requires_grad=False))
         
         if num_l == 0:
             self.mlp_layers = []
-            self.mlp_out_layer = nn.Linear(in_size, out_size,bias=True)
+            self.mlp_out_layer = nn.Linear(in_size, out_size,bias=False)
         else:
             self.mlp_layers = nn.ModuleList([nn.Linear(in_size, l_size, bias=True)])
             self.mlp_layers.extend([nn.Linear(l_size, l_size,bias=True) for _ in range(num_l-1)])
@@ -109,8 +110,8 @@ class LSTMPolicyModel(nn.Module):
 
         self.l_size = l_size
 
-        self.state_means = torch.zeros(in_size, requires_grad=False)
-        self.state_std = torch.ones(in_size, requires_grad=False)
+        self.state_means = self.register_buffer(name="state_means",tensor=torch.zeros(in_size, requires_grad=False))
+        self.state_std = self.register_buffer(name="state_std", tensor=torch.ones(in_size, requires_grad=False))
 
         self.lstm = nn.LSTM(input_size=in_size, hidden_size=l_size,num_layers=num_l)
         self.FC = nn.Linear(l_size, l_size,bias=True)
@@ -156,7 +157,8 @@ class PARS_V1(erl.ExaAgent):
         self.env = env
         if self.env is not None:
             self.env.seed(self.params['seed'])
-
+        
+        torch.manual_seed(self.params['seed'])
         # self.ob_dim = env.observation_space.shape[0]
         # self.ac_dim = env.action_space.shape[0]
         self.ob_dim = env.observation_space.shape[0]
@@ -190,13 +192,14 @@ class PARS_V1(erl.ExaAgent):
         
         # Initial Weights of the Model...
         self.W_flat_init =  W_torch.detach().numpy()
+        # self.rankPrint(f"Initial Weight... {self.W_flat_init}")
 
         # Initialize the states mean and standard deviation.        
-        self.state_mean = np.zeros(self.ob_dim)
+        self.state_means = np.zeros(self.ob_dim)
         self.state_std = np.ones(self.ob_dim)
 
         # Range function call from numpy random.
-        self.rng = default_rng(self.params['seed'])  
+        self.rng = default_rng([self.params['seed'],self.agent_comm.rank])  
         self.deltas = None # This will be set when generate_PM_W is invoked.self
 
         # Storing list per step...reset will happen at the end of an episode.
@@ -204,9 +207,12 @@ class PARS_V1(erl.ExaAgent):
         self.state_list = []
         self.act_list = []
         self.reward_list = []
+        self.steps_complete = []
+        self.steps_in = 0
 
         self.raw_rew_hist = []
         self.rolling_ep_rew_mean = []
+        self.ModelEval_reward = []
 
         # Total_steps 
         self.total_steps = 0
@@ -228,6 +234,7 @@ class PARS_V1(erl.ExaAgent):
         param['seed'] = ExaGlobals.lookup_params('seed')
         param['policy_type'] = ExaGlobals.lookup_params('model_type')
         param['step_size'] = ExaGlobals.lookup_params('sgd_step_size')
+        param['squash_out'] = ExaGlobals.lookup_params('squash_out')
         param['num_l'] =  ExaGlobals.lookup_params('num_layers')
         param['l_size'] = size
 
@@ -236,26 +243,40 @@ class PARS_V1(erl.ExaAgent):
 
     def CreateModel(self):
         # initialize policy
+        if self.params['squash_out'] == 1:
+            squ_out = True
+        else:
+            squ_out = False 
+
         if self.params['policy_type'] == 'linear':
             model = MLPModel(self.ob_dim, self.ac_dim, 
                             self.params['num_l'],
                             self.params['l_size'], 
                             activ=nn.Identity,
-                            out_activ=nn.Identity)
+                            out_activ=nn.Identity,
+                            squash_out= squ_out)
         elif self.params['policy_type'] == 'nonlinear':
             model = MLPModel(self.ob_dim, self.ac_dim, 
                             self.params['num_l'],
                             self.params['l_size'], 
                             activ=nn.ReLU,
-                            out_activ=nn.Identity)
+                            out_activ=nn.Identity,
+                            squash_out= squ_out)
         elif self.params['policy_type'] == 'LSTM':
             model = LSTMPolicyModel(self.ob_dim, self.ac_dim, 
                             self.params['num_l'],
                             self.params['l_size'], 
                             activ=nn.ReLU,
-                            out_activ=nn.Identity)							 																		
+                            out_activ=nn.Identity,
+                            squash_out= squ_out)							 																		
         else:
             raise NotImplementedError
+
+        # Start with zero policy...
+        # weights= torch.nn.utils.parameters_to_vector(model.parameters()).detach()
+        # weights = torch.zeros_like(weights, requires_grad=False)
+        # torch.nn.utils.vector_to_parameters(torch.tensor(weights,requires_grad=False), model.parameters())
+    
 
         return model
 
@@ -303,7 +324,7 @@ class PARS_V1(erl.ExaAgent):
     
     def set_weights(self, weights):
         
-        # self.rankPrint(f"Set Weights... {type(weights)}")
+        # self.rankPrint(f"Set Weights... {(weights)}")
         # Set the model weights ...
         torch.nn.utils.vector_to_parameters(torch.tensor(weights,requires_grad=False), self.model.parameters())
         
@@ -313,7 +334,7 @@ class PARS_V1(erl.ExaAgent):
         self.W_flat = W_torch.detach().numpy()
         
         
-        self.model.state_means = torch.from_numpy(self.state_mean)
+        self.model.state_means = torch.from_numpy(self.state_means)
         self.model.state_std = torch.from_numpy(self.state_std)
 
         self.model.float()
@@ -325,8 +346,10 @@ class PARS_V1(erl.ExaAgent):
         obs = np.asarray(state, dtype=np.float32)
         # self.rankPrint(f"{obs}, {type(obs)} {obs.reshape(1,-1)}......")
         obs = torch.from_numpy(obs.reshape(1,-1)).float()
-        act = self.model(obs).detach().numpy()
-        # self.rankPrint(f"{act}, {type(act)}, {type(act.detach().numpy())}")
+        # self.rankPrint(f"{self.model(obs)} Inaction...")
+        act = self.model(obs).squeeze(0).detach().numpy()
+        # act = np.asarray(act,dtype=np.float32)
+        # self.rankPrint(f"{act}, {type(act)}")
         return act , self.params['policy_type']
 
     def BatchCheck_PreProcessing(self, batch):
@@ -415,7 +438,8 @@ class PARS_V1(erl.ExaAgent):
         
         
         # self.rankPrint(f" Train....W_flat_init before update \n {self.W_flat_init} ")
-
+        
+        
         # Update the weights based on the ARS differencing scheme. 
         self.W_flat_init = self.W_flat_init +  step_size * p_2
 
@@ -423,7 +447,7 @@ class PARS_V1(erl.ExaAgent):
 
         ep_steps = states.shape[0]
         # self.rankPrint(f"{ep_steps}, {states.shape},,, >>>")
-        self.state_mean = self.Mean_update(states, self.state_mean, self.total_steps)
+        self.state_means = self.Mean_update(states, self.state_means, self.total_steps)
         self.state_std = self.Std_update(states, self.state_std, self.total_steps)
 
         self.total_steps += ep_steps
@@ -432,7 +456,7 @@ class PARS_V1(erl.ExaAgent):
 
         return np.stack(top_returns)[top_idx].mean(), None, None
 
-    def remember(self, state, action, reward, next_state, done):
+    def remember(self, state, action, reward, next_state,steps, done):
         # self.rankPrint(f">>>><<< {len(reward)}, {reward}")
         # self.rankPrint(f" >>> {len(state)},  {type(state)}, {len(action)}, {type(action)}, {len(reward)}, {type(reward)}")
         
@@ -442,19 +466,67 @@ class PARS_V1(erl.ExaAgent):
         self.state_list.append(state)
         self.act_list.append(action)
         self.reward_list.append(reward)
+
+        # if the environment return termination i.e True
+        if done:
+            self.steps_in += 1
+            # self.rankPrint(f"{self.steps_in}, ***")
+            # append the number of steps completed
+            self.steps_complete.append(self.steps_in)
+            # Reset the counter.    
+            self.steps_in = 0
+        else:
+            self.steps_in += 1
+            # self.rankPrint(f"{self.steps_in}, ***")
+            
         return
+
+    def CollectEpisodeReward(self,CumSum,rewardlist):
+        k = 0
+        reward = []
+        i_ = 0
+        for i in range(len(CumSum)):
+            # print(i,i_,CumSum[i])
+            reward.append(np.sum(rewardlist[i_:CumSum[i]]))
+            i_ = CumSum[i]
+        
+        return np.array(reward)
 
     def generate_data(self):
         batch_data = {}
 
-        # self.rankPrint(f"{np.array(self.reward_list)[0:200]}")
-        # self.rankPrint(f"{np.sum(np.array(self.reward_list)[0:200])}")
-        
-        self.reward_list = np.array(self.reward_list).reshape(self.n_delta*2, self.n_steps)
+        # This is a condition useful in case the env terminate early without completing
+        # all the steps.
+        if np.array(self.steps_complete).any() < self.n_steps:
+            # self.rankPrint(f"Few runs did? not finished total number of steps..")
+            # self.rankPrint(f"Number of perturbations run:{len(self.steps_complete)}")
+            # self.rankPrint(f"{np.array(self.reward_list).shape}")
+            
+            # This is a array with a list of steps completed in each direction.
+            sp = np.cumsum(np.array(self.steps_complete))
 
-        # sum over all the n_steps in a single episode run
-        rewardSum_perEpisode = np.sum(self.reward_list,axis=1)
-        # self.rankPrint(f"{rewardSum_perEpisode}")
+            # self.rankPrint(sp)
+            rewardSum_perEpisode = self.CollectEpisodeReward(sp,np.array(self.reward_list) )
+
+            # # Split the array according to the number of steps completed for each direction
+            # t_ = np.split(np.array(self.reward_list), sp)
+            
+            # self.rankPrint(f"{(t_)}")
+            # tmp_ = np.array([ k.shape for k in t_ ])
+            # self.rankPrint(f"{tmp_}")
+        
+            # Calculate the sum of rewards collected at each step in an episode.
+            # rewardSum_perEpisode = np.array([ np.sum(k)for k in t_ ]) 
+        else:
+            self.reward_list = np.array(self.reward_list).reshape(self.n_delta*2, self.n_steps)
+
+            # sum over all the n_steps in a single episode run
+            rewardSum_perEpisode = np.sum(self.reward_list,axis=1)
+        
+        
+        # self.rankPrint(f"{len(rewardSum_perEpisode)},>>>>")
+        
+
 
         top_returns = []
         for pr, mr in zip(rewardSum_perEpisode[:self.n_delta], rewardSum_perEpisode[self.n_delta:]):
@@ -474,7 +546,7 @@ class PARS_V1(erl.ExaAgent):
 
         top_idx = sorted(range(len(top_returns)), key=lambda k: top_returns[k], reverse=True)[:self.n_top]
         
-
+        # This is mean of all +/-ve rollout 
         batch_data['rollout/ep_rew_mean'] = np.mean(rewardSum_perEpisode)
         batch_data['top_returns'] = top_returns
         batch_data['p_returns'] = rewardSum_perEpisode[:self.n_delta]
@@ -488,6 +560,8 @@ class PARS_V1(erl.ExaAgent):
         self.state_list = []
         self.act_list = []
         self.reward_list = []
+        self.steps_complete = []
+        self.steps_in = 0
         
         # Update the mean and sta
         yield batch_data
@@ -503,6 +577,12 @@ class PARS_V1(erl.ExaAgent):
     def load(self,weight_file):
         self.rankPrint("Load method called to Load the weights in ARS.py")
         
+        # This step will create appropriate regitery buffer for mean and std
+        # to be loaded directly from the file.        
+        r1,r2 = np.random.random(self.ob_dim), np.random.random(self.ob_dim)
+        self.model.state_means = torch.from_numpy(r1)
+        self.model.state_std = torch.from_numpy(r2)
+        
         # Load the state_dict ....
         self.model.load_state_dict(torch.load(weight_file))
 
@@ -516,22 +596,29 @@ class PARS_V1(erl.ExaAgent):
 
     def save(self,fname):
 
+        # self.rankPrint(f"{self.W_flat_init}.. Saving weights..")
         torch.nn.utils.vector_to_parameters(torch.tensor(self.W_flat_init), self.model.parameters())
-        self.model.state_means = torch.from_numpy(self.state_mean)
+        self.model.state_means = torch.from_numpy(self.state_means)
         self.model.state_std = torch.from_numpy(self.state_std)
+
+        # self.rankPrint(f"saving mean {self.model.state_means}")
+        # self.rankPrint(f"saving std {self.model.state_std }")
+
         f_ =  os.path.basename(fname).split('.')[0] + ".pth"
         f_name = os.path.join(os.path.dirname(fname), f_)
 
-        self.rankPrint("Torch saving... The state Dict...")
+        # self.rankPrint("Torch saving... The state Dict...")
         torch.save(self.model.state_dict(), f_name)
-        
+        # torch.save(self.model, f_name)
         
         n_ = os.path.basename(fname).split('.')[0] + f"_rewards.h5"
         b_name = os.path.join(os.path.dirname(fname),n_)
 
         hf = h5py.File(b_name, 'w')
-        hf.create_dataset('Reward',data=self.rolling_ep_rew_mean)
+        hf.create_dataset('rollout_ep_rew_mean',data=self.rolling_ep_rew_mean)
         hf.create_dataset('TopReward_mean',data=self.raw_rew_hist)
+        hf.create_dataset('Modelevaluation_reward', data=self.ModelEval_reward)
+
         hf.close()
         return 
 

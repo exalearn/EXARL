@@ -165,6 +165,10 @@ class SYNC_ARS(exarl.ExaWorkflow):
 
         # How often to write logs (in episodes)
         self.log_frequency = ExaGlobals.lookup_params('log_frequency')
+
+        # How often (after "x" # of episode) to evaluate the trained model during training:
+        self.evaluate_frequency = ExaGlobals.lookup_params('evaluate_frequency')
+
         # If it is set to -1 then we only log at the end of the run
         if self.log_frequency == -1:
             self.log_frequency = ExaGlobals.lookup_params('n_episodes')
@@ -515,7 +519,7 @@ class SYNC_ARS(exarl.ExaWorkflow):
             if  self.train_call_frequency == 1:
                 self.train_return[src] = exalearner.agent.train(batch)
                 print(f"Rank:: {ExaComm.agent_comm.rank}, Episode:: {self.done_episode}, Top Returns Mean Reward:: {self.train_return[src]} ",flush=True)
-                
+                                
             elif len(batch_local) == self.train_call_frequency :
                 
                 # print(f"Checking the batch_local ;; {len(batch_local)}",flush=True)
@@ -527,6 +531,11 @@ class SYNC_ARS(exarl.ExaWorkflow):
                 ret_train = None
                 for i_src in to_send:
                     self.train_return[i_src] = ret_train
+
+            if self.done_episode % self.evaluate_frequency == 0 and self.done_episode > 0:
+                total_reward = self.EvaluateTrainedModel(exalearner)
+                print(f"Running Trained Policy Evaluation..")
+                print(f"Rank:: {ExaComm.agent_comm.rank}, Episode:: {self.done_episode}, Evaluated Reward:: {total_reward} ",flush=True)
 
 
             exalearner.agent.epsilon = min(exalearner.agent.epsilon, epsilon)
@@ -566,6 +575,36 @@ class SYNC_ARS(exarl.ExaWorkflow):
 
         return episode,epsilon,weights,train_ret
 
+    def EvaluateTrainedModel(self,exalearner):
+        """
+        This function is used to evaluate the TrainedModel
+
+        Args:
+            exalearner (_type_): The exalearner object instantiation
+
+        Returns:
+            total_reward : accumalated rewards recieved after all the steps.
+        """
+        # exalearner.env.seed(self.seeed)
+        weights = exalearner.agent.get_weights()        
+        exalearner.agent.set_weights(weights)
+        steps = 0
+        total_reward = 0 
+        done = False
+        while not done:
+            action, policy_type = exalearner.agent.action(self.current_state)
+            next_state, reward, done, _ = exalearner.env.step(action)
+            total_reward += reward
+            steps += 1
+            # Check number of steps 
+            if steps == exalearner.nsteps:
+                done = True
+        # print("Finished Evaluation. Training continued..!",flush=True)
+        if exalearner.agent.ModelEval_reward != None:
+            # Append the computed reward to store in .h5 file.
+            exalearner.agent.ModelEval_reward.append(total_reward)
+        
+        return total_reward
 
     # @introspect
     # @PROFILE
@@ -650,20 +689,28 @@ class SYNC_ARS(exarl.ExaWorkflow):
 
                 # Record experience (7)
                 if ExaComm.env_comm.rank == 0:
-                    exalearner.agent.remember(self.current_state, action, reward, next_state, self.done)
+                    exalearner.agent.remember(self.current_state, action, reward, next_state, self.steps, self.done)
                     self.total_reward += reward
                 
                 # Check number of steps and broadcast (8)
-                if self.steps == exalearner.nsteps:
+                if self.steps == exalearner.nsteps or self.done:
                     self.done = True
+
+                
                 self.done = ExaComm.env_comm.bcast(self.done, 0)
                 # TODO: re
                 # print(reward, reward.shape,">>>>")
-                reward = reward[0]
+                if isinstance(reward,list):
+                    reward = reward[0]
+                    self.total_reward = self.total_reward[0]
+                else:
+                    reward = reward
+                    self.total_reward = self.total_reward
                 action = action[0]
-                self.total_reward = self.total_reward[0]
+                
+                
                 # print(type(self.current_state), type(next_state), ".....")
-
+                
                 # print(self.current_state, action, reward, next_state, self.total_reward, self.done, episode, self.steps, policy_type, epsilon)
                 self.write_log(self.current_state, action, reward, next_state, self.total_reward, self.done, episode, self.steps, policy_type, epsilon)
 
@@ -672,9 +719,10 @@ class SYNC_ARS(exarl.ExaWorkflow):
 
                 if self.done:
                     break
+        # print(self.steps, ">>>")
         if comm_flag:
             self.actor_send(exalearner,policy_type=policy_type)
-
+        # print(self.total_reward,flush=True)
         return True
 
     def actor_send(self,exalearner,policy_type=None):
@@ -736,7 +784,7 @@ class SYNC_ARS(exarl.ExaWorkflow):
         
         # Loop over all the weights and 
         for i,Ws in enumerate(pm_W):
-            # print(f" Weights-{i} send from workflow:, {Ws}")
+            # print(f" Weights-{i} send from workflow:")
             # set the weights.... in the agent
             exalearner.agent.set_weights(Ws)
             

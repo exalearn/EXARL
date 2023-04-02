@@ -10,6 +10,7 @@
     "process_per_env": 1,
     "log_frequency": 1,
     "train_call_frequency":1,
+    "evaluate_frequency": 5,
     "log_level": [3, 3],
     "profile": "None"
 }

@@ -1,5 +1,3 @@
-from ast import excepthandler
-from lib2to3.pytree import type_repr
 import gym
 import numpy as np
 import exarl as erl

@@ -65,3 +65,9 @@ elif env == 'RsPendulum-v0':
         id=env,
         entry_point='exarl.envs.env_vault:RsPendulum'
     )
+
+elif env == 'MyLunarLanderContinuous-v0':
+    register(
+        id=env,
+        entry_point='exarl.envs.env_vault:MyLunarLanderContinuous'
+    )

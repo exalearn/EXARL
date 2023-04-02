@@ -24,3 +24,6 @@ elif env == 'Bsuite-v0':
     from exarl.envs.env_vault.BsuiteWrapper import BsuiteWrapper
 elif env == 'RsPendulum-v0':
     from exarl.envs.env_vault.RsPendulum import RsPendulum
+elif env == 'MyLunarLanderContinuous-v0':
+    from exarl.envs.env_vault.MyLunarLanderContinuous import MyLunarLanderContinuous
+

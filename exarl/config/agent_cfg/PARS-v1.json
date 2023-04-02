@@ -4,6 +4,7 @@
     "n_delta":10,
     "n_top":10,
     "decay": 0.9985,
+    "squash_out":0,
     "seed": 32, 
     "model_type": "nonlinear",
     "sgd_step_size": 0.98877,
