@@ -344,7 +344,7 @@ class PARS_V1(erl.ExaAgent):
     def action(self,state):
         # self.rankPrint(f"{state}")
         obs = np.asarray(state, dtype=np.float32)
-        self.rankPrint(f"{obs}, {type(obs)} {obs.reshape(1,-1)}......")
+        # self.rankPrint(f"{obs}, {type(obs)} {obs.reshape(1,-1)}......")
         obs = torch.from_numpy(obs.reshape(1,-1)).float()
         # self.rankPrint(f"{self.model(obs)} Inaction...")
         act = self.model(obs).squeeze(0).detach().numpy()
