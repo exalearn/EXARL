@@ -437,13 +437,13 @@ class PARS_V1(erl.ExaAgent):
         p_2 = np.sum((p_returns - m_returns)*deltas[top_idx].T, axis=1)
         
         
-        # self.rankPrint(f" Train....W_flat_init before update \n {self.W_flat_init} ")
+        self.rankPrint(f" Train....W_flat_init before update \n {self.W_flat_init} ")
         
         
         # Update the weights based on the ARS differencing scheme. 
         self.W_flat_init = self.W_flat_init +  step_size * p_2
 
-        # self.rankPrint(f" Train....W_flat_init after update \n {self.W_flat_init} ")
+        self.rankPrint(f" Train....W_flat_init after update \n {self.W_flat_init} ")
 
         ep_steps = states.shape[0]
         # self.rankPrint(f"{ep_steps}, {states.shape},,, >>>")
@@ -497,8 +497,10 @@ class PARS_V1(erl.ExaAgent):
 
         # This is a condition useful in case the env terminate early without completing
         # all the steps.
-        if np.array(self.steps_complete).any() < self.n_steps:
-            # self.rankPrint(f"Few runs did? not finished total number of steps..")
+        # print(np.array(self.steps_complete), self.n_steps)
+
+        if np.any(np.array(self.steps_complete) < self.n_steps):
+            self.rankPrint(f"Few runs did? not finished total number of steps..")
             # self.rankPrint(f"Number of perturbations run:{len(self.steps_complete)}")
             # self.rankPrint(f"{np.array(self.reward_list).shape}")
             

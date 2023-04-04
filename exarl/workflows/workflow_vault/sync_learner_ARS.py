@@ -687,16 +687,17 @@ class SYNC_ARS(exarl.ExaWorkflow):
                 if self.clip_rewards is not None:
                     reward = max(min(reward, self.clip_rewards[1]), self.clip_rewards[0])
 
+                # Check number of steps and broadcast (8)
+                if self.steps == exalearner.nsteps or self.done:
+                    self.done = True
+                    
                 # Record experience (7)
                 if ExaComm.env_comm.rank == 0:
                     exalearner.agent.remember(self.current_state, action, reward, next_state, self.steps, self.done)
                     self.total_reward += reward
                 
-                # Check number of steps and broadcast (8)
-                if self.steps == exalearner.nsteps or self.done:
-                    self.done = True
-
                 
+
                 self.done = ExaComm.env_comm.bcast(self.done, 0)
                 # TODO: re
                 # print(reward, reward.shape,">>>>")
