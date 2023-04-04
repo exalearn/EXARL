@@ -344,7 +344,7 @@ class PARS_V1(erl.ExaAgent):
     def action(self,state):
         # self.rankPrint(f"{state}")
         obs = np.asarray(state, dtype=np.float32)
-        # self.rankPrint(f"{obs}, {type(obs)} {obs.reshape(1,-1)}......")
+        self.rankPrint(f"{obs}, {type(obs)} {obs.reshape(1,-1)}......")
         obs = torch.from_numpy(obs.reshape(1,-1)).float()
         # self.rankPrint(f"{self.model(obs)} Inaction...")
         act = self.model(obs).squeeze(0).detach().numpy()
@@ -437,13 +437,13 @@ class PARS_V1(erl.ExaAgent):
         p_2 = np.sum((p_returns - m_returns)*deltas[top_idx].T, axis=1)
         
         
-        self.rankPrint(f" Train....W_flat_init before update \n {self.W_flat_init} ")
+        # self.rankPrint(f" Train....W_flat_init before update \n {self.W_flat_init} ")
         
         
         # Update the weights based on the ARS differencing scheme. 
         self.W_flat_init = self.W_flat_init +  step_size * p_2
 
-        self.rankPrint(f" Train....W_flat_init after update \n {self.W_flat_init} ")
+        # self.rankPrint(f" Train....W_flat_init after update \n {self.W_flat_init} ")
 
         ep_steps = states.shape[0]
         # self.rankPrint(f"{ep_steps}, {states.shape},,, >>>")
