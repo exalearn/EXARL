@@ -49,6 +49,8 @@ from numpy.random import default_rng
 
 import torch
 import torch.nn as nn
+from ._build_torchMLP import MLPModel
+from ._build_torchLSTM  import LSTMPolicyModel
 
 
 
@@ -58,81 +60,81 @@ import h5py
 
 
 
-class MLPModel(nn.Module):
+# class MLPModel(nn.Module):
 
-    def __init__(self, in_size, out_size, num_l , l_size, 
-                 activ=nn.ReLU,
-                 out_activ=nn.Identity,
-                 squash_out = False):
-        super(MLPModel,self).__init__()
+#     def __init__(self, in_size, out_size, num_l , l_size, 
+#                  activ=nn.ReLU,
+#                  out_activ=nn.Identity,
+#                  squash_out = False):
+#         super(MLPModel,self).__init__()
 
-        self.activation = activ()
-        self.out_activation = out_activ()
-        self.squash_out = squash_out
-        self.state_means = self.register_buffer(name="state_means",tensor=torch.zeros(in_size, requires_grad=False))
-        self.state_std = self.register_buffer(name="state_std",tensor=torch.ones(in_size, requires_grad=False))
+#         self.activation = activ()
+#         self.out_activation = out_activ()
+#         self.squash_out = squash_out
+#         self.state_means = self.register_buffer(name="state_means",tensor=torch.zeros(in_size, requires_grad=False))
+#         self.state_std = self.register_buffer(name="state_std",tensor=torch.ones(in_size, requires_grad=False))
         
-        if num_l == 0:
-            self.mlp_layers = []
-            self.mlp_out_layer = nn.Linear(in_size, out_size,bias=False)
-        else:
-            self.mlp_layers = nn.ModuleList([nn.Linear(in_size, l_size, bias=True)])
-            self.mlp_layers.extend([nn.Linear(l_size, l_size,bias=True) for _ in range(num_l-1)])
-            self.mlp_out_layer = nn.Linear(l_size, out_size,bias=True)
+#         if num_l == 0:
+#             self.mlp_layers = []
+#             self.mlp_out_layer = nn.Linear(in_size, out_size,bias=False)
+#         else:
+#             self.mlp_layers = nn.ModuleList([nn.Linear(in_size, l_size, bias=True)])
+#             self.mlp_layers.extend([nn.Linear(l_size, l_size,bias=True) for _ in range(num_l-1)])
+#             self.mlp_out_layer = nn.Linear(l_size, out_size,bias=True)
 
     
-    def forward(self,data):
-        # Normalize the input data with mean and std
-        data = (torch.as_tensor(data, dtype=self.state_means.dtype) - self.state_means) / self.state_std
+#     def forward(self,data):
+#         # Normalize the input data with mean and std
+#         data = (torch.as_tensor(data, dtype=self.state_means.dtype) - self.state_means) / self.state_std
        
-        for layer in self.mlp_layers:
-            data = self.activation(layer(data.float()))
+#         for layer in self.mlp_layers:
+#             data = self.activation(layer(data.float()))
 
-        # Last Layer of the network output..
-        out = self.out_activation(self.mlp_out_layer(data))
+#         # Last Layer of the network output..
+#         out = self.out_activation(self.mlp_out_layer(data))
 
-        # Pass the output via tanh activation function
-        if self.squash_out:
-            out = nn.Tanh()(out)
-        return out
+#         # Pass the output via tanh activation function
+#         if self.squash_out:
+#             out = nn.Tanh()(out)
+#         return out
 
-class LSTMPolicyModel(nn.Module):
+# class LSTMPolicyModel(nn.Module):
 
-    def __init__(self,in_size, out_size, num_l , l_size, 
-                 activ=nn.ReLU,
-                 out_activ=nn.Identity,
-                 squash_out = True):
-        super(LSTMPolicyModel, self).__init__()
+#     def __init__(self,in_size, out_size, num_l , l_size, 
+#                  activ=nn.ReLU,
+#                  out_activ=nn.Identity,
+#                  squash_out = True):
+#         super(LSTMPolicyModel, self).__init__()
 
-        self.activation = activ()
-        self.out_activation = out_activ()
-        self.squash_out = squash_out
+#         self.activation = activ()
+#         self.out_activation = out_activ()
+#         self.squash_out = squash_out
 
-        self.l_size = l_size
+#         self.l_size = l_size
 
-        self.state_means = self.register_buffer(name="state_means",tensor=torch.zeros(in_size, requires_grad=False))
-        self.state_std = self.register_buffer(name="state_std", tensor=torch.ones(in_size, requires_grad=False))
+#         self.state_means = self.register_buffer(name="state_means",tensor=torch.zeros(in_size, requires_grad=False))
+#         self.state_std = self.register_buffer(name="state_std", tensor=torch.ones(in_size, requires_grad=False))
 
-        self.lstm = nn.LSTM(input_size=in_size, hidden_size=l_size,num_layers=num_l)
-        self.FC = nn.Linear(l_size, l_size,bias=True)
-        self.out_layer = nn.Linear(l_size, out_size,bias=True)
+#         self.lstm = nn.LSTM(input_size=in_size, hidden_size=l_size,num_layers=num_l)
+#         self.FC = nn.Linear(l_size, l_size,bias=True)
+#         self.out_layer = nn.Linear(l_size, out_size,bias=True)
     
-    def forward(self,data):
-        # Normalize the input data with mean and std
-        data = (torch.as_tensor(data, dtype=self.state_means.dtype) - self.state_means) / self.state_std
+#     def forward(self,data):
+#         # Normalize the input data with mean and std
+#         data = (torch.as_tensor(data, dtype=self.state_means.dtype) - self.state_means) / self.state_std
 
-        out_ , (hn,cn) = self.lstm(data.float())
+#         out_ , (hn,cn) = self.lstm(data.float())
 
-        hn = hn.view(-1, self.l_size) #reshaping the data for Dense layer next
+#         hn = hn.view(-1, self.l_size) #reshaping the data for Dense layer next
         
-        out = self.activation(hn)
-        out = self.activation(self.FC(out)) #first Dense
-        out = self.out_activation(self.out_layer(out)) #Final Output
+#         out = self.activation(hn)
+#         out = self.activation(self.FC(out)) #first Dense
+#         out = self.out_activation(self.out_layer(out)) #Final Output
 
-        # Pass the output via tanh activation function
-        if self.squash_out:
-            out = nn.Tanh()(out)
-        return out
+#         # Pass the output via tanh activation function
+#         if self.squash_out:
+#             out = nn.Tanh()(out)
+#         return out
 
         
 
@@ -184,7 +186,8 @@ class PARS_V1(erl.ExaAgent):
 
         # Create the Model
         self.model = self.CreateModel()
-
+        self.rankPrint(self.model)
+        
        
         # Fetch the Weights from the model... 
         W_torch = torch.nn.utils.parameters_to_vector(self.model.parameters())
@@ -346,8 +349,8 @@ class PARS_V1(erl.ExaAgent):
         obs = np.asarray(state, dtype=np.float32)
         # self.rankPrint(f"{obs}, {type(obs)} {obs.reshape(1,-1)}......")
         obs = torch.from_numpy(obs.reshape(1,-1)).float()
-        # self.rankPrint(f"{self.model(obs)} Inaction...")
-        act = self.model(obs).squeeze(0).detach().numpy()
+        # self.rankPrint(f"{self.model(obs).squeeze().detach()} Inaction...")
+        act = self.model(obs).squeeze().detach().numpy()
         # act = np.asarray(act,dtype=np.float32)
         # self.rankPrint(f"{act}, {type(act)}")
         return act , self.params['policy_type']

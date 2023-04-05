@@ -690,7 +690,8 @@ class SYNC_ARS(exarl.ExaWorkflow):
                 # Check number of steps and broadcast (8)
                 if self.steps == exalearner.nsteps or self.done:
                     self.done = True
-                    
+                self.done = ExaComm.env_comm.bcast(self.done, 0)
+
                 # Record experience (7)
                 if ExaComm.env_comm.rank == 0:
                     exalearner.agent.remember(self.current_state, action, reward, next_state, self.steps, self.done)
@@ -698,7 +699,7 @@ class SYNC_ARS(exarl.ExaWorkflow):
                 
                 
 
-                self.done = ExaComm.env_comm.bcast(self.done, 0)
+                
                 # TODO: re
                 # print(reward, reward.shape,">>>>")
                 if isinstance(reward,list):
@@ -707,7 +708,7 @@ class SYNC_ARS(exarl.ExaWorkflow):
                 else:
                     reward = reward
                     self.total_reward = self.total_reward
-                action = action[0]
+                
                 
                 
                 # print(type(self.current_state), type(next_state), ".....")
@@ -840,6 +841,7 @@ class SYNC_ARS(exarl.ExaWorkflow):
                 print(self.env.all_seeds)
             except:
                 pass
+            exalearner.env.close_env() # Close the env. gracefully.
             print("Done episodes:", self.done_episode, "Rolling Reward:", rolling_reward_length, "Average Total Reward:", self.get_average_reward(rolling_reward_length))
         else:
             keep_running = True
