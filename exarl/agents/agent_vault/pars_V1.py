@@ -349,9 +349,15 @@ class PARS_V1(erl.ExaAgent):
         obs = np.asarray(state, dtype=np.float32)
         # self.rankPrint(f"{obs}, {type(obs)} {obs.reshape(1,-1)}......")
         obs = torch.from_numpy(obs.reshape(1,-1)).float()
-        # self.rankPrint(f"{self.model(obs).squeeze().detach()} Inaction...")
-        act = self.model(obs).squeeze().detach().numpy()
-        # act = np.asarray(act,dtype=np.float32)
+        # self.rankPrint(f"{self.model(obs).detach()} Inaction...")
+        
+        act = self.model(obs)
+        if act.numel() == 1:
+            act = act.detach().numpy()
+        else:
+            act = act.squeeze().detach().numpy()
+        # .numpy()
+        # act = np.array(act,dtype=np.float32)
         # self.rankPrint(f"{act}, {type(act)}")
         return act , self.params['policy_type']
 

@@ -680,6 +680,15 @@ class SYNC_ARS(exarl.ExaWorkflow):
 
                 # Broadcast action and do step (5 and 6)
                 action = ExaComm.env_comm.bcast(action, root=0)
+                # print(action, len(action),">>>")
+                # if (action,list) == 0
+                if isinstance(action,list) or isinstance(action,np.ndarray):
+                    pass
+                else:
+                    action = [action]
+                    action = np.array(action)
+                    print(False)
+                
                 next_state, reward, self.done, _ = exalearner.env.step(action)
                 self.steps += 1
 
