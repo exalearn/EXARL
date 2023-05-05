@@ -20,3 +20,13 @@ elif env == 'Hadrec-v0':
     from exarl.envs.env_vault.HadrecWrapper import HadrecWrapper
 elif env == 'Bsuite-v0':
     from exarl.envs.env_vault.BsuiteWrapper import BsuiteWrapper
+elif env == 'ExaExaalt-v0':
+    from exarl.envs.env_vault.ExaExaalt import ExaExaalt
+elif env == 'ExaExaaltBayes-v0':
+    from exarl.envs.env_vault.ExaExaaltBayes import ExaExaaltBayes
+elif env == 'ExaExaaltBayes-v1':
+    from exarl.envs.env_vault.ExaExaaltBayes1 import ExaExaaltBayes1
+elif env == 'ExaExaaltBayesRL-v0':
+    from exarl.envs.env_vault.ExaExaaltBayesRL import ExaExaaltBayesRL
+elif env == 'ExaExaaltVE-v0':
+    from exarl.envs.env_vault.ExaExaaltVE import ExaExaaltVE

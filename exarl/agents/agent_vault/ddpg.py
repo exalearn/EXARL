@@ -348,8 +348,8 @@ class DDPG(exarl.ExaAgent):
         """
         policy_type = 1
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
-        sampled_actions = tf.squeeze(self.target_actor(tf_state))
-        # sampled_actions = tf.squeeze(self.actor_model(tf_state))
+        # sampled_actions = tf.squeeze(self.target_actor(tf_state))
+        sampled_actions = tf.squeeze(self.actor_model(tf_state))
         noise = self.ou_noise()
         sampled_actions_wn = sampled_actions.numpy() + noise
         legal_action = np.clip(sampled_actions_wn, self.lower_bound, self.upper_bound)
@@ -370,7 +370,7 @@ class DDPG(exarl.ExaAgent):
         Returns:
             weights (list): target model weights
         """
-        return self.target_actor.get_weights()
+        return self.actor_model.get_weights()
 
     def set_weights(self, weights):
         """Set model weights
@@ -378,7 +378,7 @@ class DDPG(exarl.ExaAgent):
         Args:
             weights (list): model weights
         """
-        self.target_actor.set_weights(weights)
+        self.actor_model.set_weights(weights)
 
     # Extra methods
     def update(self):
