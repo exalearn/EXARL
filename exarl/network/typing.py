@@ -360,6 +360,8 @@ for module in sys.modules:
             converter = {tf.float64: np.float64, tf.int32: np.float32, tf.bool: np.bool}
             if the_type in converter:
                 return converter[the_type]
+            else:
+                return the_type
 
         def real_tf_type_converter(the_type, promote=True):
             """

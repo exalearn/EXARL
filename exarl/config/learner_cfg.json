@@ -1,19 +1,22 @@
 {
     "agent": "DQN-v0",
-    "env": "CartPole-v0",
+    "env": "CartPole-v1",
     "workflow": "sync",
-    "n_episodes": 10,
-    "n_steps": 10,
+    "n_episodes": 100,
+    "n_steps": 100,
     "output_dir": "./results/",
     "process_per_env": 1,
+    "dev_affinity": "false",
     "log_level": [
         3,
         3
     ],
     "model_type": "MLP",
-    "clip_rewards":"False",
+    "clip_rewards": "False",
     "rolling_reward_length": 4,
     "cutoff" : 0.00000,
     "log_frequency": 1,
-    "profile": "None"
+    "profile": "intro",
+    "buffer": "PrioritizedReplayBuffer",
+    "buffer_capacity": 3999666
 }

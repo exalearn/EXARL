@@ -64,9 +64,9 @@ class ExaAgent(ABC):
         """
         pass
 
-    @abstractmethod
-    def update_target(self):
-        pass
+    # @abstractmethod
+    # def update_target(self):
+    #     pass
 
     @abstractmethod
     def action(self, state):
@@ -89,7 +89,7 @@ class ExaAgent(ABC):
         pass
 
     @abstractmethod
-    def set_priorities(self, indices, loss):
+    def train_return(self, args):
         pass
 
     def load(self, filename):

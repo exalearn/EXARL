@@ -10,8 +10,6 @@ import logging
 
 import os
 import sys
-import shutil
-import gzip
 import argparse
 try:
     import configparser
@@ -714,10 +712,14 @@ def directory_from_parameters(params, commonroot='Output'):
         outdir = os.path.abspath(os.path.join('.', commonroot))
         if not os.path.exists(outdir):
             os.makedirs(outdir, exist_ok=True)
+        while(not os.path.exists(outdir)):
+            pass
 
         outdir = os.path.abspath(os.path.join(outdir, params['experiment_id']))
         if not os.path.exists(outdir):
             os.makedirs(outdir, exist_ok=True)
+        while(not os.path.exists(outdir)):
+            pass
 
         # Save to the next available run
         if 'run_id' not in params:
@@ -726,9 +728,8 @@ def directory_from_parameters(params, commonroot='Output'):
         outdir = os.path.abspath(os.path.join(outdir, params['run_id']))
         if not os.path.exists(outdir):
             os.makedirs(outdir, exist_ok=True)
-        else:
-            shutil.rmtree(outdir)
-            os.makedirs(outdir, exist_ok=True)
+        while(not os.path.exists(outdir)):
+            pass
 
     return outdir
 

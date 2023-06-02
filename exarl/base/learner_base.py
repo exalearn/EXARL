@@ -95,7 +95,7 @@ class ExaLearner:
             agent = exarl.agents.make(agent_id, env=env, is_learner=ExaComm.is_learner())
 
         # Create workflow object
-        workflow = exarl.workflows.make(workflow_id)
+        workflow = exarl.workflows.make(workflow_id, agent=agent, env=env)
         return agent, env, workflow
 
     def set_training(self):

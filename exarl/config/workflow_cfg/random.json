@@ -3,5 +3,6 @@
     "process_per_env": 1,
     "weight_file": "None",
     "action_type": "variable",
-    "mpi4py_rc": "true"
+    "mpi4py_rc": "true",
+    "affinity": "false"
 }
