@@ -64,9 +64,9 @@ class ExaAgent(ABC):
         """
         pass
 
-    @abstractmethod
-    def update_target(self):
-        pass
+    # @abstractmethod
+    # def update_target(self):
+    #     pass
 
     @abstractmethod
     def action(self, state):

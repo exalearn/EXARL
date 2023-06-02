@@ -3,5 +3,7 @@
     "activation" : "relu",
     "optimizer" : "adam",
     "out_activation" : "linear",
-    "loss" : "mse"
+    "loss" : "mse",
+    "xla" : "True",
+    "mixed_precision" : "False"
 }

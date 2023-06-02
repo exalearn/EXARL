@@ -178,7 +178,7 @@ class SYNC(exarl.ExaWorkflow):
     """
     verbose = False
 
-    def __init__(self):
+    def __init__(self, agent=None, env=None):
         self.debug('Creating SYNC', ExaComm.global_comm.rank, ExaComm.is_learner(), ExaComm.is_agent(), ExaComm.is_actor())
 
         self.block_size = 1
@@ -220,7 +220,7 @@ class SYNC(exarl.ExaWorkflow):
         self.done_episode = 0
         self.episode_per_rank = None
         self.train_return = None
-        if ExaComm.is_agent():
+        if ExaComm.is_learner():
             self.episode_per_rank = [0] * ExaComm.agent_comm.size
             self.train_return = [None] * ExaComm.agent_comm.size
 
@@ -362,9 +362,9 @@ class SYNC(exarl.ExaWorkflow):
             This is the destination rank given by the agent communicator
         """
         weights = exalearner.agent.get_weights()
-        self.weights = [episode, weights]
+        self.weights = [episode, weights, []]
         if train_return:
-            self.weights.append(train_return)
+            self.weights[-1].append(train_return)
 
     @introspect
     def recv_model(self):
@@ -376,7 +376,7 @@ class SYNC(exarl.ExaWorkflow):
         to be overloaded for more interesting workflows.
 
         Returns
-        ----------
+        -------
         list :
             This list should contain the episode, model weights,
             and the train return (indices and losses if turned on)
@@ -440,6 +440,7 @@ class SYNC(exarl.ExaWorkflow):
             self.steps = 0
             self.done = False
             self.current_state = exalearner.env.reset()
+            print("RESET:", self.current_state, flush=True)
 
     def init_learner(self, exalearner):
         """
@@ -498,6 +499,20 @@ class SYNC(exarl.ExaWorkflow):
                     print("Converged:", len(self.episode_reward_list), "Alive:", self.alive, "Ave:", ave, "Last:", self.episode_reward_list[-1])
                 return ave
         return -1
+
+    def inc_episode(self):
+        """
+        We abstract this increment for future workflows (RMA) which
+        need to synchronize this value.
+
+        Returns
+        -------
+        int :
+            The next episode index
+        """
+        ret = self.next_episode
+        self.next_episode += self.batch_episode_frequency
+        return ret
 
     @introspect
     def learner(self, exalearner, nepisodes, start_rank):
@@ -572,8 +587,7 @@ class SYNC(exarl.ExaWorkflow):
             if done:
                 self.episode_reward_list.append(total_reward)
                 self.done_episode += self.batch_episode_frequency
-                self.episode_per_rank[src] = self.next_episode
-                self.next_episode += self.batch_episode_frequency
+                self.episode_per_rank[src] = self.inc_episode()
                 ret = True
 
             if self.converged:
@@ -630,7 +644,7 @@ class SYNC(exarl.ExaWorkflow):
 
         # Get model and update the other env ranks (1)
         if ExaComm.env_comm.rank == 0:
-            episode, weights, *train_ret = self.recv_model()
+            episode, weights, train_ret = self.recv_model()
         episode = ExaComm.env_comm.bcast(episode, 0)
         if episode >= nepisodes:
             return False
@@ -638,8 +652,8 @@ class SYNC(exarl.ExaWorkflow):
         # Set agent for rank 0 (2)
         if ExaComm.env_comm.rank == 0:
             exalearner.agent.set_weights(weights)
-            if len(train_ret):
-                exalearner.agent.train_return(*train_ret)
+            for x in train_ret:
+                exalearner.agent.train_return(x)
 
         # Repeat steps 3-9 for a number of episodes
         for eps in range(self.batch_episode_frequency):
@@ -719,6 +733,12 @@ class SYNC(exarl.ExaWorkflow):
             # Just make it so everyone does at least one batch
             if nepisodes < (ExaComm.agent_comm.size - ExaComm.num_learners) * self.batch_episode_frequency:
                 nepisodes = (ExaComm.agent_comm.size - ExaComm.num_learners) * self.batch_episode_frequency
+
+            # For multi-learner, we must have equal amount of batches
+            if ExaComm.num_learners > 1:
+                # We can't guarantee cutoff wont leave unequal number of batches
+                assert self.cutoff <= 0 or self.rolling_reward_length <= 1, "Cutoff not supported for multi-learner"
+                nepisodes = (int(nepisodes / ExaComm.num_learners) + 1) * ExaComm.num_learners
         # This ensures everyone has the same nepisodes as well
         # as ensuring everyone is starting at the same time
         nepisodes = ExaComm.global_comm.bcast(nepisodes, 0)

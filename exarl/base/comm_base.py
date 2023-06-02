@@ -12,9 +12,10 @@ from abc import ABC, abstractmethod
 
 class ExaComm(ABC):
     global_comm = None
+    affinity = None
+    learner_comm = None
     agent_comm = None
     env_comm = None
-    learner_comm = None
     num_learners = 1
     procs_per_env = 1
 
@@ -23,7 +24,7 @@ class ExaComm(ABC):
             ExaComm.num_learners = num_learners
             ExaComm.procs_per_env = procs_per_env
             ExaComm.global_comm = comm
-            ExaComm.agent_comm, ExaComm.env_comm, ExaComm.learner_comm = comm.split(procs_per_env, num_learners)
+            ExaComm.affinity, ExaComm.learner_comm, ExaComm.agent_comm, ExaComm.env_comm = comm.split(procs_per_env, num_learners)
 
     @abstractmethod
     def raw(self):
@@ -79,8 +80,38 @@ class ExaComm(ABC):
         ExaComm.agent_comm = None
         ExaComm.env_comm = None
         ExaComm.learner_comm = None
+        ExaComm.affinity = None
         ExaComm.num_learners = 1
         ExaComm.procs_per_env = 1
 
     def get_MPI():
         return ExaComm.global_comm.MPI
+    
+    def split(self, procs_per_env, num_learners, affinity=None):
+        """
+        This splits the comm into agent, environment, and learner comms.
+        Returns three simple sub-comms
+
+        Parameters
+        ----------
+        procs_per_env : int
+            Number of processes per environment comm
+        num_learners : int
+            Number of processes per learner comm
+        """
+        constructor = type(self)
+        MPI = ExaComm.global_comm.MPI
+        
+        ret = [affinity]
+        comm_maps = affinity.get_map()
+        print(comm_maps)
+        for i, comm_map in enumerate(comm_maps):
+            # print(comm_map)
+            color_map = list(map(lambda x: MPI.UNDEFINED if x == -1 else x, comm_map))
+            comm = self.comm.Split(color_map[self.rank], self.rank)
+            if comm == MPI.COMM_NULL:
+                print("I COMM is NONE:", i, self.rank)
+                ret.append(None)
+            else:
+                ret.append(constructor(comm, procs_per_env, num_learners))
+        return ret

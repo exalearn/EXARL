@@ -51,9 +51,6 @@ class OUActionNoise2:
     """
 
     def __init__(self, mean=0, start_std=0.15, stop_std=0.05, damping=0.005):
-        """
-        """
-
         self.mean = mean
         self.start_std = start_std
         self.stop_std = stop_std
@@ -61,7 +58,8 @@ class OUActionNoise2:
         self.reset()
 
     def __call__(self):
-        """ Generate noise
+        """
+        Generate noise
 
         Returns
         -------
@@ -77,18 +75,19 @@ class OUActionNoise2:
         return np.random.normal(0, x, 1) + np.random.normal(0, self.stop_std, 1)
 
     def reset(self):
-        """Reset noise generator to start_std
+        """
+        Reset noise generator to start_std
         """
         self.x_prev = self.start_std
 
 
 class OUActionNoise:
-    """ Calculates Ornstein-Uhlenbeck process noise.
+    """
+    Calculates Ornstein-Uhlenbeck process noise.
     """
 
     def __init__(self, mean, std_deviation, theta=0.15, dt=1e-2, x_initial=None):
-        """[summary]
-
+        """
         Parameters
         ----------
         mean : float
@@ -109,26 +108,28 @@ class OUActionNoise:
         self.reset()
 
     def __call__(self):
-        """ Generate noise
+        """
+        Generate noise
 
         Returns
         -------
         float
             noise
         """
-        random.seed(datetime.now())
-        random_data = os.urandom(4)
-        np.random.seed(int.from_bytes(random_data, byteorder="big"))
+        # random.seed(datetime.now())
+        # random_data = os.urandom(4)
+        # np.random.seed(int.from_bytes(random_data, byteorder="big"))
         x = (
-            self.x_prev
-            + self.theta * (self.mean - self.x_prev) * self.dt
-            + self.std_dev * np.sqrt(self.dt) * np.random.normal(size=self.mean.shape)
+            self.x_prev +
+            self.theta * (self.mean - self.x_prev) * self.dt +
+            self.std_dev * np.sqrt(self.dt) * np.random.normal(size=self.mean.shape)
         )
         self.x_prev = x
         return x
 
     def reset(self):
-        """ Reset noise generator to x_initial or 0's
+        """ 
+        Reset noise generator to x_initial or 0's
         """
         if self.x_initial is not None:
             self.x_prev = self.x_initial

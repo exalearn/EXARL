@@ -34,9 +34,9 @@ class ASYNC(SYNC):
     This class assumes a single learner.
     """
 
-    def __init__(self):
+    def __init__(self, agent=None, env=None):
         super(ASYNC, self).__init__()
-        print('Creating ASYNC learner!')
+        self.debug('Creating ASYNC learner!')
 
         if self.block_size == 1:
             self.block_size = 2
@@ -61,9 +61,9 @@ class ASYNC(SYNC):
         dst : int
             This is the destination rank given by the agent communicator
         """
-        data = [episode, workflow.agent.get_weights()]
+        data = [episode, workflow.agent.get_weights(), []]
         if train_ret is not None:
-            data.append(train_ret)
+            data[-1].append([train_ret])
         ExaComm.agent_comm.send(data, dst)
 
     def recv_model(self):

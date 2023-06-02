@@ -10,6 +10,16 @@ if agent == 'DQN-v0':
         id=agent,
         entry_point='exarl.agents.agent_vault:DQN'
     )
+elif agent == 'DQN-v1':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:DQN_v1'
+    )
+elif agent == 'DQN-v2':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:DQN_v2'
+    )
 elif agent == 'DDPG-v0':
     register(
         id=agent,
@@ -34,4 +44,14 @@ elif agent == 'PARS-v0':
     register(
         id=agent,
         entry_point='exarl.agents.agent_vault:PARS'
+    )
+elif agent == 'BSUITE-DQN-v0':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:Sonnet_DQN'
+    )
+elif agent == 'PPO-v0':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:PPO'
     )

@@ -18,266 +18,207 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-
-import time
-import csv
-import numpy as np
-import exarl
-from exarl.utils.globals import ExaGlobals
 from exarl.base.comm_base import ExaComm
+from exarl.workflows.workflow_vault.async_learner import ASYNC
 from exarl.network.data_structures import *
-from exarl.utils.introspect import *
-from exarl.utils.profile import *
+from exarl.utils.profile import PROFILE
+from exarl.utils.globals import ExaGlobals
 
-logger = ExaGlobals.setup_logger(__name__)
-
-class RMA(exarl.ExaWorkflow):
-    """RMA workflow class: inherits from ExaWorkflow base class.
-    The RMA worflow uses one-sided MPI communication for exchanging data
-    between learners and actors. The data is written into an RMA window or
-    ”memory pool” and the learners and actors can read/write from this pool,
-    independent of each other.
-
+class RMA(ASYNC):
+    """
+    TODO: Write description / notes
     """
 
-    def __init__(self):
-        """RMA class constructor. Contrains a list of different data structures
-        that can be used for the "memory pool".
+    def __init__(self, agent=None, env=None):
+        super(RMA, self).__init__()
+        self.debug('Creating RMA learner!')
 
+        # self.model_size = 1024
+        # self.train_ret_size = 1024
+        # self.exp_data_size = 1024
+        # ExaGlobals.lookup_params('poop')
+        assert hasattr(agent, "rma_model"), "Agent must have rma_model to use rma"
+        assert hasattr(agent, "rma_train_ret"), "Agent must have rma_train_ret to use rma"
+        assert hasattr(agent, "rma_exp_data"), "Agent must have rma_exp_data to use rma"
+        
+        # JS: Model
+        self.model_buff = ExaMPIBuffUnchecked(ExaComm.agent_comm, agent.rma_model, rank_mask=True, name="model")
+        self.episode_const = ExaMPIConstant(ExaComm.agent_comm, True, int, name="episode")
+        self.train_ret_buff = ExaMPIDistributedQueue(ExaComm.agent_comm, (0, agent.rma_train_ret), length=1, rank_mask=True, name="episode")
+
+        # JS: Exps
+        self.rma_exp_data = [ExaComm.agent_comm.rank, agent.rma_exp_data, 0, False, 0.0]
+        self.data_queue = ExaMPIDistributedQueue(ExaComm.agent_comm, self.rma_exp_data, rank_mask=True, name="experience")
+        
+        # JS: Next episode
+        if ExaComm.is_learner():
+            self.next_episode_const = ExaMPIConstant(ExaComm.learner_comm, True, int, inc=self.batch_episode_frequency, name="next episode")
+
+        # JS: This is to reduce times we update
+        self.last_model_sent = None
+        self.last_model_recv = None
+        self.last_episode_per_rank = None
+        if ExaComm.is_learner():
+            self.last_episode_per_rank = [None] * ExaComm.agent_comm.size
+
+    def send_model(self, workflow, episode, train_ret, dst):
         """
-        print("Creating RMA workflow")
-        data_exchange_constructors = {
-            "buff_unchecked": ExaMPIBuffUnchecked,
-            "buff_checked": ExaMPIBuffChecked,
-            "queue_distribute": ExaMPIDistributedQueue,
-            "stack_distribute": ExaMPIDistributedStack,
-            "queue_central": ExaMPICentralizedQueue,
-            "stack_central": ExaMPICentralizedStack
-        }
-        # target weights - This should be an unchecked buffer that will always succed a pop since weight need to be shared with everyone
-        self.target_weight_data_structure = data_exchange_constructors[ExaGlobals.lookup_params('target_weight_structure')]
+        This function sends the model from the learner to
+        other agents using MPI_Send.
 
-        # Batch data
-        self.batch_data_structure = data_exchange_constructors[ExaGlobals.lookup_params('data_structure')]
-        self.de_length = ExaGlobals.lookup_params('data_structure_length')
-        self.de_lag = None  # ExaGlobals.lookup_params('max_model_lag')
-        logger().info("Creating RMA data exchange workflow", ExaGlobals.lookup_params('data_structure'), "length", self.de_length, "lag", self.de_lag)
+        Parameters
+        ----------
+        workflow : ExaWorkflow
+            This contains the agent and env
 
-        # Loss and indicies
-        self.de = ExaGlobals.lookup_params('loss_data_structure')
-        self.ind_loss_data_structure = data_exchange_constructors[ExaGlobals.lookup_params('loss_data_structure')]
-        logger().info('Creating RMA loss exchange workflow with ', self.de)
+        episode : int
+            The current episode corresponding to the model generation
 
-        priority_scale = ExaGlobals.lookup_params('priority_scale')
-        self.use_priority_replay = (priority_scale is not None and priority_scale > 0)
+        train_return : list
+            This is what comes out of the learner calling train to be sent back
+            to the actor (i.e. indices and losses).
+
+        dst : int
+            This is the destination rank given by the agent communicator
+        """
+        model = workflow.agent.get_weights()
+        # JS: The order here matters
+        # We are sending the a modified train ret last
+        # so we can spin on it when we really want a new model
+
+        # JS: Send the new episode count to agent
+        if self.last_episode_per_rank[dst] != episode:
+            self.episode_const.put(episode, rank=dst)
+            self.last_episode_per_rank[dst] = episode
+        # JS: Push data to our local buffer let agents pull from us
+        if self.last_model_sent != self.model_count:
+            self.model_buff.push(model)
+            self.last_model_sent = self.model_count
+        # JS: We will use train_ret for blocking...
+        lost = 1
+        while lost:
+                capacity, lost = self.train_ret_buff.push((self.model_count, train_ret), dst)
+
+    def recv_model(self):
+        """
+        This function receives the model from the learner
+        using MPI_Recv.
+
+        Returns
+        ----------
+        list :
+            This list should contain the episode, model weights,
+            and the train return (indices and losses if turned on)
+        """
+        train_ret = None
+        while train_ret is None:
+            train_ret = self.train_ret_buff.pop(ExaComm.agent_comm.rank)
+        self.last_model_recv, train_ret = train_ret
+        
+        episode = self.episode_const.get()
+        model = self.model_buff.pop(0)
+
+        ret = [episode, model, []]
+        if train_ret is not None:
+            ret[-1].append(train_ret)     
+        return ret
+
+    def send_batch(self, batch_data, policy_type, done, episode_reward):
+        """
+        This function is used to send batches of data from the actor to the
+        learner using MPI_Send.
+
+        Parameters
+        ----------
+        batch_data : list
+            This is a list of experiences generate by the actor to send to
+            the learner.
+
+        policy_type : int
+            This is the policy given by the actor performing inference to get an action
+
+        done : bool
+            Indicates if the episode is competed
+
+        episode_reward : float
+            The total reward from the last episode.  If the episode in not done, it
+            will be the current total reward.
+        """
+        self.data_queue.push([ExaComm.agent_comm.rank, batch_data, policy_type, done, episode_reward], 0)
+
+    def recv_batch(self):
+        """
+        This function receives batches of experiences sent from an actor
+        using MPI_Recv.
+
+        Returns
+        -------
+        list :
+            This list should contain the rank, batched data, policy type, and done flag.
+            The done flag indicates if the episode the actor was working on finished.
+        """
+        ret = None
+        while ret is None:
+            ret = self.data_queue.pop(0)
+        return ret
+
+    def init_learner(self, workflow):
+        """
+        This function is used to initialize the model on every agent.
+        We are assuming a single learner starting the range from 1.
+
+        Parameters
+        ----------
+        workflow : ExaWorkflow
+            This contains the agent and env
+        """
+        if ExaComm.is_learner() and ExaComm.learner_comm.rank == 0:
+            self.model_buff.push(workflow.agent.get_weights())
+            for dst in range(1, ExaComm.agent_comm.size):
+                self.episode_const.put(self.next_episode, rank=dst)
+                self.train_ret_buff.push((self.model_count, None), dst)
+                self.episode_per_rank[dst] = self.next_episode
+                self.next_episode += self.batch_episode_frequency
+                self.alive += 1
+            self.next_episode_const.put(self.next_episode, rank=0)
+        
+        # JS: Try to barrier to ensure weights are out
+        ExaComm.agent_comm.barrier()
+
+    def inc_episode(self):
+        """
+        We abstract this increment for future workflows (RMA) which
+        need to synchronize this value.
+        """
+        self.next_episode = self.next_episode_const.inc(rank=0)
+        return self.next_episode
 
     @PROFILE
-    def run(self, exalearner):
-        """ This function implements the RMA workflow in EXARL using one-sided
-        MPI communication.
-
-        Args:
-            exalearner (ExaLearner type object): The ExaLearner object is used to access
-            different members of the base class.
-
-        Returns:
-            None
+    def run(self, workflow):
         """
-        # Number of learner processes
-        num_learners = ExaComm.num_learners
+        This function is responsible for calling the appropriate initialization
+        and looping over the actor/learner functions.
 
-        # MPI communicators
-        agent_comm = ExaComm.agent_comm
-        env_comm = ExaComm.env_comm
+        Parameters
+        ----------
+        workflow : ExaWorkflow
+            This contains the agent and env
+        """
+        convergence = -1
+        nepisodes = self.episode_round(workflow)
+        self.init_learner(workflow)
+        last_print = 0
+        # These are the loops used to keep everyone running
         if ExaComm.is_learner():
-            learner_comm = ExaComm.learner_comm
-
-        # Allocate RMA windows
-        if ExaComm.is_agent():
-            episode_const = ExaMPIConstant(agent_comm, ExaComm.is_learner() and learner_comm.rank == 0, np.int64, name="Episode_Const")
-            epsilon_const = ExaMPIConstant(agent_comm, ExaComm.is_learner() and learner_comm.rank == 0, np.float64, name="Epsilon_Const")
-
-            if self.use_priority_replay:
-                # Create windows for priority replay (loss and indicies)
-                indices_for_size = -1 * np.ones(exalearner.agent.batch_size, dtype=np.intc)
-                loss_for_size = np.zeros(exalearner.agent.batch_size, dtype=np.float64)
-                indicies_and_loss_for_size = (indices_for_size, loss_for_size)
-                ind_loss_buffer = self.ind_loss_data_structure(agent_comm, indicies_and_loss_for_size, rank_mask=ExaComm.is_actor(),
-                                                               length=num_learners, max_model_lag=None, name="Loss_Buffer")
-
-            # Get serialized target weights size
-            learner_counter = np.int64(0)
-            target_weights = (exalearner.agent.get_weights(), learner_counter)
-            model_buff = self.target_weight_data_structure(agent_comm, target_weights, rank_mask=ExaComm.is_learner() and
-                                                           learner_comm.rank == 0,  length=1, max_model_lag=None, failPush=False, name="Model_Buffer")
-
-            # Get serialized batch data size
-            learner_counter = np.int64(0)
-            agent_batch = (next(exalearner.agent.generate_data()), learner_counter)
-            batch_data_exchange = self.batch_data_structure(agent_comm, agent_batch, rank_mask=ExaComm.is_actor(),
-                                                            length=self.de_length, max_model_lag=self.de_lag, name="Data_Exchange")
-            # This is a data/flag that lets us know we have data
-            agent_data = None
-
-        # Synchronize
-        agent_comm.barrier()
-
-        # Learner
-        if ExaComm.is_learner():
-            # Initialize counter
-            episode_count_learner = 0
-            if learner_comm.rank == 0:
-                epsilon_const.put(exalearner.agent.epsilon, 0)
-
-            while True:
-                # Define flags to keep track of data
-                process_has_data = 0
-                sum_process_has_data = 0
-
-                if learner_comm.rank == 0:
-                    episode_count_learner = episode_const.get(0)
-
-                if num_learners > 1:
-                    episode_count_learner = learner_comm.bcast(episode_count_learner, root=0)
-
-                if episode_count_learner >= exalearner.nepisodes:
-                    break
-
-                if agent_data is None:
-                    agent_data, actor_idx, actor_counter = batch_data_exchange.get_data(
-                        learner_counter, learner_comm.size, agent_comm.size)
-                    ib.update("RMA_Learner_Pop_Data", 1)
-                    ib.simpleTrace("RMA_Learner_Get_Data", actor_idx, actor_counter, learner_counter - actor_counter, 0)
-
-                # Check the data_buffer again if it is empty
-                if agent_data is not None:
-                    process_has_data = 1
-
-                # Do an allreduce to check if all learners have data
-                sum_process_has_data = learner_comm.allreduce(process_has_data, op=sum)
-                if sum_process_has_data < learner_comm.size:
-                    continue
-
-                train_return = exalearner.agent.train(agent_data)
-                ib.update("RMA_Learner_Train", 1)
-
-                if self.use_priority_replay and train_return is not None:
-                    if not np.array_equal(train_return[0], (-1 * np.ones(exalearner.agent.batch_size))):
-                        indices, loss = train_return
-                        indices = np.array(indices, dtype=np.intc)
-                        loss = np.array(loss, dtype=np.float64)
-                        # Write indices to memory pool
-                        ind_loss_buffer.push((indices, loss), rank=actor_idx)
-                        ib.update("RMA_Learner_Loss_Push", 1)
-                learner_counter += 1
-                agent_data = None
-
-                if ExaComm.is_learner() and learner_comm.rank == 0:
-                    exalearner.agent.update_target()
-                    ib.update("RMA_Learner_Target_Train", 1)
-                    # Share new model weights
-                    target_weights = (exalearner.agent.get_weights(), learner_counter)
-                    model_buff.push(target_weights, rank=0)
-                    ib.update("RMA_Learner_Model_Push", 1)
-
-            logger().info('Learner exit on rank_episode: {}_{}'.format(agent_comm.rank, episode_count_learner))
-
-        # Actors
+            while self.alive > 0 and self.done_episode < nepisodes:
+                do_convergence_check = self.learner(workflow, nepisodes, 1)
+                if do_convergence_check:
+                    convergence = self.check_convergence()
+                if self.done_episode % 10 == 0 and self.done_episode != last_print:
+                    print("Learner:", self.done_episode, nepisodes, do_convergence_check, convergence, flush=True)
+                    last_print = self.done_episode
         else:
-            local_actor_episode_counter = 0
-            if env_comm.rank == 0:
-                # Logging files
-                filename_prefix = 'ExaLearner_' + 'Episodes%s_Steps%s_Rank%s_memory_v1' \
-                    % (str(exalearner.nepisodes), str(exalearner.nsteps), str(agent_comm.rank))
-                train_file = open(exalearner.results_dir + '/' + filename_prefix + ".log", 'w')
-                train_writer = csv.writer(train_file, delimiter=" ")
-
-            while True:
-                if env_comm.rank == 0:
-                    episode_count_actor = episode_const.inc(0)
-
-                episode_count_actor = env_comm.bcast(episode_count_actor, root=0)
-
-                # Check if we are done based on the completed episodes
-                if episode_count_actor >= exalearner.nepisodes:
-                    break
-                logger().info('Rank[{}] - working on episode: {}'.format(agent_comm.rank, episode_count_actor))
-
-                # Episode initialization
-                # exalearner.env.seed(0)
-                current_state = exalearner.env.reset()
-                total_rewards = 0
-                steps = 0
-                action = 0
-                done = False
-                local_actor_episode_counter += 1
-
-                while done != True:
-                    if env_comm.rank == 0:
-                        # Update model weight
-                        target_weights, learner_counter = model_buff.pop(0)
-                        ib.update("RMA_Env_Model_Pop", 1)
-                        exalearner.agent.set_weights(target_weights)
-                        ib.simpleTrace("RMA_Actor_Get_Model", local_actor_episode_counter, learner_counter, 0, 0)
-
-                        exalearner.agent.epsilon = epsilon_const.min(exalearner.agent.epsilon, 0)
-
-                        if self.use_priority_replay:
-                            # Get indices and losses
-                            loss_data = ind_loss_buffer.pop(agent_comm.rank)
-                            ib.update("RMA_Env_Loss_Pop", 1)
-                            # print("loss data = ", loss_data, flush=True)
-                            if loss_data is not None:
-                                indices, loss = loss_data
-                                if self.de == "buff_unchecked":
-                                    if not np.array_equal(indices, (-1 * np.ones(exalearner.agent.batch_size, dtype=np.intc))):
-                                        exalearner.agent.set_priorities(indices, loss)
-                                else:
-                                    exalearner.agent.set_priorities(indices, loss)
-
-                        # Inference action
-                        action, policy_type = exalearner.agent.action(current_state)
-                        ib.update("RMA_Env_Inference", 1)
-                        if exalearner.action_type == 'fixed':
-                            action, policy_type = 0, -11
-
-                        # Broadcast episode count to all procs in env_comm
-                        action = env_comm.bcast(action, 0)
-
-                    # Environment step
-                    ib.startTrace("step", 0)
-                    next_state, reward, done, _ = exalearner.env.step(action)
-                    ib.stopTrace()
-                    ib.update("RMA_Env_Step", 1)
-                    ib.simpleTrace("RMA_Reward", steps, 1 if done else 0, local_actor_episode_counter, reward)
-
-                    # Update current state and steps count
-                    current_state = next_state
-                    steps += 1
-                    if steps >= exalearner.nsteps:
-                        done = True
-                    # Broadcast done
-                    done = env_comm.bcast(done, 0)
-
-                    if env_comm.rank == 0:
-                        # Save memory
-                        total_rewards += reward
-                        exalearner.agent.remember(current_state, action, reward, next_state, done)
-                        if exalearner.agent.has_data():
-                            batch_data = (next(exalearner.agent.generate_data()), learner_counter)
-                            ib.update("RMA_Env_Generate_Data", 1)
-                            # Write to data window
-                            capacity, lost = batch_data_exchange.push(batch_data)
-                            ib.update("RMA_Env_Push_Data", 1)
-                            ib.simpleTrace("RMA_Actor_Put_Data", capacity, lost, 0, 0)
-
-                        # Log state, action, reward, ...
-                        train_writer.writerow([time.time(), current_state, action, reward, next_state, total_rewards,
-                                               done, local_actor_episode_counter, steps, policy_type, exalearner.agent.epsilon])
-                        train_file.flush()
-                ib.update("RMA_Env_Episode", 1)
-
-        # mpi4py may miss MPI Finalize sometimes -- using a barrier
-        agent_comm.barrier()
-        if ExaComm.is_actor():
-            train_file.close()
+            keep_running = True
+            while keep_running:
+                keep_running = self.actor(workflow, nepisodes)
+                # print("Actor:", keep_running, flush=True)

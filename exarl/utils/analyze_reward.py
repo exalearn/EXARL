@@ -69,7 +69,7 @@ def save_reward_plot():
     df_ranks = [read_data(os.path.join(results_dir, filename)) for filename in files]
 
     df_merged = pd.concat(df_ranks)
-    df_merged = df_merged.dropna()
+    # df_merged = df_merged.dropna()
     time_min = df_merged.time.min()
     df_merged['rel_time'] = [idx - time_min for idx in df_merged.time]
     df_merged.sort_values(by=['rel_time'], inplace=True)
@@ -106,9 +106,9 @@ def save_reward_plot():
         figure.x_label = 'Episodes'
         figure.color_mode = 'byte'
 
-        to_plot = df_merged['total_reward_roll'].dropna()
-        x = list(to_plot.index)
-        y = list(to_plot.values)
+        to_plot = df_merged.dropna()
+        y = list(to_plot['total_reward_roll'].values)
+        x = list(range(len(y)))
         figure.set_x_limits(min_=x[0], max_=x[-1])
         figure.set_y_limits(min_=min(y), max_=max(y))
         figure.plot(x, y, lc=200, label='rolling reward')
