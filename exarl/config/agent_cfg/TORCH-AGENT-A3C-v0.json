@@ -1,0 +1,22 @@
+{
+    "seed" : 1,
+    "use_GPU" : "False",
+    "randomise_random_seed" : "True",
+    "learning_rate": 0.05,
+    "linear_hidden_units": [20, 20],
+    "final_layer_activation": "SOFTMAX",
+    "learning_iterations_per_round" : 5,
+    "episodes_per_learning_round" : 4,
+    "discount_rate": 0.99,
+    "batch_norm": "False",
+    "clip_epsilon": 0.1,
+    "normalise_rewards": "True",
+    "gradient_clipping_norm": 7.0,
+    "mu": 0.0, 
+    "theta": 0.15, 
+    "sigma": 0.25,
+    "epsilon_decay_rate_denominator": 1,
+    "clip_rewards": "False",
+    "update_target_frequency" : 1,
+    "average_score_required_to_win" : 100
+}
