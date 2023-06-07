@@ -533,3 +533,4 @@ In the `exarl/config/learner_cfg.json` file, one can change the log-level. The a
 ## Contacts
 
 If you have any questions or concerns regarding EXARL, please contact Vinay Ramakrishnaiah (vinayr@lanl.gov), Josh Suetterlein (joshua.suetterlein@pnnl.gov) or Jamal Mohd-Yusof (jamal@lanl.gov).
+
