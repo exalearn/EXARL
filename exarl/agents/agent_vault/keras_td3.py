@@ -33,7 +33,7 @@ from tensorflow.keras.optimizers import Adam
 import exarl
 from exarl.utils.globals import ExaGlobals
 from exarl.agents.agent_vault._replay_buffer import ReplayBuffer
-logger = ExaGlobal.setup_logger(__name__)
+logger = ExaGlobals.setup_logger(__name__)
 
 class KerasTD3(exarl.ExaAgent):
 
@@ -275,3 +275,7 @@ class KerasTD3(exarl.ExaAgent):
 
     def set_weights(self, weights):
         self.target_actor.set_weights(weights)
+
+    def set_priorities(self, indices, loss):
+        # TODO implement this
+        pass

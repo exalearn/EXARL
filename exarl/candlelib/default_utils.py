@@ -726,9 +726,11 @@ def directory_from_parameters(params, commonroot='Output'):
         outdir = os.path.abspath(os.path.join(outdir, params['run_id']))
         if not os.path.exists(outdir):
             os.makedirs(outdir, exist_ok=True)
-        else:
-            shutil.rmtree(outdir)
-            os.makedirs(outdir, exist_ok=True)
+        # else:
+        #     shutil.rmtree(outdir)
+        #     os.makedirs(outdir, exist_ok=True)
+        while(not os.path.exists(outdir)):
+            pass
 
     return outdir
 

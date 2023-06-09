@@ -72,6 +72,12 @@ elif env == 'ExaExaaltVE-v0':
         entry_point='exarl.envs.env_vault:ExaExaaltVE'
     )
 
+elif env == 'ExaExaaltGraph-v0':
+    register(
+        id=env,
+        entry_point='exarl.envs.env_vault:ExaExaaltGraph'
+    )
+
 elif env == 'Hadrec-v0':
     register(
         id=env,

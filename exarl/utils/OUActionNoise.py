@@ -68,7 +68,7 @@ class OUActionNoise2:
         float
             noise
         """
-        random.seed(datetime.now())
+        random.seed(datetime.now().microsecond)
         random_data = os.urandom(4)
         np.random.seed(int.from_bytes(random_data, byteorder="big"))
         dx = self.damping * (self.mean - self.x_prev)
@@ -116,7 +116,7 @@ class OUActionNoise:
         float
             noise
         """
-        random.seed(datetime.now())
+        random.seed(datetime.now().microsecond)
         random_data = os.urandom(4)
         np.random.seed(int.from_bytes(random_data, byteorder="big"))
         x = (
