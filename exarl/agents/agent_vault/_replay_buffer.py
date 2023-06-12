@@ -18,10 +18,15 @@ class ReplayBuffer(Replay):
         """
         super(ReplayBuffer, self).__init__(max_size)
         self._memory_counter = 0
-        self._state_buffer = np.zeros((max_size, input_size))
+        # Added the if statement to allow for multidimensional input
+        if type(input_size) == type((1,)):
+            self._state_buffer      = np.zeros(((max_size,) + input_size))
+            self._next_state_buffer = np.zeros(((max_size,) + input_size))
+        else:
+            self._state_buffer      = np.zeros((max_size, input_size))
+            self._next_state_buffer = np.zeros((max_size, input_size))
         self._action_buffer = np.zeros((max_size, n_actions))
         self._reward_buffer = np.zeros((max_size, 1))
-        self._next_state_buffer = np.zeros((max_size, input_size))
         self._done_buffer = np.zeros((max_size, 1))
 
     def store(self, state, action, reward, next_state, done):

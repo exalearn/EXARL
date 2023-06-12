@@ -120,6 +120,13 @@ class DDPG(exarl.ExaAgent):
         if self.is_learner:
             self.actor_model = self.get_actor()
             self.critic_model = self.get_critic()
+        else:
+            with tf.device('/CPU:0'):
+                # self.target_actor = self.get_actor()
+                # self.target_critic = self.get_critic()
+                self.actor_model  = self.get_actor()
+                self.critic_model = self.get_critic()
+
 
         # Every agent needs this, however, actors only use the CPU (for now)
         self.target_critic = None
@@ -129,10 +136,6 @@ class DDPG(exarl.ExaAgent):
             self.target_critic = self.get_critic()
             self.target_actor.set_weights(self.actor_model.get_weights())
             self.target_critic.set_weights(self.critic_model.get_weights())
-        else:
-            with tf.device('/CPU:0'):
-                self.target_actor = self.get_actor()
-                self.target_critic = self.get_critic()
 
         # Learning rate for actor-critic models
         self.critic_lr = ExaGlobals.lookup_params('critic_lr')
@@ -370,6 +373,7 @@ class DDPG(exarl.ExaAgent):
         Returns:
             weights (list): target model weights
         """
+        # return self.target_actor.get_weights()
         return self.actor_model.get_weights()
 
     def set_weights(self, weights):
@@ -378,6 +382,7 @@ class DDPG(exarl.ExaAgent):
         Args:
             weights (list): model weights
         """
+        # self.target_actor.set_weights(weights)
         self.actor_model.set_weights(weights)
 
     # Extra methods
