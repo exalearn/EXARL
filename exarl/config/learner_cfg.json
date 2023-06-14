@@ -3,7 +3,7 @@
     "env": "CartPole-v0",
     "workflow": "sync",
     "n_episodes": 10,
-    "n_steps": 10,
+    "n_steps": 100,
     "output_dir": "./results/",
     "process_per_env": 1,
     "log_level": [

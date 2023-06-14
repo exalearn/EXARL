@@ -21,8 +21,20 @@
 
 import numpy  as np
 import gym
+from exarl.utils.globals import ExaGlobals
+
+try:
+    graph_size = ExaGlobals.lookup_params('graph_size')
+except:
+    graph_size = 20
 
 NAME = np.random.randint(99999)
+
+def dirichlet_draw(alphas):
+    sample = [np.random.gamma(a, 1) for a in alphas]
+    sums   = sum(sample)
+    sample = [x/sums for x in sample]
+    return sample
 
 def get_graph_dist(knownStates, state):
     all_keys   = knownStates.keys()
@@ -35,7 +47,8 @@ def get_graph_dist(knownStates, state):
         new_keys = []
         for key in graph_keys[ii]:
             graph_dist[key] = ii
-            tmp_keys = [x for x in knownStates[key].probs.keys() if x not in inc_keys]
+            # tmp_keys = [x for x in knownStates[key].probs.keys() if x not in inc_keys]
+            tmp_keys = [x for x in knownStates[key].counts.keys() if (x not in inc_keys) and (x in knownStates.keys())]
             inc_keys += tmp_keys
             new_keys += tmp_keys
         graph_keys.append(new_keys)
@@ -43,54 +56,73 @@ def get_graph_dist(knownStates, state):
     return graph_dist
 
 def get_graph_adj(knownStates, state):
-    adj_mat    = np.zeros([20,20])
+    adj_mat    = np.zeros([graph_size, graph_size])
     all_keys   = list(knownStates.keys())
     graph_keys = [[state]]
     inc_keys   = [state]
-    adj_mat[0,0] = 1
-    adj_mat[0,0] += knownStates[state].counts[state]
-    for ii in range(20):
-        if len(inc_keys) >= 20:
-            inc_keys = inc_keys[:20]
+    # adj_mat[0,0] = 1
+    # adj_mat[0,0] += knownStates[state].counts[state]
+    # print(inc_keys)
+    for ii in range(graph_size):
+        if len(inc_keys) >= graph_size:
+            inc_keys = inc_keys[:graph_size]
             break
         if len(inc_keys) == len(all_keys):
             tmp_keys = [x for x in knownStates.keys() if x not in inc_keys]
             if len(tmp_keys) > 0:
-                if len(tmp_keys) + len(inc_keys) <= 20:
+                if len(tmp_keys) + len(inc_keys) <= graph_size:
                     inc_keys += tmp_keys
                 else:
-                    inc_keys += tmp_keys[-(20 - len(inc_keys)):]
+                    inc_keys += tmp_keys[-(graph_size - len(inc_keys)):]
             break
         new_keys = []
         for key in graph_keys[ii]:
-            tmp_keys = [x for x in knownStates[key].probs.keys() if x not in inc_keys]
+            tmp_keys = [x for x in knownStates[key].counts.keys() if (x not in inc_keys) and (x in knownStates.keys())]
+            # print("tmp: ", key, tmp_keys, knownStates[key].probs, knownStates[key].counts)
+            # print([knownStates[testkey].counts for testkey in knownStates[key].counts.keys() if testkey in knownStates.keys()])
+            # tmp_keys += [x for x in knownStates.keys() if (x not in inc_keys) and (key in knownStates[x].probs.keys())]
+            # print("tmp2: ", tmp_keys)
             inc_keys += tmp_keys
+            # print("in loop: ", inc_keys)
             new_keys += tmp_keys
-            for target in knownStates[key].probs.keys():
-                row_ind = np.where( [x == key for x in inc_keys] )[0][0]
-                col_ind = np.where( [x == target for x in inc_keys] )[0][0]
-                if (row_ind > 19) or (col_ind > 19):
-                    continue
-                adj_mat[row_ind, col_ind] += knownStates[key].counts[target]
-                adj_mat[col_ind, row_ind] += knownStates[target].counts[key]
+            # for target in knownStates[key].probs.keys():
+            #     row_ind = np.where( [x == key for x in inc_keys] )[0][0]
+            #     col_ind = np.where( [x == target for x in inc_keys] )[0][0]
+            #     if (row_ind > graph_size-1) or (col_ind > graph_size-1):
+            #         continue
+                # adj_mat[row_ind, col_ind] += knownStates[key].counts[target]
+                # adj_mat[col_ind, row_ind] += knownStates[target].counts[key]
         graph_keys.append(new_keys)
-    tmp_keys = [x for x in knownStates.keys() if x not in inc_keys]
-    if len(tmp_keys) > 0:
-        if len(tmp_keys) + len(inc_keys) <= 20:
-            inc_keys += tmp_keys
-        else:
-            inc_keys += tmp_keys[-(20 - len(inc_keys)):]
-    for key in inc_keys:
-        for target in knownStates[key].probs.keys():
-            if target not in inc_keys:
-                continue
-            row_ind = np.where( [x == key for x in inc_keys] )[0][0]
-            col_ind = np.where( [x == target for x in inc_keys] )[0][0]
-            if (row_ind > 19) or (col_ind > 19):
-                continue
-            if adj_mat[row_ind, col_ind] == 0:
-                adj_mat[row_ind, col_ind] += knownStates[key].counts[target]
-                adj_mat[col_ind, row_ind] += knownStates[target].counts[key]
+    # print(inc_keys)
+    # tmp_keys = [x for x in knownStates.keys() if x not in inc_keys]
+    # if len(tmp_keys) > 0:
+    #     if len(tmp_keys) + len(inc_keys) <= graph_size:
+    #         print(inc_keys, tmp_keys)
+    #         print("STILL TMP LEFT.... **************************************************************")
+    #         inc_keys += tmp_keys
+    #     else:
+    #         print(inc_keys, tmp_keys)
+    #         print("STILL TMP LEFT.... ************************************************************** ELSE STATEMENT")
+    #         inc_keys += tmp_keys[-(graph_size - len(inc_keys)):]
+    # for key in inc_keys:
+    #     for target in knownStates[key].probs.keys():
+    #         if target not in inc_keys:
+    #             continue
+    #         row_ind = np.where( [x == key for x in inc_keys] )[0][0]
+    #         col_ind = np.where( [x == target for x in inc_keys] )[0][0]
+    #         if (row_ind > graph_size-1) or (col_ind > graph_size-1):
+    #             continue
+    #         if adj_mat[row_ind, col_ind] == 0:
+    #             pass
+    #             #adj_mat[row_ind, col_ind] += knownStates[key].counts[target]
+    #             #adj_mat[col_ind, row_ind] += knownStates[target].counts[key]
+    # print(len(inc_keys), inc_keys)
+    # print(np.unique(inc_keys).size, np.unique(inc_keys))
+    for ii, row_key in enumerate(inc_keys):
+        for jj, col_key in enumerate(inc_keys):
+            if col_key in knownStates[row_key].counts.keys():
+                adj_mat[ii,jj] = knownStates[row_key].counts[col_key]
+    # print(adj_mat)
     return adj_mat
 
 def VE(traj, knownStates, database, nWorkers, d_prior):
@@ -136,7 +168,8 @@ def VE(traj, knownStates, database, nWorkers, d_prior):
                     #print("count: ", count_num)
                     #print("d_alpha: ", d_alpha)
                     # sample_p   = np.random.dirichlet(count_num+d_alpha)
-                    sample_p   = np.random.dirichlet(d_alpha)
+                    # sample_p   = np.random.dirichlet(d_alpha)
+                    sample_p   = dirichlet_draw(d_alpha)
                     #print("sample_p: ", sample_p)
                 # print(count_num)
                 # print(sample_p)
@@ -244,7 +277,7 @@ class ExaExaaltGraph(gym.Env):
 
         self.action_space      = gym.spaces.Box(np.zeros(6), np.array([100.,100.,100.,100.,100.,100.]))
         self.observation_space = gym.spaces.Box(low=np.array([0.,0.]),high=np.array([np.inf,np.inf]))
-        self.observation_space = gym.spaces.Box(low=0, high=np.inf, shape=(20, 20))
+        self.observation_space = gym.spaces.Box(low=0, high=np.inf, shape=(graph_size, graph_size))
 
     def crankModel(self):
         l={}

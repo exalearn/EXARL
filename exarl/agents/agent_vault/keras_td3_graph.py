@@ -150,7 +150,7 @@ class KerasGraphTD3(exarl.ExaAgent):
 
     def get_critic(self):
         # State as input
-        state_input = tf.keras.layers.Input(shape=(20,20,1))
+        state_input = tf.keras.layers.Input(shape=self.num_states + (1,))
         state_out = tf.keras.layers.Conv2D(32, kernel_size=5, activation="relu")(state_input)
         state_out = tf.keras.layers.Conv2D(16, kernel_size=5, activation="relu")(state_out)
         state_out = tf.keras.layers.Conv2D(4, kernel_size=5, activation="relu")(state_out)
@@ -178,7 +178,7 @@ class KerasGraphTD3(exarl.ExaAgent):
     def get_actor(self):
 
         # MLP
-        inputs = tf.keras.layers.Input(shape=(20,20,1))
+        inputs = tf.keras.layers.Input(shape=self.num_states + (1,))
         #
         state_out = tf.keras.layers.Conv2D(32, kernel_size=5, activation="relu")(inputs)
         state_out = tf.keras.layers.Conv2D(16, kernel_size=5, activation="relu")(state_out)
