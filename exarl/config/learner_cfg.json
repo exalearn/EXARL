@@ -18,5 +18,7 @@
     "log_frequency": 1,
     "profile": "intro",
     "buffer": "PrioritizedReplayBuffer",
-    "buffer_capacity": 3999666
+    "buffer_capacity": 1000000,
+    "convert_action_type": "False",
+    "num_discrete_step": 1000
 }
