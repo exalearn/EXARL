@@ -1,0 +1,10 @@
+{
+    "tolerance":0,
+    "action_space": "Discrete",
+    "action_step_size":0.00001,
+    "coefficents": [
+        10,
+        7,
+        21
+    ]
+}

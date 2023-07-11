@@ -1,4 +1,5 @@
 import pytest
+import tensorflow
 import numpy as np
 from exarl.utils.candleDriver import initialize_parameters
 from exarl.base.comm_base import ExaComm
@@ -35,8 +36,6 @@ class TestDataStructure:
         Data structure lengths to test
     over_list : list
         Amounts of packets to send past the total length of data structure to test.  This is for testing lost data.
-    max_model_lag_list : list
-        List of max_model_len values to test
     num_packets_list : list
         List of number of packets for pattern tests
     reps : int
@@ -54,12 +53,9 @@ class TestDataStructure:
                    "buff_checked": ds.ExaMPIBuffChecked,
                    "queue_distribute": ds.ExaMPIDistributedQueue,
                    "stack_distribute": ds.ExaMPIDistributedStack}
-    # "queue_central": ds.ExaMPICentralizedQueue,
-    # "stack_central": ds.ExaMPICentralizedStack
 
     length_list = [1, 10, 100, 1000]
     over_list = [0, 1, 10, 100]
-    max_model_lag_list = [None, 1, 10, 100, 1000]
     num_packets_list = [1, 10, 100]
     reps = 10
     max_try = 1000000
@@ -197,7 +193,7 @@ class TestDataStructure:
             return seq_num == [N - 1]
         return False
 
-    def init_data_structure(self, name, data=None, length=10, rank_mask=True, max_model_lag=None, failPush=False):
+    def init_data_structure(self, name, data=None, length=10, rank_mask=True, max_model_lag=None, failPush=False, size=None):
         """
         Convenience wrapper for data structure creation.
 
@@ -215,6 +211,8 @@ class TestDataStructure:
             What ranks should participate in the data structure.  An example use for this parameter is
             rank_mask=ExaComm.global_comm.rank < 5.  For most tests this parameter should be True to
             include all ranks.
+        size: int
+            Override the size from data
 
         Returns
         -------
@@ -230,8 +228,8 @@ class TestDataStructure:
                                                    name=name,
                                                    length=length,
                                                    rank_mask=rank_mask,
-                                                   max_model_lag=max_model_lag,
-                                                   failPush=failPush)
+                                                   fail_push=failPush,
+                                                   size=size)
 
 class TestDataStructureMembers(TestDataStructure):
     """
@@ -254,24 +252,6 @@ class TestDataStructureMembers(TestDataStructure):
         assert data_structure.name == name, name + " failed name comparison but got " + data_structure.name
         assert isinstance(data_structure, TestDataStructure.constructor[name])
 
-    @pytest.mark.parametrize("max_model_lag", TestDataStructure.max_model_lag_list)
-    @pytest.mark.parametrize("name", TestDataStructure.constructor.keys())
-    def test_max_model_lag(self, name, max_model_lag):
-        """
-        This test setting max_model_lag.
-
-        Parameters
-        ----------
-        name : string
-            Name of the data structure corresponding to TestDataStructure.constructor
-        max_model_lag : int
-            Value to check
-        """
-        data_structure = self.init_data_structure(name, max_model_lag=max_model_lag)
-        if "buff" in name:
-            assert data_structure.max_model_lag is None, name + " max model lag for buffer should be None but is " + data_structure.max_model_lag
-        else:
-            assert data_structure.max_model_lag == max_model_lag, name + " max model lag not set"
 
     @pytest.mark.parametrize("length", TestDataStructure.length_list)
     @pytest.mark.parametrize("name", TestDataStructure.constructor.keys())

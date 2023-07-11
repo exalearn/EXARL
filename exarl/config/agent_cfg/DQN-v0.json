@@ -1,14 +1,13 @@
 {
-    "gamma": 0.75,
-    "epsilon": 0.9,
-    "epsilon_min": 0.01,
-    "epsilon_decay": 0.999,
-    "learning_rate": 0.001,
-    "batch_size": 5,
-    "tau": 0.5,
-    "nactions": 10,
-    "priority_scale": 0.0,
-    "buffer_capacity": 1000,
-    "update_target_frequency": 1,
-    "xla": "True"
+    "batch_size" : 32,
+    "discount" : 0.99,
+    "min_replay_size" : 100,
+    "sgd_period" : 1,
+    "update_target_frequency" : 1,
+    "epsilon" : 0.05,
+    "seed" : 42,
+    "learning_rate" : 1e-3,
+    "buffer" : "ReplayBuffer",
+    "buffer_capacity" : 10000,
+    "buffer_trajectory_length" : 8
 }

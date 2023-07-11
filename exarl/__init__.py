@@ -23,10 +23,14 @@ try:
     print("Loaded:", load_agent_module)
 except ExaGlobals.GlobalDoesNotExist:
     pass
+except ExaGlobals.GlobalsNotInitialized:
+    pass
 
 try:
     load_env_module = ExaGlobals.lookup_params('load_env_module')
     importlib.import_module(load_env_module)
     print("Loaded:", load_env_module)
 except ExaGlobals.GlobalDoesNotExist:
+    pass
+except ExaGlobals.GlobalsNotInitialized:
     pass

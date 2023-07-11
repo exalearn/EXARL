@@ -1,0 +1,9 @@
+{
+    "tolerance":0.0001,
+    "action_step":0.00001,
+    "coefficents": [
+        1,
+        0,
+        2
+    ]
+}

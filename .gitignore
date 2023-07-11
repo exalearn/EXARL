@@ -128,4 +128,5 @@ venv.bak/
 results_dir
 bsuite_results*
 .vscode
+results
 

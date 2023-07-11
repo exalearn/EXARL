@@ -6,6 +6,10 @@ except:
 
 if agent == 'DQN-v0':
     from exarl.agents.agent_vault.dqn import DQN
+elif agent == 'DQN-v1':
+    from exarl.agents.agent_vault.dqn import DQN_v1
+elif agent == 'DQN-v2':
+    from exarl.agents.agent_vault.dqn import DQN_v2
 elif agent == 'DDPG-v0':
     from exarl.agents.agent_vault.ddpg import DDPG
 elif agent == 'DDPG-VTRACE-v0':
@@ -16,3 +20,7 @@ elif agent == 'TD3-v1':
     from exarl.agents.agent_vault.keras_td3 import KerasTD3
 elif agent == 'PARS-v0':
     from exarl.agents.agent_vault.PARS import PARS
+elif agent == 'BSUITE-DQN-v0':
+    from exarl.agents.agent_vault.bsuite_dqn import Sonnet_DQN
+elif agent == 'PPO-v0':
+    from exarl.agents.agent_vault.ppo import PPO
