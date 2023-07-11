@@ -518,4 +518,4 @@ def my_func(*args, **kwargs):
 
 ## Contacts
 
-If you have any questions or concerns regarding EXARL, please contact Vinay Ramakrishnaiah (vinayr@lanl.gov), Josh Suetterlein (joshua.suetterlein@pnnl.gov) or Jamal Mohd-Yusof (jamal@lanl.gov).
+If you have any questions or concerns regarding EXARL, please contact Vinay Ramakrishnaiah (vinayr@lanl.gov), Joshua Suetterlein (joshua.suetterlein@pnnl.gov) or Jamal Mohd-Yusof (jamal@lanl.gov).
