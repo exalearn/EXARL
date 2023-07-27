@@ -53,6 +53,11 @@ elif env == 'Hadrec-v1':
         id=env,
         entry_point='exarl.envs.env_vault:HadrecWrapper_V1'
     )
+elif env == 'Hadrec-v2':
+    register(
+        id=env,
+        entry_point='exarl.envs.env_vault:HadrecWrapper_V2'
+    )
 
 elif env == 'Bsuite-v0':
     register(

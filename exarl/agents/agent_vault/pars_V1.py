@@ -510,7 +510,7 @@ class PARS_V1(erl.ExaAgent):
 
         if np.any(np.array(self.steps_complete) < self.n_steps):
             self.rankPrint(f"Few runs did? not finished total number of steps..")
-            # self.rankPrint(f"Number of perturbations run:{len(self.steps_complete)}")
+            self.rankPrint(f"Number of perturbations run:{len(self.steps_complete)}")
             # self.rankPrint(f"{np.array(self.reward_list).shape}")
             
             # This is a array with a list of steps completed in each direction.
