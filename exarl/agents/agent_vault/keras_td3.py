@@ -116,7 +116,7 @@ class KerasTD3(exarl.ExaAgent):
         logger().info("TD3 actor_lr {}".format(actor_lr))
 
     @tf.function
-    def train_critic(self, states, actions, rewards, next_states):
+    def train_critic(self, states, actions, rewards, next_states, dones):
         next_actions = self.target_actor(next_states, training=False)
         # Add a little noise
         noise = np.random.normal(0, 0.2, self.num_actions)
@@ -129,7 +129,7 @@ class KerasTD3(exarl.ExaAgent):
         new_q = tf.math.minimum(new_q1, new_q2)
         # tf.print("new_q:", new_q)
         # Bellman equation for the q value
-        q_targets = rewards + self.gamma * new_q
+        q_targets = rewards + (1.0 - dones) * self.gamma * new_q
         # Critic 1
         with tf.GradientTape() as tape:
             q_values1 = self.critic_model1([states, actions], training=True)
@@ -215,8 +215,8 @@ class KerasTD3(exarl.ExaAgent):
         for (target_weight, weight) in zip(target_weights, weights):
             target_weight.assign(weight * self.tau + target_weight * (1.0 - self.tau))
 
-    def update(self, state_batch, action_batch, reward_batch, next_state_batch):
-        self.train_critic(state_batch, action_batch, reward_batch, next_state_batch)
+    def update(self, state_batch, action_batch, reward_batch, next_state_batch, done_batch):
+        self.train_critic(state_batch, action_batch, reward_batch, next_state_batch, done_batch)
         if self.ntrain_calls % self.actor_update_freq == 0:
             self.train_actor(state_batch)
 
@@ -236,7 +236,7 @@ class KerasTD3(exarl.ExaAgent):
     def train(self, batch):
         """ Method used to train """
         self.ntrain_calls += 1
-        self.update(batch[0], batch[1], batch[2], batch[3])
+        self.update(batch[0], batch[1], batch[2], batch[3], batch[4])
 
     def update_target(self):
         if self.ntrain_calls % self.actor_update_freq == 0:
