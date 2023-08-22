@@ -22,7 +22,13 @@
 import numpy  as np
 import gym
 
-NAME = np.random.randint(99999)
+NAME = str(np.random.randint(99999)) + str(np.random.randint(99999))
+
+def dirichlet_draw(alphas):
+    sample = [np.random.gamma(a, 1) for a in alphas]
+    sums   = sum(sample)
+    sample = [x/sums for x in sample]
+    return sample
 
 def get_graph_dist(knownStates, state):
     all_keys   = knownStates.keys()
@@ -36,6 +42,7 @@ def get_graph_dist(knownStates, state):
         for key in graph_keys[ii]:
             graph_dist[key] = ii
             tmp_keys = [x for x in knownStates[key].probs.keys() if x not in inc_keys]
+            tmp_keys += [x for x in knownStates.keys() if (key in knownStates[x].probs.keys()) and (x not in tmp_keys)]
             inc_keys += tmp_keys
             new_keys += tmp_keys
         graph_keys.append(new_keys)
@@ -65,7 +72,7 @@ def VE(traj, knownStates, database, nWorkers, d_prior):
             except:
                 # offset      = np.array([20., 0., 0., 0., 0., 0.])
                 offset      = np.array([0., 0., 0., 0., 0., 0.])
-                prior_p     = d_prior[0] + offset + 1.e-6
+                prior_p     = d_prior + offset + 1.e-1
                 graph_dist  = get_graph_dist(knownStates, state)
                 d_alpha     = np.array([ prior_p[graph_dist[key]] for key in knownStates.keys() ])
                 # print("dalpha: ", d_alpha)
@@ -79,11 +86,21 @@ def VE(traj, knownStates, database, nWorkers, d_prior):
                 else:
                     #print("count: ", count_num)
                     #print("d_alpha: ", d_alpha)
-                    sample_p   = np.random.dirichlet(count_num+d_alpha)
+                    # sample_p   = np.random.dirichlet(count_num+d_alpha)
+                    sample_p   = dirichlet_draw(count_num + d_alpha)
                     #print("sample_p: ", sample_p)
                 # print(count_num)
                 # print(sample_p)
-                state      = np.random.choice(list(knownStates.keys()),p=sample_p)
+                try:
+                    state      = np.random.choice(list(knownStates.keys()),p=sample_p)
+                except:
+                    print("Samp_p: ", sample_p)
+                    print("counts: ", count_num)
+                    print("d_alpha: ", d_alpha)
+                    print("PRIOR P: ",prior_p)
+                    print("d_prior: ",d_prior)
+                    print("d_prior0: ",d_prior[0])
+                    state      = np.random.choice(list(knownStates.keys()),p=sample_p)
                 # print("STATE: ",state)
                 # print("KNOWNSTATE KEYS: ", knownStates[state].probs.keys())
                 # print("====================")
@@ -130,7 +147,7 @@ class ExaExaaltBayesRL(gym.Env):
         """
 
         """
-        stateDepth       = 10 #segments
+        stateDepth       = 50 #segments
         number_of_states = 100000
 
         self.n_states  = number_of_states
@@ -303,7 +320,7 @@ class ExaExaaltBayesRL(gym.Env):
                 next_state=self.database[current_state].pop(0)
                 self.traj.append(next_state)
             except:
-                with open("dataOutput_2dModel_BayesRL_"+str(NAME), "a") as myfile:
+                with open("BayesRL_dataOutput_2dModel_"+str(NAME), "a") as myfile:
                         myfile.write(
                         str(round(self.WCT,3))+' '+
                         str(len(self.traj))+' '+
@@ -317,7 +334,7 @@ class ExaExaaltBayesRL(gym.Env):
 
         """ Iterates the testing process forward one step """
 
-        reward        = len(self.traj)/float(self.WCT*self.nWorkers)
+        reward        = len(self.traj)/float(self.WCT*self.nWorkers) # - np.sum(action)/1000.
         current_state = self.traj[-1]
 
         next_state = self.generate_data()

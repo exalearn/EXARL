@@ -28,6 +28,8 @@ elif env == 'ExaExaaltBayes-v1':
     from exarl.envs.env_vault.ExaExaaltBayes1 import ExaExaaltBayes1
 elif env == 'ExaExaaltBayesRL-v0':
     from exarl.envs.env_vault.ExaExaaltBayesRL import ExaExaaltBayesRL
+elif env == 'ExaExaaltBayesRLSparse-v0':
+    from exarl.envs.env_vault.ExaExaaltBayesRLSparse import ExaExaaltBayesRLSparse
 elif env == 'ExaExaaltVE-v0':
     from exarl.envs.env_vault.ExaExaaltVE import ExaExaaltVE
 elif env == 'ExaExaaltGraph-v0':

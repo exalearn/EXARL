@@ -32,7 +32,7 @@ from tensorflow.keras.optimizers import Adam
 
 import exarl
 from exarl.utils.globals import ExaGlobals
-from exarl.agents.agent_vault._replay_buffer import ReplayBuffer
+from exarl.agents.agent_vault._replay_buffer import ReplayBuffer, nStepBuffer
 logger = ExaGlobals.setup_logger(__name__)
 
 class KerasTD3(exarl.ExaAgent):
@@ -46,6 +46,7 @@ class KerasTD3(exarl.ExaAgent):
         self.env = env
 
         self.num_states = env.observation_space.shape[0]
+        print(env.action_space)
         self.num_actions = env.action_space.shape[0]
         self.upper_bound = env.action_space.high
         self.lower_bound = env.action_space.low
@@ -56,7 +57,12 @@ class KerasTD3(exarl.ExaAgent):
         self.buffer_counter = 0
         self.buffer_capacity = ExaGlobals.lookup_params('buffer_capacity')
         self.batch_size = ExaGlobals.lookup_params('batch_size')
-        self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions)
+        self.gamma = ExaGlobals.lookup_params('gamma')
+        self.horizon = ExaGlobals.lookup_params('horizon')
+        if self.horizon == 1:
+            self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions)
+        else:
+            self.memory = nStepBuffer(self.buffer_capacity, self.num_states, self.num_actions, self.horizon, self.gamma)
         # self.state_buffer = np.zeros((self.buffer_capacity, self.num_states))
         # self.action_buffer = np.zeros((self.buffer_capacity, self.num_actions))
         # self.reward_buffer = np.zeros((self.buffer_capacity, 1))
@@ -66,7 +72,6 @@ class KerasTD3(exarl.ExaAgent):
 
         # Used to update target networks
         self.tau = ExaGlobals.lookup_params('tau')
-        self.gamma = ExaGlobals.lookup_params('gamma')
 
         # Setup Optimizers
         critic_lr = ExaGlobals.lookup_params('critic_lr')
@@ -116,10 +121,13 @@ class KerasTD3(exarl.ExaAgent):
         # Add a little noise
         noise = np.random.normal(0, 0.2, self.num_actions)
         noise = np.clip(noise, -0.5, 0.5)
+        # noise = np.random.normal(0, 0.4, self.num_actions)
+        # noise = np.clip(noise, -0.8, 0.8)
         next_actions = next_actions * (1 + noise)
         new_q1 = self.target_critic1([next_states, next_actions], training=False)
         new_q2 = self.target_critic2([next_states, next_actions], training=False)
         new_q = tf.math.minimum(new_q1, new_q2)
+        # tf.print("new_q:", new_q)
         # Bellman equation for the q value
         q_targets = rewards + self.gamma * new_q
         # Critic 1
@@ -137,6 +145,7 @@ class KerasTD3(exarl.ExaAgent):
             critic_loss2 = tf.reduce_mean(tf.math.square(td_errors2))
         gradient2 = tape.gradient(critic_loss2, self.critic_model2.trainable_variables)
         self.critic_optimizer2.apply_gradients(zip(gradient2, self.critic_model2.trainable_variables))
+        # tf.print("Critic Losses: ", critic_loss1, " " ,critic_loss2)
 
     @tf.function
     def train_actor(self, states):
@@ -147,6 +156,7 @@ class KerasTD3(exarl.ExaAgent):
             loss = -tf.math.reduce_mean(q_value)
         gradient = tape.gradient(loss, self.actor_model.trainable_variables)
         self.actor_optimizer.apply_gradients(zip(gradient, self.actor_model.trainable_variables))
+        # tf.print("Actor Loss: ", loss)
 
     def get_critic(self):
         # State as input
@@ -207,7 +217,8 @@ class KerasTD3(exarl.ExaAgent):
 
     def update(self, state_batch, action_batch, reward_batch, next_state_batch):
         self.train_critic(state_batch, action_batch, reward_batch, next_state_batch)
-        self.train_actor(state_batch)
+        if self.ntrain_calls % self.actor_update_freq == 0:
+            self.train_actor(state_batch)
 
     def _convert_to_tensor(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch):
         state_batch = tf.convert_to_tensor(state_batch, dtype=tf.float32)

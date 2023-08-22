@@ -66,6 +66,12 @@ elif env == 'ExaExaaltBayesRL-v0':
         entry_point='exarl.envs.env_vault:ExaExaaltBayesRL'
     )
 
+elif env == 'ExaExaaltBayesRLSparse-v0':
+    register(
+        id=env,
+        entry_point='exarl.envs.env_vault:ExaExaaltBayesRLSparse'
+    )
+
 elif env == 'ExaExaaltVE-v0':
     register(
         id=env,

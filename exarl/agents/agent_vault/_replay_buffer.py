@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 from exarl.utils.sum_tree import SumTree
 from exarl.base.replay_base import Replay
 np.random.seed(0)
@@ -71,6 +72,101 @@ class ReplayBuffer(Replay):
         reward_batch = self._reward_buffer[batch_indices]
         next_state_batch = self._next_state_buffer[batch_indices]
         done_batch = self._done_buffer[batch_indices]
+
+        return state_batch, action_batch, reward_batch, next_state_batch, done_batch
+
+    def reset_memory(self):
+        """Reset memory
+        """
+        self._memory_counter = 0
+        self._mem_length = 0
+        self._state_buffer.fill(0)
+        self._action_buffer.fill(0)
+        self._reward_buffer.fill(0)
+        self._next_state_buffer.fill(0)
+        self._done_buffer.fill(0)
+
+class nStepBuffer(Replay):
+    """ Class implements a replay buffer
+    """
+
+    def __init__(self, max_size, input_size, n_actions, horizon, gamma):
+        """ Replay buffer constructor
+
+        Args:
+            max_size (int): maximum buffer length
+            input_size (int): dimension of state space
+            n_action (int): dimension of action space
+        """
+        super(nStepBuffer, self).__init__(max_size)
+        self._memory_counter = 0
+        self._state_buffer = np.zeros((max_size, input_size))
+        self._action_buffer = np.zeros((max_size, n_actions))
+        self._reward_buffer = np.zeros((max_size, 1))
+        self._next_state_buffer = np.zeros((max_size, input_size))
+        self._done_buffer = np.zeros((max_size, 1))
+        self._horizon = horizon
+        self._gamma   = gamma
+
+    def store(self, state, action, reward, next_state, done):
+        """ Store experiences in buffer
+
+        Args:
+            state (array): array containing current state
+            action (array): array of actions
+            reward (double): reward for taking action
+            next_state (array): array of next state after taking action
+            done (bool): indicates episode completion
+        """
+        self._state_buffer[self._memory_counter] = state
+        self._action_buffer[self._memory_counter] = action[0]
+        self._reward_buffer[self._memory_counter] = reward
+        self._next_state_buffer[self._memory_counter] = next_state
+        self._done_buffer[self._memory_counter] = int(done)
+        self._memory_counter = (self._memory_counter + 1) % self._memory_size
+        if not self.is_full:
+            self._mem_length += 1
+
+    def sample_buffer(self, batch_size):
+        """ Sample from buffer
+
+        Args:
+            batch_size (int): batch size to sample
+
+        Return:
+            state_batch (2D array): batch of states
+            action_batch (2D array): batch of actions
+            reward_batch (array): batch of rewards
+            next_state_batch (2D array): batch of next_states
+            done_batch (array): batch of done
+        """
+        # record_range = min(len(self), self._memory_size)
+        # record_range = max(1, record_range)
+        record_range = self._memory_counter
+
+        # Randomly sample indices
+        batch_indices    = np.random.choice(record_range, batch_size)
+        state_batch      = self._state_buffer[batch_indices]
+        action_batch     = self._action_buffer[batch_indices]
+        # done_batch       = self._done_buffer[batch_indices]
+        # reward_batch     = self._reward_buffer[batch_indices]
+        # next_state_batch = self._next_state_buffer[batch_indices]
+
+        reward_batch   = []
+        next_state_ind = []
+        done_batch     = []
+        for b_start in batch_indices:
+            b_end     = np.min([record_range-1, b_start + self._horizon - 1])
+            done_ind  = np.where(self._done_buffer[b_start:(b_end+1)])[0]
+            b_end     = b_end if len(done_ind) == 0 else b_start + done_ind[0]
+            reward_batch.append( np.sum(self._reward_buffer[b_start:(b_end+1),0] * self._gamma**np.arange(b_end - b_start + 1)) )
+            # reward_batch.append( tf.cast( tf.convert_to_tensor(self.reward_buffer[b_start:b_end]), dtype=tf.float32) )
+            next_state_ind.append( b_end ) #+ 1 if b_end != record_range else record_range)
+            done_batch.append( 0 if len(done_ind) == 0 else 1)
+        reward_batch     = tf.convert_to_tensor(reward_batch, dtype=tf.float32)
+        next_state_batch = tf.convert_to_tensor(self._next_state_buffer[next_state_ind], dtype=tf.float32)
+        done_batch       = tf.convert_to_tensor(done_batch, dtype=tf.float32)
+
 
         return state_batch, action_batch, reward_batch, next_state_batch, done_batch
 

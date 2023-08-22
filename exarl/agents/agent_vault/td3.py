@@ -28,7 +28,7 @@ from exarl.utils.globals import ExaGlobals
 from exarl.utils.OUActionNoise import OUActionNoise
 from exarl.utils.OUActionNoise import OUActionNoise2
 from exarl.utils.memory_type import MEMORY_TYPE
-from exarl.agents.agent_vault._replay_buffer import ReplayBuffer, HindsightExperienceReplayMemory, PrioritedReplayBuffer
+from exarl.agents.agent_vault._replay_buffer import ReplayBuffer #, HindsightExperienceReplayMemory, PrioritedReplayBuffer
 logger = ExaGlobals.setup_logger(__name__)
 
 
@@ -67,7 +67,8 @@ class TD3(exarl.ExaAgent):
         self.critic_concat_dense_act = ExaGlobals.lookup_params('critic_concat_dense_act')
         self.critic_out_act = ExaGlobals.lookup_params('critic_out_act')
         self.critic_optimizer = ExaGlobals.lookup_params('critic_optimizer')
-        self.replay_buffer_type = ExaGlobals.lookup_params('replay_buffer_type')
+        # self.replay_buffer_type = ExaGlobals.lookup_params('replay_buffer_type')
+        self.replay_buffer_type = MEMORY_TYPE.UNIFORM_REPLAY
 
         std_dev = 0.2
         # ave_bound = (self.upper_bound + self.lower_bound) / 2
@@ -85,10 +86,10 @@ class TD3(exarl.ExaAgent):
 
         if self.replay_buffer_type == MEMORY_TYPE.UNIFORM_REPLAY:
             self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions)
-        elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
-            self.memory = PrioritedReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions, self.batch_size)
-        elif self.replay_buffer_type == MEMORY_TYPE.HINDSIGHT_REPLAY:  # TODO: Double check if the environment has goal state
-            self.memory = HindsightExperienceReplayMemory(self.buffer_capacity, self.num_states, self.num_actions)
+        # elif self.replay_buffer_type == MEMORY_TYPE.PRIORITY_REPLAY:
+        #     self.memory = PrioritedReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions, self.batch_size)
+        # elif self.replay_buffer_type == MEMORY_TYPE.HINDSIGHT_REPLAY:  # TODO: Double check if the environment has goal state
+        #     self.memory = HindsightExperienceReplayMemory(self.buffer_capacity, self.num_states, self.num_actions)
         else:
             print("Unrecognized replay buffer please specify 'uniform, priority or hindsight', using default uniform sampling")
             raise ValueError("Unrecognized Memory type {}".format(self.replay_buffer_type))
@@ -349,7 +350,10 @@ class TD3(exarl.ExaAgent):
     def set_weights(self, weights):
         self.target_actor.set_weights(weights)
 
-    # Extra methods
+    def set_priorities(self, indices, loss):
+        # TODO implement this
+        pass    # Extra methods
+
     def update(self):
         print("Implement update method in ddpg.py")
 

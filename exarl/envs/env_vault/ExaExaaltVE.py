@@ -92,14 +92,14 @@ class ExaExaaltVE(gym.Env):
         """
 
         """
-        stateDepth       = 10 #segments
+        stateDepth       = 2 #segments
         number_of_states = 100000
 
         self.n_states  = number_of_states
         self.nWorkers  = 500
         self.num_done  = 0
         self.WCT       = 0
-        self.RUN_TIME  = 100 #10000
+        self.RUN_TIME  = 1000 #10000
         
         self.database    = {}
         self.knownStates = {}
@@ -145,7 +145,7 @@ class ExaExaaltVE(gym.Env):
         # self.action_space      = gym.spaces.Box(np.zeros(self.n_states), np.ones(self.n_states))
         # self.observation_space = gym.spaces.Box(np.zeros(self.n_states), np.ones(self.n_states))
 
-        self.action_space      = gym.spaces.Box(low=0., high=1.)
+        self.action_space      = gym.spaces.Box(low=np.array([0.]), high=np.array([1.]))
         self.observation_space = gym.spaces.Box(low=np.array([0.,0.]),high=np.array([np.inf,np.inf]))
 
     def crankModel(self):
@@ -258,7 +258,7 @@ class ExaExaaltVE(gym.Env):
                 next_state=self.database[current_state].pop(0)
                 self.traj.append(next_state)
             except:
-                with open("dataOutput_2dModel_"+str(NAME), "a") as myfile:
+                with open("VE_dataOutput_2dModel_"+str(NAME), "a") as myfile:
                         myfile.write(
                         str(round(self.WCT,3))+' '+
                         str(len(self.traj))+' '+
