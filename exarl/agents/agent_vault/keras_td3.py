@@ -32,8 +32,8 @@ from tensorflow.keras.optimizers import Adam
 
 import exarl
 from exarl.utils.globals import ExaGlobals
-from exarl.agents.agent_vault._replay_buffer import ReplayBuffer
-logger = ExaGlobal.setup_logger(__name__)
+from exarl.agents.replay_buffers.replay_buffer import ReplayBuffer
+logger = ExaGlobals.setup_logger(__name__)
 
 class KerasTD3(exarl.ExaAgent):
 
@@ -56,7 +56,7 @@ class KerasTD3(exarl.ExaAgent):
         self.buffer_counter = 0
         self.buffer_capacity = ExaGlobals.lookup_params('buffer_capacity')
         self.batch_size = ExaGlobals.lookup_params('batch_size')
-        self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions)
+        self.memory = ReplayBuffer(self.buffer_capacity, env.observation_space, env.action_space)
         # self.state_buffer = np.zeros((self.buffer_capacity, self.num_states))
         # self.action_buffer = np.zeros((self.buffer_capacity, self.num_actions))
         # self.reward_buffer = np.zeros((self.buffer_capacity, 1))
@@ -96,12 +96,13 @@ class KerasTD3(exarl.ExaAgent):
         # update counting
         self.ntrain_calls = 0
         self.actor_update_freq = 2
-        self.critic_update_freq = 2
+        self.critic_update_freq = 1
+        self.target_update_freq = 2
 
         # Not used by agent but required by the learner class
-        self.epsilon = ExaGlobals.lookup_params('epsilon')
-        self.epsilon_min = ExaGlobals.lookup_params('epsilon_min')
-        self.epsilon_decay = ExaGlobals.lookup_params('epsilon_decay')
+        # self.epsilon = ExaGlobals.lookup_params('epsilon')
+        # self.epsilon_min = ExaGlobals.lookup_params('epsilon_min')
+        # self.epsilon_decay = ExaGlobals.lookup_params('epsilon_decay')
 
         logger().info("TD3 buffer capacity {}".format(self.buffer_capacity))
         logger().info("TD3 batch size {}".format(self.batch_size))
@@ -111,7 +112,7 @@ class KerasTD3(exarl.ExaAgent):
         logger().info("TD3 actor_lr {}".format(actor_lr))
 
     @tf.function
-    def train_critic(self, states, actions, rewards, next_states):
+    def train_critic(self, states, actions, rewards, next_states, dones):
         next_actions = self.target_actor(next_states, training=False)
         # Add a little noise
         noise = np.random.normal(0, 0.2, self.num_actions)
@@ -121,7 +122,7 @@ class KerasTD3(exarl.ExaAgent):
         new_q2 = self.target_critic2([next_states, next_actions], training=False)
         new_q = tf.math.minimum(new_q1, new_q2)
         # Bellman equation for the q value
-        q_targets = rewards + self.gamma * new_q
+        q_targets = rewards + (1.0 - dones[:,None]) * self.gamma * new_q
         # Critic 1
         with tf.GradientTape() as tape:
             q_values1 = self.critic_model1([states, actions], training=True)
@@ -150,12 +151,12 @@ class KerasTD3(exarl.ExaAgent):
 
     def get_critic(self):
         # State as input
-        state_input = tf.keras.layers.Input(shape=(self.num_states))
+        state_input = tf.keras.layers.Input(shape=(self.num_states),batch_size = ExaGlobals.lookup_params('batch_size'))
         state_out = tf.keras.layers.Dense(16 * self.num_states, activation="relu")(state_input)
         state_out = tf.keras.layers.Dense(32 * self.num_states, activation="relu")(state_out)
 
         # Action as input
-        action_input = tf.keras.layers.Input(shape=(self.num_actions))
+        action_input = tf.keras.layers.Input(shape=(self.num_actions), batch_size = ExaGlobals.lookup_params('batch_size'))
         action_out = tf.keras.layers.Dense(32 * self.num_actions, activation="relu")(action_input)
 
         # Both are passed through separate layer before concatenating
@@ -173,7 +174,7 @@ class KerasTD3(exarl.ExaAgent):
     def get_actor(self):
 
         # MLP
-        inputs = tf.keras.layers.Input(shape=(self.num_states))
+        inputs = tf.keras.layers.Input(shape=(self.num_states), batch_size = ExaGlobals.lookup_params('batch_size'))
         #
         out = tf.keras.layers.Dense(self.hidden_size,
                                     kernel_initializer=RandomUniform(-self.layer_std, +self.layer_std),
@@ -205,9 +206,11 @@ class KerasTD3(exarl.ExaAgent):
         for (target_weight, weight) in zip(target_weights, weights):
             target_weight.assign(weight * self.tau + target_weight * (1.0 - self.tau))
 
-    def update(self, state_batch, action_batch, reward_batch, next_state_batch):
-        self.train_critic(state_batch, action_batch, reward_batch, next_state_batch)
-        self.train_actor(state_batch)
+    def update(self, state_batch, action_batch, reward_batch, next_state_batch, done_batch):
+        if self.ntrain_calls % self.critic_update_freq == 0:
+            self.train_critic(state_batch, action_batch, reward_batch, next_state_batch, done_batch)
+        if self.ntrain_calls % self.actor_update_freq == 0:
+            self.train_actor(state_batch)
 
     def _convert_to_tensor(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch):
         state_batch = tf.convert_to_tensor(state_batch, dtype=tf.float32)
@@ -219,18 +222,17 @@ class KerasTD3(exarl.ExaAgent):
 
     def generate_data(self):
         state_batch, action_batch, reward_batch, next_state_batch, done_batch = \
-            self._convert_to_tensor(*self.memory.sample_buffer(self.batch_size))
+            self._convert_to_tensor(*self.memory.sample(self.batch_size))
         yield state_batch, action_batch, reward_batch, next_state_batch, done_batch
 
     def train(self, batch):
         """ Method used to train """
         self.ntrain_calls += 1
-        self.update(batch[0], batch[1], batch[2], batch[3])
+        self.update(batch[0], batch[1], batch[2], batch[3], batch[4])
 
     def update_target(self):
-        if self.ntrain_calls % self.actor_update_freq == 0:
+        if self.ntrain_calls % self.target_update_freq == 0:
             self.soft_update(self.target_actor.variables, self.actor_model.variables)
-        if self.ntrain_calls % self.critic_update_freq == 0:
             self.soft_update(self.target_critic1.variables, self.critic_model1.variables)
             self.soft_update(self.target_critic2.variables, self.critic_model2.variables)
 
@@ -258,6 +260,7 @@ class KerasTD3(exarl.ExaAgent):
         self.action_buffer[index] = obs_tuple[1]
         self.reward_buffer[index] = obs_tuple[2]
         self.next_state_buffer[index] = obs_tuple[3]
+        self.done_buffer[index] = obs_tuple[4]
 
         self.buffer_counter += 1
 
@@ -275,3 +278,6 @@ class KerasTD3(exarl.ExaAgent):
 
     def set_weights(self, weights):
         self.target_actor.set_weights(weights)
+
+    def train_return(self, args):
+        pass

@@ -74,6 +74,8 @@ class DDPG(exarl.ExaAgent):
         
         self.actor.init_model()
         self.critic.init_model()
+        self.actor.print()
+        self.critic.print()
         self.target_actor.init_model()
         self.target_critic.init_model()
 
@@ -138,13 +140,13 @@ class DDPG(exarl.ExaAgent):
             batch (list): sampled batch of experiences
         """
         if batch is not None:
-            self.update_grad(batch[0], batch[1], batch[2], batch[3])
+            self.update_grad(batch[0], batch[1], batch[2], batch[3], batch[4])
 
     @tf.function
-    def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch):
+    def update_grad(self, state_batch, action_batch, reward_batch, next_state_batch, done_batch):
         with tf.GradientTape() as tape:
             target_actions = self.target_actor(next_state_batch, training=True)
-            y = reward_batch + self.gamma * self.target_critic(
+            y = reward_batch + (1.0 - tf.cast(done_batch[:,None], tf.float32))*self.gamma * self.target_critic(
                 [next_state_batch, target_actions], training=True
             )
             critic_value = self.critic([state_batch, action_batch], training=True)
