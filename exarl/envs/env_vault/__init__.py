@@ -6,6 +6,12 @@ except:
 
 if env == 'ExaCartPoleStatic-v0':
     from exarl.envs.env_vault.ExaCartpoleStatic import ExaCartpoleStatic
+elif env == 'ExaExaaltBayesRL-v0':
+    from exarl.envs.env_vault.ExaExaaltBayesRL import ExaExaaltBayesRL
+elif env == 'ExaExaaltBayesRLSparse-v0':
+    from exarl.envs.env_vault.ExaExaaltBayesRLSparse import ExaExaaltBayesRLSparse
+elif env == 'ExaExaaltVE-v0':
+    from exarl.envs.env_vault.ExaExaaltVE import ExaExaaltVE
 elif env == 'ExaCH-v0':
     from exarl.envs.env_vault.ExaCH import CahnHilliardEnv
 elif env == 'ExaCovid-v0':
