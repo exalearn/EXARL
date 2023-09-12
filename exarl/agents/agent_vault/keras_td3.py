@@ -262,7 +262,7 @@ class KerasTD3(exarl.ExaAgent):
         # We make sure action is within bounds
         legal_action = np.clip(sampled_actions, self.lower_bound, self.upper_bound)
 
-        return np.squeeze(legal_action), policy_type
+        return legal_action, policy_type
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.store(state, action, reward, next_state, done)
