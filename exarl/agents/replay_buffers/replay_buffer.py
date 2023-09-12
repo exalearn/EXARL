@@ -50,14 +50,8 @@ class ReplayBuffer(Replay_Base):
             self._preallocate(data)
 
         for slot, item in zip(self._data, data):
-            # print(self._count, self._capacity, len(item), len(slot), type(item), slot.shape, item)
-            if type(item) == type([]):
-                if len(item) == 1:
-                    slot[self._count % self._capacity] = item[0]
-                else:
-                    slot[self._count % self._capacity] = item
-            else:
-                slot[self._count % self._capacity] = item
+            slot[self._count % self._capacity] = item
+
         self._count += 1
 
     def sample(self, batch_size):
