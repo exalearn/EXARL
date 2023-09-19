@@ -48,9 +48,10 @@ class ReplayBuffer(Replay_Base):
         data = (state, action, reward, next_state, done)
         if self._data is None:
             self._preallocate(data)
-        
+
         for slot, item in zip(self._data, data):
             slot[self._count % self._capacity] = item
+
         self._count += 1
 
     def sample(self, batch_size):

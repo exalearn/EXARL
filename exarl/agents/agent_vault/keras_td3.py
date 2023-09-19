@@ -32,8 +32,11 @@ from tensorflow.keras.optimizers import Adam
 
 import exarl
 from exarl.utils.globals import ExaGlobals
-from exarl.agents.agent_vault._replay_buffer import ReplayBuffer
-logger = ExaGlobal.setup_logger(__name__)
+from exarl.agents.replay_buffers.replay_buffer import ReplayBuffer
+logger = ExaGlobals.setup_logger(__name__)
+
+from exarl.agents.models.tf_model import Tensorflow_Model
+from copy import deepcopy
 
 class KerasTD3(exarl.ExaAgent):
 
@@ -56,12 +59,7 @@ class KerasTD3(exarl.ExaAgent):
         self.buffer_counter = 0
         self.buffer_capacity = ExaGlobals.lookup_params('buffer_capacity')
         self.batch_size = ExaGlobals.lookup_params('batch_size')
-        self.memory = ReplayBuffer(self.buffer_capacity, self.num_states, self.num_actions)
-        # self.state_buffer = np.zeros((self.buffer_capacity, self.num_states))
-        # self.action_buffer = np.zeros((self.buffer_capacity, self.num_actions))
-        # self.reward_buffer = np.zeros((self.buffer_capacity, 1))
-        # self.next_state_buffer = np.zeros((self.buffer_capacity, self.num_states))
-        # self.done_buffer = np.zeros((self.buffer_capacity, 1))
+        self.memory = ReplayBuffer(self.buffer_capacity, env.observation_space, env.action_space)
         self.per_buffer = np.ones((self.buffer_capacity, 1))
 
         # Used to update target networks
@@ -78,30 +76,47 @@ class KerasTD3(exarl.ExaAgent):
         self.hidden_size = 56
         self.layer_std = 1.0 / np.sqrt(float(self.hidden_size))
 
-        # Setup models
-        self.actor_model = self.get_actor()
-        self.target_actor = self.get_actor()
-        self.target_actor.set_weights(self.actor_model.get_weights())
+        # # Setup models
+        self.actor  = Tensorflow_Model.create("Actor",
+                                              observation_space=env.observation_space,
+                                              action_space=env.action_space,
+                                              use_gpu=self.is_learner)
+        self.critic1 = Tensorflow_Model.create("Critic",
+                                              observation_space=env.observation_space,
+                                              action_space=env.action_space,
+                                              use_gpu=self.is_learner)
+        self.critic2 = Tensorflow_Model.create("Critic",
+                                              observation_space=env.observation_space,
+                                              action_space=env.action_space,
+                                              use_gpu=self.is_learner)
+        self.target_actor   = deepcopy(self.actor)
+        self.target_critic1 = deepcopy(self.critic1)
+        self.target_critic2 = deepcopy(self.critic2)
 
-        tf.random.set_seed(1)
-        self.critic_model1 = self.get_critic()
-        self.target_critic1 = self.get_critic()
-        self.target_critic1.set_weights(self.critic_model1.get_weights())
+        self.actor.init_model()
+        self.critic1.init_model()
+        self.critic2.init_model()
+        self.actor.print()
+        self.critic1.print()
+        self.target_actor.init_model()
+        self.target_critic1.init_model()
+        self.target_critic2.init_model()
 
-        tf.random.set_seed(1234)
-        self.critic_model2 = self.get_critic()
-        self.target_critic2 = self.get_critic()
-        self.target_critic2.set_weights(self.critic_model2.get_weights())
+        self.target_actor.set_weights(self.actor.get_weights())
+        self.target_critic1.set_weights(self.critic1.get_weights())
+        self.target_critic2.set_weights(self.critic2.get_weights())
+
 
         # update counting
         self.ntrain_calls = 0
         self.actor_update_freq = 2
-        self.critic_update_freq = 2
+        self.critic_update_freq = 1
+        self.target_update_freq = 2
 
         # Not used by agent but required by the learner class
-        self.epsilon = ExaGlobals.lookup_params('epsilon')
-        self.epsilon_min = ExaGlobals.lookup_params('epsilon_min')
-        self.epsilon_decay = ExaGlobals.lookup_params('epsilon_decay')
+        # self.epsilon = ExaGlobals.lookup_params('epsilon')
+        # self.epsilon_min = ExaGlobals.lookup_params('epsilon_min')
+        # self.epsilon_decay = ExaGlobals.lookup_params('epsilon_decay')
 
         logger().info("TD3 buffer capacity {}".format(self.buffer_capacity))
         logger().info("TD3 batch size {}".format(self.batch_size))
@@ -111,7 +126,7 @@ class KerasTD3(exarl.ExaAgent):
         logger().info("TD3 actor_lr {}".format(actor_lr))
 
     @tf.function
-    def train_critic(self, states, actions, rewards, next_states):
+    def train_critic(self, states, actions, rewards, next_states, dones):
         next_actions = self.target_actor(next_states, training=False)
         # Add a little noise
         noise = np.random.normal(0, 0.2, self.num_actions)
@@ -121,41 +136,41 @@ class KerasTD3(exarl.ExaAgent):
         new_q2 = self.target_critic2([next_states, next_actions], training=False)
         new_q = tf.math.minimum(new_q1, new_q2)
         # Bellman equation for the q value
-        q_targets = rewards + self.gamma * new_q
+        q_targets = rewards + (1.0 - dones[:,None]) * self.gamma * new_q
         # Critic 1
         with tf.GradientTape() as tape:
-            q_values1 = self.critic_model1([states, actions], training=True)
+            q_values1 = self.critic1([states, actions], training=True)
             td_errors1 = q_values1 - q_targets
             critic_loss1 = tf.reduce_mean(tf.math.square(td_errors1))
-        gradient1 = tape.gradient(critic_loss1, self.critic_model1.trainable_variables)
-        self.critic_optimizer1.apply_gradients(zip(gradient1, self.critic_model1.trainable_variables))
+        gradient1 = tape.gradient(critic_loss1, self.critic1.trainable_variables)
+        self.critic1.optimizer.apply_gradients(zip(gradient1, self.critic1.trainable_variables))
 
         # Critic 2
         with tf.GradientTape() as tape:
-            q_values2 = self.critic_model2([states, actions], training=True)
+            q_values2 = self.critic2([states, actions], training=True)
             td_errors2 = q_values2 - q_targets
             critic_loss2 = tf.reduce_mean(tf.math.square(td_errors2))
-        gradient2 = tape.gradient(critic_loss2, self.critic_model2.trainable_variables)
-        self.critic_optimizer2.apply_gradients(zip(gradient2, self.critic_model2.trainable_variables))
+        gradient2 = tape.gradient(critic_loss2, self.critic2.trainable_variables)
+        self.critic2.optimizer.apply_gradients(zip(gradient2, self.critic2.trainable_variables))
 
     @tf.function
     def train_actor(self, states):
         # Use Critic 1
         with tf.GradientTape() as tape:
-            actions = self.actor_model(states, training=True)
-            q_value = self.critic_model1([states, actions], training=True)
+            actions = self.actor(states, training=True)
+            q_value = self.critic1([states, actions], training=True)
             loss = -tf.math.reduce_mean(q_value)
-        gradient = tape.gradient(loss, self.actor_model.trainable_variables)
-        self.actor_optimizer.apply_gradients(zip(gradient, self.actor_model.trainable_variables))
+        gradient = tape.gradient(loss, self.actor.trainable_variables)
+        self.actor.optimizer.apply_gradients(zip(gradient, self.actor.trainable_variables))
 
     def get_critic(self):
         # State as input
-        state_input = tf.keras.layers.Input(shape=(self.num_states))
+        state_input = tf.keras.layers.Input(shape=(self.num_states),batch_size = ExaGlobals.lookup_params('batch_size'))
         state_out = tf.keras.layers.Dense(16 * self.num_states, activation="relu")(state_input)
         state_out = tf.keras.layers.Dense(32 * self.num_states, activation="relu")(state_out)
 
         # Action as input
-        action_input = tf.keras.layers.Input(shape=(self.num_actions))
+        action_input = tf.keras.layers.Input(shape=(self.num_actions), batch_size = ExaGlobals.lookup_params('batch_size'))
         action_out = tf.keras.layers.Dense(32 * self.num_actions, activation="relu")(action_input)
 
         # Both are passed through separate layer before concatenating
@@ -173,7 +188,7 @@ class KerasTD3(exarl.ExaAgent):
     def get_actor(self):
 
         # MLP
-        inputs = tf.keras.layers.Input(shape=(self.num_states))
+        inputs = tf.keras.layers.Input(shape=(self.num_states), batch_size = ExaGlobals.lookup_params('batch_size'))
         #
         out = tf.keras.layers.Dense(self.hidden_size,
                                     kernel_initializer=RandomUniform(-self.layer_std, +self.layer_std),
@@ -205,9 +220,11 @@ class KerasTD3(exarl.ExaAgent):
         for (target_weight, weight) in zip(target_weights, weights):
             target_weight.assign(weight * self.tau + target_weight * (1.0 - self.tau))
 
-    def update(self, state_batch, action_batch, reward_batch, next_state_batch):
-        self.train_critic(state_batch, action_batch, reward_batch, next_state_batch)
-        self.train_actor(state_batch)
+    def update(self, state_batch, action_batch, reward_batch, next_state_batch, done_batch):
+        if self.ntrain_calls % self.critic_update_freq == 0:
+            self.train_critic(state_batch, action_batch, reward_batch, next_state_batch, done_batch)
+        if self.ntrain_calls % self.actor_update_freq == 0:
+            self.train_actor(state_batch)
 
     def _convert_to_tensor(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch):
         state_batch = tf.convert_to_tensor(state_batch, dtype=tf.float32)
@@ -219,47 +236,33 @@ class KerasTD3(exarl.ExaAgent):
 
     def generate_data(self):
         state_batch, action_batch, reward_batch, next_state_batch, done_batch = \
-            self._convert_to_tensor(*self.memory.sample_buffer(self.batch_size))
+            self._convert_to_tensor(*self.memory.sample(self.batch_size))
         yield state_batch, action_batch, reward_batch, next_state_batch, done_batch
 
     def train(self, batch):
         """ Method used to train """
         self.ntrain_calls += 1
-        self.update(batch[0], batch[1], batch[2], batch[3])
+        self.update(batch[0], batch[1], batch[2], batch[3], batch[4])
+        self.update_target()
 
     def update_target(self):
-        if self.ntrain_calls % self.actor_update_freq == 0:
-            self.soft_update(self.target_actor.variables, self.actor_model.variables)
-        if self.ntrain_calls % self.critic_update_freq == 0:
-            self.soft_update(self.target_critic1.variables, self.critic_model1.variables)
-            self.soft_update(self.target_critic2.variables, self.critic_model2.variables)
+        if self.ntrain_calls % self.target_update_freq == 0:
+            self.soft_update(self.target_actor.variables, self.actor.variables)
+            self.soft_update(self.target_critic1.variables, self.critic1.variables)
+            self.soft_update(self.target_critic2.variables, self.critic2.variables)
 
     def action(self, state):
         """ Method used to provide the next action using the target model """
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
-        sampled_actions = tf.squeeze(self.actor_model(tf_state))
+        sampled_actions = tf.squeeze(self.actor(tf_state))
         noise = np.random.normal(0, 0.1, self.num_actions)
         sampled_actions = sampled_actions.numpy() * (1 + noise)
         policy_type = 1
 
         # We make sure action is within bounds
         legal_action = np.clip(sampled_actions, self.lower_bound, self.upper_bound)
-        # tf.print("legal_action", legal_action.shape)
 
-        # return [np.squeeze(legal_action)], [np.squeeze(noise)]
-        return [np.squeeze(legal_action)], policy_type
-
-    def memory(self, obs_tuple):
-        # Set index to zero if buffer_capacity is exceeded,
-        # replacing old records
-        index = self.buffer_counter % self.buffer_capacity
-
-        self.state_buffer[index] = obs_tuple[0]
-        self.action_buffer[index] = obs_tuple[1]
-        self.reward_buffer[index] = obs_tuple[2]
-        self.next_state_buffer[index] = obs_tuple[3]
-
-        self.buffer_counter += 1
+        return legal_action, policy_type
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.store(state, action, reward, next_state, done)
@@ -275,3 +278,6 @@ class KerasTD3(exarl.ExaAgent):
 
     def set_weights(self, weights):
         self.target_actor.set_weights(weights)
+
+    def train_return(self, args):
+        pass
