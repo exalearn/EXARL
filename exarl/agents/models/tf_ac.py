@@ -51,7 +51,8 @@ class Actor(Tensorflow_Model):
         for i in range(len(self.actor_dense)):
             layers.append(Dense(self.actor_dense[i], activation=self.actor_dense_act)(layers[-1]))
         layers.append(Dense(1, activation=self.actor_out_act, kernel_initializer=last_init)(layers[-1]))
-        layers.append(Lambda(lambda i: i * self.upper_bound)(layers[-1]))
+        layers.append(Lambda(lambda i: i * (self.upper_bound - self.lower_bound) + self.lower_bound)(layers[-1]))
+        print("Bounds: ",self.upper_bound, self.lower_bound)
         self._model = Model(inputs=layers[0], outputs=layers[-1])
      
 class Critic(Tensorflow_Model):
