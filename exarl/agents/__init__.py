@@ -40,3 +40,8 @@ elif agent == 'TD3-v1':
         id=agent,
         entry_point='exarl.agents.agent_vault:KerasTD3'
     )
+elif agent == 'TD3Softmax-v1':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:KerasTD3Softmax'
+    )

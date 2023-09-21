@@ -12,6 +12,12 @@ if env == 'ExaCH-v0':
         entry_point='exarl.envs.env_vault:CahnHilliardEnv',
     )
 
+elif env == 'ExaExaaltGraphConstrained-v0':
+    register(
+        id=env,
+        entry_point='exarl.envs.env_vault:ExaExaaltGraphConstrained'
+    )
+
 elif env == 'ExaExaaltSimple-v0':
     register(
         id=env,

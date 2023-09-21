@@ -6,6 +6,8 @@ except:
 
 if env == 'ExaCartPoleStatic-v0':
     from exarl.envs.env_vault.ExaCartpoleStatic import ExaCartpoleStatic
+elif env == 'ExaExaaltGraphConstrained-v0':
+    from exarl.envs.env_vault.ExaExaaltGraphConstrained import ExaExaaltGraphConstrained
 elif env == 'ExaExaaltSimple-v0':
     from exarl.envs.env_vault.ExaExaaltSimple import ExaExaaltSimple
 elif env == 'ExaExaaltBayesRL-v0':

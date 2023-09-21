@@ -471,6 +471,8 @@ def get_common_parser(parser):
                         default=argparse.SUPPRESS, type=str,
                         help="set data source url")
 
+    parser.add_argument("--graph_size", default=10, type=int, help="set the experiment unique identifier")
+
     parser.add_argument("--experiment_id", default="EXP000", type=str, help="set the experiment unique identifier")
 
     parser.add_argument("--run_id", default=argparse.SUPPRESS, type=str, help="set the run unique identifier")
