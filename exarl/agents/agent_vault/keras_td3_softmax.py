@@ -87,7 +87,7 @@ class KerasTD3Softmax(exarl.ExaAgent):
         self.layer_std = 1.0 / np.sqrt(float(self.hidden_size))
 
         # # Setup models
-        self.actor  = Tensorflow_Model.create("Actor",
+        self.actor  = Tensorflow_Model.create("ActorSoftmax",
                                               observation_space=env.observation_space,
                                               action_space=env.action_space,
                                               use_gpu=self.is_learner)
@@ -107,7 +107,7 @@ class KerasTD3Softmax(exarl.ExaAgent):
         self.critic1.init_model()
         self.critic2.init_model()
         self.actor.print()
-        self.critic1.print()
+        # self.critic1.print()
         self.target_actor.init_model()
         self.target_critic1.init_model()
         self.target_critic2.init_model()
@@ -139,16 +139,19 @@ class KerasTD3Softmax(exarl.ExaAgent):
     def train_critic(self, states, actions, rewards, next_states, dones):
         next_actions = self.target_actor(next_states, training=False)
         # Add a little noise
-        noise = np.random.normal(0, 0.1, self.num_actions)
+        noise = np.random.normal(0, 0.1, next_actions.shape)
         noise = np.clip(noise, -0.5, 0.5)
-        next_actions = tf.nn.softmax(next_actions * (1 + noise))
+        #### next_actions = tf.nn.softmax(next_actions * (1 + noise))
+        next_actions = next_actions * (1 + noise)
+        next_actions = tf.clip_by_value(next_actions, 0, 1.0)
+        next_actions = (next_actions + 1.e-10) / tf.math.reduce_sum(next_actions + 1.e-10)
         new_q1 = self.target_critic1([next_states, next_actions], training=False)
         new_q2 = self.target_critic2([next_states, next_actions], training=False)
         new_q = tf.math.minimum(new_q1, new_q2)
         # Bellman equation for the q value
         q_targets = rewards + (1.0 - dones[:,None]) * self.gamma * new_q
 
-        actions = tf.nn.softmax(actions)
+        #### actions = tf.nn.softmax(actions)
         # Critic 1
         with tf.GradientTape() as tape:
             q_values1 = self.critic1([states, actions], training=True)
@@ -170,7 +173,7 @@ class KerasTD3Softmax(exarl.ExaAgent):
         # Use Critic 1
         with tf.GradientTape() as tape:
             actions = self.actor(states, training=True)
-            actions = tf.nn.softmax(actions)
+            #### actions = tf.nn.softmax(actions)
             q_value = self.critic1([states, actions], training=True)
             loss = -tf.math.reduce_mean(q_value)
         gradient = tape.gradient(loss, self.actor.trainable_variables)
@@ -268,13 +271,14 @@ class KerasTD3Softmax(exarl.ExaAgent):
         """ Method used to provide the next action using the target model """
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
         sampled_actions = tf.squeeze(self.actor(tf_state))
-        noise = np.random.normal(0, 0.1, self.num_actions)
+        noise = np.random.normal(0, 0.1, sampled_actions.shape)
         sampled_actions = sampled_actions.numpy() * (1 + noise) + noise*1.e-2
         policy_type = 1
 
         # We make sure action is within bounds
-        legal_action = np.clip(sampled_actions, self.lower_bound, self.upper_bound)
-        legal_action = softmax(sampled_actions) 
+        legal_action = np.clip(sampled_actions, 0., 1.)
+        legal_action = (legal_action + 1.e-10) / np.sum(legal_action + 1.e-10)
+        # legal_action = softmax(sampled_actions) 
 
         return legal_action, policy_type
 

@@ -20,7 +20,7 @@
 #                    under Contract DE-AC05-76RL01830
 import tensorflow as tf
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Dense, Input, Concatenate, Lambda
+from tensorflow.keras.layers import Dense, Input, Concatenate, Lambda, Softmax
 from gym.spaces.utils import flatdim
 from exarl.agents.models.tf_model import Tensorflow_Model
 from exarl.utils.globals import ExaGlobals
@@ -51,7 +51,8 @@ class ActorSoftmax(Tensorflow_Model):
         layers.append(Input(shape=(flatdim(self.observation_space),), batch_size=self.batch_size))
         for i in range(len(self.actor_dense)):
             layers.append(Dense(self.actor_dense[i], activation=self.actor_dense_act)(layers[-1]))
-        layers.append(Dense(self.n_actions, activation="softmax", kernel_initializer=last_init)(layers[-1]))
+        layers.append(Dense(self.n_actions, kernel_initializer=last_init)(layers[-1]))
+        layers.append(Softmax()(layers[-1]))
         self._model = Model(inputs=layers[0], outputs=layers[-1])
      
 class Critic(Tensorflow_Model):

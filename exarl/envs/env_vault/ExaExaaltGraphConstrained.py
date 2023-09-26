@@ -111,7 +111,8 @@ def get_graph_adj(knownStates, state, database):
                 dat_pos = jj+graph_size
                 adj_mat[ii,dat_pos] = 1 if database[row_key].count(col_key) > 0 else 0
 
-    return np.ones_like(adj_mat).flatten(), inc_keys
+    return adj_mat.flatten(), inc_keys
+    # return np.ones_like(adj_mat).flatten(), inc_keys
 
 def VE(traj, knownStates, database, nWorkers, d_prior):
     print('running VE... '+str(len(knownStates.keys()))+' states discovered')
@@ -232,8 +233,8 @@ class ExaExaaltGraphConstrained(gym.Env):
         self.adj_states = np.zeros(self.graph_len, dtype=int)
         self.adj_states[0] = self.INITIAL_STATE                       
 
-        # self.action_space  = gym.spaces.Box(low=0.0, high=1.0,    shape=(self.graph_len,), dtype=np.float32)
-        self.action_space  = gym.spaces.Box(low=-10.0, high=10.0,    shape=(self.graph_len,), dtype=np.float32)
+        self.action_space  = gym.spaces.Box(low=0.0, high=1.0,    shape=(self.graph_len,), dtype=np.float32)
+        # self.action_space  = gym.spaces.Box(low=-10.0, high=10.0,    shape=(self.graph_len,), dtype=np.float32)
         self.adj_space     = gym.spaces.Box(low=0.0, high=np.inf, shape=(graph_size, graph_size*2))
         
         # Position of the final trajectory
@@ -309,14 +310,16 @@ class ExaExaaltGraphConstrained(gym.Env):
         # self.reward =  ((self.RUN_TIME-self.WCT)/self.RUN_TIME)*(added/self.nWorkers)
         # self.reward = added/self.nWorkers
 
-        # if (self.WCT >= self.RUN_TIME):
-        #     self.reward = (len(self.traj)-1)/float(self.WCT*self.nWorkers) 
-        #     done = True
+        self.reward = 0
+        if (self.WCT >= self.RUN_TIME):
+            self.reward = (len(self.traj)-1)/float(self.WCT*self.nWorkers) 
+            done = True
 
         """ Iterates the testing process forward one step """
 
         # self.reward = 0.5*(len(self.traj)-1)/float(self.WCT*self.nWorkers) + 0.5*(added/self.nWorkers)
-        self.reward = 10*action[0]
+        # self.reward = 10*action_p[0]
+        # self.reward = 10*action[0]
         # self.reward = (len(self.traj)-1)/float(self.WCT*self.nWorkers)
         current_state = self.traj[-1]
         adj_mat, inc_keys = self.generate_data()
@@ -325,8 +328,7 @@ class ExaExaaltGraphConstrained(gym.Env):
 
         info = None
         
-        print("Action: ", action_p)
-        print("Step: ", self.WCT, " Reward: ", self.reward, " ", done, " Added: ", added)
+        print("Step: ", self.WCT, " Reward: ", self.reward, " ", done, " Added: ", added, " Action[0]: ", action[:3])
         # self.render(taskList,starting_state,current_state)
         return next_state[0], self.reward, done, info
 
@@ -353,12 +355,13 @@ class ExaExaaltGraphConstrained(gym.Env):
 
         state_tuple = (adj_mat, self.traj[-1], self.knownStates)
         return state_tuple[0].flatten()# , {} # Return new state
+        # return np.ones_like(state_tuple[0]).flatten()# , {} # Return new state
 
     def render(self, taskList, start_state, end_state):
         """ Not relevant here but left for template convenience """
         database_matrix = np.zeros([100,100])
         schedule_matrix = np.zeros([100,100])
-        fig, ax = plt.subplots(1,2,figsize=(8,16), dpi=250)
+        fig, ax = plt.subplots(1,2,figsize=(16,8), dpi=250)
 
         for ii in range(100):
             for jj in range(100):
