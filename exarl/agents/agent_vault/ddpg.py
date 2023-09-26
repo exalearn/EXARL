@@ -56,7 +56,7 @@ class DDPG(exarl.ExaAgent):
         self.batch_size = ExaGlobals.lookup_params('batch_size')
 
         # Ornstein-Uhlenbeck process
-        self.ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=np.array([0.2]))
+        self.ou_noise = OUActionNoise(mean=np.zeros(env.action_space.shape), std_deviation=np.array([0.2]))
 
         # Experience data
         self._replay = Buffer.create(observation_space=env.observation_space, action_space=env.action_space)
