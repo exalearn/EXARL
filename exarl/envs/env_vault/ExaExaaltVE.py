@@ -286,7 +286,7 @@ class ExaExaaltVE(gym.Env):
         info = None
         print(reward, " ", done)
         self.render(taskList,starting_state,current_state)
-        return next_state, reward, done, info
+        return next_state, reward, done, False, info
 
     def reset(self):
         """ Start environment over """
@@ -301,7 +301,7 @@ class ExaExaaltVE(gym.Env):
         self.database[self.INITIAL_STATE]    = []
         self.traj.append(self.INITIAL_STATE)
 
-        return self.generate_data() # Return new state
+        return self.generate_data(), {} # Return new state
 
     def render(self, taskList, start_state, end_state):
         """ Not relevant here but left for template convenience """

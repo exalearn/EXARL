@@ -330,7 +330,7 @@ class ExaExaaltGraphConstrained(gym.Env):
         
         print("Step: ", self.WCT, " Reward: ", self.reward, " ", done, " Added: ", added, " Action[0]: ", action[:3])
         # self.render(taskList,starting_state,current_state)
-        return next_state[0], self.reward, done, info
+        return next_state[0], self.reward, done, False, info
 
     def reset(self):
         """ Start environment over """
@@ -354,8 +354,8 @@ class ExaExaaltGraphConstrained(gym.Env):
         adj_mat, inc_keys = self.generate_data()
 
         state_tuple = (adj_mat, self.traj[-1], self.knownStates)
-        return state_tuple[0].flatten()# , {} # Return new state
-        # return np.ones_like(state_tuple[0]).flatten()# , {} # Return new state
+        return state_tuple[0].flatten(), {} # Return new state
+        # return np.ones_like(state_tuple[0]).flatten(), {} # Return new state
 
     def render(self, taskList, start_state, end_state):
         """ Not relevant here but left for template convenience """
