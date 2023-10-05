@@ -26,9 +26,10 @@ class ReplayBuffer(Replay_Base):
                                action_space.sample(), 
                                [0.0], 
                                observation_space.sample(), 
-                               False))
+                               False,
+                               {}))
 
-    def store(self, state, action, reward, next_state, done):
+    def store(self, state, action, reward, next_state, done, info):
         """
         Stores data in buffer.  Allocates data if uninitialized.
 
@@ -44,8 +45,10 @@ class ReplayBuffer(Replay_Base):
             State after action
         done : bool
             If state is terminal
+        info : dict
+            Dictionary of auxiliary information given by environment
         """
-        data = (state, action, reward, next_state, done)
+        data = (state, action, reward, next_state, done, info)
         if self._data is None:
             self._preallocate(data)
 

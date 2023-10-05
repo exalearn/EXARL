@@ -134,6 +134,10 @@ class SYNC(exarl.ExaWorkflow):
         This is the current state of an environment for
         a given actor.
 
+    info :
+        This is the current info of an environment for
+        a given actor.
+
     model_count : int
         This is the current generation of the model.  This counter
         is set on the learner.  It is up to the send/recv to
@@ -439,7 +443,7 @@ class SYNC(exarl.ExaWorkflow):
             self.total_reward = 0
             self.steps = 0
             self.done = False
-            self.current_state = exalearner.env.reset()
+            self.current_state, self.info = exalearner.env.reset()
 
     def init_learner(self, exalearner):
         """
@@ -675,7 +679,7 @@ class SYNC(exarl.ExaWorkflow):
 
                 # Broadcast action and do step (5 and 6)
                 action = ExaComm.env_comm.bcast(action, root=0)
-                next_state, reward, self.done, _ = exalearner.env.step(action)
+                next_state, reward, self.done, _, self.info = exalearner.env.step(action)
                 self.steps += 1
 
                 # Clip rewards if specified in configuration
@@ -684,7 +688,7 @@ class SYNC(exarl.ExaWorkflow):
 
                 # Record experience (7)
                 if ExaComm.env_comm.rank == 0:
-                    exalearner.agent.remember(self.current_state, action, reward, next_state, self.done)
+                    exalearner.agent.remember(self.current_state, action, reward, next_state, self.done, self.info)
                     self.total_reward += reward
 
                 # Check number of steps and broadcast (8)

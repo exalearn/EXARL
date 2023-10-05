@@ -70,7 +70,7 @@ class A2C(erl.ExaAgent):
         action = dist.sample()
         return int(action.numpy()[0]), 1
 
-    def remember(self, state, action, reward, next_state, done):
+    def remember(self, state, action, reward, next_state, done, info):
         self.state_memory.append(state)
         self.action_memory.append(action)
         self.reward_memory.append(reward)

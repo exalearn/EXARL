@@ -7,7 +7,7 @@
     "epsilon" : 0.05,
     "seed" : 42,
     "learning_rate" : 1e-3,
-    "buffer" : "ReplayBuffer",
+    "buffer" : "PrioritizedReplayBuffer",
     "buffer_capacity" : 10000,
     "buffer_trajectory_length" : 8
 }
