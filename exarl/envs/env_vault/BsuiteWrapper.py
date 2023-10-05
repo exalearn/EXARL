@@ -74,12 +74,12 @@ class BsuiteWrapper(gym.Env):
         next_state = timestep.observation
         reward = timestep.reward
         done = timestep.step_type.last()
-        return next_state, reward, done, {}
+        return next_state, reward, done, False, {}
 
     def reset(self) -> np.ndarray:
         timestep = self.raw_env.reset()
         self._track(timestep)
-        return timestep.observation
+        return timestep.observation, {}
 
     def _track(self, timestep):
         # Count transitions only.

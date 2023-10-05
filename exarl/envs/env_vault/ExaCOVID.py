@@ -188,7 +188,7 @@ class ExaCOVID(gym.Env):
         ##
         if self.steps > 1:
             self.render()
-        return next_state, reward, done, info
+        return next_state, reward, done, False, info
 
     def reset(self):
         self.episodes += 1
@@ -213,7 +213,7 @@ class ExaCOVID(gym.Env):
         next_state = np.array([self.result.y[key][-1][-1] for key in self.state_variables])
         next_state /= self.total_population
 
-        return next_state
+        return next_state, {}
 
     def render(self):
         import matplotlib.pyplot as plt

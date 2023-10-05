@@ -90,13 +90,13 @@ class EnvGenerator:
                     self.state = self.observation_space.sample()
                     self.step_index += 1
                 done = self.step_index == self.max_steps
-                return self.state, 1, done, {}
+                return self.state, 1, done, False, {}
 
             def reset(self):
                 if reset_flag:
                     self.state = self.initial_state[self.seed]
                     self.seed = (self.seed + 1) % self.num_seeds
-                return self.state
+                return self.state, {}
 
         return envTester
 

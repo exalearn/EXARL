@@ -69,7 +69,7 @@ class ExaCartpoleStatic(gym.Env):
         # if self.env_comm.rank == 0:
         #     print(PI)  # Print PI for verification
 
-        return next_state, reward, done, info
+        return next_state, reward, done, False, info
 
     def reset(self):
         # self.env._max_episode_steps=self._max_episode_steps

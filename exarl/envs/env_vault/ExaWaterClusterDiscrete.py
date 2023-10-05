@@ -419,7 +419,7 @@ class ExaWaterClusterDiscrete(gym.Env):
 
         logger().debug('Reward:{}'.format(reward))
         logger().debug('Energy:{}'.format(energy))
-        return self.current_state, reward, done, {}
+        return self.current_state, reward, done, False, {}
 
     def reset(self):
         logger().info("Resetting the environemnts.")
@@ -438,7 +438,7 @@ class ExaWaterClusterDiscrete(gym.Env):
         self.current_energy = self.initial_energy
         self.current_state = state_embedding
         logger().debug('self.current_state shape:{}'.format(self.current_state.shape))
-        return self.current_state
+        return self.current_state, {}
 
     def render(self, mode='human'):
         return 0
