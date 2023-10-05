@@ -332,7 +332,7 @@ class ExaBooster_v2(gym.Env):
         if self.episodes % 100 == 0:  # so over this rendering...
             self.render()
         reward_list = [np.asscalar(reward), np.asscalar(rach_reward), np.asscalar(data_reward)]
-        return self.state[0, :, -1:].flatten(), reward_list[0], done, {}
+        return self.state[0, :, -1:].flatten(), reward_list[0], done, False, {}
 
     def reset(self):
         self.episodes += 1
@@ -364,7 +364,7 @@ class ExaBooster_v2(gym.Env):
         logger.debug('Normed VIMIN:{}'.format(self.VIMIN))
         logger.debug('B:VIMIN:{}'.format(unscale(self.variables[0], np.array([self.VIMIN]), self.scale_dict).reshape(1, -1)))
 
-        return self.state[0, :, -1:].flatten()
+        return self.state[0, :, -1:].flatten(), {}
 
     def render(self):
         plt.rcParams['axes.titlesize'] = 18

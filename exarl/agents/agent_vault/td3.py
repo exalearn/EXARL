@@ -131,9 +131,9 @@ class TD3(exarl.ExaAgent):
         np.random.seed(0)
         tf.random.set_seed(0)
 
-    def remember(self, state, action, reward, next_state, done):
+    def remember(self, state, action, reward, next_state, done, info):
         # If the counter exceeds the capacity then
-        self.memory.store(state, action, reward, next_state, done)
+        self.memory.store(state, action, reward, next_state, done, info)
 
     # @tf.function
     # Just a hack for now:

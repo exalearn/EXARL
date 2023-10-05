@@ -45,14 +45,15 @@ class PrioritizedReplayBuffer(Replay_Base):
                                action_space.sample(), 
                                0.0, 
                                observation_space.sample(), 
-                               False))
+                               False, 
+                               {}))
 
     def _preallocate(self, items):
         super()._preallocate(items)
         # JS: Tuple is (priority, probability, weight, index)
         self._meta = [[0,0,0,i] for i in range(self._capacity)]
 
-    def store(self, state, action, reward, next_state, done):
+    def store(self, state, action, reward, next_state, done, info):
         """
         Stores data in buffer.  Allocates data if uninitialized.
 
@@ -68,8 +69,10 @@ class PrioritizedReplayBuffer(Replay_Base):
             State after action
         done : bool
             If state is terminal
+        info : dict
+            Dictionary of auxiliary information given by environment
         """
-        data = (state, action, reward, next_state, done)
+        data = (state, action, reward, next_state, done, info)
         if self._data is None:
             self._preallocate(data)
         

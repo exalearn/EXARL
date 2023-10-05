@@ -75,8 +75,14 @@ class DDPG(exarl.ExaAgent):
                                               observation_space=env.observation_space, 
                                               action_space=env.action_space, 
                                               use_gpu=self.is_learner)
-        self.target_actor = deepcopy(self.actor)
-        self.target_critic = deepcopy(self.critic)
+        self.target_actor = Tensorflow_Model.create("Actor", 
+                                              observation_space=env.observation_space, 
+                                              action_space=env.action_space, 
+                                              use_gpu=self.is_learner)
+        self.target_critic = Tensorflow_Model.create("Critic", 
+                                              observation_space=env.observation_space, 
+                                              action_space=env.action_space, 
+                                              use_gpu=self.is_learner)
         
         self.actor.init_model()
         self.critic.init_model()
@@ -110,8 +116,8 @@ class DDPG(exarl.ExaAgent):
         legal_action = np.clip(sampled_actions_wn, self.lower_bound, self.upper_bound)
         return legal_action, 0
 
-    def remember(self, state, action, reward, next_state, done):
-        self._replay.store(state, action, reward, next_state, done)
+    def remember(self, state, action, reward, next_state, done, info):
+        self._replay.store(state, action, reward, next_state, done, info)
 
     def has_data(self):
         """

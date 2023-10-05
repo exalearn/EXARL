@@ -185,7 +185,7 @@ class CahnHilliardEnv(gym.Env):
 
         state = []
         state = np.append([self.T], self.currStructVec)
-        return state
+        return state, {}
 
     # set the target state
     def setTargetState(self):
@@ -289,7 +289,7 @@ class CahnHilliardEnv(gym.Env):
 
         # print("Reward: ", reward)
 
-        return state, reward, self.isTerminalState(), items
+        return state, reward, self.isTerminalState(), False, items
 
     # whether or not this state is the terminal state
     # if the difference of each component is less than 0.0001 of the range of each compoenent,

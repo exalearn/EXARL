@@ -108,9 +108,9 @@ class DQN(exarl.ExaAgent):
         action = self._rng.choice(np.flatnonzero(q_values == q_values.max()))
         return int(action), 0
 
-    def remember(self, state, action, reward, next_state, done):
+    def remember(self, state, action, reward, next_state, done, info):
         # JS: discount = 0.0 if done else 1.0
-        self._replay.store(state, action, reward, next_state, done)
+        self._replay.store(state, action, reward, next_state, done, info)
         self._steps_since_generate_data += 1
 
     def has_data(self):

@@ -96,9 +96,18 @@ class KerasTD3(exarl.ExaAgent):
                                               observation_space=env.observation_space,
                                               action_space=env.action_space,
                                               use_gpu=self.is_learner)
-        self.target_actor   = deepcopy(self.actor)
-        self.target_critic1 = deepcopy(self.critic1)
-        self.target_critic2 = deepcopy(self.critic2)
+        self.target_actor  = Tensorflow_Model.create("Actor",
+                                              observation_space=env.observation_space,
+                                              action_space=env.action_space,
+                                              use_gpu=self.is_learner)
+        self.target_critic1 = Tensorflow_Model.create("Critic",
+                                              observation_space=env.observation_space,
+                                              action_space=env.action_space,
+                                              use_gpu=self.is_learner)
+        self.target_critic2 = Tensorflow_Model.create("Critic",
+                                              observation_space=env.observation_space,
+                                              action_space=env.action_space,
+                                              use_gpu=self.is_learner)
 
         self.actor.init_model()
         self.critic1.init_model()
@@ -233,18 +242,18 @@ class KerasTD3(exarl.ExaAgent):
         if self.ntrain_calls % self.actor_update_freq == 0:
             self.train_actor(state_batch)
 
-    def _convert_to_tensor(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch):
-        state_batch = tf.convert_to_tensor(state_batch, dtype=tf.float32)
-        action_batch = tf.convert_to_tensor(action_batch, dtype=tf.float32)
-        reward_batch = tf.convert_to_tensor(reward_batch, dtype=tf.float32)
+    def _convert_to_tensor(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, info_batch):
+        state_batch      = tf.convert_to_tensor(state_batch, dtype=tf.float32)
+        action_batch     = tf.convert_to_tensor(action_batch, dtype=tf.float32)
+        reward_batch     = tf.convert_to_tensor(reward_batch, dtype=tf.float32)
         next_state_batch = tf.convert_to_tensor(next_state_batch, dtype=tf.float32)
-        terminal_batch = tf.convert_to_tensor(terminal_batch, dtype=tf.float32)
-        return state_batch, action_batch, reward_batch, next_state_batch, terminal_batch
+        terminal_batch   = tf.convert_to_tensor(terminal_batch, dtype=tf.float32)
+        return state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, info_batch
 
     def generate_data(self):
-        state_batch, action_batch, reward_batch, next_state_batch, done_batch = \
+        state_batch, action_batch, reward_batch, next_state_batch, done_batch, info_batch = \
             self._convert_to_tensor(*self.memory.sample(self.batch_size))
-        yield state_batch, action_batch, reward_batch, next_state_batch, done_batch
+        yield state_batch, action_batch, reward_batch, next_state_batch, done_batch, info_batch
 
     def train(self, batch):
         """ Method used to train """
@@ -271,8 +280,8 @@ class KerasTD3(exarl.ExaAgent):
 
         return legal_action, policy_type
 
-    def remember(self, state, action, reward, next_state, done):
-        self.memory.store(state, action, reward, next_state, done)
+    def remember(self, state, action, reward, next_state, done, info):
+        self.memory.store(state, action, reward, next_state, done, info)
 
     def has_data(self):
         """return true if agent has experiences from simulation
