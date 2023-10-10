@@ -202,7 +202,7 @@ class ExaExaaltSimple(gym.Env):
         # self.action_space      = gym.spaces.Box(np.zeros(self.n_states), np.ones(self.n_states))
         # self.observation_space = gym.spaces.Box(np.zeros(self.n_states), np.ones(self.n_states))
 
-        self.action_space      = gym.spaces.Box(np.zeros(2), np.array([100.,100.]))
+        self.action_space      = gym.spaces.Box(np.array([0., -100.]), np.array([100.,50.]))
         self.observation_space = gym.spaces.Box(low=np.array([0., 0.]),high=np.array([1., 1.]))
 
     def crankModel(self):
@@ -335,13 +335,13 @@ class ExaExaaltSimple(gym.Env):
         """ Iterates the testing process forward one step """
 
         # reward        = len(self.traj)/float(self.WCT*self.nWorkers) # - np.sum(action)/1000.
-        reward = action[0] # - action[1]
+        reward = 2.0*action[0] - action[1]
         current_state = self.traj[-1]
 
         next_state = self.generate_data()
        
         info = None
-        # print("Action, Rewards, Done: ",action, reward, " ", done)
+        print("Action, Rewards, Done: ",action, reward, " ", done)
         return next_state, reward, done, False, info
 
     def reset(self):

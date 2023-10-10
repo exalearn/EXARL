@@ -68,10 +68,15 @@ def DS(traj, knownStates, nWorkers, d_prior):
     d_alpha    = np.array([ prior_p[graph_dist[key]] for key in knownStates.keys() ])
     count_num  = np.array([knownStates[state].counts[x] if x in knownStates[state].counts.keys() else 0 for x in knownStates.keys()])
     step_alpha = count_num + d_alpha
+    
+    state_ind  = np.where([state == x for x in knownStates.keys()])[0][0]
+    
     if len(count_num) == 1:
         sample_p = [1.]
     else:
         sample_p   = dirichlet_draw(count_num + d_alpha)
+    
+    print(d_alpha[state_ind], sample_p[state_ind], count_num[state_ind])
     try:
         taskList  = np.random.choice(list(knownStates.keys()),p=sample_p, size=nWorkers)
     except:
@@ -245,7 +250,7 @@ class ExaExaaltBayesRLSparse(gym.Env):
         # self.action_space      = gym.spaces.Box(np.zeros(self.n_states), np.ones(self.n_states))
         # self.observation_space = gym.spaces.Box(np.zeros(self.n_states), np.ones(self.n_states))
 
-        self.action_space      = gym.spaces.Box(np.zeros(6), np.array([10.,10.,10.,10.,10.,10.]))
+        self.action_space      = gym.spaces.Box(np.zeros(6), 10*np.array([10.,10.,10.,10.,10.,10.]))
         self.observation_space = gym.spaces.Box(low=np.array([0.,0.]),high=np.array([np.inf,np.inf]))
 
     def crankModel(self):
@@ -380,16 +385,19 @@ class ExaExaaltBayesRLSparse(gym.Env):
         """ Iterates the testing process forward one step """
 
         if done:
-            reward = len(self.traj)/float(self.WCT*self.nWorkers) # - np.sum(action)/1000.
+            reward = (len(self.traj)-1)/float(self.WCT*self.nWorkers) # - np.sum(action)/1000.
         else:
             reward = 0.
+        
         current_state = self.traj[-1]
+
+        # reward = 4*(100. - (action[0] - 50.)**2) - np.sum(action[1:])
 
         next_state = self.generate_data()
        
         info = None
         print(reward, " ", done)
-        self.render(taskList,starting_state,current_state)
+        # self.render(taskList,starting_state,current_state)
         return next_state, reward, done, False, info
 
     def reset(self):
@@ -487,4 +495,4 @@ class ExaExaaltBayesRLSparse(gym.Env):
 
         # self.state_order = np.argsort(prob_dist)[::-1]
         # next_state       = prob_dist[self.state_order]
-        return next_state
+        return np.ones_like(next_state)

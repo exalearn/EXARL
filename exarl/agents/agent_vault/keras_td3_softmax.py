@@ -99,9 +99,18 @@ class KerasTD3Softmax(exarl.ExaAgent):
                                               observation_space=env.observation_space,
                                               action_space=env.action_space,
                                               use_gpu=self.is_learner)
-        self.target_actor   = deepcopy(self.actor)
-        self.target_critic1 = deepcopy(self.critic1)
-        self.target_critic2 = deepcopy(self.critic2)
+        self.target_actor  = Tensorflow_Model.create("ActorSoftmax",
+                                              observation_space=env.observation_space,
+                                              action_space=env.action_space,
+                                              use_gpu=self.is_learner)
+        self.target_critic1 = Tensorflow_Model.create("Critic",
+                                              observation_space=env.observation_space,
+                                              action_space=env.action_space,
+                                              use_gpu=self.is_learner)
+        self.target_critic2 = Tensorflow_Model.create("Critic",
+                                              observation_space=env.observation_space,
+                                              action_space=env.action_space,
+                                              use_gpu=self.is_learner)
 
         self.actor.init_model()
         self.critic1.init_model()
@@ -179,58 +188,6 @@ class KerasTD3Softmax(exarl.ExaAgent):
         gradient = tape.gradient(loss, self.actor.trainable_variables)
         self.actor.optimizer.apply_gradients(zip(gradient, self.actor.trainable_variables))
 
-    def get_critic(self):
-        # State as input
-        state_input = tf.keras.layers.Input(shape=(self.num_states),batch_size = ExaGlobals.lookup_params('batch_size'))
-        state_out = tf.keras.layers.Dense(16 * self.num_states, activation="relu")(state_input)
-        state_out = tf.keras.layers.Dense(32 * self.num_states, activation="relu")(state_out)
-
-        # Action as input
-        action_input = tf.keras.layers.Input(shape=(self.num_actions), batch_size = ExaGlobals.lookup_params('batch_size'))
-        action_out = tf.keras.layers.Dense(32 * self.num_actions, activation="relu")(action_input)
-
-        # Both are passed through separate layer before concatenating
-        concat = tf.keras.layers.Concatenate()([state_out, action_out])
-
-        out = tf.keras.layers.Dense(256, activation="relu")(concat)
-        out = tf.keras.layers.Dense(256, activation="relu")(out)
-        outputs = tf.keras.layers.Dense(1)(out)
-
-        # Outputs single value for give state-action
-        model = tf.keras.Model([state_input, action_input], outputs)
-        model.summary()
-        return model
-
-    def get_actor(self):
-
-        # MLP
-        inputs = tf.keras.layers.Input(shape=(self.num_states), batch_size = ExaGlobals.lookup_params('batch_size'))
-        #
-        out = tf.keras.layers.Dense(self.hidden_size,
-                                    kernel_initializer=RandomUniform(-self.layer_std, +self.layer_std),
-                                    bias_initializer=RandomUniform(-self.layer_std, +self.layer_std))(inputs)
-        out = tf.keras.layers.BatchNormalization()(out)
-        out = tf.keras.layers.Activation(tf.nn.leaky_relu)(out)
-        #
-        out = tf.keras.layers.Dense(self.hidden_size,
-                                    kernel_initializer=RandomUniform(-self.layer_std, +self.layer_std),
-                                    bias_initializer=RandomUniform(-self.layer_std, +self.layer_std))(out)
-        out = tf.keras.layers.BatchNormalization()(out)
-        out = tf.keras.layers.Activation(tf.nn.leaky_relu)(out)
-        #
-        outputs = tf.keras.layers.Dense(self.num_actions, activation="tanh",
-                                        kernel_initializer=RandomUniform(-self.layer_std, +self.layer_std),
-                                        bias_initializer=RandomUniform(-self.layer_std, +self.layer_std),
-                                        use_bias=True)(out)
-
-        # Rescale for tanh [-1,1]
-        outputs = tf.keras.layers.Lambda(
-            lambda x: ((x + 1.0) * (self.upper_bound - self.lower_bound)) / 2.0 + self.lower_bound)(outputs)
-
-        model = tf.keras.Model(inputs, outputs)
-        model.summary()
-        return model
-
     @tf.function
     def soft_update(self, target_weights, weights):
         for (target_weight, weight) in zip(target_weights, weights):
@@ -242,18 +199,18 @@ class KerasTD3Softmax(exarl.ExaAgent):
         if self.ntrain_calls % self.actor_update_freq == 0:
             self.train_actor(state_batch)
 
-    def _convert_to_tensor(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch):
-        state_batch = tf.convert_to_tensor(state_batch, dtype=tf.float32)
-        action_batch = tf.convert_to_tensor(action_batch, dtype=tf.float32)
-        reward_batch = tf.convert_to_tensor(reward_batch, dtype=tf.float32)
+    def _convert_to_tensor(self, state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, info_batch):
+        state_batch      = tf.convert_to_tensor(state_batch, dtype=tf.float32)
+        action_batch     = tf.convert_to_tensor(action_batch, dtype=tf.float32)
+        reward_batch     = tf.convert_to_tensor(reward_batch, dtype=tf.float32)
         next_state_batch = tf.convert_to_tensor(next_state_batch, dtype=tf.float32)
-        terminal_batch = tf.convert_to_tensor(terminal_batch, dtype=tf.float32)
-        return state_batch, action_batch, reward_batch, next_state_batch, terminal_batch
+        terminal_batch   = tf.convert_to_tensor(terminal_batch, dtype=tf.float32)
+        return state_batch, action_batch, reward_batch, next_state_batch, terminal_batch, info_batch
 
     def generate_data(self):
-        state_batch, action_batch, reward_batch, next_state_batch, done_batch = \
+        state_batch, action_batch, reward_batch, next_state_batch, done_batch, info_batch = \
             self._convert_to_tensor(*self.memory.sample(self.batch_size))
-        yield state_batch, action_batch, reward_batch, next_state_batch, done_batch
+        yield state_batch, action_batch, reward_batch, next_state_batch, done_batch, info_batch
 
     def train(self, batch):
         """ Method used to train """
@@ -273,7 +230,7 @@ class KerasTD3Softmax(exarl.ExaAgent):
         sampled_actions = tf.squeeze(self.actor(tf_state))
         noise = np.random.normal(0, 0.1, sampled_actions.shape)
         sampled_actions = sampled_actions.numpy() * (1 + noise) + noise*1.e-2
-        policy_type = 1
+        policy_type = 0
 
         # We make sure action is within bounds
         legal_action = np.clip(sampled_actions, 0., 1.)
@@ -282,8 +239,8 @@ class KerasTD3Softmax(exarl.ExaAgent):
 
         return legal_action, policy_type
 
-    def remember(self, state, action, reward, next_state, done):
-        self.memory.store(state, action, reward, next_state, done)
+    def remember(self, state, action, reward, next_state, done, info):
+        self.memory.store(state, action, reward, next_state, done, info)
 
     def has_data(self):
         """return true if agent has experiences from simulation

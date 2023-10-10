@@ -25,6 +25,11 @@ elif agent == 'DDPG-v0':
         id=agent,
         entry_point='exarl.agents.agent_vault:DDPG'
     )
+elif agent == 'DDPGSoftmax-v0':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:DDPGSoftmax'
+    )
 elif agent == 'DDPG-VTRACE-v0':
     register(
         id=agent,

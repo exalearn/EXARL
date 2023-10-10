@@ -111,8 +111,8 @@ def get_graph_adj(knownStates, state, database):
                 dat_pos = jj+graph_size
                 adj_mat[ii,dat_pos] = 1 if database[row_key].count(col_key) > 0 else 0
 
-    return adj_mat.flatten(), inc_keys
-    # return np.ones_like(adj_mat).flatten(), inc_keys
+    # return adj_mat.flatten(), inc_keys
+    return np.ones_like(adj_mat).flatten(), inc_keys
 
 def VE(traj, knownStates, database, nWorkers, d_prior):
     print('running VE... '+str(len(knownStates.keys()))+' states discovered')
@@ -354,8 +354,8 @@ class ExaExaaltGraphConstrained(gym.Env):
         adj_mat, inc_keys = self.generate_data()
 
         state_tuple = (adj_mat, self.traj[-1], self.knownStates)
-        return state_tuple[0].flatten(), {} # Return new state
-        # return np.ones_like(state_tuple[0]).flatten(), {} # Return new state
+        # return state_tuple[0].flatten(), {} # Return new state
+        return np.ones_like(state_tuple[0]).flatten(), {} # Return new state
 
     def render(self, taskList, start_state, end_state):
         """ Not relevant here but left for template convenience """

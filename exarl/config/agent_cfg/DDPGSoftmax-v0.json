@@ -1,0 +1,7 @@
+{
+    "gamma": 0.99,
+    "tau": 0.005,
+    "batch_size": 64,
+    "buffer": "ReplayBuffer",
+    "buffer_capacity": 50000
+}

@@ -145,7 +145,7 @@ class KerasTD3(exarl.ExaAgent):
     def train_critic(self, states, actions, rewards, next_states, dones):
         next_actions = self.target_actor(next_states, training=False)
         # Add a little noise
-        noise = np.random.normal(0, 0.1, self.num_actions)
+        noise = np.random.normal(0, 0.1, next_actions.shape)
         noise = np.clip(noise, -0.5, 0.5)
         next_actions = next_actions * (1 + noise)
         new_q1 = self.target_critic1([next_states, next_actions], training=False)
@@ -178,58 +178,6 @@ class KerasTD3(exarl.ExaAgent):
             loss = -tf.math.reduce_mean(q_value)
         gradient = tape.gradient(loss, self.actor.trainable_variables)
         self.actor.optimizer.apply_gradients(zip(gradient, self.actor.trainable_variables))
-
-    def get_critic(self):
-        # State as input
-        state_input = tf.keras.layers.Input(shape=(self.num_states),batch_size = ExaGlobals.lookup_params('batch_size'))
-        state_out = tf.keras.layers.Dense(16 * self.num_states, activation="relu")(state_input)
-        state_out = tf.keras.layers.Dense(32 * self.num_states, activation="relu")(state_out)
-
-        # Action as input
-        action_input = tf.keras.layers.Input(shape=(self.num_actions), batch_size = ExaGlobals.lookup_params('batch_size'))
-        action_out = tf.keras.layers.Dense(32 * self.num_actions, activation="relu")(action_input)
-
-        # Both are passed through separate layer before concatenating
-        concat = tf.keras.layers.Concatenate()([state_out, action_out])
-
-        out = tf.keras.layers.Dense(256, activation="relu")(concat)
-        out = tf.keras.layers.Dense(256, activation="relu")(out)
-        outputs = tf.keras.layers.Dense(1)(out)
-
-        # Outputs single value for give state-action
-        model = tf.keras.Model([state_input, action_input], outputs)
-        model.summary()
-        return model
-
-    def get_actor(self):
-
-        # MLP
-        inputs = tf.keras.layers.Input(shape=(self.num_states), batch_size = ExaGlobals.lookup_params('batch_size'))
-        #
-        out = tf.keras.layers.Dense(self.hidden_size,
-                                    kernel_initializer=RandomUniform(-self.layer_std, +self.layer_std),
-                                    bias_initializer=RandomUniform(-self.layer_std, +self.layer_std))(inputs)
-        out = tf.keras.layers.BatchNormalization()(out)
-        out = tf.keras.layers.Activation(tf.nn.leaky_relu)(out)
-        #
-        out = tf.keras.layers.Dense(self.hidden_size,
-                                    kernel_initializer=RandomUniform(-self.layer_std, +self.layer_std),
-                                    bias_initializer=RandomUniform(-self.layer_std, +self.layer_std))(out)
-        out = tf.keras.layers.BatchNormalization()(out)
-        out = tf.keras.layers.Activation(tf.nn.leaky_relu)(out)
-        #
-        outputs = tf.keras.layers.Dense(self.num_actions, activation="tanh",
-                                        kernel_initializer=RandomUniform(-self.layer_std, +self.layer_std),
-                                        bias_initializer=RandomUniform(-self.layer_std, +self.layer_std),
-                                        use_bias=True)(out)
-
-        # Rescale for tanh [-1,1]
-        outputs = tf.keras.layers.Lambda(
-            lambda x: ((x + 1.0) * (self.upper_bound - self.lower_bound)) / 2.0 + self.lower_bound)(outputs)
-
-        model = tf.keras.Model(inputs, outputs)
-        model.summary()
-        return model
 
     @tf.function
     def soft_update(self, target_weights, weights):
@@ -271,7 +219,7 @@ class KerasTD3(exarl.ExaAgent):
         """ Method used to provide the next action using the target model """
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
         sampled_actions = tf.squeeze(self.actor(tf_state))
-        noise = np.random.normal(0, 0.1, self.num_actions)
+        noise = np.random.normal(0, 0.1, sampled_actions.shape)
         sampled_actions = sampled_actions.numpy() * (1 + noise) + noise*1.e-2
         policy_type = 1
 

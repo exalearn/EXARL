@@ -12,6 +12,8 @@ elif agent == 'DQN-v2':
     from exarl.agents.agent_vault.dqn import DQN_v2
 elif agent == 'DDPG-v0':
     from exarl.agents.agent_vault.ddpg import DDPG
+elif agent == 'DDPGSoftmax-v0':
+    from exarl.agents.agent_vault.ddpg_softmax import DDPGSoftmax
 elif agent == 'DDPG-VTRACE-v0':
     from exarl.agents.agent_vault.ddpg_vtrace import DDPG_Vtrace
 elif agent == 'TD3-v0':
