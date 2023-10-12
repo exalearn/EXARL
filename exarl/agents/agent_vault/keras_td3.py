@@ -32,7 +32,7 @@ from tensorflow.keras.optimizers import Adam
 
 import exarl
 from exarl.utils.globals import ExaGlobals
-from exarl.agents.replay_buffers.replay_buffer import ReplayBuffer
+from exarl.agents.replay_buffers.buffer import Buffer
 logger = ExaGlobals.setup_logger(__name__)
 
 from exarl.agents.models.tf_model import Tensorflow_Model
@@ -55,16 +55,15 @@ class KerasTD3(exarl.ExaAgent):
         print('upper_bound: ', self.upper_bound)
         print('lower_bound: ', self.lower_bound)
 
-        # Buffer
-        self.buffer_counter = 0
-        self.buffer_capacity = ExaGlobals.lookup_params('buffer_capacity')
-        self.batch_size = ExaGlobals.lookup_params('batch_size')
-        self.memory = ReplayBuffer(self.buffer_capacity, env.observation_space, env.action_space)
-        self.per_buffer = np.ones((self.buffer_capacity, 1))
-
         # Used to update target networks
         self.tau = ExaGlobals.lookup_params('tau')
         self.gamma = ExaGlobals.lookup_params('gamma')
+
+        # Buffer
+        self.buffer_capacity = ExaGlobals.lookup_params('buffer_capacity')
+        self.batch_size = ExaGlobals.lookup_params('batch_size')
+        self.per_buffer = np.ones((self.buffer_capacity, 1))
+        self.memory = Buffer.create(observation_space=env.observation_space, action_space=env.action_space)
 
         # Setup Optimizers
         critic_lr = ExaGlobals.lookup_params('critic_lr')
@@ -270,7 +269,7 @@ class KerasTD3(exarl.ExaAgent):
     def has_data(self):
         """return true if agent has experiences from simulation
         """
-        return (self.memory._mem_length > 0)
+        return (self.memory.size > 0)
 
     # For distributed actors #
     def get_weights(self):
