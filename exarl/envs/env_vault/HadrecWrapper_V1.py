@@ -31,9 +31,15 @@ class HadrecWrapper_V1(gym.Env):
         self.agent_comm = ExaComm.agent_comm
         self.learner_comm = ExaComm.learner_comm
         # MPI_comm = ExaComm.get_MPI().COMM_WORLD
-        # MPI_comm = ExaComm.env_comm.raw()
+        # if ExaComm.env_comm is None:
+        #     MPI_comm = (ExaComm.get_MPI().COMM_SELF) # This used for AMILES paper/ 
+        # else:
+        #     MPI_comm = ExaComm.env_comm.raw()
+
+        MPI_comm = (ExaComm.get_MPI().COMM_SELF) 
         # MPI_comm = (ExaComm.get_MPI().COMM_WORLD)
-        MPI_comm = (ExaComm.get_MPI().COMM_SELF)
+        
+        # MPI_comm = (ExaComm.get_MPI().COMM_SELF) # This used for AMILES paper/
         # print(MPI_comm)
 
         self.rl_config_file = ExaGlobals.lookup_params('rl_config_file')
@@ -99,4 +105,7 @@ class HadrecWrapper_V1(gym.Env):
 
     def get_base_cases(self):
         return self.env.get_bases_cases()
+    
+    def get_printCaseDetails(self):
+        self.env.get_printCaseDetails()
 

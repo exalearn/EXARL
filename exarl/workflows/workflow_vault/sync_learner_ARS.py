@@ -232,7 +232,7 @@ class SYNC_ARS(exarl.ExaWorkflow):
             self.train_file = open(self.results_dir + '/' + self.filename_prefix + ".log", 'w')
             self.train_writer = csv.writer(self.train_file, delimiter=" ")
             self.data_matrix = []
-    @PROFILE
+    # @PROFILE
     def write_log(self, current_state, action, reward, next_state, total_reward, done, episode, steps, policy_type, epsilon):
         """
         Rank zero writes the input data to the log file.
@@ -687,7 +687,6 @@ class SYNC_ARS(exarl.ExaWorkflow):
                 else:
                     action = [action]
                     action = np.array(action)
-                    print(False)
                 
                 next_state, reward, self.done, _ = exalearner.env.step(action)
                 self.steps += 1
@@ -730,6 +729,9 @@ class SYNC_ARS(exarl.ExaWorkflow):
 
                 if self.done:
                     break
+        
+        if self.total_reward == 0 :
+            exalearner.env.get_printCaseDetails()
         # print(self.steps, ">>>")
         if comm_flag:
             self.actor_send(exalearner,policy_type=policy_type)
