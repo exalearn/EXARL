@@ -128,7 +128,7 @@ class KerasTD3(exarl.ExaAgent):
     def train_critic(self, states, actions, rewards, next_states, dones):
         next_actions = self.target_actor(next_states, training=False)
         # Add a little noise
-        noise = np.random.normal(0, 0.1, self.num_actions)
+        noise = np.random.normal(0, 0.1, next_actions.shape)
         noise = np.clip(noise, -0.5, 0.5)
         next_actions = next_actions * (1 + noise)
         new_q1 = self.target_critic1([next_states, next_actions], training=False)
@@ -254,7 +254,7 @@ class KerasTD3(exarl.ExaAgent):
         """ Method used to provide the next action using the target model """
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
         sampled_actions = tf.squeeze(self.actor(tf_state))
-        noise = np.random.normal(0, 0.1, self.num_actions)
+        noise = np.random.normal(0, 0.1, sampled_actions.shape)
         sampled_actions = sampled_actions.numpy() * (1 + noise) + noise*1.e-2
         policy_type = 1
 
