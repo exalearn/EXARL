@@ -326,7 +326,8 @@ class ExaExaaltGraphConstrained(gym.Env):
         np.put(self.adj_states, np.arange(len(inc_keys)), inc_keys)        
         next_state = (adj_mat, current_state, self.knownStates)
 
-        info = None
+        n_s  = len(inc_keys)
+        info = {"mask":np.concatenate([np.repeat(True,n_s), np.repeat(False, graph_size-n_s)])}
         
         print("Step: ", self.WCT, " Reward: ", self.reward, " ", done, " Added: ", added, " Action[0]: ", action[:3])
         # self.render(taskList,starting_state,current_state)
@@ -355,7 +356,7 @@ class ExaExaaltGraphConstrained(gym.Env):
 
         state_tuple = (adj_mat, self.traj[-1], self.knownStates)
         # return state_tuple[0].flatten(), {} # Return new state
-        return np.ones_like(state_tuple[0]).flatten(), {} # Return new state
+        return np.ones_like(state_tuple[0]).flatten(), {"mask":np.concatenate([np.repeat(True, 1), np.repeat(False, graph_size-1)])} # Return new state
 
     def render(self, taskList, start_state, end_state):
         """ Not relevant here but left for template convenience """

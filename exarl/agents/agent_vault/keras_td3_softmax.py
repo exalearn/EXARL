@@ -145,7 +145,7 @@ class KerasTD3Softmax(exarl.ExaAgent):
         logger().info("TD3 actor_lr {}".format(actor_lr))
 
     @tf.function
-    def train_critic(self, states, actions, rewards, next_states, dones):
+    def train_critic(self, states, actions, rewards, next_states, dones, info):
         next_actions = self.target_actor(next_states, training=False)
         # Add a little noise
         noise = np.random.normal(0, 0.1, next_actions.shape)

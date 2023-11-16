@@ -24,6 +24,8 @@ import gym
 
 NAME = str(np.random.randint(99999)) + str(np.random.randint(99999))
 
+action_space_size = 4
+
 def dirichlet_draw(alphas):
     sample = [np.random.gamma(a, 1) for a in alphas]
     sums   = sum(sample)
@@ -202,7 +204,9 @@ class ExaExaaltSimple(gym.Env):
         # self.action_space      = gym.spaces.Box(np.zeros(self.n_states), np.ones(self.n_states))
         # self.observation_space = gym.spaces.Box(np.zeros(self.n_states), np.ones(self.n_states))
 
-        self.action_space      = gym.spaces.Box(np.array([0., -100.]), np.array([100.,50.]))
+        self.action_space      = gym.spaces.Box(-50*np.ones(action_space_size), 100*np.ones(action_space_size))
+        # self.action_space      = gym.spaces.Box(np.array([0., -100., -50, -50, -50.]), np.array([100.,50., 10, 10.,10.]))
+        # self.action_space      = gym.spaces.Box(np.array([0., -100.]), np.array([100.,50.]))
         self.observation_space = gym.spaces.Box(low=np.array([0., 0.]),high=np.array([1., 1.]))
 
     def crankModel(self):
@@ -335,7 +339,7 @@ class ExaExaaltSimple(gym.Env):
         """ Iterates the testing process forward one step """
 
         # reward        = len(self.traj)/float(self.WCT*self.nWorkers) # - np.sum(action)/1000.
-        reward = 2.0*action[0] - action[1]
+        reward = 2.0*action[0] - np.sum(action[1:])
         current_state = self.traj[-1]
 
         next_state = self.generate_data()
