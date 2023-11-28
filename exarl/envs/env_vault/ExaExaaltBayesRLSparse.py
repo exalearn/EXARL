@@ -114,6 +114,8 @@ def VE(traj, knownStates, database, nWorkers, d_prior):
                 # offset      = np.array([20., 0., 0., 0., 0., 0.])
                 offset      = np.array([0., 0., 0., 0., 0., 0.])
                 prior_p     = d_prior[0] + offset + 1.e-2
+                prior_p[2:] = 0.
+                print(prior_p)
                 graph_dist  = get_graph_dist(knownStates, state)
                 if iii == 0:
                     ret_graph_dist = graph_dist.copy()

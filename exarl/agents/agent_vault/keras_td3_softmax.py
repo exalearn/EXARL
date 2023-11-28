@@ -145,7 +145,8 @@ class KerasTD3Softmax(exarl.ExaAgent):
         logger().info("TD3 actor_lr {}".format(actor_lr))
 
     @tf.function
-    def train_critic(self, states, actions, rewards, next_states, dones, info):
+    # def train_critic(self, states, actions, rewards, next_states, dones, info):
+    def train_critic(self, states, actions, rewards, next_states, dones):
         next_actions = self.target_actor(next_states, training=False)
         # Add a little noise
         noise = np.random.normal(0, 0.1, next_actions.shape)
@@ -193,8 +194,9 @@ class KerasTD3Softmax(exarl.ExaAgent):
         for (target_weight, weight) in zip(target_weights, weights):
             target_weight.assign(weight * self.tau + target_weight * (1.0 - self.tau))
 
-    def update(self, state_batch, action_batch, reward_batch, next_state_batch, done_batch):
+    def update(self, state_batch, action_batch, reward_batch, next_state_batch, done_batch, info_batch):
         if self.ntrain_calls % self.critic_update_freq == 0:
+            # self.train_critic(state_batch, action_batch, reward_batch, next_state_batch, done_batch, info_batch)
             self.train_critic(state_batch, action_batch, reward_batch, next_state_batch, done_batch)
         if self.ntrain_calls % self.actor_update_freq == 0:
             self.train_actor(state_batch)
@@ -215,7 +217,7 @@ class KerasTD3Softmax(exarl.ExaAgent):
     def train(self, batch):
         """ Method used to train """
         self.ntrain_calls += 1
-        self.update(batch[0], batch[1], batch[2], batch[3], batch[4])
+        self.update(batch[0], batch[1], batch[2], batch[3], batch[4], batch[5])
         self.update_target()
 
     def update_target(self):

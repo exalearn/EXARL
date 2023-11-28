@@ -42,7 +42,7 @@ class ActorSoftmax(Tensorflow_Model):
         self.upper_bound = action_space.high
         self.lower_bound = action_space.low
         self.n_actions   = action_space.shape[0]
-        self.mask        = np.repeat(True, self.n_actions)
+        # self.mask        = np.repeat(True, self.n_actions)
 
     def _build(self):
         last_init = tf.random_uniform_initializer()
