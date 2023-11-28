@@ -308,12 +308,12 @@ class ExaExaaltGraphConstrained(gym.Env):
                 taskList.remove(next_state)
                 
         # self.reward =  ((self.RUN_TIME-self.WCT)/self.RUN_TIME)*(added/self.nWorkers)
-        self.reward = added/self.nWorkers
+        # self.reward = added/self.nWorkers
 
-        # self.reward = 0
-        # if (self.WCT >= self.RUN_TIME):
-        #     self.reward = (len(self.traj)-1)/float(self.WCT*self.nWorkers) 
-        #     done = True
+        self.reward = 0
+        if (self.WCT >= self.RUN_TIME):
+            self.reward = (len(self.traj)-1)/float(self.WCT*self.nWorkers) 
+            done = True
 
         """ Iterates the testing process forward one step """
 
