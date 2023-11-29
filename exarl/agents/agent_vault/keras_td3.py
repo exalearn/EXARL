@@ -37,7 +37,6 @@ from exarl.agents.replay_buffers.nStep_buffer  import nStepBuffer
 logger = ExaGlobals.setup_logger(__name__)
 
 from exarl.agents.models.tf_model import Tensorflow_Model
-from copy import deepcopy
 
 class KerasTD3(exarl.ExaAgent):
 
