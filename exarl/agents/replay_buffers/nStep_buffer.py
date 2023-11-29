@@ -7,7 +7,7 @@ class nStepBuffer(ReplayBuffer):
     Class implements a simple replay buffer
     """
 
-    def __init__(self, capacity, horizon, gamma, observation_space=None, action_space=None, name="nStep"):
+    def __init__(self, capacity, observation_space=None, action_space=None, name="nStep", **kwargs):
         """ 
         Replay buffer constructor
 
@@ -21,8 +21,8 @@ class nStepBuffer(ReplayBuffer):
             Sample of action space used to init buffer
         """
         super(nStepBuffer, self).__init__(capacity, observation_space=observation_space, action_space=action_space, name=name)
-        self.horizon = horizon
-        self.gamma   = gamma
+        self.horizon = kwargs['horizon']
+        self.gamma   = kwargs['gamma']
 
     def get_data_from_indices(self, indices):
         """

@@ -25,7 +25,6 @@ from copy import deepcopy
 import exarl
 from exarl.utils.globals import ExaGlobals
 from exarl.agents.replay_buffers.buffer import Buffer
-from exarl.agents.replay_buffers.nStep_buffer import nStepBuffer
 from exarl.utils.OUActionNoise import OUActionNoise
 from exarl.agents.models.tf_model import Tensorflow_Model
 from exarl.utils.introspect import introspectTrace
@@ -60,12 +59,7 @@ class DDPG(exarl.ExaAgent):
         self.ou_noise = OUActionNoise(mean=np.zeros(env.action_space.shape), std_deviation=np.array([0.2]))
 
         # Experience data
-        self.horizon    = ExaGlobals.lookup_params('horizon')
-        assert self.horizon >= 1, "Invalid Horizon Value: " + str(self.horizon)
-        if self.horizon == 1:
-            self._replay = Buffer.create(observation_space=env.observation_space, action_space=env.action_space)
-        else:
-            self._replay = nStepBuffer(ExaGlobals.lookup_params('buffer_capacity'), self.horizon, self.gamma, observation_space=env.observation_space, action_space=env.action_space)
+        self._replay = Buffer.create(observation_space=env.observation_space, action_space=env.action_space)
 
         self.actor = Tensorflow_Model.create("Actor", 
                                               observation_space=env.observation_space, 

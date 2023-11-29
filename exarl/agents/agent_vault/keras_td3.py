@@ -32,8 +32,7 @@ from tensorflow.keras.optimizers import Adam
 
 import exarl
 from exarl.utils.globals import ExaGlobals
-from exarl.agents.replay_buffers.replay_buffer import ReplayBuffer
-from exarl.agents.replay_buffers.nStep_buffer  import nStepBuffer
+from exarl.agents.replay_buffers.buffer import Buffer
 logger = ExaGlobals.setup_logger(__name__)
 
 from exarl.agents.models.tf_model import Tensorflow_Model
@@ -60,17 +59,10 @@ class KerasTD3(exarl.ExaAgent):
         self.gamma = ExaGlobals.lookup_params('gamma')
 
         # Buffer
-        self.buffer_counter = 0
         self.buffer_capacity = ExaGlobals.lookup_params('buffer_capacity')
         self.batch_size = ExaGlobals.lookup_params('batch_size')
-        self.horizon    = ExaGlobals.lookup_params('horizon')
         self.per_buffer = np.ones((self.buffer_capacity, 1))
-        assert self.horizon >= 1, "Invalid Horizon Value: " + str(self.horizon)
-        print("HORIZON: ",self.horizon)
-        if self.horizon == 1:
-            self.memory = ReplayBuffer(self.buffer_capacity, env.observation_space, env.action_space)
-        else:
-            self.memory = nStepBuffer(self.buffer_capacity, self.horizon, self.gamma, observation_space=env.observation_space, action_space=env.action_space)
+        self.memory = Buffer.create(observation_space=env.observation_space, action_space=env.action_space)
 
         # Setup Optimizers
         critic_lr = ExaGlobals.lookup_params('critic_lr')
