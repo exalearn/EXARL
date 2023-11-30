@@ -1,4 +1,5 @@
 {
+    "buffer": "ReplayBuffer",
     "buffer_capacity": 50000,
     "batch_size": 64,
     "tau": 0.005,
