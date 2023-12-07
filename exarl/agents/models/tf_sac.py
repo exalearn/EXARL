@@ -27,7 +27,7 @@ from exarl.utils.globals import ExaGlobals
 
 class SoftActor(Tensorflow_Model):
     def __init__(self, observation_space, action_space, use_gpu=True):
-        super(Actor, self).__init__(observation_space, action_space, use_gpu)
+        super(SoftActor, self).__init__(observation_space, action_space, use_gpu)
         self.batch_size = ExaGlobals.lookup_params('batch_size')
         self.actor_dense = ExaGlobals.lookup_params('actor_dense')
         self.actor_dense_act = ExaGlobals.lookup_params('actor_dense_act')
@@ -54,8 +54,9 @@ class SoftActor(Tensorflow_Model):
         layers.append(Dense(self.n_actions, activation=self.actor_out_act, kernel_initializer=last_init)(layers[-1]))
         layers.append(Lambda(lambda i: i * (self.upper_bound - self.lower_bound) + self.lower_bound)(layers[-1]))
 
-        layers.append(Dense(self.n_actions, kernel_initializer=last_init)(layers[-3]))
-        layers.append(Lambda(lambda x: tf.exp(x) )(layers[-1]))
+        layers.append(Dense(self.n_actions, activation=self.actor_out_act, kernel_initializer=last_init)(layers[-3]))
+        # layers.append(Lambda(lambda x: tf.exp(x) )(layers[-1]))
+        layers.append(Lambda(lambda x: tf.exp(x * (5.0 - (-5.0)) - 5.0))(layers[-1]))
         self._model = Model(inputs=layers[0], outputs=[layers[-3], layers[-1]])
 
     def _compile(self):
@@ -68,7 +69,7 @@ class SoftActor(Tensorflow_Model):
 
 class SoftCritic(Tensorflow_Model):
     def __init__(self, observation_space, action_space, use_gpu=True):
-        super(Critic, self).__init__(observation_space, action_space, use_gpu)
+        super(SoftCritic, self).__init__(observation_space, action_space, use_gpu)
         self.batch_size = ExaGlobals.lookup_params('batch_size')
 
         self.critic_state_dense = ExaGlobals.lookup_params('critic_state_dense')
@@ -98,15 +99,15 @@ class SoftCritic(Tensorflow_Model):
         for i in range(len(self.critic_action_dense)):
             action_layers.append(Dense(self.critic_action_dense[i], activation=self.critic_action_dense_act)(action_layers[-1]))
 
-        action_sd_layers = []
-        action_sd_layers.append(Input(shape=(flatdim(self.action_space),), batch_size=self.batch_size))
-        for i in range(len(self.critic_action_dense)):
-            action_sd_layers.append(Dense(self.critic_action_dense[i], activation=self.critic_action_dense_act)(action_sd_layers[-1]))
+        # action_sd_layers = []
+        # action_sd_layers.append(Input(shape=(flatdim(self.action_space),), batch_size=self.batch_size))
+        # for i in range(len(self.critic_action_dense)):
+        #     action_sd_layers.append(Dense(self.critic_action_dense[i], activation=self.critic_action_dense_act)(action_sd_layers[-1]))
 
         concat_layers = []
-        concat_layers.append(Concatenate()([state_layers[-1], action_layers[-1], action_sd_layers[-1]]))
+        concat_layers.append(Concatenate()([state_layers[-1], action_layers[-1]]))
         for i in range(len(self.critic_concat_dense)):
             concat_layers.append(Dense(self.critic_concat_dense[i], activation=self.critic_concat_dense_act)(concat_layers[-1]))
         
         concat_layers.append(Dense(1)(concat_layers[-1]))
-        self._model = Model([state_layers[0], action_layers[0], action_sd_layers[0]], concat_layers[-1])
+        self._model = Model([state_layers[0], action_layers[0]], concat_layers[-1])

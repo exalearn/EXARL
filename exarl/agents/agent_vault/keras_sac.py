@@ -27,6 +27,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
 from tensorflow.keras.initializers import RandomUniform
 from tensorflow.keras.optimizers import Adam
 
@@ -38,7 +39,7 @@ logger = ExaGlobals.setup_logger(__name__)
 from exarl.agents.models.tf_model import Tensorflow_Model
 from copy import deepcopy
 
-class KerasTD3(exarl.ExaAgent):
+class SAC(exarl.ExaAgent):
 
     def __init__(self, env, is_learner, **kwargs):
         """ Define all key variables required for all agent """
@@ -65,6 +66,8 @@ class KerasTD3(exarl.ExaAgent):
         # Used to update target networks
         self.tau = ExaGlobals.lookup_params('tau')
         self.gamma = ExaGlobals.lookup_params('gamma')
+        
+        self.alpha = 1.0
 
         # Setup Optimizers
         critic_lr = ExaGlobals.lookup_params('critic_lr')
@@ -81,11 +84,11 @@ class KerasTD3(exarl.ExaAgent):
                                               observation_space=env.observation_space,
                                               action_space=env.action_space,
                                               use_gpu=self.is_learner)
-        self.critic1 = Tensorflow_Model.create("Critic",
+        self.critic1 = Tensorflow_Model.create("SoftCritic",
                                               observation_space=env.observation_space,
                                               action_space=env.action_space,
                                               use_gpu=self.is_learner)
-        self.critic2 = Tensorflow_Model.create("Critic",
+        self.critic2 = Tensorflow_Model.create("SoftCritic",
                                               observation_space=env.observation_space,
                                               action_space=env.action_space,
                                               use_gpu=self.is_learner)
@@ -93,11 +96,11 @@ class KerasTD3(exarl.ExaAgent):
                                               observation_space=env.observation_space,
                                               action_space=env.action_space,
                                               use_gpu=self.is_learner)
-        self.target_critic1 = Tensorflow_Model.create("Critic",
+        self.target_critic1 = Tensorflow_Model.create("SoftCritic",
                                               observation_space=env.observation_space,
                                               action_space=env.action_space,
                                               use_gpu=self.is_learner)
-        self.target_critic2 = Tensorflow_Model.create("Critic",
+        self.target_critic2 = Tensorflow_Model.create("SoftCritic",
                                               observation_space=env.observation_space,
                                               action_space=env.action_space,
                                               use_gpu=self.is_learner)
@@ -136,21 +139,33 @@ class KerasTD3(exarl.ExaAgent):
 
     @tf.function
     def train_critic(self, states, actions, rewards, next_states, dones):
-        next_actions = self.target_actor(next_states, training=False)
+        # next_actions, _ = self.action(next_states, use_target=True)
+
+        sampled_means, sampled_sds = self.actor(next_states)
+        # dist         = tfp.distributions.Normal(sampled_means, sampled_sds)
+        dist         = tfp.distributions.TruncatedNormal(sampled_means, sampled_sds, self.lower_bound, self.upper_bound)
+        next_actions = dist.sample()
+        # next_actions = tf.clip_by_value(next_actions, self.lower_bound, self.upper_bound)
+        # tf.print("Means: ", sampled_means)
+        # tf.print("SDs: ", sampled_sds)
+        next_lp      = dist.log_prob(next_actions)
+        # tf.print("Next Actions: ", next_actions)
+        # tf.print("Log Prob: ", next_lp)
+
         # Add a little noise
-        noise = np.random.normal(0, 0.2, next_actions.shape)
-        noise = np.clip(noise, -0.5, 0.5)
-        next_actions = next_actions * (1 + noise)
         new_q1 = self.target_critic1([next_states, next_actions], training=False)
         new_q2 = self.target_critic2([next_states, next_actions], training=False)
-        new_q = tf.math.minimum(new_q1, new_q2)
+        new_q  = tf.math.minimum(new_q1, new_q2)
         # Bellman equation for the q value
-        q_targets = rewards + (1.0 - dones[:,None]) * self.gamma * new_q
+        # tf.print("SHAPES: ", states.shape, actions.shape, rewards.shape, new_q.shape, next_lp.shape)
+        # tf.print("Rewards: ", rewards)
+        q_targets = rewards + (1.0 - dones[:,None]) * self.gamma * (new_q - self.alpha * next_lp)
         # Critic 1
         with tf.GradientTape() as tape:
             q_values1 = self.critic1([states, actions], training=True)
             td_errors1 = q_values1 - q_targets
             critic_loss1 = tf.reduce_mean(tf.math.square(td_errors1))
+        # tf.print("Critic 1 Loss: ", critic_loss1)
         gradient1 = tape.gradient(critic_loss1, self.critic1.trainable_variables)
         self.critic1.optimizer.apply_gradients(zip(gradient1, self.critic1.trainable_variables))
 
@@ -159,6 +174,7 @@ class KerasTD3(exarl.ExaAgent):
             q_values2 = self.critic2([states, actions], training=True)
             td_errors2 = q_values2 - q_targets
             critic_loss2 = tf.reduce_mean(tf.math.square(td_errors2))
+        # tf.print("Critic 2 Loss: ", critic_loss2)
         gradient2 = tape.gradient(critic_loss2, self.critic2.trainable_variables)
         self.critic2.optimizer.apply_gradients(zip(gradient2, self.critic2.trainable_variables))
 
@@ -166,63 +182,17 @@ class KerasTD3(exarl.ExaAgent):
     def train_actor(self, states):
         # Use Critic 1
         with tf.GradientTape() as tape:
-            actions = self.actor(states, training=True)
-            q_value = self.critic1([states, actions], training=True)
-            loss = -tf.math.reduce_mean(q_value)
+            sampled_means, sampled_sds = self.actor(states)
+            dist         = tfp.distributions.TruncatedNormal(sampled_means, sampled_sds, self.lower_bound, self.upper_bound)
+            # dist         = tfp.distributions.Normal(sampled_means, sampled_sds)
+            actions      = dist.sample()
+            # actions      = tf.clip_by_value(actions, self.lower_bound, self.upper_bound)
+            action_lp    = dist.log_prob(actions)
+            q_value      = self.critic1([states, actions], training=True)
+            loss         = -tf.math.reduce_mean(q_value - self.alpha * action_lp)
+        # tf.print("Actor Loss: ", loss)
         gradient = tape.gradient(loss, self.actor.trainable_variables)
         self.actor.optimizer.apply_gradients(zip(gradient, self.actor.trainable_variables))
-
-    def get_critic(self):
-        # State as input
-        state_input = tf.keras.layers.Input(shape=(self.num_states),batch_size = ExaGlobals.lookup_params('batch_size'))
-        state_out = tf.keras.layers.Dense(16 * self.num_states, activation="relu")(state_input)
-        state_out = tf.keras.layers.Dense(32 * self.num_states, activation="relu")(state_out)
-
-        # Action as input
-        action_input = tf.keras.layers.Input(shape=(self.num_actions), batch_size = ExaGlobals.lookup_params('batch_size'))
-        action_out = tf.keras.layers.Dense(32 * self.num_actions, activation="relu")(action_input)
-
-        # Both are passed through separate layer before concatenating
-        concat = tf.keras.layers.Concatenate()([state_out, action_out])
-
-        out = tf.keras.layers.Dense(256, activation="relu")(concat)
-        out = tf.keras.layers.Dense(256, activation="relu")(out)
-        outputs = tf.keras.layers.Dense(1)(out)
-
-        # Outputs single value for give state-action
-        model = tf.keras.Model([state_input, action_input], outputs)
-        model.summary()
-        return model
-
-    def get_actor(self):
-
-        # MLP
-        inputs = tf.keras.layers.Input(shape=(self.num_states), batch_size = ExaGlobals.lookup_params('batch_size'))
-        #
-        out = tf.keras.layers.Dense(self.hidden_size,
-                                    kernel_initializer=RandomUniform(-self.layer_std, +self.layer_std),
-                                    bias_initializer=RandomUniform(-self.layer_std, +self.layer_std))(inputs)
-        out = tf.keras.layers.BatchNormalization()(out)
-        out = tf.keras.layers.Activation(tf.nn.leaky_relu)(out)
-        #
-        out = tf.keras.layers.Dense(self.hidden_size,
-                                    kernel_initializer=RandomUniform(-self.layer_std, +self.layer_std),
-                                    bias_initializer=RandomUniform(-self.layer_std, +self.layer_std))(out)
-        out = tf.keras.layers.BatchNormalization()(out)
-        out = tf.keras.layers.Activation(tf.nn.leaky_relu)(out)
-        #
-        outputs = tf.keras.layers.Dense(self.num_actions, activation="tanh",
-                                        kernel_initializer=RandomUniform(-self.layer_std, +self.layer_std),
-                                        bias_initializer=RandomUniform(-self.layer_std, +self.layer_std),
-                                        use_bias=True)(out)
-
-        # Rescale for tanh [-1,1]
-        outputs = tf.keras.layers.Lambda(
-            lambda x: ((x + 1.0) * (self.upper_bound - self.lower_bound)) / 2.0 + self.lower_bound)(outputs)
-
-        model = tf.keras.Model(inputs, outputs)
-        model.summary()
-        return model
 
     @tf.function
     def soft_update(self, target_weights, weights):
@@ -260,16 +230,23 @@ class KerasTD3(exarl.ExaAgent):
             self.soft_update(self.target_critic1.variables, self.critic1.variables)
             self.soft_update(self.target_critic2.variables, self.critic2.variables)
 
-    def action(self, state):
+    def action(self, state, use_target=False):
         """ Method used to provide the next action using the target model """
         tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
-        sampled_actions = tf.squeeze(self.actor(tf_state))
-        noise = np.random.normal(0, 0.1, sampled_actions.shape)
-        sampled_actions = sampled_actions.numpy() * (1 + noise)
+        if use_target:
+            sampled_means, sampled_sds = tf.squeeze(self.target_actor(tf_state))
+        else:
+            sampled_means, sampled_sds = tf.squeeze(self.actor(tf_state))
+        dist = tfp.distributions.TruncatedNormal(sampled_means, sampled_sds, self.lower_bound, self.upper_bound)
+        # dist = tfp.distributions.Normal(sampled_means, sampled_sds)
+        sampled_actions = dist.sample()
+
+        # sampled_actions = sampled_means + sampled_sds * np.random.normal(0, 1.0, sampled_means.shape)
         policy_type = 1
 
         # We make sure action is within bounds
         legal_action = np.clip(sampled_actions, self.lower_bound, self.upper_bound)
+        # log_p        = dist.log_prob(legal_action)
 
         return legal_action, policy_type
 
