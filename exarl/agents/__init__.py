@@ -35,6 +35,11 @@ elif agent == 'DDPG-VTRACE-v0':
         id=agent,
         entry_point='exarl.agents.agent_vault:DDPG_Vtrace'
     )
+elif agent == 'SAC-v0':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:SAC'
+    )
 elif agent == 'TD3-v0':
     register(
         id=agent,

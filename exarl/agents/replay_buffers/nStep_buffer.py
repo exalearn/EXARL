@@ -51,7 +51,7 @@ class nStepBuffer(ReplayBuffer):
 
         # Append nStep rewards
         return_list.append(np.array(reward_batch)[:,None])
-        
+
         # Append nStep next state
         return_list.append(self._data[3][next_state_ind])
 
