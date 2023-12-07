@@ -2,7 +2,7 @@
     "actor_lr" : 0.001,
     "actor_dense_act" : "relu",
     "actor_dense": [256, 256],
-    "actor_out_act" : "tanh",
+    "actor_out_act" : "sigmoid",
     "actor_optimizer" : "adam",
 
     "critic_lr" : 0.002,

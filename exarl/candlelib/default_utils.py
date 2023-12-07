@@ -475,6 +475,8 @@ def get_common_parser(parser):
 
     parser.add_argument("--run_id", default=argparse.SUPPRESS, type=str, help="set the run unique identifier")
 
+    parser.add_argument("--horizon", default=1, type=int, help="nStep buffer hoizon for DDPG and TD3 Calculations")
+
     # Model definition
     # Model Architecture
     parser.add_argument(
