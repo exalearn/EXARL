@@ -18,6 +18,8 @@ elif agent == 'DDPG-VTRACE-v0':
     from exarl.agents.agent_vault.ddpg_vtrace import DDPG_Vtrace
 elif agent == 'SAC-v0':
     from exarl.agents.agent_vault.keras_sac import SAC
+elif agent == 'SAC-v1':
+    from exarl.agents.agent_vault.keras_sac import SAC_squash
 elif agent == 'TD3-v0':
     from exarl.agents.agent_vault.td3 import TD3
 elif agent == 'TD3-v1':

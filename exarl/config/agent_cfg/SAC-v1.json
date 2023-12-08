@@ -1,0 +1,7 @@
+{
+    "buffer_capacity": 50000,
+    "batch_size": 64,
+    "sac_alpha": 0.01,
+    "tau": 0.01,
+    "gamma": 0.99
+}

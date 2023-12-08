@@ -111,3 +111,44 @@ class SoftCritic(Tensorflow_Model):
         
         concat_layers.append(Dense(1)(concat_layers[-1]))
         self._model = Model([state_layers[0], action_layers[0]], concat_layers[-1])
+
+class SoftActorUnbounded(Tensorflow_Model):
+    def __init__(self, observation_space, action_space, use_gpu=True):
+        super(SoftActorUnbounded, self).__init__(observation_space, action_space, use_gpu)
+        self.batch_size = ExaGlobals.lookup_params('batch_size')
+        self.actor_dense = ExaGlobals.lookup_params('actor_dense')
+        self.actor_dense_act = ExaGlobals.lookup_params('actor_dense_act')
+        self.actor_out_act = ExaGlobals.lookup_params('actor_out_act')
+
+        assert len(self.actor_dense) >= 1, "Must have at least one actor_dense layer: {}".format(len(self.actor_dense))
+
+        self.loss = None
+        self.actor_lr = ExaGlobals.lookup_params('actor_lr')
+        self.optimizer = tf.keras.optimizers.Adam(self.actor_lr)
+        
+        self.upper_bound = action_space.high
+        self.lower_bound = action_space.low
+        self.n_actions   = action_space.shape[0]
+
+    def _build(self):
+        last_init = tf.random_uniform_initializer()
+        last_init = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
+
+        layers = []
+        layers.append(Input(shape=(flatdim(self.observation_space),), batch_size=self.batch_size))
+        for i in range(len(self.actor_dense)):
+            layers.append(Dense(self.actor_dense[i], activation=self.actor_dense_act)(layers[-1]))
+        layers.append(Dense(self.n_actions, kernel_initializer=last_init)(layers[-1]))
+
+        layers.append(Dense(self.n_actions, kernel_initializer=last_init)(layers[-2]))
+        layers.append(Lambda(lambda x: tf.exp(x) )(layers[-1]))
+        self._model = Model(inputs=layers[0], outputs=[layers[-3], layers[-1]])
+
+    def _compile(self):
+        """
+        This internal function compiles a tf model.
+        """
+        with tf.device(self._device):
+            self._build()
+            self._model.compile(loss=self.loss, optimizer=self.optimizer, jit_compile=self.enable_xla)
+
