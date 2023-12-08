@@ -508,7 +508,7 @@ def my_func(*args, **kwargs):
 
 ```
 @misc{EXARL,
-  author = {Vinay Ramakrishnaiah, Malachi Schram, Joshua Suetterlein, Jamal Mohd-Yusof, Sayan Ghosh, Yunzhi Huang, Ai Kagawa, Christine Sweeney, Shinjae Yoo},
+  author = {Vinay Ramakrishnaiah, Malachi Schram, Joshua Suetterlein, Jamal Mohd-Yusof, Ted Fujimoto, Sayan Ghosh, Michael Grosskopf, Yunzhi Huang, Ai Kagawa, Sumathi Lakshmiranganatha, Himanshu Sharma, Christine Sweeney, Shinjae Yoo},
   title = {Easily eXtendable Architecture for Reinforcement Learning (EXARL)},
   year = {2020},
   publisher = {GitHub},
