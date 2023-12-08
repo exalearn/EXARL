@@ -148,7 +148,7 @@ class SAC(exarl.ExaAgent):
         # next_actions = tf.clip_by_value(next_actions, self.lower_bound, self.upper_bound)
         # tf.print("Means: ", sampled_means)
         # tf.print("SDs: ", sampled_sds)
-        next_lp      = dist.log_prob(next_actions)
+        next_lp      = tf.reduce_sum(dist.log_prob(next_actions), axis=1)
         # tf.print("Next Actions: ", next_actions)
         # tf.print("Log Prob: ", next_lp)
 
@@ -187,7 +187,7 @@ class SAC(exarl.ExaAgent):
             # dist         = tfp.distributions.Normal(sampled_means, sampled_sds)
             actions      = dist.sample()
             # actions      = tf.clip_by_value(actions, self.lower_bound, self.upper_bound)
-            action_lp    = dist.log_prob(actions)
+            action_lp    = tf.reduce_sum(dist.log_prob(actions), axis=1)
             q_value      = self.critic1([states, actions], training=True)
             loss         = -tf.math.reduce_mean(q_value - self.alpha * action_lp)
         # tf.print("Actor Loss: ", loss)
@@ -267,3 +267,101 @@ class SAC(exarl.ExaAgent):
 
     def train_return(self, args):
         pass
+
+
+class SAC_squash(SAC):
+    def __init__(self, env, is_learner, **kwargs):
+        """ Define all key variables required for all agent """
+
+        self.is_learner = is_learner
+        # Get env info
+        super().__init__(env, is_learner, **kwargs)
+
+        self.target_actor  = Tensorflow_Model.create("SoftActorUnbounded",
+                                              observation_space=env.observation_space,
+                                              action_space=env.action_space,
+                                              use_gpu=self.is_learner)
+        self.actor  = Tensorflow_Model.create("SoftActorUnbounded",
+                                              observation_space=env.observation_space,
+                                              action_space=env.action_space,
+                                              use_gpu=self.is_learner)
+
+        self.actor.init_model()
+        self.actor.print()
+        self.target_actor.init_model()
+
+        self.target_actor.set_weights(self.actor.get_weights())
+
+    @tf.function
+    def train_critic(self, states, actions, rewards, next_states, dones):
+
+        sampled_means, sampled_sds = self.actor(next_states)
+        dist         = tfp.distributions.Normal(sampled_means, sampled_sds)
+        raw_actions  = dist.sample()
+        next_actions = (tf.tanh(raw_actions) + 1.0) / 2.0 *(self.upper_bound - self.lower_bound) + self.lower_bound
+        next_lp      = tf.reduce_sum(dist.log_prob(raw_actions),axis=1) - tf.reduce_sum(tf.math.log(1 - tf.math.square(tf.math.tanh(raw_actions))), axis=1)
+
+        # Add a little noise
+        new_q1 = self.target_critic1([next_states, next_actions], training=False)
+        new_q2 = self.target_critic2([next_states, next_actions], training=False)
+        new_q  = tf.math.minimum(new_q1, new_q2)
+        # Bellman equation for the q value
+        # tf.print("SHAPES: ", states.shape, actions.shape, rewards.shape, new_q.shape, next_lp.shape)
+        # tf.print("Rewards: ", rewards)
+        q_targets = rewards + (1.0 - dones[:,None]) * self.gamma * (new_q - self.alpha * next_lp)
+        # Critic 1
+        with tf.GradientTape() as tape:
+            q_values1 = self.critic1([states, actions], training=True)
+            td_errors1 = q_values1 - q_targets
+            critic_loss1 = tf.reduce_mean(tf.math.square(td_errors1))
+        # tf.print("Critic 1 Loss: ", critic_loss1)
+        gradient1 = tape.gradient(critic_loss1, self.critic1.trainable_variables)
+        self.critic1.optimizer.apply_gradients(zip(gradient1, self.critic1.trainable_variables))
+
+        # Critic 2
+        with tf.GradientTape() as tape:
+            q_values2 = self.critic2([states, actions], training=True)
+            td_errors2 = q_values2 - q_targets
+            critic_loss2 = tf.reduce_mean(tf.math.square(td_errors2))
+        # tf.print("Critic 2 Loss: ", critic_loss2)
+        gradient2 = tape.gradient(critic_loss2, self.critic2.trainable_variables)
+        self.critic2.optimizer.apply_gradients(zip(gradient2, self.critic2.trainable_variables))
+
+    @tf.function
+    def train_actor(self, states):
+        # Use Critic 1
+        with tf.GradientTape() as tape:
+            sampled_means, sampled_sds = self.actor(states)
+            dist         = tfp.distributions.Normal(sampled_means, sampled_sds)
+            raw_actions  = dist.sample()
+            actions      = (tf.tanh(raw_actions) + 1.0) / 2.0 *(self.upper_bound - self.lower_bound) + self.lower_bound
+            action_lp    = tf.reduce_sum(dist.log_prob(raw_actions),axis=1) - tf.reduce_sum(tf.math.log(1 - tf.math.square(tf.math.tanh(raw_actions))), axis=1)
+            q_value      = self.critic1([states, actions], training=True)
+            loss         = -tf.math.reduce_mean(q_value - self.alpha * action_lp)
+        # tf.print("Actor Loss: ", loss)
+        gradient = tape.gradient(loss, self.actor.trainable_variables)
+        self.actor.optimizer.apply_gradients(zip(gradient, self.actor.trainable_variables))
+
+    def action(self, state, use_target=False):
+        """ Method used to provide the next action using the target model """
+        tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
+        if use_target:
+            sampled_means, sampled_sds = tf.squeeze(self.target_actor(tf_state))
+        else:
+            sampled_means, sampled_sds = tf.squeeze(self.actor(tf_state))
+        # dist = tfp.distributions.TruncatedNormal(sampled_means, sampled_sds, self.lower_bound, self.upper_bound)
+        dist = tfp.distributions.Normal(sampled_means, sampled_sds)
+        sampled_actions = dist.sample()
+        sampled_actions = (tf.tanh(sampled_actions) + 1.0) / 2.0 *(self.upper_bound - self.lower_bound) + self.lower_bound
+
+        policy_type = 1
+        # tf.print("Means: ", sampled_means)
+        # tf.print("SDs: ", sampled_sds)
+        # tf.print("Actions: ", sampled_actions)
+
+        # We make sure action is within bounds
+        legal_action = np.clip(sampled_actions, self.lower_bound, self.upper_bound)
+        # log_p        = dist.log_prob(legal_action)
+
+        return legal_action, policy_type
+
