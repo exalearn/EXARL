@@ -479,6 +479,8 @@ def get_common_parser(parser):
 
     parser.add_argument("--horizon", default=1, type=int, help="nStep buffer hoizon for DDPG and TD3 Calculations")
 
+    parser.add_argument("--sac_alpha", default=0.01, type=float, help="Alpha parameter for Soft Actor-Critic, which balances the entropy and reward terms in the Q-loss.")
+
     # Model definition
     # Model Architecture
     parser.add_argument(

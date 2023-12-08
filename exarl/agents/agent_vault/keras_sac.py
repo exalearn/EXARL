@@ -64,10 +64,10 @@ class SAC(exarl.ExaAgent):
         self.per_buffer = np.ones((self.buffer_capacity, 1))
 
         # Used to update target networks
-        self.tau = ExaGlobals.lookup_params('tau')
+        self.tau   = ExaGlobals.lookup_params('tau')
         self.gamma = ExaGlobals.lookup_params('gamma')
+        self.alpha = ExaGlobals.lookup_params('sac_alpha')
         
-        self.alpha = 1.0
 
         # Setup Optimizers
         critic_lr = ExaGlobals.lookup_params('critic_lr')
