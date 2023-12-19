@@ -41,6 +41,7 @@ class Actor(Tensorflow_Model):
         
         self.upper_bound = action_space.high
         self.lower_bound = action_space.low
+        self.n_actions   = action_space.shape[0]
 
     def _build(self):
         last_init = tf.random_uniform_initializer()
@@ -50,8 +51,8 @@ class Actor(Tensorflow_Model):
         layers.append(Input(shape=(flatdim(self.observation_space),), batch_size=self.batch_size))
         for i in range(len(self.actor_dense)):
             layers.append(Dense(self.actor_dense[i], activation=self.actor_dense_act)(layers[-1]))
-        layers.append(Dense(1, activation=self.actor_out_act, kernel_initializer=last_init)(layers[-1]))
-        layers.append(Lambda(lambda i: i * self.upper_bound)(layers[-1]))
+        layers.append(Dense(self.n_actions, activation=self.actor_out_act, kernel_initializer=last_init)(layers[-1]))
+        layers.append(Lambda(lambda i: i * (self.upper_bound - self.lower_bound) + self.lower_bound)(layers[-1]))
         self._model = Model(inputs=layers[0], outputs=layers[-1])
      
 class Critic(Tensorflow_Model):
