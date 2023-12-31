@@ -8,9 +8,6 @@
 # nonexclusive, paid-up, irrevocable worldwide license in this material to reproduce, prepare
 # derivative works, distribute copies to the public, perform publicly and display publicly, and
 # to permit others to do so.
-
-import sys
-import os
 from abc import ABC, abstractmethod
 
 class ExaComm(ABC):
@@ -19,19 +16,25 @@ class ExaComm(ABC):
     env_comm = None
     learner_comm = None
     num_learners = 1
+    procs_per_env = 1
 
     def __init__(self, comm, procs_per_env, num_learners):
         if ExaComm.global_comm is None:
             ExaComm.num_learners = num_learners
+            ExaComm.procs_per_env = procs_per_env
             ExaComm.global_comm = comm
             ExaComm.agent_comm, ExaComm.env_comm, ExaComm.learner_comm = comm.split(procs_per_env, num_learners)
+
+    @abstractmethod
+    def raw(self):
+        pass
 
     @abstractmethod
     def send(self, data, dest, pack=False):
         pass
 
     @abstractmethod
-    def recv(self, data_type, data_count, source):
+    def recv(self, data, source=None):
         pass
 
     @abstractmethod
@@ -58,17 +61,26 @@ class ExaComm(ABC):
     def split(self, procs_per_env):
         pass
 
+    @staticmethod
     def is_learner():
-        if ExaComm.agent_comm is not None:
-            if ExaComm.agent_comm.rank < ExaComm.num_learners:
-                return True
-        return False
+        return ExaComm.learner_comm is not None
 
+    @staticmethod
     def is_actor():
-        if ExaComm.agent_comm is not None:
-            if ExaComm.agent_comm.rank >= ExaComm.num_learners:
-                return True
-        return False
+        return ExaComm.env_comm is not None
 
+    @staticmethod
     def is_agent():
         return ExaComm.agent_comm is not None
+
+    @staticmethod
+    def reset():
+        ExaComm.global_comm = None
+        ExaComm.agent_comm = None
+        ExaComm.env_comm = None
+        ExaComm.learner_comm = None
+        ExaComm.num_learners = 1
+        ExaComm.procs_per_env = 1
+
+    def get_MPI():
+        return ExaComm.global_comm.MPI

@@ -2,18 +2,12 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
 import random
-import os
-from datetime import datetime
 import pickle
+import exarl
+from exarl.utils.globals import ExaGlobals
 from exarl.utils.OUActionNoise import OUActionNoise
 from exarl.utils.OUActionNoise import OUActionNoise2
-
-import exarl as erl
-
-from exarl.utils import log
-import exarl.utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
-
+logger = ExaGlobals.setup_logger(__name__)
 
 @tf.function
 def update_target(target_weights, weights, tau):
@@ -21,7 +15,7 @@ def update_target(target_weights, weights, tau):
         a.assign(b * tau + a * (1 - tau))
 
 
-class DDPG_Vtrace(erl.ExaAgent):
+class DDPG_Vtrace(exarl.ExaAgent):
     is_learner: bool
 
     def __init__(self, env, is_learner):
@@ -42,10 +36,10 @@ class DDPG_Vtrace(erl.ExaAgent):
         # self.upper_bound = env.action_space.high
         # self.lower_bound = env.action_space.low
 
-        logger.info("Size of State Space:  {}".format(self.num_states))
-        logger.info("Size of Action Space:  {}".format(self.num_actions))
-        # logger.info('Env upper bounds: {}'.format(self.upper_bound))
-        # logger.info('Env lower bounds: {}'.format(self.lower_bound))
+        logger().info("Size of State Space:  {}".format(self.num_states))
+        logger().info("Size of Action Space:  {}".format(self.num_actions))
+        # logger().info('Env upper bounds: {}'.format(self.upper_bound))
+        # logger().info('Env lower bounds: {}'.format(self.lower_bound))
 
         self.gamma = 0.99
         self.tau = 0.005
@@ -164,7 +158,7 @@ class DDPG_Vtrace(erl.ExaAgent):
             critic_loss = tf.math.reduce_mean(
                 tf.math.square(y - curr_state_val))
 
-        logger.warning("Critic loss: {}".format(critic_loss))
+        logger().warning("Critic loss: {}".format(critic_loss))
 
         critic_grad = tape.gradient(
             critic_loss, self.critic_model.trainable_variables)
@@ -212,7 +206,7 @@ class DDPG_Vtrace(erl.ExaAgent):
             # critic_value = self.critic_model([state_batch], training=True)
             # actor_loss = -tf.math.reduce_mean(critic_value)
 
-        # logger.warning("Actor loss: {}".format(actor_loss))
+        # logger().warning("Actor loss: {}".format(actor_loss))
         actor_grad = tape.gradient(
             actor_loss, self.actor_model.trainable_variables)
 
@@ -268,10 +262,10 @@ class DDPG_Vtrace(erl.ExaAgent):
 
     def generate_data(self):
         record_range = min(self.buffer_counter, self.buffer_capacity)
-        logger.info('record_range:{}'.format(record_range))
+        logger().info('record_range:{}'.format(record_range))
         # Randomly sample indices
         batch_indices = np.random.choice(record_range, self.batch_size)
-        logger.info('batch_indices:{}'.format(batch_indices))
+        logger().info('batch_indices:{}'.format(batch_indices))
         state_batch = tf.convert_to_tensor(self.state_buffer[batch_indices])
         action_batch = tf.convert_to_tensor(self.action_buffer[batch_indices])
         reward_batch = tf.convert_to_tensor(self.reward_buffer[batch_indices])
@@ -284,12 +278,12 @@ class DDPG_Vtrace(erl.ExaAgent):
     def train(self, batch):
         # self.epsilon_adj()
         # if len(batch[0]) >= self.batch_size:
-        #     logger.info('Training...')
+        #     logger().info('Training...')
         if self.is_learner:
-            logger.warning('Training...')
+            logger().warning('Training...')
             self.update_grad(batch[0], batch[1], batch[2], batch[3])
 
-    def target_train(self):
+    def update_target(self):
 
         # Update the target model
         # if self.buffer_counter >= self.batch_size:
@@ -342,13 +336,13 @@ class DDPG_Vtrace(erl.ExaAgent):
             # legal_action = np.random.uniform(low=self.lower_bound, high=self.upper_bound, size=(self.num_actions,))
             legal_action = random.randint(0, self.num_disc_actions - 1)
             policy_type = 0
-            logger.warning(
+            logger().warning(
                 'Bad action: {}; Replaced with: {}'.format(
                     sampled_actions_wn, legal_action))
-            # logger.warning('Policy action: {}; noise: {}'.format(sampled_actions,noise))
+            # logger().warning('Policy action: {}; noise: {}'.format(sampled_actions,noise))
 
         return_action = [np.squeeze(legal_action)]
-        logger.warning('Legal action:{}'.format(return_action))
+        logger().warning('Legal action:{}'.format(return_action))
 
         # ************************** computations for vtrace ******************
         # TODO: make a function for this procedure

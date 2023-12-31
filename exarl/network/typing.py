@@ -2,15 +2,16 @@ import sys
 import os
 import functools
 import numpy as np
-import tensorflow as tf
-from exarl.network.simple_comm import ExaSimple
-MPI = ExaSimple.MPI
+from exarl.base.comm_base import ExaComm
 
 class TypeUtils:
     """
     This class is a group of commonly used functions that help to figure out what type a data object is
     as well as providing type conversions between numpy, mpi, and python types.
     """
+
+    def tf_to_np(the_type):
+        return the_type
 
     def list_like(data):
         """
@@ -136,7 +137,7 @@ class TypeUtils:
         """
         list_flag, _ = TypeUtils.list_like(data)
         if not list_flag:
-            return len(MPI.pickle.dumps(data))
+            return len(ExaComm.get_MPI().pickle.dumps(data))
         return [TypeUtils.get_dumps(x) for x in data]
 
     def check_diff(data1, data2):
@@ -211,8 +212,8 @@ class TypeUtils:
             print("Data 2:", data2_shape)
             return False
 
-        data1_dump_len = len(MPI.pickle.dumps(data1))
-        data2_dump_len = len(MPI.pickle.dumps(data2))
+        data1_dump_len = len(ExaComm.get_MPI().pickle.dumps(data1))
+        data2_dump_len = len(ExaComm.get_MPI().pickle.dumps(data2))
         if data1_dump_len != data2_dump_len:
             print("Dump Error", data1_dump_len, data2_dump_len)
             data1_dumps = TypeUtils.get_dumps(data1)
@@ -222,108 +223,6 @@ class TypeUtils:
                 print("Data 2:", data2_dumps)
             return False
         return True
-
-    def np_type_converter(the_type, promote=True):
-        """
-        Provides the equivalent numpy type givin python, MPI, tensorflow type.
-
-        Parameters
-        ----------
-        the_type : type
-            type to be converted
-
-        promote : bool, optional
-            promots from 32 to 64 bit precision
-
-        Returns
-        -------
-        type
-            return corresponding np type
-        """
-        if the_type == float or the_type == np.float64 or the_type == tf.float64 or the_type == MPI.DOUBLE:
-            return np.float64
-        if the_type == np.float32 or the_type == tf.float32 or the_type == MPI.FLOAT:
-            if promote:
-                return np.float64
-            return np.float32
-        if the_type == int or the_type == np.int64 or the_type == tf.int64 or the_type == MPI.INT64_T:
-            return np.int64
-        if the_type == np.int32 or the_type == tf.int32 or the_type == MPI.INT:
-            if promote:
-                return np.int64
-            return np.int32
-        if the_type == bool or the_type == np.bool or the_type == tf.bool or the_type == MPI.BOOL:
-            return np.bool
-        print("Failed to convert type", the_type, "to np type")
-        return the_type
-
-    def tf_type_converter(the_type, promote=True):
-        """
-        Provides the equivalent tensorflow type givin python, MPI, or numpy type.
-
-        Parameters
-        ----------
-        the_type : type
-            type to be converted
-
-        promote : bool, optional
-            promots from 32 to 64 bit precision
-
-        Returns
-        -------
-        type
-            return corresponding tensorflow type
-        """
-        if the_type == float or the_type == np.float64 or the_type == tf.float64 or the_type == MPI.DOUBLE:
-            return tf.float64
-        if the_type == np.float32 or the_type == tf.float32 or the_type == MPI.FLOAT:
-            if promote:
-                return tf.float64
-            return tf.float32
-        if the_type == int or the_type == np.int64 or the_type == tf.int64 or the_type == MPI.INT64_T:
-            return tf.int64
-        if the_type == np.int32 or the_type == tf.int32 or the_type == MPI.INT:
-            if promote:
-                return tf.int64
-            return tf.int32
-        if the_type == bool or the_type == np.bool or the_type == tf.bool or the_type == MPI.BOOL:
-            return tf.bool
-        print("Failed to convert type", the_type, "to tf type")
-        return the_type
-
-    def mpi_type_converter(the_type, promote=True):
-        """
-        Provides the equivalent MPI type givin python, tensorflow, or numpy type.
-
-        Parameters
-        ----------
-        the_type : type
-            type to be converted
-
-        promote : bool, optional
-            promots from 32 to 64 bit precision
-
-        Returns
-        -------
-        type
-            return corresponding mpi type
-        """
-        if the_type == float or the_type == np.float64 or the_type == tf.float64 or the_type == MPI.DOUBLE:
-            return MPI.DOUBLE
-        if the_type == np.float32 or the_type == tf.float32 or the_type == MPI.FLOAT:
-            if promote:
-                return MPI.DOUBLE
-            return MPI.FLOAT
-        if the_type == int or the_type == np.int64 or the_type == tf.int64 or the_type == MPI.INT64_T:
-            return MPI.INT64_T
-        if the_type == np.int32 or the_type == tf.int32 or the_type == MPI.INT:
-            if promote:
-                return MPI.INT64_T
-            return MPI.INT
-        if the_type == bool or the_type == np.bool or the_type == tf.bool or the_type == MPI.BOOL:
-            return MPI.BOOL
-        print("Failed to convert type", the_type, "to mpi type")
-        return the_type
 
     def promote_numpy_type(data, makeList=True):
         """
@@ -352,3 +251,152 @@ class TypeUtils:
             elif data.dtype == np.int32:
                 return data.astype(np.int64)
         return data
+
+    def get_bool(val, default=False):
+        """
+        This function turns versions of string true/false into bool
+
+        Parameters
+        ----------
+        value : strine
+            String to convert
+        default : bool, optional
+            value to return if conversion fails
+
+        Returns
+        -------
+        bool
+            return appropriate version of bool
+        """
+        if isinstance(val, bool):
+            return val
+
+        bool_map = {"true": True, "True": True, "false": False, "False": False}
+        if val in bool_map:
+            return bool_map[val]
+        return default
+
+    def np_type_converter(the_type, promote=True):
+        """
+        Provides the equivalent numpy type givin python, MPI, tensorflow type.
+
+        Parameters
+        ----------
+        the_type : type
+            type to be converted
+
+        promote : bool, optional
+            promots from 32 to 64 bit precision
+
+        Returns
+        -------
+        type
+            return corresponding np type
+        """
+        MPI = ExaComm.get_MPI()
+        the_type = TypeUtils.tf_to_np(the_type)
+        if the_type == float or the_type == np.float64 or the_type == MPI.DOUBLE:
+            return np.float64
+        if the_type == np.float32 or the_type == MPI.FLOAT:
+            if promote:
+                return np.float64
+            return np.float32
+        if the_type == int or the_type == np.int64 or the_type == MPI.INT64_T:
+            return np.int64
+        if the_type == np.int32 or the_type == MPI.INT:
+            if promote:
+                return np.int64
+            return np.int32
+        if the_type == bool or the_type == np.bool or the_type == MPI.BOOL:
+            return np.bool
+        print("Failed to convert type", the_type, "to np type")
+        return the_type
+
+    def mpi_type_converter(the_type, promote=True):
+        """
+        Provides the equivalent MPI type givin python, tensorflow, or numpy type.
+
+        Parameters
+        ----------
+        the_type : type
+            type to be converted
+
+        promote : bool, optional
+            promots from 32 to 64 bit precision
+
+        Returns
+        -------
+        type
+            return corresponding mpi type
+        """
+        MPI = ExaComm.get_MPI()
+        the_type = TypeUtils.tf_to_np(the_type)
+        if the_type == float or the_type == np.float64 or the_type == MPI.DOUBLE:
+            return MPI.DOUBLE
+        if the_type == np.float32 or the_type == MPI.FLOAT:
+            if promote:
+                return MPI.DOUBLE
+            return MPI.FLOAT
+        if the_type == int or the_type == np.int64 or the_type == MPI.INT64_T:
+            return MPI.INT64_T
+        if the_type == np.int32 or the_type == MPI.INT:
+            if promote:
+                return MPI.INT64_T
+            return MPI.INT
+        if the_type == bool or the_type == np.bool or the_type == MPI.BOOL:
+            return MPI.BOOL
+        print("Failed to convert type", the_type, "to mpi type")
+        return the_type
+
+    def tf_type_converter(the_type, promote=True):
+        return the_type
+
+
+for module in sys.modules:
+    if 'tensorflow' in module:
+        import tensorflow as tf
+
+        def real_tf_to_np(the_type):
+            converter = {tf.float64: np.float64, tf.int32: np.float32, tf.bool: np.bool}
+            if the_type in converter:
+                return converter[the_type]
+            else:
+                return the_type
+
+        def real_tf_type_converter(the_type, promote=True):
+            """
+            Provides the equivalent tensorflow type givin python, MPI, or numpy type.
+
+            Parameters
+            ----------
+            the_type : type
+                type to be converted
+
+            promote : bool, optional
+                promots from 32 to 64 bit precision
+
+            Returns
+            -------
+            type
+                return corresponding tensorflow type
+            """
+            MPI = ExaComm.get_MPI()
+            if the_type == float or the_type == np.float64 or the_type == tf.float64 or the_type == MPI.DOUBLE:
+                return tf.float64
+            if the_type == np.float32 or the_type == tf.float32 or the_type == MPI.FLOAT:
+                if promote:
+                    return tf.float64
+                return tf.float32
+            if the_type == int or the_type == np.int64 or the_type == tf.int64 or the_type == MPI.INT64_T:
+                return tf.int64
+            if the_type == np.int32 or the_type == tf.int32 or the_type == MPI.INT:
+                if promote:
+                    return tf.int64
+                return tf.int32
+            if the_type == bool or the_type == np.bool or the_type == tf.bool or the_type == MPI.BOOL:
+                return tf.bool
+            print("Failed to convert type", the_type, "to tf type")
+            return the_type
+
+        TypeUtils.tf_to_np = real_tf_to_np
+        TypeUtils.tf_type_converter = real_tf_type_converter

@@ -18,26 +18,19 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-import pandas as pd
-import numpy as np
-import math
 import os
-import sys
+import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
-from exarl.utils import log
-import exarl.utils.candleDriver as cd
-logger = log.setup_logger(__name__, cd.lookup_params('log_level', [3, 3]))
+from exarl.utils.globals import ExaGlobals
 
-
-def read_data(filename, rank):
+def read_data(filename):
     """The function reads csv-based learning data from the given log file into a pandas frame for use in plotting and result analysis.
 
     Parameters
     ----------
     filename : string
         csv file of log data from EXARL
-    rank : integer
-        MPI rank number
 
     Returns
     -------
@@ -46,14 +39,20 @@ def read_data(filename, rank):
         except for current_state and next_state fields, and with the addition of a rank field.
     """
     frame = pd.read_csv(filename, sep=' ', header=None,
-                        names=['time', 'current_state', 'action', 'reward', 'next_state', 'total_reward', 'done',
-                               'episode', 'step', 'policy_type', 'epsilon'])
+                        names=['time', 'current_state', 'action', 'reward',
+                               'next_state', 'total_reward', 'done', 'episode',
+                               'step', 'policy_type'])
+
     del frame['current_state']
     del frame['next_state']
-    frame['time'] = pd.to_datetime(frame['time'], unit='ns')
+
+    parts = os.path.basename(filename).split("_")
+    rank = [int(part[4:]) for part in parts if "Rank" in part]
+    frame['rank'] = rank[0]
+
+    frame['time'] = pd.to_datetime(frame['time'], unit='s')
     frame = frame[frame.done == True]
     frame = frame.reset_index()
-    frame['rank'] = int(rank)
     return frame
 
 def save_reward_plot():
@@ -61,40 +60,41 @@ def save_reward_plot():
         It saves the plot in the results directory named by the output_dir run parameter in a subdirectory /Plots/reward_plot.png.
         It then tries to print the plot to the terminal.
     """
-    df_ranks = []
-    rank = 0
     # Candle directory stucture
-    results_dir = cd.run_params['output_dir'] + '/'
-    for filename in os.listdir(results_dir):
-        if filename.endswith(".log"):
-            rank += 1
-            logger.info('rank {}: filename:{}'.format(rank, filename))
-            df = read_data(results_dir + filename, rank)
-            df_ranks.append(df)
+    results_dir = ExaGlobals.lookup_params('output_dir')
+    plot_path = os.path.join(results_dir, 'Plots')
+    os.makedirs(plot_path, exist_ok=True)
+
+    files = [filename for filename in os.listdir(results_dir) if filename.endswith(".log")]
+    df_ranks = [read_data(os.path.join(results_dir, filename)) for filename in files]
 
     df_merged = pd.concat(df_ranks)
-    df_merged = df_merged.dropna()
+    # df_merged = df_merged.dropna()
     time_min = df_merged.time.min()
-    time_max = df_merged.time.max()
-    time_diff = time_max - time_min
-    logger.info('time_min:{}'.format(time_min))
-    logger.info('time_diff:{}'.format(time_diff))
     df_merged['rel_time'] = [idx - time_min for idx in df_merged.time]
     df_merged.sort_values(by=['rel_time'], inplace=True)
 
-    rolling_setting = 25
-    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
-    episodes_per_nodes = []
-    logger.info('Node path:{}'.format(results_dir))
+    rolling_setting = ExaGlobals.lookup_params('rolling_reward_length')
     df_merged['total_reward_roll'] = df_merged['total_reward'].rolling(rolling_setting).mean()
-    logger.info((df_merged.shape))
+
+    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
     plt.plot(df_merged['rel_time'], df_merged['total_reward_roll'])
-    episodes_per_nodes.append(len(df_merged))
     plt.xlabel('Relative Time')
     plt.ylabel('Rolling Total Reward ({})'.format(rolling_setting))
-    if not os.path.exists(results_dir + '/Plots'):
-        os.makedirs(results_dir + '/Plots')
-    fig.savefig(results_dir + '/Plots/Reward_plot.png')
+    fig.savefig(os.path.join(plot_path, 'Reward_plot.png'))
+    plt.clf()
+
+    ranks = df_merged['rank'].unique()
+    ranks.sort()
+    for rank in ranks:
+        to_plot = df_merged[df_merged['rank'] == rank]
+        to_plot = to_plot.sort_values(by=['rel_time'])
+        plt.plot(to_plot['rel_time'], to_plot['total_reward_roll'], label=rank)
+    plt.xlabel('Relative Time')
+    plt.ylabel('Rolling Total Reward ({})'.format(rolling_setting))
+    plt.legend()
+    fig.savefig(os.path.join(plot_path, 'Rank_plot.png'))
+    plt.clf()
 
     # Terminal plot
     try:
@@ -105,10 +105,13 @@ def save_reward_plot():
         figure.y_label = 'Rolling reward'
         figure.x_label = 'Episodes'
         figure.color_mode = 'byte'
-        figure.set_x_limits(min_=0, max_=len(df_merged['total_reward_roll']))
-        figure.set_y_limits(min_=min(df_merged['total_reward_roll'].replace(np.nan, 0)), max_=max(df_merged['total_reward_roll'].replace(np.nan, 0)))
-        figure.plot(range(len(df_merged['total_reward_roll'])), df_merged['total_reward_roll'].replace(np.nan, 0), lc=200, label='rolling reward')
-        # range(len(df_merged['time']))
+
+        to_plot = df_merged.dropna()
+        y = list(to_plot['total_reward_roll'].values)
+        x = list(range(len(y)))
+        figure.set_x_limits(min_=x[0], max_=x[-1])
+        figure.set_y_limits(min_=min(y), max_=max(y))
+        figure.plot(x, y, lc=200, label='rolling reward')
         print(figure.show(legend=True))
-    except:
-        print("Terminal plot error: Check if you have plotille installed or for other errors.")
+    except ModuleNotFoundError:
+        print("Plottile not installed.")

@@ -10,7 +10,6 @@ import logging
 
 import os
 import sys
-import gzip
 import argparse
 try:
     import configparser
@@ -356,7 +355,9 @@ def finalize_parameters(bmk):
     # print("Configuration file: ", conffile)
     fileParameters = bmk.read_config_file(conffile)  # aux.config_file)#args.config_file)
     # Get command-line parameters
-    args = bmk.parser.parse_args()
+    # args = bmk.parser.parse_args()
+    args, extras = bmk.parser.parse_known_args()
+    print('The following arguments were not processed:', extras)
     # print ('Params:', fileParameters)
     # Consolidate parameter set. Command-line parameters overwrite file configuration
     gParameters = args_overwrite_config(args, fileParameters)
@@ -472,7 +473,11 @@ def get_common_parser(parser):
 
     parser.add_argument("--experiment_id", default="EXP000", type=str, help="set the experiment unique identifier")
 
-    parser.add_argument("--run_id", default="RUN000", type=str, help="set the run unique identifier")
+    parser.add_argument("--run_id", default=argparse.SUPPRESS, type=str, help="set the run unique identifier")
+
+    parser.add_argument("--horizon", default=1, type=int, help="nStep buffer hoizon for DDPG and TD3 Calculations")
+
+    parser.add_argument("--sac_alpha", default=0.01, type=float, help="Alpha parameter for Soft Actor-Critic, which balances the entropy and reward terms in the Q-loss.")
 
     # Model definition
     # Model Architecture
@@ -587,7 +592,6 @@ def get_common_parser(parser):
 
     return parser
 
-
 def args_overwrite_config(args, config):
     """Overwrite configuration parameters with
         parameters specified via command-line.
@@ -643,6 +647,57 @@ def get_choice(name):
 
     return mapped
 
+def get_files(dir, filter=None, singleLevel=False):
+    """
+    This grabs all the files in a directory.  The filter is used
+    to select files that match a sub-string.  If no filters is
+    supplied, all files in the directory will be return.
+
+    Parameters
+    ----------
+    dir : str
+        Directory to get files from
+    filter : str, optional
+        Sub-strings to look for in filename
+
+    Returns
+    -------
+    list
+        list of filenames
+    """
+    ret = []
+    for root, dirs, files in os.walk(dir):
+        for f in files:
+            if filter is None or filter in f:
+                file = os.path.join(root, f)
+                ret.append(file)
+        if singleLevel:
+            break
+    return ret
+
+def get_next_run(output_dir):
+    """
+    This will look for the next available RUN directory without any logs.
+    There is a race condition if the exp is started but no logs are written.
+    The purpose of this function is to overwrite logs leading to
+    incorrect plotting of results.
+
+    Parameters
+    ----------
+    output_dir : string
+        The dir to run the lowest level exp in.
+    """
+    num = 0
+    next_run = "RUN000"
+    dirs = list(os.listdir(output_dir))
+    while next_run in dirs:
+        files = get_files(os.path.join(output_dir, next_run), filter=".log", singleLevel=True)
+        if len(files):
+            next_run = "RUN" + "{0:03d}".format(num)
+            num += 1
+        else:
+            break
+    return next_run
 
 def directory_from_parameters(params, commonroot='Output'):
     """ Construct output directory path with unique IDs from parameters
@@ -655,21 +710,30 @@ def directory_from_parameters(params, commonroot='Output'):
             String to specify the common folder to store results.
 
     """
-
     if commonroot in set(['.', './']):  # Same directory --> convert to absolute path
         outdir = os.path.abspath('.')
     else:  # Create path specified
         outdir = os.path.abspath(os.path.join('.', commonroot))
         if not os.path.exists(outdir):
             os.makedirs(outdir, exist_ok=True)
+        while(not os.path.exists(outdir)):
+            pass
 
         outdir = os.path.abspath(os.path.join(outdir, params['experiment_id']))
         if not os.path.exists(outdir):
             os.makedirs(outdir, exist_ok=True)
+        while(not os.path.exists(outdir)):
+            pass
+
+        # Save to the next available run
+        if 'run_id' not in params:
+            params['run_id'] = get_next_run(outdir)
 
         outdir = os.path.abspath(os.path.join(outdir, params['run_id']))
         if not os.path.exists(outdir):
             os.makedirs(outdir, exist_ok=True)
+        while(not os.path.exists(outdir)):
+            pass
 
     return outdir
 
@@ -728,7 +792,7 @@ class Benchmark:
         # Parse has been split between arguments that are common with the default neon parser
         # and all the other options
         parser = self.parser
-        if self.framework is not 'neon':
+        if self.framework != 'neon':
             parser = get_default_neon_parser(parser)
         parser = get_common_parser(parser)
 

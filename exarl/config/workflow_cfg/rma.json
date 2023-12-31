@@ -1,9 +1,10 @@
 {
     "learner_procs": 1,
-    "process_per_env": 1,
-    "data_structure": "buff_unchecked",
-    "data_structure_length": 32,
-    "max_model_lag": "none",
-    "loss_data_structure": "buff_unchecked",
-    "target_weight_structure": "buff_unchecked"
+    "episode_block": "False",
+    "batch_episode_frequency": 1,
+    "batch_step_frequency": 1,
+    "save_weights_per_episode": "false",
+    "action_type": "variable",
+    "mpi4py_rc": "true",
+    "affinity": "false"
 }

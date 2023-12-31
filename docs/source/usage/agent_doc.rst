@@ -23,8 +23,8 @@ Agents must include the following functions:
    train()         # train the agent
    update()        # update target model
    action()        # Next action based on current state
-   load()          # load weights from memory
-   save()          # save weights to memory
+   load()          # load weights from pickle file
+   save()          # save weights to pickle file
    monitor()       # monitor progress of learning
 
 Register the agent in ``ExaRL/exarl/agents/__init__.py``

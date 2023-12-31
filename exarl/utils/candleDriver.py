@@ -18,35 +18,44 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
-import argparse
-import json
-from exarl.utils import log
-from pprint import pformat
-from tensorflow import keras
 import os
 import sys
 import site
-file_path = os.path.dirname(os.path.realpath(__file__))
+import json
+import argparse
+from exarl.utils.globals import ExaGlobals
 import exarl.candlelib.candle as candle
-# from pprint import pprint
 
+file_path = os.path.dirname(os.path.realpath(__file__))
+required = ['agent', 'env', 'workflow', 'model_type']
 
-# required = ['agent', 'env', 'n_episodes', 'n_steps']
-required = ['agent', 'model_type', 'env', 'workflow']
-
-def resolve_path(*path_components) -> str:
-    """ Resolve path to configuration files.
+def resolve_path(*path_components, config_path=None, alternate_path=None) -> str:
+    """
+    Resolve path to configuration files.  The alternate path is a second choice
+    based on the externally loaded modules.  We look to see if any config files
+    exist in these dirs.  For env and agent files they must still follow the
+    dir structure (i.e. agent_cfg/DQN-v0.json or env_cfg/ExaCartPoleStatic-v0).
     Priority is as follows:
-
-      1. <current working directory>/exarl/config
-      2. ~/.exarl/config
-      3. <site-packages dir>/exarl/config
+      1. Path passed in at command line using --config_file
+      2. Alternate path given by --load_agent/env_path
+      3. <current working directory>/exarl/config
+      4. ~/.exarl/config
+      5. <site-packages dir>/exarl/config
     """
     if len(path_components) == 1:
         path = path_components[0]
     else:
         path = os.path.join(*path_components)
-
+    if config_path is not None:
+        config_path = os.path.abspath(config_path)
+        config_path = os.path.join(config_path, path)
+        if os.path.exists(config_path):
+            return config_path
+    if alternate_path is not None:
+        alternate_path = os.path.abspath(alternate_path)
+        alternate_path = os.path.join(alternate_path, path)
+        if os.path.exists(alternate_path):
+            return alternate_path
     cwd_path = os.path.join(os.getcwd(), 'exarl', 'config', path)
     if os.path.exists(cwd_path):
         return cwd_path
@@ -59,48 +68,93 @@ def resolve_path(*path_components) -> str:
             return install_path
     raise FileNotFoundError("Could not find file {0}!".format(path))
 
-class BenchmarkDriver(candle.Benchmark):
+def initialize_parameters(params=None):
+    if params is None:
+        # Build agent object
+        class BenchmarkDriver(candle.Benchmark):
+            def set_locals(self):
+                """ Functionality to set variables specific for the benchmark
+                - required: set of required parameters for the benchmark.
+                - additional_definitions: list of dictionaries describing the additional parameters for the
+                benchmark.
+                """
 
-    def set_locals(self):
-        """ Functionality to set variables specific for the benchmark
-        - required: set of required parameters for the benchmark.
-        - additional_definitions: list of dictionaries describing the additional parameters for the
-        benchmark.
-        """
+                print('Additional definitions built from json files')
+                additional_definitions = get_driver_params()
+                if required is not None:
+                    self.required = set(required)
+                if additional_definitions is not None:
+                    self.additional_definitions = additional_definitions
 
-        print('Additional definitions built from json files')
-        additional_definitions = get_driver_params()
-        # pprint(additional_definitions, flush=True)
-        if required is not None:
-            self.required = set(required)
-        if additional_definitions is not None:
-            self.additional_definitions = additional_definitions
+        driver = BenchmarkDriver(file_path, '', 'keras',
+                                 prog='CANDLE_example',
+                                 desc='CANDLE example driver script')
+        params = candle.finalize_parameters(driver)
+    ExaGlobals(params, candle.keras_default_config())
 
-
-def initialize_parameters():
-    # Build agent object
-
-    driver = BenchmarkDriver(file_path, '', 'keras',
-                             prog='CANDLE_example', desc='CANDLE example driver script')
-
-    # Initialize parameters
-    gParameters = candle.finalize_parameters(driver)
-    # benchmark.logger.info('Params: {}'.format(gParameters))
-    logger = log.setup_logger(__name__, gParameters['log_level'])
-    logger.info("Finalized parameters:\n" + pformat(gParameters))
-    global run_params
-    global kerasDefaults
-    run_params = gParameters
-    kerasDefaults = candle.keras_default_config()
-
-def lookup_params(arg, default=None):
-    """ Attempts to lookup arg from the global run_params.
-    If it is not found it will return the defualt value passed as input.
+def config_parser():
     """
-    try:
-        return run_params[arg]
-    except:
-        return default
+    This parsers runs first to get a config_path if present.
+    It removes the argument by resetting the sys.argv with the remaining args.
+
+    Returns
+    -------
+    String :
+        The path to search for config file
+    """
+    parser = argparse.ArgumentParser(description="Config parser")
+    parser.add_argument("--config_path")
+    args, leftovers = parser.parse_known_args()
+    if args.config_path is not None and not os.path.exists(args.config_path):
+        raise FileNotFoundError("Path {0} does not exists!".format(args.config_path))
+    sys.argv = sys.argv[:1] + leftovers
+    return args.config_path
+
+def external_env_and_agents_parser():
+    """
+    This checks command line for external agents and envs.  If the load_*_path is
+    set for either, they will by added to the system path.  The load_agent and
+    load_env will be added to the candle params.
+
+    Returns
+    -------
+    List :
+        List of load agent/env params
+    String :
+        agent load path
+    String :
+        env load path
+    """
+    parser = argparse.ArgumentParser(description="External source parser")
+    parser.add_argument("--load_agent_module")
+    parser.add_argument("--load_agent_path")
+    parser.add_argument("--load_env_module")
+    parser.add_argument("--load_env_path")
+    args, leftovers = parser.parse_known_args()
+
+    if args.load_agent_path is not None:
+        args.load_agent_path = os.path.abspath(args.load_agent_path)
+        if not os.path.exists(args.load_agent_path):
+            raise FileNotFoundError("Load Agent Path {0} does not exists!".format(args.load_agent_path))
+        if args.load_agent_path not in sys.path:
+            sys.path.append(args.load_agent_path)
+
+    if args.load_env_path is not None:
+        args.load_env_path = os.path.abspath(args.load_env_path)
+        if not os.path.exists(args.load_env_path):
+            raise FileNotFoundError("Load Env Path {0} does not exists!".format(args.load_env_path))
+        if args.load_env_path not in sys.path:
+            sys.path.append(args.load_env_path)
+
+    ret = []
+    if args.load_agent_module is not None:
+        ret.append({'name': 'load_agent_module', 'type': str, 'default': args.load_agent_module})
+
+    if args.load_env_module is not None:
+        ret.append({'name': 'load_env_module', 'type': str, 'default': args.load_env_module})
+
+    sys.argv = sys.argv[:1] + leftovers
+    return ret, args.load_agent_module, args.load_env_module
 
 def base_parser(params):
     """
@@ -126,13 +180,10 @@ def base_parser(params):
     parser = argparse.ArgumentParser(description="Base parser")
     parser.add_argument("--agent")
     parser.add_argument("--env")
-    parser.add_argument("--model_type")
     parser.add_argument("--workflow")
-    parser.add_argument("--data_structure")
-    parser.add_argument("--batch_size")
+    parser.add_argument("--model_type")
 
     args, leftovers = parser.parse_known_args()
-
     if args.agent is not None:
         params['agent'] = args.agent
         print("Agent overwitten from command line: ", args.agent)
@@ -141,16 +192,14 @@ def base_parser(params):
         params['env'] = args.env
         print("Environment overwitten from command line: ", args.env)
 
-    if args.model_type is not None:
-        params['model_type'] = args.model_type
-        print("Model overwitten from command line: ", args.model_type)
-
     if args.workflow is not None:
         params['workflow'] = args.workflow
         print("Workflow overwitten from command line: ", args.workflow)
 
+    if args.model_type is not None:
+        params['model_type'] = args.model_type
+        print("Model overwitten from command line: ", args.model_type)
     return params
-
 
 def parser_from_json(json_file):
     """
@@ -169,7 +218,6 @@ def parser_from_json(json_file):
         -------
         new_defs : dictionary
             Dictionary of parameters
-
     """
     file = open(json_file,)
     params = json.load(file)
@@ -183,54 +231,51 @@ def parser_from_json(json_file):
 
     return new_defs
 
+def check_keyword_and_config(params, keyword, config_path, alternate_path=None):
+    """
+        This function performs a check for specific keywords to see if
+        they are set in the config file and also checks if there is a
+        corresponding configuration file.
+    """
+    if keyword in params.keys():
+        if keyword == 'model_type':
+            cfg = 'model_cfg'
+        else:
+            cfg = keyword + "_cfg"
+        try:
+            cfg_file = resolve_path(cfg, params[keyword] + '.json', config_path=config_path, alternate_path=alternate_path)
+            print('Agent parameters from ', cfg)
+        except FileNotFoundError:
+            cfg_file = resolve_path(cfg, 'default_' + cfg + '.json', config_path=config_path)
+            print(keyword + ' configuration does not exist, using default configuration')
+        return parser_from_json(cfg_file)
+    else:
+        sys.exit("CANDLELIB::ERROR The learner config file is malformed. There is no " + keyword + " selected.")
 
 def get_driver_params():
-    """ Build the full set of run parameters by sequentially parsing the config files
+    """
+        Build the full set of run parameters by sequentially parsing the config files
         for agent, model, env and workflow.
         Unless overwritten from the command line (via base_parser), the names for
         these config files are defined in the learner_cfg.json file.
     """
+    config_path = config_parser()
+    external_defs, load_agent_path, load_env_path = external_env_and_agents_parser()
 
-    learner_cfg = resolve_path('learner_cfg.json')
+    learner_cfg = resolve_path('learner_cfg.json', config_path=config_path)
     learner_defs = parser_from_json(learner_cfg)
     print('Learner parameters from ', learner_cfg)
     params = json.load(open(learner_cfg))
     params = base_parser(params)
+
+    agent_defs = check_keyword_and_config(params, "agent", config_path, alternate_path=load_agent_path)
+    env_defs = check_keyword_and_config(params, "env", config_path, alternate_path=load_env_path)
+    workflow_defs = check_keyword_and_config(params, "workflow", config_path)
+    model_defs = check_keyword_and_config(params, "model_type", config_path)
+
     print('_________________________________________________________________')
-    print("Running - {}, {}, {} and {}".format(params['agent'], params['model_type'], params['env'], params['workflow']))
+    print("Running - {}, {}, {}, and {}".format(params['agent'], params['env'], params['workflow'], params['model_type']))
+    # print("Running - {}, {}, {} and {}".format(params['agent'], params['model_type'], params['env'], params['workflow']))
     print('_________________________________________________________________', flush=True)
-    try:
-        agent_cfg = resolve_path('agent_cfg',
-                                 params['agent'] + '.json')
-        print('Agent parameters from ', agent_cfg)
-    except FileNotFoundError:
-        agent_cfg = resolve_path('agent_cfg', 'default_agent_cfg.json')
-        print('Agent configuration does not exist, using default configuration')
-    agent_defs = parser_from_json(agent_cfg)
 
-    try:
-        model_cfg = resolve_path('model_cfg',
-                                 params['model_type'] + '.json')
-        print('Model parameters from ', model_cfg)
-    except FileNotFoundError:
-        model_cfg = resolve_path('model_cfg', 'default_model_cfg.json')
-        print('Model configuration does not exist, using default configuration')
-    model_defs = parser_from_json(model_cfg)
-
-    try:
-        env_cfg = resolve_path('env_cfg', params['env'] + '.json')
-        print('Environment parameters from ', env_cfg)
-    except FileNotFoundError:
-        env_cfg = resolve_path('env_cfg', 'default_env_cfg.json')
-        print('Environment configuration does not exist, using default configuration')
-    env_defs = parser_from_json(env_cfg)
-
-    try:
-        workflow_cfg = resolve_path('workflow_cfg', params['workflow'] + '.json')
-        print('Workflow parameters from ', workflow_cfg)
-    except FileNotFoundError:
-        workflow_cfg = resolve_path('workflow_cfg', 'default_workflow_cfg.json')
-        print('Workflow configuration does not exist, using default configuration')
-    workflow_defs = parser_from_json(workflow_cfg)
-
-    return learner_defs + agent_defs + model_defs + env_defs + workflow_defs
+    return learner_defs + agent_defs + env_defs + workflow_defs + model_defs + external_defs

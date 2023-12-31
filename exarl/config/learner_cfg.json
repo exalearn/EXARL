@@ -1,13 +1,24 @@
 {
     "agent": "DQN-v0",
-    "env": "ExaCartPoleStatic-v0",
-    "workflow": "async",
-    "n_episodes": 50,
-    "n_steps": 10,
-    "output_dir": "./results_dir/",
+    "env": "CartPole-v1",
+    "workflow": "sync",
+    "n_episodes": 100,
+    "n_steps": 100,
+    "output_dir": "./results/",
     "process_per_env": 1,
-    "model_type": "LSTM",
-    "action_type": "variable",
-    "log_level": [3, 3],
-    "profile": "none"
+    "dev_affinity": "false",
+    "log_level": [
+        3,
+        3
+    ],
+    "model_type": "MLP",
+    "clip_rewards": "False",
+    "rolling_reward_length": 4,
+    "cutoff" : 0.00000,
+    "log_frequency": 1,
+    "profile": "intro",
+    "buffer": "PrioritizedReplayBuffer",
+    "buffer_capacity": 1000000,
+    "convert_action_type": "False",
+    "num_discrete_step": 1000
 }

@@ -1,11 +1,24 @@
 from exarl.agents.registration import register, make
-import exarl.utils.candleDriver as cd
-agent = cd.lookup_params('agent')
+from exarl.utils.globals import ExaGlobals
+try:
+    agent = ExaGlobals.lookup_params('agent')
+except:
+    agent = None
 
 if agent == 'DQN-v0':
     register(
         id=agent,
         entry_point='exarl.agents.agent_vault:DQN'
+    )
+elif agent == 'DQN-v1':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:DQN_v1'
+    )
+elif agent == 'DQN-v2':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:DQN_v2'
     )
 elif agent == 'DDPG-v0':
     register(
@@ -17,5 +30,23 @@ elif agent == 'DDPG-VTRACE-v0':
         id=agent,
         entry_point='exarl.agents.agent_vault:DDPG_Vtrace'
     )
-else:
-    print("No agent selected!")
+elif agent == 'SAC-v0':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:SAC'
+    )
+elif agent == 'SAC-v1':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:SAC_squash'
+    )
+elif agent == 'TD3-v0':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:TD3'
+    )
+elif agent == 'TD3-v1':
+    register(
+        id=agent,
+        entry_point='exarl.agents.agent_vault:KerasTD3'
+    )

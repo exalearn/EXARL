@@ -60,7 +60,7 @@ from exarl.candlelib.helper_utils import search
 # import benchmark-dependent utils
 import sys
 
-if search(sys.modules, 'keras'):
+if search(sys.modules, 'keras') or search(sys.modules, 'tensorflow'):
     print('Importing candle utils for keras')
 
     # import from keras_utils

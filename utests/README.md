@@ -1,60 +1,65 @@
 # Unit Testing for ExaRL
-A pytest based unit testing is implemented to evaluate ExaRL agents. So far this implementation is limited to a DQN agent in ExaRL.
-Using this implementation as an example, more unit test cases can be implemented and  unit testing can be extended to evaluate other agents in ExaRL to generalize the unit testing for custom agents.
+A pytest based unit testing is implemented to evaluate ExaRL.  Our current testing strategy is focused on the base classes of ExaRL 
+including environments, agents, workflows, communicators, and data structures.
 
 ## Unit Test Cases for DQN agent
-The pytest framework runs each test case method as an independent instance. Multiple test cases are grouped in a TestClass, as implemented in utest_dqn.py
-Each method in TestClass, with a prefix test_*, will be run by the pytest framework as an independent instance. There are 14 such methods in TestClass, each dedicated for a specific unit test case.
-* Test case 1: Tests MPI comm initialization
+The pytest framework allows for tests to be divided by file, class, and individual test.
+We spread our unit tests across the following files:
+* utest_comm.py : This module tests the basic communicator wrappers.  It focuses on class members and comm splitting.
+* utest_data_structure.py : This module test RMA data structures for correctness.  There are some performance tests which can be manually tuned (they are turned off by default).
+* utest_env.py : This module can tests the functionality set by openAI gym that is required by ExaRL.
+* utest_agent.py : This module tests various members of the ExaRL agent.  It checks for required methods, it does not check for correct learning.
+* utest_workflow.py : This module tests for correct functionality of a workflow.
+
+utest_env.py and utest_agent.py designed to help users of ExaRL create correct environment and agents.  Each test has configurable arguments which can be set. 
+
+For utest_env.py: 
+* test_env_name - gym name for test (e.g. ExaCartPoleStatic-v0)
+* test_env_class - name of the class for test module (e.g. ExaCartpoleStatic)
+* test_env_file - name of the file containing test_env_class omitting the ".py" (e.g. ExaCartpoleStatic)
+To use call:
 ```
-def test_initialize_parameters(self)
+./utest_env.py --test_env_name ExaCartPoleStatic-v0 --test_env_class ExaCartpoleStatic --test_env_file ExaCartpoleStatic
 ```
-* Test case 2: Tests DQN agent's init(), which includes testing correct parameter configuration, and test if the model.compile() (LSTM and MLP) is executed correctly by the DQN agent.
+If only test_env_name is given, we assume the environment is already in the gym registry. If no arguments are given a synthetic environment is generated.
+
+For utest_agent.py:
+This is a pytest fixture to add an agent to the agent registry based on command line arguments.
+* test_agent_name - gym name for test (e.g. DQN-v0)
+* test_agent_class - name of the class for test module (e.g. DQN)
+* test_agent_file - name of the file containing test_env_class omitting the ".py" (e.g. dqn)
+* test_env_name - gym name for test (e.g. ExaCartPoleStatic-v0)
+* test_env_class - name of the class for test module (e.g. ExaCartpoleStatic)
+* test_env_file - name of the file containing test_env_class omitting the ".py" (e.g. ExaCartpoleStatic)
+* test_save_load_dir - this is the path to a directory to use for testing saving and loading weights
+To use call: 
 ```
-def test_init(self)
+pytest ./utest_agent.py --test_agent_name DQN-v0 --test_agent_class DQN --test_agent_file dqn
 ```
-* Test case 3: Tests if the set_learner() method of the DQN agent is correctly executed.
+If the environment parameters are omitted a synthetic environment is generated.
+
+There are additional flags which can be used for utest_workflow.py
+* on-policy - configures how off policy an actor can be before asserting.  Set to -1 to just record (default).
+* behind - configures how old of data a learner can accept from an actor before asserting.  Set to -1 to just record (default).
+* rank_sleep - Toggles on/off rank based sleeping scheme for training and stepping.  Default is off.
+* random_sleep - Toggles on/off random sleeping for training and stepping.  Default is off.
+To use call:
 ```
-def test_set_learner(self)
-```
-* Test case 4: Test if remember() method of the DQN agent is correctly executed.
-```
-def test_remember(self)
-```
-* Test case 5: Tests is get_weights() method returns
-```
-def test_get_weights(self)
-```
-* Test case 6: Tests set_weights() methods corrects sets weights
-```
-def test_set_weights(self)
-```
-* Test case 7: Tests action() returns correct action value and policy value
-```
-def test_action(self)
-```
-* Test case 8: Tests generate_data() yields correctly from memory
-```
-def test_generate_data(self)
-```
-* Test case 9: Tests train() method to check if model.fit() is executed correctly inside train() by the DQN agent
-```
-def test_train(self)
-```
-* Test case 10: Tests target_train() methods to check if weights are updated
-```
-def test_target_train(self)
-```
-* Test case 11 to Test 14 are implemented to check if abstract methods are implemented in DQN agent.
-```
-def test_load(self)  # 11
-def test_save(self)  # 12
-def test_update(self)  # 13
-def test_monitor(self)  # 14
+pytest ./utest_workflow.py --on-policy 1 --behind 1 --random_sleep 
 ```
 
 ## Run
-The test methods (test_*) are executed by the pytest framework by running 'pytest' command from the ExaRL parent directory (exarl/).
+There are many ways to run pytest.  The following is a helpful guide:
+https://docs.pytest.org/en/7.1.x/how-to/usage.html
+
+Batch schedulers wrap nicely around pytest:
+```
+srun -N 1 -n 2  pytest utests/utest_workflow.py
+```
+The current test will try to create various configurations of leaners and actors based on the number of ranks provided.  If a current node count is not support within a test, it will skip all the tests.  This will happen for the utest_env.py test if invoked with only a single rank.  All other tests can be run with a single rank, but care should be taken to make sure it is meaningful.  For example testing an async learner with only one rank would be problematic.
+
+## pytest.ini
+The test methods (test_*) can be executed by the pytest framework by running 'pytest' command from the ExaRL parent directory (exarl/).
 ```
 ExaRL/utests % cd ..
 ExaRL % pytest
@@ -64,7 +69,7 @@ The pytest.ini file is a configuration file used by the pytest framework. It inc
 ```
 pytest.ini file
 
-addopts = --ignore=./envs --disable-warnings --showlocals --color=yes --code-highlight=yes
+addopts = --ignore=./envs --showlocals --color=yes
 ```
 Other configuration parameters in pytest.ini are:
 * python_files: It identifies *.py files which are only run by pytest command.
@@ -72,31 +77,5 @@ Other configuration parameters in pytest.ini are:
 * testpaths: It specifies folder names in ExaRL/ which are the only folders run by the pytest command.
 * Other configurations are dedicated for logging.
 
-The ExaRL/pytest.ini file looks like:
-```
-[pytest]
-addopts = --ignore=./envs --disable-warnings --showlocals --color=yes --code-highlight=yes
-python_files = utest_*.py
-python_functions = test_*
-testpaths = utests
-console_output_style = classic
-log_cli = True
-log_file_date_format = %Y-%m-%d %H:%M:%S
-log_file_format = %(asctime)s %(levelname)s %(message)s
-log_file = ./utests/logs/pytest-utest.log
-```
 ## Integration with Travis CI
 The pytest framework for unit testing has been integrated with build test framework provided by Travis CI. Consequently, ExaRL/.travis.yml and ExaRL/setup.py files have been updated to take effect.
-
-## Example Runs
-The live status logging for each test case is enabled. This shows whether a test case has PASSED or FAILED.
-* When all test cases are PASSED the console output will look like:
-![](allpass.png)
-* To show a scenario when a test case fails, test_train() is used to check if the train() method in the DQN agent correctly executes model.fit(). This is done by comparing history objects from two different model.fit() runs. The history contains metrics returned by model.fit().
-The following console output shows the failed test and a trace of the error occurred:
-![](trainfail1.png)
-![](trainfail2.png)
-
-
-This error occurred because two values (such as loss, accuracy, etc) in the history metrics are exactly the same. This is not possible if the model.fit() is setup and run correctly.
-The final pytest results for this run shows that 1 test failed, and 13 tests passed.

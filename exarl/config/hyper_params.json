@@ -1,0 +1,14 @@
+{
+"agent": "DQN-v0",
+"parameters": {
+    "gamma": [0.001, 0.1],
+    "batch_size": [5, 128],
+    "epsilon" : [0.01, 1.0],
+    "epsilon_decay" : [0.1, 1.0],
+    "learning_rate" : [0.001, 1.0],
+    "tau" : [0.01, 1.0]
+},
+"objective": "all",
+"sampler": "tpe",
+"trials": 1
+}

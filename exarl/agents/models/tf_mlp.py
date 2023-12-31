@@ -18,26 +18,33 @@
 #                             for the
 #                   UNITED STATES DEPARTMENT OF ENERGY
 #                    under Contract DE-AC05-76RL01830
+import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, Input, Flatten
+from gym.spaces.utils import flatdim
+from exarl.agents.models.tf_model import Tensorflow_Model
+from exarl.utils.globals import ExaGlobals
 
+class MLP(Tensorflow_Model):
+    def __init__(self, observation_space, action_space, use_gpu=True):
+        super(MLP, self).__init__(observation_space, action_space, use_gpu)
+        self.batch_size = ExaGlobals.lookup_params('batch_size')
+        self.dense = ExaGlobals.lookup_params('dense')
+        self.activation = ExaGlobals.lookup_params('activation')
+        self.out_activation = ExaGlobals.lookup_params('out_activation')
+        self.loss = ExaGlobals.lookup_params('loss')
+        # self.optimizer = ExaGlobals.lookup_params('optimizer')
+        self.optimizer = tf.keras.optimizers.Adam()
 
-def build_model(self):
-    # Input: state
-    layers = []
-    state_input = Input(shape=(1, self.env.observation_space.shape[0]))
-    layers.append(state_input)
-    length = len(self.dense)
-    # for i, layer_width in enumerate(self.dense):
-    for i in range(length):
-        layer_width = self.dense[i]
-        layers.append(Dense(layer_width, activation=self.activation)(layers[-1]))
-    # output layer
-    layers.append(Dense(self.env.action_space.n, activation=self.out_activation)(layers[-1]))
-    layers.append(Flatten()(layers[-1]))
-
-    model = Model(inputs=layers[0], outputs=layers[-1])
-    # model.summary()
-    print('', flush=True)
-
-    return model
+    def _build(self):
+        layers = []
+        # Input: state
+        state_input = Input(shape=(flatdim(self.observation_space),), batch_size=self.batch_size)
+        layers.append(state_input)
+        for i in range(len(self.dense)):
+            layer_width = self.dense[i]
+            layers.append(Dense(layer_width, activation=self.activation)(layers[-1]))
+        # Output layer
+        layers.append(Dense(flatdim(self.action_space), dtype='float32', activation=self.out_activation)(layers[-1]))
+        layers.append(Flatten()(layers[-1]))
+        self._model = Model(inputs=layers[0], outputs=layers[-1])
