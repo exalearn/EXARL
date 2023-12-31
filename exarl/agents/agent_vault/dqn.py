@@ -267,7 +267,7 @@ class DQN(erl.ExaAgent):
         else:
             np_state = np.array(state).reshape(1, 1, len(state))
             with tf.device(self.device):
-                act_values = self.target_model.predict(np_state)
+                act_values = self.model.predict(np_state)
             action = np.argmax(act_values[0])
             return action, 1
 
