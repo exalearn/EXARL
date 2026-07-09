@@ -21,6 +21,7 @@
 import os
 import numpy as np
 import random
+import time
 from datetime import datetime
 
 
@@ -68,7 +69,7 @@ class OUActionNoise2:
         float
             noise
         """
-        random.seed(datetime.now())
+        random.seed(int(time.time()))
         random_data = os.urandom(4)
         np.random.seed(int.from_bytes(random_data, byteorder="big"))
         dx = self.damping * (self.mean - self.x_prev)
@@ -116,7 +117,7 @@ class OUActionNoise:
         float
             noise
         """
-        random.seed(datetime.now())
+        random.seed(int(time.time()))
         random_data = os.urandom(4)
         np.random.seed(int.from_bytes(random_data, byteorder="big"))
         x = (

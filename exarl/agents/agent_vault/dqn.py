@@ -38,7 +38,7 @@ from exarl.agents.agent_vault._prioritized_replay import PrioritizedReplayBuffer
 import exarl.utils.candleDriver as cd
 from exarl.utils import log
 from exarl.utils.introspect import introspectTrace
-from tensorflow.compat.v1.keras.backend import set_session
+
 
 if ExaComm.num_learners > 1:
     import horovod.tensorflow as hvd
@@ -147,18 +147,20 @@ class DQN(erl.ExaAgent):
         self.dtype_observation = self.env.observation_space.sample().dtype
 
         # Setup GPU cfg
+        gpus = tf.config.list_physical_devices('GPU')
         if ExaComm.is_learner():
             logger.info("Setting GPU rank", self.rank)
-            config = tf.compat.v1.ConfigProto(device_count={'GPU': 1, 'CPU': 1})
+            if gpus:
+                try:
+                    for gpu in gpus:
+                        tf.config.experimental.set_memory_growth(gpu, True)
+                except RuntimeError as e:
+                    logger.error(e)
         else:
             logger.info("Setting no GPU rank", self.rank)
-            config = tf.compat.v1.ConfigProto(device_count={'GPU': 0, 'CPU': 1})
+            tf.config.set_visible_devices([], 'GPU')
         # Get which device to run on
         self.device = self._get_device()
-
-        config.gpu_options.allow_growth = True
-        sess = tf.compat.v1.Session(config=config)
-        tf.compat.v1.keras.backend.set_session(sess)
 
         # Build network model
         if self.is_learner:
@@ -256,7 +258,7 @@ class DQN(erl.ExaAgent):
         Returns:
             (list or array): Action to take
         """
-        random.seed(datetime.now())
+        random.seed(int(time.time()))
         random_data = os.urandom(4)
         np.random.seed(int.from_bytes(random_data, byteorder="big"))
         rdm = np.random.rand()
